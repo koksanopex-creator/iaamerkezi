@@ -1,0 +1,164 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany; // HasMany'i import et
+use App\Models\Iaa; // <-- BU SATIRI en üste (use'ların yanına) EKLE
+
+class MusteriSikayeti extends Model
+{
+    use HasFactory;
+
+    protected $table = 'musteri_sikayetleri';
+
+    protected $fillable = [
+        'iaa_id', // <-- YENİ EKLENDİ
+        'musteri_adi',
+        'musteri_iletisim',
+        'konum_tipi',
+        'musteri_sikayet_konusu',
+        'musteri_sikayet_detayi',
+        'musteri_urun_veya_hizmet',
+        'musteri_barkod_resim_yolu',
+        'musteri_sikayet_tarihi',
+        'musteri_durum',
+        'musteri_oncelik',
+        'atanan_cozum_takimi_id',
+        'musteri_cozum_notlari',
+        'musteri_onay_tarihi',
+        'kurul_onay_tarihi',
+        'olusturan_kurul_uyesi_id',
+        'sikayet_kategorisi_id', // <-- YENİ EKLENDİ
+        'musteri_cozum_son_tarihi',
+        'musteri_ek_sure_talep_durumu',
+        'musteri_puan',
+        'kazanilan_puan', // <-- YENİ EKLENDİ
+        'ek_sure_talep_aciklamasi', // <-- YENİ EKLENDİ
+        'etki_puani', // <-- YENİ EKLENDİ
+        'karmasiklik_puani', // <-- YENİ EKLENDİ
+
+        // === YENİ EKLENECEK ALANLAR ===
+        'takip_token',
+        'guest_password_hash',
+        'musteri_feedback',
+        'musteri_feedback_note',
+        'edit_locked_at'
+        // ===============================
+    ];
+
+    // === BU BLOĞU EKLE ===
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'musteri_sikayet_tarihi' => 'date',
+        'musteri_onay_tarihi' => 'datetime',
+        'kurul_onay_tarihi' => 'datetime',
+        'musteri_cozum_son_tarihi' => 'datetime',
+        'edit_locked_at' => 'datetime',
+    ];
+    // === EKLEME SONU ===
+
+    // === YENİ İLİŞKİYİ EKLE ===
+    /**
+     * Bu şikayetin dönüştürüldüğü IAA projesini getirir.
+     */
+    public function iaaProjesi()
+    {
+        return $this->belongsTo(Iaa::class, 'iaa_id');
+    }
+    // === İLİŞKİ SONU ===
+
+    public function cozumTakimi()
+    {
+        // Takim modelinin tam yolunu belirtmek daha güvenli olabilir
+        return $this->belongsTo(\App\Models\Takim::class, 'atanan_cozum_takimi_id');
+    }
+
+    public function olusturanKurulUyesi()
+    {
+        return $this->belongsTo(User::class, 'olusturan_kurul_uyesi_id');
+    }
+
+    /**
+     * Bir şikayetin birden çok dosyası olabilir (hasMany relationship).
+     */
+    public function dosyalar()
+    {
+        // 'musteri_sikayeti_id' yabancı anahtarı üzerinden ilişki kurar.
+        return $this->hasMany(MusteriSikayetiDosyasi::class, 'musteri_sikayeti_id');
+    }
+
+    /**
+     * Bir şikayetin ait olduğu kategori (belongsTo relationship).
+     */
+    public function sikayetKategori()
+    {
+        // 'sikayet_kategorisi_id' yabancı anahtarı üzerinden ilişki kurar.
+        return $this->belongsTo(SikayetKategori::class, 'sikayet_kategorisi_id');
+    }
+
+    /**
+     * Şikayete ait işlem logları.
+     */
+    public function loglar(): HasMany
+    {
+        return $this->hasMany(MusteriSikayetiLog::class, 'musteri_sikayeti_id')->latest(); // En yeniden eskiye
+    }
+
+    /**
+     * Öncelik durumu için Tailwind CSS sınıfını döndürür.
+     * Veritabanındaki 'musteri_oncelik' değerini okur ve CSS sınıfı üretir.
+     */
+    public function getOncelikBadgeClassAttribute(): string
+    {
+        switch ($this->musteri_oncelik) {
+            case 'Acil':
+                return 'bg-red-100 text-red-800';
+            case 'Yüksek':
+                return 'bg-orange-100 text-orange-800'; // Yüksek için Turuncu
+            case 'Normal':
+                return 'bg-blue-100 text-blue-800';   // Normal için Mavi
+            case 'Düşük':
+                return 'bg-gray-100 text-gray-800';   // Düşük için Gri
+            default:
+                return 'bg-blue-100 text-blue-800';
+        }
+    }
+
+    /**
+     * Durum için Tailwind CSS badge HTML'ini döndürür.
+     * Veritabanındaki 'musteri_durum' değerini okur ve HTML üretir.
+     */
+    public function getMusteriDurumBadgeAttribute(): string
+    {
+        $class = '';
+        switch ($this->musteri_durum) {
+            case 'Yeni':
+                $class = 'bg-yellow-100 text-yellow-800';
+                break;
+            case 'İşlemde':
+                $class = 'bg-blue-100 text-blue-800';
+                break;
+            case 'Çözümlendi':
+            case 'Kapatıldı':
+                $class = 'bg-green-100 text-green-800';
+                break;
+            case 'Yeniden Açıldı': // Senaryonuz için eklendi
+            case 'Revize':       // Senaryonuz için eklendi
+                $class = 'bg-red-100 text-red-800';
+                break;
+            default:
+                $class = 'bg-gray-100 text-gray-800';
+        }
+        
+        // Doğrudan HTML olarak hazır bir badge (etiket) döndürüyoruz
+        return "<span class=\"inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {$class}\">{$this->musteri_durum}</span>";
+    }
+
+
+}

@@ -192,16 +192,15 @@
                                 @if($sikayet->dosyalar->isNotEmpty())
                                     <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                         @foreach ($sikayet->dosyalar as $dosya)
-                                            {{-- Alpine.js'in bu div'i gizleyebilmesi için x-show eklendi --}}
                                             <div x-show="!deletedFileIds.includes({{ $dosya->id }})" class="relative group bg-gray-100 rounded-lg overflow-hidden border">
-                                                {{-- Resimse önizlemesini göster --}}
                                                 @if (Str::startsWith($dosya->mime_tipi, 'image/'))
-                                                    <a href="{{ Storage::url($dosya->dosya_yolu) }}" data-fancybox="gallery" data-caption="{{ $dosya->orijinal_adi }}">
-                                                        <img src="{{ Storage::url($dosya->dosya_yolu) }}" alt="{{ $dosya->orijinal_adi }}" class="object-cover h-24 w-full">
+                                                    {{-- 🚨 Düzeltme 1 ve 2 --}}
+                                                    <a href="{{ asset('storage/' . $dosya->dosya_yolu) }}" data-fancybox="gallery" data-caption="{{ $dosya->orijinal_adi }}">
+                                                        <img src="{{ asset('storage/' . $dosya->dosya_yolu) }}" alt="{{ $dosya->orijinal_adi }}" class="object-cover h-24 w-full">
                                                     </a>
                                                 @else
-                                                    {{-- Resim değilse ikon göster --}}
-                                                    <a href="{{ Storage::url($dosya->dosya_yolu) }}" target="_blank" class="flex flex-col items-center justify-center h-24 bg-gray-200 p-2">
+                                                    {{-- 🚨 Düzeltme 3 --}}
+                                                    <a href="{{ asset('storage/' . $dosya->dosya_yolu) }}" target="_blank" class="flex flex-col items-center justify-center h-24 bg-gray-200 p-2">
                                                         <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0011.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                                                     </a>
                                                 @endif

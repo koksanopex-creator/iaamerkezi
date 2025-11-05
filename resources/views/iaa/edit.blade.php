@@ -75,13 +75,13 @@
                                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="current-images-container">
                                     @foreach($iaa->resimler as $resim)
                                         <div class="relative group" id="resim-{{ $resim->id }}">
-                                            <img src="{{ Storage::url($resim->dosya_yolu) }}" alt="Mevcut Resim" class="rounded-md object-cover h-40 w-full border border-gray-300">
-                                            <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity delete-image-btn" data-image-id="{{ $resim->id }}">
+                                            {{-- 🚨 DÜZELTME BURADA: Storage::url() yerine asset('storage/...') kullanıldı --}}
+                                            <img src="{{ asset('storage/' . $resim->dosya_yolu) }}" alt="Mevcut Resim" class="rounded-md object-cover h-40 w-full border border-gray-300">
+                                            <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity delete-image-btn" data-image-id="{{ $resim->id}">
                                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                             </button>
-                                            {{-- DÜZELTME: 'name' attribute'ü başlangıçta olmayacak --}}
                                             <input type="hidden" class="deleted-image-input" value="">
                                         </div>
                                     @endforeach

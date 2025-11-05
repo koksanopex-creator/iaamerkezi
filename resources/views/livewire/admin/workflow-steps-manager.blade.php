@@ -99,8 +99,17 @@
                                      </div>
                                      <div>
                                          {{-- Sıralama Butonları (Sürükle-Bırak çalışmazsa diye) --}}
-                                         <button type="button" wire:click="moveWidgetUp({{ $index }})" class="text-gray-400 hover:text-gray-600 disabled:opacity-50" @if($loop->first) disabled @endif>↑</button>
-                                         <button type="button" wire:click="moveWidgetDown({{ $index }})" class="text-gray-400 hover:text-gray-600 disabled:opacity-50" @if($loop->last) disabled @endif>↓</button>
+                                        <button type="button"
+                                                wire:click.stop="moveWidgetUp({{ $index }})"
+                                                class="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                                                @if($loop->first) disabled @endif>↑</button>
+
+                                        <button type="button"
+                                                wire:click.stop="moveWidgetDown({{ $index }})"
+                                                class="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                                                @if($loop->last) disabled @endif>↓</button>
+
+
                                          <button type="button" wire:click="removeWidget({{ $index }})" class="ml-2 text-red-500 hover:text-red-700 text-xs font-bold">X</button>
                                      </div>
                                  </div>

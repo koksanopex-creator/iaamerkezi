@@ -1,9 +1,12 @@
 {{-- resources/views/livewire/project/widgets/_line-chart.blade.php --}}
 @props(['index', 'config'])
 
-@php $chartComponentId = $this->getId() . '-' . $index; @endphp
+@php
+  $rootId = $this->getId();                      // <-- EKLENDİ
+  $chartComponentId = $rootId . '-' . $index;    // <-- GÜNCELLENDİ
+@endphp
 
-<div x-data="genericChartComponent('{{ $chartComponentId }}', 'line')" x-init="initChart()">
+<div x-data="genericChartComponent('{{ $chartComponentId }}', 'line', '{{ $rootId }}')" x-init="initChart()">
     {{-- Grafik Başlığı ve Eksen Ayarları --}}
      <h4 class="text-lg font-semibold text-gray-800 mb-1">
         {{-- DÜZELTME: wire:model toolsData'ya bağlandı --}}

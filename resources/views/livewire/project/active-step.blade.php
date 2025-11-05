@@ -46,7 +46,8 @@
                             @case('pareto')
                                 {{-- Pareto için ilk veriyi global değişkene yaz --}}
                                 @php $paretoId = $this->getId(); @endphp
-                                <script> window.initialParetoData_{{ $paretoId }} = @json($initialChartData['pareto'][$paretoId] ?? null); </script>
+                                <script> window['initialParetoData_{{ $paretoId }}'] = @json($initialChartData['pareto'][$paretoId] ?? null); </script>
+
                                 @include('livewire.project.widgets._pareto', $widgetData)
                                 @break
                             @case('user_select')
@@ -67,13 +68,14 @@
                                 {{-- Sütun grafiği için ilk veriyi global değişkene yaz --}}
                                 @php $chartId = $this->getId() . '-' . $index; @endphp
                                 {{-- $initialChartData PHP component'inden geliyor --}}
-                                <script> window.initialChartData_{{ $chartId }} = @json($initialChartData['bar_chart'][$chartId] ?? null); </script>
+<script> window['initialChartData_{{ $chartId }}'] = @json($initialChartData['bar_chart'][$chartId] ?? null); </script>
+
                                 @include('livewire.project.widgets._bar-chart', $widgetData)
                                 @break
                             @case('line_chart')
                                 {{-- Çizgi grafiği için ilk veriyi global değişkene yaz --}}
                                 @php $chartId = $this->getId() . '-' . $index; @endphp
-                                <script> window.initialChartData_{{ $chartId }} = @json($initialChartData['line_chart'][$chartId] ?? null); </script>
+<script> window['initialChartData_{{ $chartId }}'] = @json($initialChartData['line_chart'][$chartId] ?? null); </script>
                                 @include('livewire.project.widgets._line-chart', $widgetData)
                                 @break
                             {{-- ============================== --}}

@@ -64,8 +64,8 @@
                                 <h3 class="text-xl font-bold text-gray-800 mb-4">Eklenen Resimler</h3>
                                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     @foreach($iaa->resimler as $resim)
-                                        <a href="{{ Storage::url($resim->dosya_yolu) }}" target="_blank" class="block group relative">
-                                            <img src="{{ Storage::url($resim->dosya_yolu) }}" alt="İAA Resmi" class="rounded-lg object-cover w-full h-40 transform group-hover:scale-105 transition-transform duration-300">
+                                        <a href="{{ asset('storage/' . $resim->dosya_yolu) }}" target="_blank" class="block group relative">
+                                            <img src="{{ asset('storage/' . $resim->dosya_yolu) }}" alt="İAA Resmi" class="rounded-lg object-cover w-full h-40 transform group-hover:scale-105 transition-transform duration-300">
                                             <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 rounded-lg flex items-center justify-center">
                                                 <svg class="w-10 h-10 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                             </div>

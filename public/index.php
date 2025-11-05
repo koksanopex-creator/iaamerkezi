@@ -17,4 +17,10 @@ require __DIR__.'/../vendor/autoload.php';
 /** @var Application $app */
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
+// 🚨 KRİTİK IIS ALT DİZİN FIX BAŞLANGICI 🚨
+// Livewire ve tüm rotaların /iaa altından doğru çalışmasını sağlamak için.
+$_SERVER['SCRIPT_NAME'] = '/iaa/index.php';
+$_SERVER['PHP_SELF'] = '/iaa/index.php'; 
+// 🚨 KRİTİK IIS ALT DİZİN FIX SONU 🚨
+
 $app->handleRequest(Request::capture());

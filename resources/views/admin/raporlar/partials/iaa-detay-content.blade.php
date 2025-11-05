@@ -29,8 +29,9 @@
         <h4 class="font-semibold mb-2">Eklenen Resimler:</h4>
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
             @foreach($iaa->resimler as $resim)
-                <a href="{{ Storage::url($resim->dosya_yolu) }}" target="_blank" class="block group relative">
-                    <img src="{{ Storage::url($resim->dosya_yolu) }}" alt="İAA Resmi" class="rounded-lg object-cover w-full h-28 transform group-hover:scale-105 transition-transform duration-300">
+                {{-- 🚨 DÜZELTME BURADA: Storage::url() yerine asset('storage/...') kullanıldı --}}
+                <a href="{{ asset('storage/' . $resim->dosya_yolu) }}" target="_blank" class="block group relative">
+                    <img src="{{ asset('storage/' . $resim->dosya_yolu) }}" alt="İAA Resmi" class="rounded-lg object-cover w-full h-28 transform group-hover:scale-105 transition-transform duration-300">
                 </a>
             @endforeach
         </div>

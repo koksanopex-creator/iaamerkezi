@@ -1,142 +1,119 @@
-{{-- resources/views/livewire/project/widgets/_generic-chart-script.blade.php --}}
-{{-- Bu dosya layout'a bir kere push edilecek --}}
-@pushOnce('scripts')
+@once
+@push('scripts')
 <script>
-    document.addEventListener('alpine:init', () => {
-        // Bar ve Line Chart için ortak Alpine component'i
-        Alpine.data('genericChartComponent', (componentId, chartType = 'bar') => ({
-            chartInstance: null,
-            chartId: 'genericChart-' + componentId, // Canvas ID
-            livewireEventName: (chartType === 'bar' ? 'updateBarChart-' : 'updateLineChart-') + componentId,
+document.addEventListener('alpine:init', () => {
+  Alpine.data('genericChartComponent', (componentId, chartType = 'bar') => ({
+    chartInstance: null,
+    chartId: 'genericChart-' + componentId,
+    livewireEventName: (chartType === 'bar' ? 'updateBarChart-' : 'updateLineChart-') + componentId,
 
-            // İlk veriyi global değişkenden okuyarak başlat
-            initChart() {
-                this.$nextTick(() => {
-                    // İlk veriyi PHP'nin render ettiği global değişkenden al
-                    const initialData = window['initialChartData_' + componentId];
-                    if(initialData) {
-                        // Eğer veri varsa, Chart.js'in beklediği formata çevirip çiz
-                        this.drawChart(this.formatDataForChart(initialData, chartType));
-                    } else {
-                        // Eğer ilk veri yoksa (adım yeni oluşturulduysa vs.),
-                        // backend'den veriyi iste (boş grafik çizilecek)
-                        const widgetIndex = componentId.split('-').pop();
-                        // İlk yüklemede hata almamak için varlık kontrolü
-                        if (typeof @this !== 'undefined' && @this) {
-                            if (chartType === 'bar' && typeof @this.call === 'function') {
-                                 @this.call('generateBarChartData', widgetIndex);
-                            } else if (chartType === 'line' && typeof @this.call === 'function') {
-                                 @this.call('generateLineChartData', widgetIndex);
-                            }
-                        }
-                    }
-                });
+    initChart() {
+      this.$nextTick(() => {
+        const initialData = window['initialChartData_' + componentId];
 
-                // Livewire'dan BUTONLA tetiklenen güncellemeleri dinle
-                Livewire.on(this.livewireEventName, ({ data }) => {
-                    this.drawChart(data); // Güncelleme = Yok et ve yeniden çiz
-                });
-            },
+        if (initialData) {
+          this.drawChart(this.formatDataForChart(initialData, chartType));
+        } else {
+          // Livewire instance'i güvenli şekilde bul
+          const bits = String(componentId).split('-');   // "<livewireId>-<index>"
+          const widgetIndex = bits[bits.length - 1];
+          const rootId = bits.slice(0, -1).join('-');
+          const lw = window.Livewire?.find?.(rootId);
 
-            // PHP'den gelen Collection->toArray() verisini veya Event verisini Chart.js formatına çevirir
-            formatDataForChart(processedData, type) {
-                if (!processedData) return null; // Null kontrolü
-                // Gelen veri zaten event'ten geliyorsa (labels, values içeriyorsa)
-                if (processedData.labels && processedData.values) {
-                     return processedData;
-                }
-                // Gelen veri PHP'den geliyorsa (Collection->toArray())
-                else if (Array.isArray(processedData) && processedData.length > 0 && typeof processedData[0]?.label !== 'undefined') {
-                     return {
-                        labels: processedData.map(item => item.label),
-                        values: processedData.map(item => item.value),
-                        // Eksik config bilgileri için varsayılanlar
-                        axis_x: type === 'bar' ? 'Kategoriler' : 'Kategoriler',
-                        axis_y: type === 'bar' ? 'Değerler' : 'Değerler',
-                        title: type === 'bar' ? 'Sütun Grafiği' : 'Çizgi Grafiği'
-                    };
-                }
-                 // Veri boş veya geçersizse null dön
-                 else if (Array.isArray(processedData) && processedData.length === 0) {
-                      return { labels: [], values: [], axis_x: '', axis_y: '', title: '' }; // Boş grafik için
-                 }
-                return null;
-            },
+          if (lw?.$wire) {
+            if (chartType === 'bar') lw.$wire.generateBarChartData(widgetIndex);
+            else lw.$wire.generateLineChartData(widgetIndex);
+          }
+        }
+      });
 
+      // Güncellemeleri dinle
+      window.Livewire?.on(this.livewireEventName, ({ data }) => {
+        this.drawChart(data);
+      });
 
-            // Grafik çizme/yeniden çizme fonksiyonu
-            drawChart(chartData) {
-                requestAnimationFrame(() => { // Güvenlik için RAF kalsın
-                    const chartCanvas = document.getElementById(this.chartId);
-                    // chartData veya labels/values yoksa çizme
-                    if (!chartCanvas || !chartData || !chartData.labels || !chartData.values) {
-                        if (this.chartInstance) { // Eski grafik varsa yok et
-                            this.chartInstance.destroy(); this.chartInstance = null;
-                        }
-                        return;
-                    }
-                    const ctx = chartCanvas.getContext('2d');
-                    if (!ctx) { return; }
+      // Sayfadan ayrılırken / Livewire navigasyonunda emin ol: grafiği kapat
+      window.addEventListener('beforeunload', () => this.destroyChart());
+      document.addEventListener('livewire:navigating', () => this.destroyChart());
+    },
 
-                    if (this.chartInstance) { // Eski grafik varsa yok et
-                        this.chartInstance.destroy();
-                        this.chartInstance = null;
-                    }
+    destroyChart() {
+      try {
+        if (this.chartInstance) {
+          this.chartInstance.destroy();
+          this.chartInstance = null;
+        }
+      } catch (e) {}
+    },
 
-                    // Grafik seçeneklerini ayarla
-                    const chartOptions = {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: !!chartData.title,
-                                text: chartData.title || ''
-                            },
-                            legend: {
-                                display: false // Tek dataset olduğu için gizle
-                            }
-                        },
-                        scales: {
-                            x: {
-                                title: {
-                                    display: !!chartData.axis_x,
-                                    text: chartData.axis_x || ''
-                                }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: !!chartData.axis_y,
-                                    text: chartData.axis_y || ''
-                                }
-                            }
-                        }
-                    };
+    formatDataForChart(processedData, type) {
+      if (!processedData) return null;
 
-                    // Veri setini ayarla
-                    const chartDataset = {
-                            label: chartData.axis_y || 'Değerler',
-                            data: chartData.values,
-                            backgroundColor: chartType === 'bar' ? 'rgba(75, 192, 192, 0.5)' : undefined, // Bar için renk
-                            borderColor: 'rgba(75, 192, 192, 1)', // Bar border ve Line rengi
-                            borderWidth: chartType === 'bar' ? 1 : 2,
-                            tension: chartType === 'line' ? 0.1 : undefined,
-                            fill: chartType === 'line' ? false : undefined,
-                    };
+      if (processedData.labels && processedData.values) {
+        return processedData;
+      } else if (Array.isArray(processedData) && processedData.length > 0 && typeof processedData[0]?.label !== 'undefined') {
+        return {
+          labels: processedData.map(i => i.label),
+          values: processedData.map(i => i.value),
+          axis_x: 'Kategoriler',
+          axis_y: 'Değerler',
+          title: type === 'bar' ? 'Sütun Grafiği' : 'Çizgi Grafiği'
+        };
+      } else if (Array.isArray(processedData) && processedData.length === 0) {
+        return { labels: [], values: [], axis_x: '', axis_y: '', title: '' };
+      }
+      return null;
+    },
 
-                    // Yeni grafiği oluştur
-                    this.chartInstance = new Chart(ctx, {
-                        type: chartType, // 'bar' veya 'line'
-                        data: {
-                            labels: chartData.labels,
-                            datasets: [chartDataset]
-                        },
-                        options: chartOptions
-                    });
-                });
-            },
-        }));
-    });
+    drawChart(chartData) {
+      requestAnimationFrame(() => {
+        const chartCanvas = document.getElementById(this.chartId);
+
+        // Canvas yoksa/dışıysa ya da veri yoksa: varsa grafiği kapat ve çık
+        if (!chartCanvas || !document.body.contains(chartCanvas) || !chartData || !chartData.labels || !chartData.values) {
+          this.destroyChart();
+          return;
+        }
+
+        const ctx = chartCanvas.getContext('2d');
+        if (!ctx) { this.destroyChart(); return; }
+
+        // Eski grafik varsa kapat
+        this.destroyChart();
+
+        const chartOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,               // <— animasyonu kapattık
+          plugins: {
+            title: { display: !!chartData.title, text: chartData.title || '' },
+            legend: { display: false }
+          },
+          scales: {
+            x: { title: { display: !!chartData.axis_x, text: chartData.axis_x || '' } },
+            y: { beginAtZero: true, title: { display: !!chartData.axis_y, text: chartData.axis_y || '' } }
+          }
+        };
+
+        const chartDataset = {
+          label: chartData.axis_y || 'Değerler',
+          data: chartData.values,
+          backgroundColor: chartType === 'bar' ? 'rgba(75, 192, 192, 0.5)' : undefined,
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: chartType === 'bar' ? 1 : 2,
+          tension: chartType === 'line' ? 0.1 : undefined,
+          fill: chartType === 'line' ? false : undefined,
+        };
+
+        this.chartInstance = new Chart(ctx, {
+          type: chartType,
+          data: { labels: chartData.labels, datasets: [chartDataset] },
+          options: chartOptions
+        });
+      });
+    },
+  }));
+});
 </script>
-@endpushOnce
-
+@endpush
+@endonce

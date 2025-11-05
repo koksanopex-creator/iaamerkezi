@@ -6,12 +6,18 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Storage; // <-- Üste ekle
+use Illuminate\Support\Facades\Config; // Bunu üste ekleyin
 
 
 class AppServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+
+
+        
         if (Schema::hasTable('settings')) {
             // Ayarları tek seferde al
             $settings = Setting::all()->keyBy('key');
@@ -32,5 +38,7 @@ class AppServiceProvider extends ServiceProvider
             Carbon::setLocale(config('app.locale'));
 
         }
+
+        
     }
 }

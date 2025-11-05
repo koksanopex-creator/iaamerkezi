@@ -45,7 +45,7 @@
                                 <p class="text-xs md:text-sm text-gray-500 mb-3">Navigasyon çubuğunda görünecek logo (SVG, PNG)</p>
                                 @if($logo && $logo->value)
                                     <div class="mb-4 p-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg inline-block">
-                                        <img src="{{ Storage::url($logo->value) }}" alt="Mevcut Logo" class="h-12 object-contain">
+                                        <img src="{{ asset('storage/' . $logo->value) }}" alt="Mevcut Logo" class="h-12 object-contain">
                                     </div>
                                 @endif
                                 <input type="file" name="site_logo" id="site_logo" class="block w-full text-sm text-gray-600 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 file:transition-colors file:cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">

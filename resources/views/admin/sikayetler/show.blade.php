@@ -128,6 +128,7 @@
                             </div>
                             
                             <!-- Kanıtlar (Ek Dosyalar) Bölümü -->
+
                             <div class="border border-gray-200 rounded-xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow">
                                 <div class="flex items-center mb-5">
                                     <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
@@ -135,16 +136,25 @@
                                     </div>
                                     <h4 class="text-lg font-semibold text-gray-800">Kanıtlar</h4>
                                 </div>
+                                
                                 @if ($sikayet->dosyalar->isNotEmpty())
                                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                         @foreach ($sikayet->dosyalar as $dosya)
+                                            @php
+                                                // Storage yolu 'sikayet_dosyalari/dosya.png' şeklindedir.
+                                                // Storage::url() başarısız olduğu için, dosya yolunu public/storage'a göre yeniden inşa ediyoruz.
+                                                // $dosya->dosya_yolu genellikle "public/sikayet_dosyalari/..." içerir. public/ kısmını kaldırıp asset() ile birleştiriyoruz.
+                                                $storagePath = str_replace('public/', '', $dosya->dosya_yolu);
+                                                $fullAssetUrl = asset('storage/' . $storagePath);
+                                            @endphp
+
                                             <div class="relative group bg-gray-100 rounded-lg overflow-hidden border">
                                                 @if (Str::startsWith($dosya->mime_tipi, 'image/'))
-                                                    <a href="{{ Storage::url($dosya->dosya_yolu) }}" data-fancybox="gallery" data-caption="{{ $dosya->orijinal_adi }}">
-                                                        <img src="{{ Storage::url($dosya->dosya_yolu) }}" alt="{{ $dosya->orijinal_adi }}" class="object-cover h-24 w-full group-hover:opacity-75 transition-opacity">
+                                                    <a href="{{ $fullAssetUrl }}" data-fancybox="gallery" data-caption="{{ $dosya->orijinal_adi }}">
+                                                        <img src="{{ $fullAssetUrl }}" alt="{{ $dosya->orijinal_adi }}" class="object-cover h-24 w-full group-hover:opacity-75 transition-opacity">
                                                     </a>
                                                 @else
-                                                    <a href="{{ Storage::url($dosya->dosya_yolu) }}" target="_blank" class="flex flex-col items-center justify-center h-24 bg-gray-200 p-2 group-hover:bg-gray-300 transition-colors">
+                                                    <a href="{{ $fullAssetUrl }}" target="_blank" class="flex flex-col items-center justify-center h-24 bg-gray-200 p-2 group-hover:bg-gray-300 transition-colors">
                                                         <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0011.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                                                         <p class="text-xs text-gray-500 mt-1 truncate w-full text-center">{{ $dosya->orijinal_adi }}</p>
                                                     </a>

@@ -69,8 +69,9 @@
 
 {{-- İlk veriyi güvenli aktarmak için ayrı script tag'i --}}
 <script>
-    window.initialParetoData_{{ $this->getId() }} = @json($paretoProcessedData->toArray());
+    window['initialParetoData_{{ $this->getId() }}'] = @json($paretoProcessedData->toArray());
 </script>
+
 
 @push('scripts')
 {{-- Chart.js kütüphanesinin layout'unuzda yüklü olduğunu varsayıyoruz --}}

@@ -70,26 +70,29 @@
                             <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 {!! isset($widgetValue['date']) && $widgetValue['date'] ? \Carbon\Carbon::parse($widgetValue['date'])->format('d.m.Y') : '<span class="text-gray-400 italic">Tarih Girilmemiş</span>' !!}
                             </p>
-                         @elseif($widgetType === 'file_upload')
-                            @if(!empty($widgetValue['files']) && is_array($widgetValue['files']))
-                                <div class="mt-1 flex flex-wrap gap-3">
-                                    @foreach($widgetValue['files'] as $filePath)
-                                        @php $isImage = Str::endsWith(strtolower($filePath), ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']); @endphp
-                                        @if($isImage)
-                                            <a href="{{ Storage::url($filePath) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="{{ basename($filePath) }}" class="block">
-                                                <img src="{{ Storage::url($filePath) }}" alt="{{ basename($filePath) }}" class="h-24 w-24 object-cover rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                                            </a>
-                                        @else
-                                            <a href="{{ Storage::url($filePath) }}" target="_blank" class="flex items-center gap-2 text-blue-600 hover:underline bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm">
-                                                <svg class="w-5 h-5 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.122 2.122l7.81-7.81" /></svg>
-                                                <span>{{ basename($filePath) }}</span>
-                                            </a>
-                                        @endif
-                                    @endforeach
-                                </div>
-                            @else
-                                <p class="mt-1 text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Dosya yüklenmemiş.</p>
-                            @endif
+                            @elseif($widgetType === 'file_upload')
+                                @if(!empty($widgetValue['files']) && is_array($widgetValue['files']))
+                                    <div class="mt-1 flex flex-wrap gap-3">
+                                        @foreach($widgetValue['files'] as $filePath)
+                                            @php $isImage = Str::endsWith(strtolower($filePath), ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']); @endphp
+                                            @if($isImage)
+                                                {{-- 🚨 DÜZELTME 1: Fancybox linki --}}
+                                                <a href="{{ asset('storage/' . $filePath) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="{{ basename($filePath) }}" class="block">
+                                                    {{-- 🚨 DÜZELTME 2: Resim kaynağı --}}
+                                                    <img src="{{ asset('storage/' . $filePath) }}" alt="{{ basename($filePath) }}" class="h-24 w-24 object-cover rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                                </a>
+                                            @else
+                                                {{-- 🚨 DÜZELTME 3: Dosya linki --}}
+                                                <a href="{{ asset('storage/' . $filePath) }}" target="_blank" class="flex items-center gap-2 text-blue-600 hover:underline bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm">
+                                                    <svg class="w-5 h-5 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.122 2.122l7.81-7.81" /></svg>
+                                                    <span>{{ basename($filePath) }}</span>
+                                                </a>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="mt-1 text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Dosya yüklenmemiş.</p>
+                                @endif
                         @else
                              <p class="mt-1 text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Veri gösterimi desteklenmiyor: {{ $widgetType }}</p>
                         @endif

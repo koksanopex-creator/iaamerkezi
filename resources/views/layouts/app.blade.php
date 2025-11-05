@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
+        <link rel="icon" href="{{ asset('favicon.ico') }}">
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -35,10 +36,21 @@
                 {{ $slot }}
             </main>
         </div>
-        @livewireScripts
-        <script src="https://cdn.jsdelivr.net/gh/livewire/sortable@v1.x.x/dist/livewire-sortable.js"></script>
-        @stack('scripts')
+@stack('scripts')
 
+{{-- Vite, stil vs... --}}
 
-    </body>
-</html>
+{{-- app.blade.php dosyasının sonunda --}}
+
+<script 
+  src="{{ asset('vendor/livewire/livewire.js') }}" 
+  data-csrf="{{ csrf_token() }}" 
+  {{-- 🚨 LOKAL FIX: data-update-uri'yi Livewire'ın kendisinin bulmasına izin verin veya boş bırakın --}}
+  {{-- data-update-uri="{{ route('livewire.update') }}" --}} 
+  data-navigate-once="true">
+</script>
+
+<script src="https://cdn.jsdelivr.net/gh/livewire/sortable@v1.x.x/dist/livewire-sortable.js"></script>
+
+{{-- LOKALDE SADECE asset('...') YETERLİ OLMALI --}}
+

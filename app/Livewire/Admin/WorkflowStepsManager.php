@@ -186,6 +186,29 @@ class WorkflowStepsManager extends Component
         $this->widgets = $orderedWidgets;
     }
 
+    // --- WIDGET SIRALAMA (OK TUŞLARI) ---
+    public function moveWidgetUp(int $index): void
+    {
+        if ($index <= 0 || ! isset($this->widgets[$index])) return;
+
+        $prev = $index - 1;
+        [$this->widgets[$prev], $this->widgets[$index]] = [$this->widgets[$index], $this->widgets[$prev]];
+        // indexleri 0,1,2... olarak yeniden sırala
+        $this->widgets = array_values($this->widgets);
+    }
+
+    public function moveWidgetDown(int $index): void
+    {
+        if (! isset($this->widgets[$index]) || ! isset($this->widgets[$index + 1])) return;
+
+        $next = $index + 1;
+        [$this->widgets[$next], $this->widgets[$index]] = [$this->widgets[$index], $this->widgets[$next]];
+        $this->widgets = array_values($this->widgets);
+    }
+
+
+
+
     // Yardımcı metodlar
     private function getDefaultWidgetConfig($type)
     {

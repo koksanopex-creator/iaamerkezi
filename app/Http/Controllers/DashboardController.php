@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+// === YENİ EKLENDİ (EKSİK OLAN SATIR) ===
+use App\Http\Controllers\Controller; 
+// ======================================
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -9,19 +13,21 @@ use App\Models\Iaa;
 use App\Models\Bolum;
 use App\Models\Takim;
 use App\Models\MusteriSikayeti;
-use Carbon\Carbon; // Tarih işlemleri için eklendi
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
     /**
      * Dashboard ana sayfasını gösterir.
-     * Superadmin için özel istatistikler içerir.
+     * Artık role göre farklı istatistikler içerir.
      */
     public function index()
     {
         $user = Auth::user();
+        $stats = []; // İstatistikleri tutacak boş bir dizi
 
         if ($user->hasRole('Superadmin')) {
+            // === 1. SUPERADMIN İSTATİSTİKLERİ ===
             $stats = [
                 'toplam_kullanici' => User::count(),
                 'onay_bekleyen_kullanici' => User::where('onaylandi_mi', false)->count(),
@@ -37,31 +43,126 @@ class DashboardController extends Controller
                 
                 'toplam_takim' => Takim::count(),
                 'son_takimlar' => Takim::with('lider')->withCount('uyeler')->latest()->take(3)->get(),
+                
+                'toplam_sikayet' => MusteriSikayeti::count(),
+                'yeni_sikayet' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
+                'islemde_sikayet' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
+                'son_sikayetler' => MusteriSikayeti::latest()->take(3)->get(),
             ];
 
-            return view('dashboard', ['stats' => $stats]);
+        } elseif ($user->hasRole('Müşteri Şikayeti Kurulu')) {
+            // === 2. MÜŞTERİ ŞİKAYETİ KURULU İSTATİSTİKLERİ ===
+            
+            // a) Kurul İstatistikleri
+            $kurul_stats = [
+                'toplam_sikayet' => MusteriSikayeti::count(),
+                'yeni_sikayet' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
+                'islemde_sikayet' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
+                'son_sikayetler' => MusteriSikayeti::with('sikayetKategori', 'cozumTakimi') 
+                                    ->latest() 
+                                    ->take(5)
+                                    ->get(),
+            ];
+
+            // b) Standart Kullanıcı İstatistikleri
+            $user_stats = $this->getStandartKullaniciStats($user);
+            
+            // c) İki diziyi birleştir
+            $stats = array_merge($kurul_stats, $user_stats);
+
+
+        } elseif ($user->hasRole('Müşteri Şikayeti Çözüm Lideri')) {
+            // === 3. MÜŞTERİ ŞİKAYETİ ÇÖZÜM LİDERİ İSTATİSTİKLERİ ===
+            $liderinTakimi = Takim::where('lider_user_id', $user->id)
+                                ->where('tur', 'sikayet') // Sadece şikayet takımı
+                                ->withCount('uyeler')
+                                ->first();
+            
+            $stats = []; // Boş başlat
+            if ($liderinTakimi) {
+                $stats['lider_takim'] = $liderinTakimi;
+                
+                $stats['cozulen_projeler_count'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)
+                                                    ->where('durum', 'Tamamlandı')
+                                                    ->count();
+                $stats['islemde_projeler_count'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)
+                                                    ->where('durum', 'Atandı')
+                                                    ->count();
+                $stats['son_islemde_projeler'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)
+                                                    ->where('durum', 'Atandı')
+                                                    ->latest()
+                                                    ->take(3)
+                                                    ->get();
+            }
+
+        } else {
+            // === 4. STANDART KULLANICI İSTATİSTİKLERİ ===
+            $stats = $this->getStandartKullaniciStats($user);
         }
 
-        return view('dashboard', compact('user'));
+        return view('dashboard', compact('user', 'stats'));
     }
 
     /**
-     * Kullanıcıların ve takımların puan sıralamasını gösterir.
-     * GÜNCELLENDİ: Superadmin'i liderlik tablosundan çıkarır.
+     * Standart Kullanıcı ve Kurul Üyeleri için ortak dashboard verilerini çeker.
      */
+    private function getStandartKullaniciStats(User $user)
+    {
+        $takimlarim_ids = $user->takimlar()->pluck('takim_id');
+        $stats = [];
+
+        // Card 1: Havuzdaki Öneriler
+        $stats['havuz_oneri_sayisi'] = Iaa::where('durum', 'Havuzda')->count();
+        $stats['son_havuz_onerileri'] = Iaa::where('durum', 'Havuzda')->latest()->take(3)->get();
+
+        // Card 2: Takımlarım
+        $stats['takimlarim_sayisi'] = $takimlarim_ids->count();
+        $stats['son_takimlarim'] = Takim::whereIn('id', $takimlarim_ids)->latest()->take(3)->get();
+
+        // Card 3: Katılıma Açık Takımlar
+        $acik_takimlar_query = Takim::whereDoesntHave('uyeler', fn($q) => $q->where('user_id', $user->id));
+        $stats['acik_takim_sayisi'] = $acik_takimlar_query->count();
+        $stats['son_acik_takimlar'] = $acik_takimlar_query->withCount('uyeler')->latest()->take(3)->get();
+
+        // Card 4: Projelerim (IAA)
+        $iaa_takim_ids = Takim::whereIn('id', $takimlarim_ids)->where('tur', 'iaa')->pluck('id');
+        if ($iaa_takim_ids->isNotEmpty()) {
+            $stats['iaa_projelerim_count'] = Iaa::whereIn('atanan_takim_id', $iaa_takim_ids)
+                                                ->where('durum', 'Atandı')
+                                                ->count();
+            $stats['son_iaa_projelerim'] = Iaa::whereIn('atanan_takim_id', $iaa_takim_ids)
+                                                ->where('durum', 'Atandı')
+                                                ->latest()
+                                                ->take(3)
+                                                ->get();
+        }
+
+        // Card 5: Projelerim (Müşteri Şikayeti)
+        $sikayet_takim_ids = Takim::whereIn('id', $takimlarim_ids)->where('tur', 'sikayet')->pluck('id');
+        if ($sikayet_takim_ids->isNotEmpty()) {
+            $stats['sikayet_projelerim_count'] = Iaa::whereIn('atanan_takim_id', $sikayet_takim_ids)
+                                                    ->where('durum', 'Atandı')
+                                                    ->count();
+            $stats['son_sikayet_projelerim'] = Iaa::whereIn('atanan_takim_id', $sikayet_takim_ids)
+                                                    ->where('durum', 'Atandı')
+                                                    ->latest()
+                                                    ->take(3)
+                                                    ->get();
+        }
+        
+        return $stats;
+    }
+
+    // ... (puanDurumu ve kullaniciPuanlari metodları aynı kalabilir) ...
+
     public function puanDurumu()
     {
         $kullanicilar = User::where('onaylandi_mi', 1)
-                            
-                            // === YENİ FİLTREYİ EKLE ===
-                            // Rolü 'Superadmin' OLMAYAN kullanıcıları al
                             ->whereDoesntHave('roles', function ($query) {
                                 $query->where('name', 'Superadmin');
                             })
-                            // === EKLEME SONU ===
-                            
                             ->orderByDesc('toplam_puan')
-                            ->orderBy('name', 'asc') // Puan eşitliği durumunda isme göre sıralar
+                            ->orderBy('name', 'asc')
                             ->get();
 
         $takimlar = Takim::where('tur', 'iaa')->orderByDesc('toplam_puan')->get();
@@ -71,30 +172,27 @@ class DashboardController extends Controller
 
     public function kullaniciPuanlari(User $user)
     {
-        // 1. Projelerden kazanılan puanları al
         $takimIdleri = $user->takimlar()->pluck('takim_id');
         
         $projeler = Iaa::where('iaas.durum', 'Tamamlandı')
             ->whereIn('iaas.atanan_takim_id', $takimIdleri)
             ->where('iaas.puan', '>', 0)
-            ->with('musteriSikayeti') // <-- İLİŞKİYİ BURADA YÜKLÜYORUZ
+            ->with('musteriSikayeti') 
             ->get()
             ->map(function ($proje) {
                 return [ 
                     'id' => $proje->id,
-                    // === ETİKET DÜZELTMESİ ===
                     'tip' => $proje->musteriSikayeti ? 'Müşteri Şikayeti' : 'Proje',
                     'baslik' => $proje->baslik,
-                    'tarih' => $proje->onaylanma_tarihi, // 'tamamlanma_tarihi' yerine 'onaylanma_tarihi'
+                    'tarih' => $proje->onaylanma_tarihi,
                     'puan' => $proje->puan,
-                    'url' => route('proje.workspace.show', $proje->id) // <-- LİNK DÜZELTMESİ
+                    'url' => route('proje.workspace.show', $proje->id)
                 ];
             })->all();
 
-        // 2. Müşteri şikayetlerinden kazanılan puanları al
         $sikayetler = MusteriSikayeti::where('olusturan_kurul_uyesi_id', $user->id)
             ->where('kazanilan_puan', '>', 0)
-            ->with('iaaProjesi') // iaa_id'yi almak için ilişkiyi yükle
+            ->with('iaaProjesi') 
             ->get()
             ->map(function ($sikayet) {
                 return [
@@ -103,19 +201,16 @@ class DashboardController extends Controller
                     'baslik' => 'Şikayet Kaydı: ' . $sikayet->musteri_sikayet_konusu,
                     'tarih' => $sikayet->created_at,
                     'puan' => $sikayet->kazanilan_puan,
-                    // === LİNK DÜZELTMESİ ===
-                    // Eğer şikayet projeye dönüştüyse proje linki ver, dönüşmediyse şikayet detay linki ver
                     'url' => $sikayet->iaaProjesi ? route('proje.workspace.show', $sikayet->iaaProjesi->id) : route('admin.sikayetler.show', $sikayet->id)
                 ];
             })->all();
 
-        // 3. İki diziyi birleştir ve sırala
         $kazanilanlarArray = array_merge($projeler, $sikayetler);
         
         usort($kazanilanlarArray, function ($a, $b) {
             $tarihA = Carbon::parse($a['tarih']);
             $tarihB = Carbon::parse($b['tarih']);
-            return $tarihB <=> $tarihA; // En yeniden en eskiye
+            return $tarihB <=> $tarihA;
         });
         
         $kazanilanlar = collect($kazanilanlarArray);
@@ -123,4 +218,3 @@ class DashboardController extends Controller
         return view('kullanici-puanlari', compact('user', 'kazanilanlar'));
     }
 }
-

@@ -27,7 +27,6 @@
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                     
-                    <!-- Marka Ayarları -->
                     <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100">
                         <div class="bg-gradient-to-r from-purple-500 to-indigo-600 p-4 md:p-6">
                             <div class="flex items-center gap-3">
@@ -53,7 +52,6 @@
                         </div>
                     </div>
 
-                    <!-- Finans Ayarları -->
                     <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100">
                         <div class="bg-gradient-to-r from-emerald-500 to-teal-600 p-4 md:p-6">
                             <div class="flex items-center gap-3">
@@ -77,7 +75,6 @@
                         </div>
                     </div>
 
-                    <!-- Puanlama Ayarları -->
                     <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100">
                         <div class="bg-gradient-to-r from-amber-500 to-orange-600 p-4 md:p-6">
                             <div class="flex items-center gap-3">
@@ -125,10 +122,21 @@
                                 @enderror
                             </div>
 
-                        </div>
+                            <div>
+                                <label for="kurul_default_puan" class="block text-sm font-semibold text-gray-700 mb-2">Kurulun Atadığı Şikayet Puanı</label>
+                                <p class="text-xs md:text-sm text-gray-500 mb-3">"Müşteri Şikayeti Kurulu" bir takıma atama yaptığında otomatik verilecek puan.</p>
+                                <input type="number" name="kurul_default_puan" id="kurul_default_puan"
+                                       value="{{ old('kurul_default_puan', $kurulDefaultPuan->value ?? 0) }}"
+                                       min="0"
+                                       class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors text-sm md:text-base"
+                                       placeholder="0">
+                                @error('kurul_default_puan') 
+                                    <span class="text-red-500 text-xs md:text-sm mt-1 block">{{ $message }}</span> 
+                                @enderror
+                            </div>
+                            </div>
                     </div>
 
-                    <!-- Kullanıcı Ayarları -->
                     <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100">
                         <div class="bg-gradient-to-r from-blue-500 to-cyan-600 p-4 md:p-6">
                             <div class="flex items-center gap-3">
@@ -241,7 +249,7 @@
                                 <p class="text-xs text-gray-500 mt-1">Yeni şikayet/geri bildirim gelince buraya e-posta gider.</p>
                                 @error('sikayet_admin_notification_email') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
                            </div>
-                             <div>
+                            <div>
                                 <label for="sikayet_response_time_hours" class="block text-sm font-semibold text-gray-700 mb-1">Hedef Yanıt Süresi (Saat)</label>
                                 <input type="number" name="sikayet_response_time_hours" id="sikayet_response_time_hours"
                                        value="{{ old('sikayet_response_time_hours', $settings->get('sikayet_response_time_hours')->value ?? 72) }}"
@@ -251,7 +259,7 @@
                                 <p class="text-xs text-gray-500 mt-1">İlk onay e-postasında müşteriye belirtilecek süre.</p>
                                 @error('sikayet_response_time_hours') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
                            </div>
-                         </div>
+                        </div>
                     </div>
 
                 </div>
@@ -259,58 +267,11 @@
             {{-- ================== E-POSTA KARTI SONU ================== --}}
 
             {{-- ================== YENİ YÖNETİCİ BİLDİRİM KARTI ================== --}}
-        <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-100 lg:col-span-2">
-            <div class="bg-gradient-to-r from-cyan-500 to-sky-600 p-4 md:p-6">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                        {{-- Bell Icon --}}
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                    </div>
-                    <h3 class="text-lg md:text-xl font-bold text-white">Yeni Şikayet Bildirim Ayarları (Yöneticiler)</h3>
-                </div>
-            </div>
-            <div class="p-4 md:p-6 space-y-5">
-
-                <div>
-                    <h4 class="text-md font-semibold text-gray-800 mb-1">Bildirim Gönderilecek Sistem Kullanıcıları</h4>
-                    <p class="text-xs md:text-sm text-gray-500 mb-3">Yeni bir müşteri şikayeti geldiğinde e-posta ile bilgilendirilecek mevcut sistem kullanıcılarını seçin. (Çoklu seçim için Ctrl/Cmd tuşuna basılı tutun)</p>
-                    {{-- Çoklu Seçim Dropdown --}}
-                    <select name="sikayet_notify_user_ids[]" id="sikayet_notify_user_ids" multiple
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors text-sm h-40">
-                        {{-- Controller'dan gelen $users değişkenini kullanacağız --}}
-                        @php
-                            // Controller'dan gelen $settings ile seçili ID'leri alalım
-                            $selectedUserIds = explode(',', $settings->get('sikayet_notify_user_ids')->value ?? '');
-                        @endphp
-                        @foreach($users as $user)
-                            <option value="{{ $user->id }}" {{ in_array($user->id, $selectedUserIds) ? 'selected' : '' }}>
-                                {{ $user->name }} ({{ $user->email }})
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('sikayet_notify_user_ids.*') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-                    @error('sikayet_notify_user_ids') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-                </div>
-
-                <div class="pt-4 border-t">
-                    <h4 class="text-md font-semibold text-gray-800 mb-1">Bildirim Gönderilecek Manuel E-posta Adresleri</h4>
-                    <p class="text-xs md:text-sm text-gray-500 mb-3">Sistemde kaydı olmayan ancak bilgilendirilmesini istediğiniz e-posta adreslerini girin (Her bir adresi yeni satıra veya virgülle ayırarak yazabilirsiniz).</p>
-                    <textarea name="sikayet_notify_manual_emails" id="sikayet_notify_manual_emails" rows="4"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors text-sm resize-y"
-                              placeholder="ornek1@mail.com, ornek2@mail.com&#10;ornek3@mail.com">{{ old('sikayet_notify_manual_emails', $settings->get('sikayet_notify_manual_emails')->value ?? '') }}</textarea>
-                     <p class="text-xs text-gray-500 mt-1">Geçerli e-posta formatında olmalıdır.</p>
-                    @error('sikayet_notify_manual_emails') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
-               </div>
-
-            </div>
-        </div>
-        {{-- ================== BİLDİRİM KARTI SONU ================== --}}
+            @include('admin.ayarlar._mail_notification_settings')
+            {{-- ================== BİLDİRİM KARTI SONU ================== --}}
 
                 </div>
 
-                <!-- Kaydet Butonu -->
                 <div class="mt-6 flex justify-end">
                     <button type="submit" class="w-full md:w-auto group relative inline-flex items-center justify-center gap-2 px-6 md:px-8 py-3 md:py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 active:scale-95 transition-all duration-200 ease-in-out">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

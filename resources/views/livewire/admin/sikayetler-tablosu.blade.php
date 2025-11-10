@@ -1,37 +1,70 @@
-<div> {{-- === KÖK ELEMENT (WRAPPER) - TÜM İÇERİK BU DIV İÇİNDE OLMALI === --}}
+<div> {{-- === KÖK ELEMENT (WRAPPER) === --}}
 
     {{-- Arka plan ve genel sayfa yapısı --}}
     <div class="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 min-h-screen p-4 md:p-6">
         <div class="max-w-7xl mx-auto">
 
-            <!-- Header Section -->
-            <div class="mb-8 animate-fade-in">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        {{-- Başlık gradient efektiyle --}}
-                        <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-2">Müşteri Şikayetleri</h1>
-                        {{-- Alt başlık ikonla --}}
+        {{-- === YENİ BAŞLIK TASARIMI (SİZİN KODUNUZ) === --}}
+        <div class="mb-8">
+            <div class="rounded-2xl border border-gray-200/70 bg-white/80 backdrop-blur p-6 shadow-sm">
+                <div class="flex flex-col gap-6 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    {{-- Sol: Başlık & Alt Başlık --}}
+                    <div class="max-w-2xl">
+                        <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight mb-2">
+                            <span class="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">
+                                Müşteri Şikayetleri
+                            </span>
+                        </h1>
                         <p class="text-gray-600 flex items-center gap-2">
-                            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
                             Gelen şikayetleri yönetin ve çözüme kavuşturun
                         </p>
                     </div>
-                    @can('create', App\Models\MusteriSikayeti::class)
-                        {{-- Yeni Şikayet Ekle Butonu - Daha şık --}}
-                        <a href="{{ route('admin.sikayetler.create') }}" class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                            Yeni Şikayet Ekle
-                        </a>
-                    @endcan
+
+                    {{-- Sağ: Aksiyonlar --}}
+                    <div class="w-full lg:w-auto">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row gap-3">
+                            {{-- Sadece Kurul ve Admin görebilir --}}
+                            @can('create', App\Models\MusteriSikayeti::class)
+                                <a href="{{ route('admin.sikayetler.create') }}"
+                                   class="inline-flex items-center justify-center px-5 py-3 rounded-xl font-semibold text-white
+                                          bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700
+                                          shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus-visible:ring
+                                          focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                                   aria-label="Yeni şikayet ekle">
+                                    <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Yeni Şikayet Ekle
+                                </a>
+                            @endcan
+
+                            @role('Superadmin|Müşteri Şikayeti Kurulu')
+                                <a href="{{ route('admin.sikayetler.kurulGirdileri') }}"
+                                   class="inline-flex items-center justify-center px-5 py-3 rounded-xl font-semibold
+                                          text-indigo-700 bg-white border border-indigo-200 hover:border-indigo-300
+                                          hover:bg-indigo-50 shadow-sm transition-all duration-200
+                                          focus:outline-none focus-visible:ring focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                                   aria-label="Kurul girdilerini görüntüle">
+                                    <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                    </svg>
+                                    Kurul Girdileri
+                                </a>
+                            @endrole
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
+        {{-- === BAŞLIK TASARIMI SONU === --}}
 
-            <!-- Başarı Mesajı -->
-            @if (session()->has('success'))
+
+@if (session()->has('success'))
                 <div class="mb-4 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 text-green-800 px-6 py-4 rounded-xl shadow-sm animate-slide-in" role="alert" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform translate-y-2">
                     <div class="flex items-center gap-3">
                         <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,15 +75,13 @@
                 </div>
             @endif
 
-            <!-- Ana Kart -->
             <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
 
-                <!-- Stats Bar -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-6 bg-gradient-to-r from-blue-50/50 via-indigo-50/50 to-purple-50/50 border-b border-gray-200/70">
                     <div class="text-center group hover:scale-105 transition-transform duration-200">
                         <p class="text-gray-600 text-sm font-medium mb-1 flex items-center justify-center gap-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            Toplam Şikayetler
+                            Toplam
                         </p>
                         <p class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{{ $stats['toplam'] }}</p>
                     </div>
@@ -77,9 +108,8 @@
                     </div>
                 </div>
 
-                <!-- === YENİ AÇILIR/KAPANIR FİLTRELEME BÖLÜMÜ === -->
+                {{-- === FİLTRELEME BÖLÜMÜ === --}}
                 <div class="border-b border-gray-200/70 bg-gradient-to-br from-gray-50/80 to-white" x-data="{ open: false }">
-                    {{-- Filtre Başlığı ve Toggle Butonu --}}
                     <div class="p-4 md:p-6 flex items-center justify-between cursor-pointer hover:bg-gray-50/50 transition-colors duration-150"
                          @click="open = !open">
                         <div class="flex items-center gap-3">
@@ -89,7 +119,6 @@
                             <h3 class="text-lg font-semibold text-gray-800">Filtreler</h3>
                             <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full" x-show="!open">Genişletmek için tıklayın</span>
                         </div>
-
                         <div class="flex items-center gap-3">
                             <button wire:click.stop="resetFilters" type="button" class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -97,7 +126,6 @@
                                 </svg>
                                 Temizle
                             </button>
-
                             <div class="transform transition-transform duration-200" :class="{ 'rotate-180': open }">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -279,8 +307,6 @@
                         </div>
                     </div> {{-- Filtre İçeriği Kapanışı --}}
                 </div>
-                <!-- === FİLTRELEME BÖLÜMÜ BİTİŞ === -->
-
                 {{-- === GİZLİ TABLO (Tam İçerik) === --}}
                 <div class="hidden overflow-x-auto">
                     <table class="hidden min-w-full">
@@ -320,12 +346,14 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-right">
                                         {{-- Tablo Butonları --}}
                                         <div class="flex justify-end gap-2">
-                                            @role('Superadmin|Şikayet Yöneticisi')
+                                            
+                                            @role('Superadmin|Şikayet Yöneticisi|Müşteri Şikayeti Kurulu')
                                                 <button wire:click="$dispatch('openTriyajModal', { id: {{ $sikayet->id }} })" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 transition-colors duration-200">
                                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                                                     Yönet
                                                 </button>
                                             @endrole
+                                            
                                             <a href="{{ route('admin.sikayetler.show', $sikayet) }}" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors duration-200"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> Detay</a>
                                             @can('update', $sikayet)<a href="{{ route('admin.sikayetler.edit', $sikayet) }}" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors duration-200"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg> Düzenle</a>@endcan
                                             @can('delete', $sikayet)<form action="{{ route('admin.sikayetler.destroy', $sikayet) }}" method="POST" onsubmit="return confirm('Bu şikayeti silmek istediğinizden emin misiniz?');" class="inline"><button type="submit" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 transition-colors duration-200"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Sil</button>@method('DELETE')@csrf</form>@endcan
@@ -339,10 +367,9 @@
                     </table>
                 </div>
 
-                <!-- === Card View - AKTİF GÖRÜNÜM === -->
                 <div class="space-y-4 p-4 md:p-6" wire:loading.class.delay="opacity-50 transition-opacity duration-300">
                     @forelse ($sikayetler as $sikayet)
-                        <div class="bg-white rounded-xl border border-gray-200/80 shadow-sm hover:shadow-lg transition-all duration-300 p-4 md:p-6 group animate-slide-up">
+                    <div x-data="{ openLogs: false }" class="bg-white rounded-xl border border-gray-200/80 shadow-sm hover:shadow-lg transition-all duration-300 p-4 md:p-6 group animate-slide-up">
                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
                                 <div class="flex items-center gap-4">
                                     <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm shadow-md group-hover:shadow-lg transition-shadow duration-200">
@@ -404,67 +431,136 @@
                                     </span>
                                 </div>
                                  <div class="flex items-center gap-1.5 text-gray-600">
-                                     <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                     </svg>
+                                    </svg>
                                      <span class="font-medium">Puan:</span>
                                      <span class="font-bold text-yellow-700">
-                                         {{ $sikayet->musteri_puan ? number_format($sikayet->musteri_puan, 0) : 'N/A' }}
+                                          {{ $sikayet->musteri_puan ? number_format($sikayet->musteri_puan, 0) : 'N/A' }}
                                      </span>
-                                 </div>
+                                </div>
                             </div>
 
-                            {{-- === TAMAMLANMIŞ KISIM: Kart Butonları === --}}
+                            {{-- === GÜNCELLENMİŞ BUTON BÖLÜMÜ === --}}
                             <div class="mt-5 flex flex-wrap justify-end gap-2 pt-4 border-t border-gray-200/70">
-                                @role('Superadmin|Şikayet Yöneticisi')
+                                
+                                {{-- 1. YÖNET, DÜZENLE, SİL (Sadece Admin ve Kurul) --}}
+                                @role('Superadmin|Müşteri Şikayeti Kurulu')
                                     <button wire:click="$dispatch('openTriyajModal', { id: {{ $sikayet->id }} })"
-                                          class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-green-700 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border border-green-200/70 hover:border-green-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
+                                            class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-green-700 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border border-green-200/70 hover:border-green-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
                                         <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                                         Yönet
                                     </button>
+                                    @can('update', $sikayet)
+                                        <a href="{{ route('admin.sikayetler.edit', $sikayet) }}"
+                                           class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-indigo-700 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200/70 hover:border-indigo-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
+                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                            Düzenle
+                                        </a>
+                                    @endcan
+                                    @can('delete', $sikayet)
+                                        <form action="{{ route('admin.sikayetler.destroy', $sikayet) }}" method="POST"
+                                              onsubmit="return confirm('Bu şikayeti silmek istediğinizden emin misiniz?');" class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 border border-red-200/70 hover:border-red-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
+                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                Sil
+                                            </button>
+                                        </form>
+                                    @endcan
                                 @endrole
+
+                                {{-- 2. DETAY (Herkes görür) --}}
                                 <a href="{{ route('admin.sikayetler.show', $sikayet) }}"
-                                      class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-blue-700 bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 border border-blue-200/70 hover:border-blue-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
+                                   class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-blue-700 bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 border border-blue-200/70 hover:border-blue-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
                                     <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     Detay
                                 </a>
-                                @can('update', $sikayet)
-                                    <a href="{{ route('admin.sikayetler.edit', $sikayet) }}"
-                                          class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-indigo-700 bg-gradient-to-r from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200/70 hover:border-indigo-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
-                                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                        Düzenle
+
+                                {{-- === 2. YENİ LOG BUTONU === --}}
+                                @role('Superadmin|Müşteri Şikayeti Kurulu')
+                                <button @click="openLogs = !openLogs"
+                                   class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold border transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md"
+                                   :class="openLogs ? 'bg-gray-200 text-gray-800 border-gray-300' : 'bg-gray-50 text-gray-700 border-gray-200/70'">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                                    <span x-text="openLogs ? 'Kayıtları Kapat' : 'Kayıtları Gör'">Kayıtları Gör</span>
+                                </button>
+                                @endrole
+                                {{-- === YENİ LOG BUTONU SONU === --}}
+
+                                {{-- 3. PROJEYE GİT (Sadece iaa_id varsa herkes görür) --}}
+                                @if($sikayet->iaa_id)
+                                    <a href="{{ route('proje.workspace.show', $sikayet->iaa_id) }}"
+                                       class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-purple-700 bg-gradient-to-r from-purple-50 to-violet-50 hover:from-purple-100 hover:to-violet-100 border border-purple-200/70 hover:border-purple-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
+                                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                        Projeye Git
                                     </a>
-                                @endcan
-                                @can('delete', $sikayet)
-                                    <form action="{{ route('admin.sikayetler.destroy', $sikayet) }}" method="POST"
-                                          onsubmit="return confirm('Bu şikayeti silmek istediğinizden emin misiniz?');" class="inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                              class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 border border-red-200/70 hover:border-red-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
-                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                            Sil
-                                        </button>
-                                    </form>
-                                @endcan
+                                @endif
+                                {{-- === BUTON BÖLÜMÜ SONU === --}}
+                             
                             </div>
-                            {{-- ====================================== --}}
+
+                            {{-- === 3. YENİ AÇILIR LOG ALANI === --}}
+                            <div x-show="openLogs" x-transition
+                                 class="sm:ml-14 mt-4 pt-4 border-t border-gray-200" style="display: none;">
+                                <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Yönetim Değişiklik Kayıtları</h4>
+                                <div class="flow-root max-h-48 overflow-y-auto pr-2">
+                                    <ul role="list" class="-mb-4">
+                                        @forelse($sikayet->loglar as $log)
+                                            <li>
+                                                <div class="relative pb-4">
+                                                    @if(!$loop->last)
+                                                        <span class="absolute top-4 left-3 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+                                                    @endif
+                                                    <div class="relative flex space-x-3">
+                                                        <div>
+                                                            <span class="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center ring-4 ring-white">
+                                                                <svg class="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                                </svg>
+                                                            </span>
+                                                        </div>
+                                                        <div class="min-w-0 flex-1 pt-0.5">
+                                                            <p class="text-xs text-gray-500">
+                                                                {{ $log->aciklama ?? 'Kayıt bulunamadı.' }}
+                                                            </p>
+                                                            <p class="mt-0.5 text-xs text-gray-400">
+                                                                {{ $log->created_at->format('d.m.Y H:i') }}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        @empty
+                                            <li>
+                                                <p class="text-sm text-gray-500">Bu şikayet için (atama/puanlama) değişikliği kaydı bulunamadı.</p>
+                                            </li>
+                                        @endforelse
+                                    </ul>
+                                </div>
+                            </div>
+                            {{-- === AÇILIR LOG ALANI SONU === --}}
                         </div>
                     @empty
-                        {{-- Boş Liste Görünümü --}}
                         <div class="px-6 py-16 text-center">
                            <div class="flex flex-col items-center justify-center">
                                 <div class="w-20 h-20 bg-gradient-to-br from-gray-100 to-slate-100 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
                                     <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 </div>
-                                <p class="text-gray-600 font-semibold text-lg">Filtre kriterlerine uygun şikayet bulunamadı.</p>
-                                <p class="text-gray-500 text-sm mt-2">Filtreleri temizleyebilir veya farklı kriterler deneyebilirsiniz.</p>
+                                <p class="text-gray-600 font-semibold text-lg">
+                                    @if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']))
+                                        Filtre kriterlerine uygun şikayet bulunamadı.
+                                    @else
+                                        Size atanmış bir şikayet projesi bulunmamaktadır.
+                                    @endif
+                                </p>
                             </div>
                         </div>
                     @endforelse
                 </div>
 
-                <!-- Pagination -->
                 <div class="px-6 py-4 border-t border-gray-200/70 bg-gray-50/50">
                     {{ $sikayetler->links() }}
                 </div>
@@ -472,33 +568,18 @@
         </div>
     </div>
 
-    <!-- TRİYAJ MODALI -->
     @livewire('admin.sikayet-triyaj-modal')
 
     {{-- CSS Animasyonları --}}
     <style>
-        @keyframes fade-in {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-
-        @keyframes slide-in {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
+        @keyframes slide-in { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
         .animate-slide-in { animation: slide-in 0.4s ease-out forwards; }
-
-        @keyframes slide-up {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
-
-        @keyframes pulse {
-            50% { opacity: .5; }
-        }
+        @keyframes pulse { 50% { opacity: .5; } }
         .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 
-</div> {{-- === KÖK ELEMENT KAPANIŞI === --}}
+</div>

@@ -130,12 +130,20 @@ class MusteriSikayetRaporu extends Component
             ->orderBy('ay', 'asc')
             ->pluck('total', 'ay');
 
+            // === YENİ EKLENDİ (SON 10 ŞİKAYET TABLOSU İÇİN) ===
+        $sonSikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
+        ->latest() // En son ekleneni (created_at) en üste alır
+        ->take(10) // Sadece 10 tane alır
+        ->get();
+    // === YENİ EKLEME SONU ===
+
         return compact(
             'kpi', 
             'durumData', 'kategoriData', 'takimData', 'aylikTrend', // Orijinal 4 grafik
             'cozulenListesi', 'islemdeListesi', 'yeniListesi', 'projeyeDonusenListesi', // Yeni 4 liste
             'cozulenChartData', 'islemdeChartData', 'yeniChartData', 'projeyeDonusenChartData', // Yeni 4 donut
-            'aylikCozulenTrend' // Yeni 1 line
+            'aylikCozulenTrend', // Yeni 1 line
+            'sonSikayetler' // <-- YENİ EKLENDİ
         );
     }
 

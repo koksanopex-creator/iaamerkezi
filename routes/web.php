@@ -22,6 +22,7 @@ use App\Models\MusteriSikayetiDosyasi;
 use App\Livewire\Admin\SikayetCozumGorevlerim;
 // ===========================================
 use App\Http\Controllers\PublicSikayetController;
+use App\Livewire\SikayetGorevlerim;
 
 /*
 |--------------------------------------------------------------------------
@@ -93,6 +94,11 @@ Route::middleware('auth')->group(function () {
     ->name('admin.sikayet-raporlari.index'); 
     // === ROTANIN SONU ===
 
+    // === YENİ EKLENECEK ROTA (TÜM LİSTE İÇİN) ===
+    Route::get('/musteri-sikayet-raporlari/tum-liste', [RaporController::class, 'tumSikayetListesi'])
+         ->name('admin.sikayet-raporlari.tum-liste');
+    // === YENİ ROTA SONU ===
+
     Route::resource('iaa', IaaController::class);
 
     // --- TAKIM MODÜLÜ ROTALARI ---
@@ -113,6 +119,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/proje-calisma-alani/{iaa}', [ProjectWorkspaceController::class, 'show'])->name('proje.workspace.show');
     Route::post('/proje-calisma-alani/{assignment_id}/adim/{step_id}', [ProjectWorkspaceController::class, 'storeStep'])->name('proje.workspace.storeStep');
     Route::post('/proje-calisma-alani/adim/{progress_update}/yeniden-ac', [ProjectWorkspaceController::class, 'reopenStep'])->name('proje.workspace.reopenStep');
+    
+    Route::get('/sikayet-gorevlerim', \App\Livewire\SikayetGorevlerim::class) // 'Admin' klasör yolu kaldırıldı
+     ->middleware('auth') 
+     ->name('sikayet-gorevlerim.index');
 });
 
 // =================================================================
@@ -173,10 +183,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('raporlar/excel', [RaporController::class, 'exportExcel'])->name('raporlar.exportExcel');
     Route::get('raporlar/pdf', [RaporController::class, 'exportPdf'])->name('raporlar.exportPdf');
 
+    
+        // === YENİ EKLENECEK ROTA ===
+        Route::get('sikayetler/kurul-girdileri', [App\Http\Controllers\Admin\SikayetController::class, 'kurulGirdileri'])
+        ->name('sikayetler.kurulGirdileri');
+        // === YENİ ROTA SONU ===
+    
     // Müşteri Şikayetleri Yönetimi
     Route::resource('sikayetler', App\Http\Controllers\Admin\SikayetController::class)
         ->names('sikayetler')
         ->parameters(['sikayetler' => 'sikayet']);
+
 
 
     // Şikayet Kategorileri Yönetimi
@@ -189,8 +206,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         ->parameters(['cozum-takimlari' => 'cozumTakimi']); // Parametre adını Controller ile uyumlu hale getir
 
     // === YENİ EKLENDİ: Çözüm Görevlerim Sayfası ===
-    Route::get('/sikayet-cozum-gorevlerim', SikayetCozumGorevlerim::class)
-        ->name('sikayet-cozum-gorevlerim.index'); 
+    // Route::get('/sikayet-cozum-gorevlerim', SikayetCozumGorevlerim::class)
+    //    ->name('sikayet-cozum-gorevlerim.index'); 
 
    
 

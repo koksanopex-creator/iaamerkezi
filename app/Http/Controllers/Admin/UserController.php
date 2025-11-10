@@ -12,22 +12,66 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
+  
     /**
-     * Onay bekleyen ve aktif kullanıcıları listeler.
+     * Onay bekleyen ve aktif kullanıcıları listeler. (FİLTRELENEBİLİR VE SIRALI)
      */
-    public function index()
+    public function index(Request $request)
     {
-        // .env dosyasından ayarı oku (varsayılan: false)
         $kayitOnayiAktif = env('USER_REGISTRATION_APPROVAL', false);
+        
+        // --- Filtre seçenekleri için verileri al ---
+        $bolumler = Bolum::orderBy('ad')->get();
+        $roller = Role::orderBy('name')->get();
+        // --- Veri alımı sonu ---
 
-        // Mevcut sorgularınız aynı kalıyor
-        // === GÜNCELLENDİ: paginate eklendi ===
-        $onayBekleyenler = User::where('onaylandi_mi', false)->with('bolum', 'roles')->latest()->paginate(10, ['*'], 'onay_page'); // Sayfalama için farklı page name
-        $aktifKullanicilar = User::where('onaylandi_mi', true)->with('bolum', 'roles')->latest()->paginate(15, ['*'], 'aktif_page'); // Sayfalama için farklı page name
-        // ===================================
+        // Onay Bekleyenler Sorgusu
+        $onayBekleyenlerQuery = User::where('onaylandi_mi', false)
+                                      ->with('bolum', 'roles')
+                                      ->orderBy('name', 'asc'); // <-- DEĞİŞİKLİK (latest() yerine)
 
-        // Gerekli tüm değişkenleri view'e gönder
-        return view('admin.users.index', compact('onayBekleyenler', 'aktifKullanicilar', 'kayitOnayiAktif'));
+        // Aktif Kullanıcılar Sorgusu
+        $aktifKullanicilarQuery = User::where('onaylandi_mi', true)
+                                        ->with('bolum', 'roles')
+                                        ->orderBy('name', 'asc'); // <-- DEĞİŞİKLİK (latest() yerine)
+
+        // --- FİLTRELEME MANTIĞI ---
+        $filters = $request->only(['name_filter', 'bolum_filter', 'role_filter']);
+
+        // İsim filtresi
+        if ($request->filled('name_filter')) {
+            $aktifKullanicilarQuery->where('name', 'like', '%' . $request->input('name_filter') . '%');
+            $onayBekleyenlerQuery->where('name', 'like', '%' . $request->input('name_filter') . '%');
+        }
+
+        // Bölüm filtresi
+        if ($request->filled('bolum_filter')) {
+            $aktifKullanicilarQuery->where('bolum_id', $request->input('bolum_filter'));
+            $onayBekleyenlerQuery->where('bolum_id', $request->input('bolum_filter'));
+        }
+
+        // Rol filtresi
+        if ($request->filled('role_filter')) {
+            $aktifKullanicilarQuery->whereHas('roles', function ($q) use ($request) {
+                $q->where('name', $request->input('role_filter'));
+            });
+            $onayBekleyenlerQuery->whereHas('roles', function ($q) use ($request) {
+                $q->where('name', $request->input('role_filter'));
+            });
+        }
+        // --- FİLTRELEME MANTIĞI SONU ---
+        
+        $onayBekleyenler = $onayBekleyenlerQuery->paginate(10, ['*'], 'onay_page')->withQueryString();
+        $aktifKullanicilar = $aktifKullanicilarQuery->paginate(15, ['*'], 'aktif_page')->withQueryString();
+
+        return view('admin.users.index', compact(
+            'onayBekleyenler', 
+            'aktifKullanicilar', 
+            'kayitOnayiAktif',
+            'bolumler',
+            'roller',  
+            'filters'  
+        ));
     }
 
     /**

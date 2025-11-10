@@ -6,7 +6,6 @@
 
     <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
         
-        <!-- Arka Plan Karartma -->
         <div x-show="showModal" 
              x-transition:enter="ease-out duration-300" 
              x-transition:enter-start="opacity-0" 
@@ -18,7 +17,6 @@
              @click="showModal = false" aria-hidden="true">
         </div>
 
-        <!-- Modal İçeriği -->
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         <div x-show="showModal"
              x-transition:enter="ease-out duration-300"
@@ -29,11 +27,10 @@
              x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
              class="inline-block w-full max-w-3xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-white shadow-xl rounded-2xl">
             
-            <!-- Modal Başlığı -->
             <div class="flex items-center justify-between pb-4 border-b">
                 <div>
                     <h3 class="text-xl font-bold text-gray-900" id="modal-title">
-                        Şikayet  Paneli
+                        Şikayet Yönetim Paneli
                     </h3>
                     <p class="text-sm text-gray-500">Şikayet No: <span class="font-semibold text-indigo-600">#{{ $sikayetId }}</span> - {{ $musteriAdi }}</p>
                 </div>
@@ -42,7 +39,6 @@
                 </button>
             </div>
 
-            <!-- Ek Süre Talep Uyarısı -->
             @if($ek_sure_talep_durumu == 'Talep Edildi')
                 <div class="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400">
                     <div class="flex">
@@ -61,11 +57,9 @@
                 </div>
             @endif
 
-            <!-- Modal Formu -->
             <form wire:submit.prevent="save" class="mt-6 space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     
-                    <!-- Çözüm Takımı Atama -->
                     <div>
                         <label for="atanan_cozum_takimi_id" class="block text-sm font-medium text-gray-700">Çözüm Takımı Ata</label>
                         <select wire:model.defer="atanan_cozum_takimi_id" id="atanan_cozum_takimi_id" class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
@@ -76,16 +70,20 @@
                         </select>
                     </div>
                     
-                    <!-- Çözüm İçin Son Tarih -->
                     <div>
                         <label for="musteri_cozum_son_tarihi" class="block text-sm font-medium text-gray-700">Çözüm İçin Son Tarih</label>
                         <input type="datetime-local" wire:model.defer="musteri_cozum_son_tarihi" id="musteri_cozum_son_tarihi" class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        @role('Müşteri Şikayeti Kurulu')
+                            @unless(auth()->user()->hasRole('Superadmin'))
+                                <p class="mt-1 text-xs text-gray-500">Boş bırakırsanız otomatik 72 saat atanır.</p>
+                            @endunless
+                        @endrole
                     </div>
                 </div>
 
-                <!-- Çözüm Puanlaması -->
+                @role('Superadmin')
                 <div class="pt-6 border-t">
-                    <h4 class="text-lg font-medium text-gray-900">Çözüm Puanlaması</h4>
+                    <h4 class="text-lg font-medium text-gray-900">Çözüm Puanlaması (Sadece Superadmin)</h4>
                     <p class="text-sm text-gray-500">
                         Şikayet "Kapatıldı" durumuna geçtiğinde takıma dağıtılacak puanı belirleyin.
                         <span class="font-semibold text-gray-700">Formül: (Etki + Karmaşıklık) * Öncelik * {{ $cozumPuaniCarpan }}</span>
@@ -111,16 +109,18 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Kaydet Butonu -->
+                @endrole
                 <div class="flex justify-between items-center mt-8 pt-6 border-t">
+                    
+                    @role('Superadmin')
                     <div>
                         <button type="button" wire:click="removeAtama" class="inline-flex items-center px-4 py-2 bg-red-50 border border-red-300 rounded-lg font-semibold text-sm text-red-700 hover:bg-red-100 transition"
                                 onclick="return confirm('Atamayı kaldırmak ve durumu \'Yeni\'ye döndürmek istediğinizden emin misiniz?');">
                             Atamayı Kaldır
                         </button>
                     </div>
-                    <div class="flex gap-3">
+                    @endrole
+                    <div class="flex gap-3 @unless(auth()->user()->hasRole('Superadmin')) w-full justify-end @endunless">
                         <button type="button" @click="showModal = false" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-sm text-gray-700 hover:bg-gray-50 transition">
                             İptal
                         </button>

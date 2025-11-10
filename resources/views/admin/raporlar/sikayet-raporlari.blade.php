@@ -23,11 +23,26 @@
         const priorityColors = ['#6B7280', '#3B82F6', '#F59E0B', '#EF4444']; // Düşük, Normal, Yüksek, Acil
         const priorityLabels = ['Düşük', 'Normal', 'Yüksek', 'Acil'];
 
+        // === YENİ (DÜZELTME): Durum Renk Haritası ===
+        // Renkleri artık sırayla değil, isme göre atayacağız
+        const statusColors = {
+            'Yeni': '#FACC15',             // Sarı
+            'İşlemde': '#4F46E5',           // Mavi/İndigo
+            'Çözümlendi': '#16A34A',       // Koyu Yeşil
+            'Kapatıldı': '#10B981',        // Açık Yeşil (veya #16A34A da olabilir)
+            'Yeniden Açıldı': '#EF4444',   // Kırmızı
+            'Diğer': '#6B7280'             // Gri
+        };
+        // === DÜZELTME SONU ===
+
+
         // === Orijinal 4 Grafik ===
         var durumChart = new ApexCharts(document.querySelector("#sikayetDurumChart"), {
-            series: [], chart: { type: 'donut', height: 350 }, labels: [],
+            series: [], 
+            chart: { type: 'donut', height: 350 }, 
+            labels: [],
             responsive: [{ breakpoint: 480, options: { chart: { width: 200 }, legend: { position: 'bottom' } } }],
-            colors: ['#FACC15', '#4F46E5', '#16A34A', '#DC2626'], // Yeni, İşlemde, Çözüldü, Diğer
+            // 'colors' satırı buradan kaldırıldı. Dinamik olarak atanacak.
             legend: { position: 'bottom' }
         });
         durumChart.render();
@@ -113,10 +128,19 @@
 
             // --- Orijinal 4 Grafiği Güncelle ---
             if (data.durumData) {
+                
+                // === YENİ (DÜZELTME): Renkleri dinamik olarak ata ===
+                const labels = Object.keys(data.durumData);
+                const series = Object.values(data.durumData);
+                // Gelen etiketlere göre (örn: 'Yeni') renk haritasından doğru rengi bul
+                const dynamicColors = labels.map(label => statusColors[label] || statusColors['Diğer']);
+                
                 durumChart.updateOptions({
-                    series: Object.values(data.durumData),
-                    labels: Object.keys(data.durumData)
+                    series: series,
+                    labels: labels,
+                    colors: dynamicColors // Renkleri sırayla değil, dinamik olarak ata
                 });
+                // === DÜZELTME SONU ===
             }
             if (data.kategoriData) {
                 kategoriChart.updateOptions({

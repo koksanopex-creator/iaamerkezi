@@ -21,7 +21,14 @@ class ProjectWorkspaceController extends Controller
         ]);
         // === GÜNCELLEME SONU ===
         $takim = $iaa->atananTakim;
-        abort_if(!Auth::user()->hasRole('Superadmin') && (!$takim || !Auth::user()->takimlar->contains($takim)), 403, 'Bu projeyi görüntüleme yetkiniz yok.');
+        // === YETKİ GÜNCELLEMESİ: Müşteri Şikayeti Kurulu eklendi ===
+        abort_if(
+            !Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu']) && // Admin VEYA Kurul değilse VE
+            (!$takim || !Auth::user()->takimlar->contains($takim)), // Takım üyesi değilse
+            403, 
+            'Bu projeyi görüntüleme yetkiniz yok.'
+        );
+        // === YETKİ GÜNCELLEMESİ SONU ===
 
         $assignment = DB::table('iaa_talepleri')
                         ->where('iaa_id', $iaa->id)

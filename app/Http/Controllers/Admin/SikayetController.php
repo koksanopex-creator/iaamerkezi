@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage; // <-- BU SATIRIN EKLENDİĞİNDEN EMİN
 use Illuminate\Support\Facades\Log;
 use App\Models\MusteriSikayetiDosyasi; // <-- BU SATIRIN EKLENDİĞİNDEN EMİN OLUN
 use App\Models\SikayetKategori;
+use Illuminate\Support\Facades\Auth; // <-- 1. BU SATIRI EKLEYİN
 
 
 class SikayetController extends Controller
@@ -220,6 +221,80 @@ class SikayetController extends Controller
              return back()->with('error', 'Şikayet silinirken bir hata oluştu.');
         }
     }
+
+    // === 2. YENİ METODU BURAYA EKLEYİN ===
+    /**
+     * Sadece Kurul üyelerinin girdiği şikayetleri filtreleyerek gösterir.
+     */
+    
+    /**
+     * Sadece Kurul üyelerinin girdiği şikayetleri filtreleyerek gösterir.
+     */
+    public function kurulGirdileri(Request $request)
+    {
+        $girisYapanKullanici = Auth::user();
+
+        // Yetkilendirme
+        if (!$girisYapanKullanici->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu'])) {
+            abort(403, 'Bu sayfaya erişim yetkiniz yok.');
+        }
+
+        $kurulUyeleri = User::role('Müşteri Şikayeti Kurulu')->orderBy('name')->get();
+
+        // Filtrelemeyi ayarla
+        $selectedUserId = $request->input('kullanici_id');
+        if (is_null($selectedUserId)) {
+            $selectedUserId = $girisYapanKullanici->hasRole('Superadmin') ? 'all' : $girisYapanKullanici->id;
+        }
+
+        // === 1. KİŞİSEL İSTATİSTİKLER (HER ZAMAN GİRİŞ YAPAN KULLANICIYI HESAPLAR) ===
+        $kisisel_query = MusteriSikayeti::where('olusturan_kurul_uyesi_id', $girisYapanKullanici->id);
+        $stats_kisisel = [
+            'toplam_benim_girdiklerim' => (clone $kisisel_query)->count(),
+            'islemde_benim_girdiklerim' => (clone $kisisel_query)->where('musteri_durum', 'İşlemde')->count(),
+            'cozulen_benim_girdiklerim' => (clone $kisisel_query)->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])->count(),
+        ];
+        // === KİŞİSEL İSTATİSTİK SONU ===
+
+
+        // === 2. FİLTRELENMİŞ İSTATİSTİKLER (FİLTREYE GÖRE DEĞİŞİR) ===
+        $filteredQuery = MusteriSikayeti::query();
+
+        if ($selectedUserId == 'all') {
+            $filteredQuery->whereIn('olusturan_kurul_uyesi_id', $kurulUyeleri->pluck('id'));
+        } else {
+            $filteredQuery->where('olusturan_kurul_uyesi_id', $selectedUserId);
+        }
+        
+        $stats_filtrelenmis = [
+            'toplam' => (clone $filteredQuery)->count(),
+            'islemde' => (clone $filteredQuery)->where('musteri_durum', 'İşlemde')->count(),
+            'cozulen' => (clone $filteredQuery)->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])->count(),
+            'kategoriler' => (clone $filteredQuery)
+                                ->join('sikayet_kategorileri', 'musteri_sikayetleri.sikayet_kategorisi_id', '=', 'sikayet_kategorileri.id')
+                                ->select('sikayet_kategorileri.ad', DB::raw('count(musteri_sikayetleri.id) as toplam'))
+                                ->groupBy('sikayet_kategorileri.ad')
+                                ->orderBy('toplam', 'desc')
+                                ->get()
+        ];
+        // === FİLTRELENMİŞ İSTATİSTİK SONU ===
+        
+
+        // Ana veriyi al ve view'e gönder
+        $sikayetler = $filteredQuery->with('olusturanKurulUyesi', 'cozumTakimi', 'sikayetKategori')
+                                  ->latest() // En yeniler üste gelsin
+                                  ->paginate(15)
+                                  ->withQueryString();
+
+        return view('admin.sikayetler.kurul', compact(
+            'sikayetler', 
+            'kurulUyeleri', 
+            'selectedUserId',
+            'stats_filtrelenmis', // Filtrelenmiş istatistikler
+            'stats_kisisel'     // Kişisel istatistikler
+        ));
+    }
+    // === YENİ METOD SONU ===
 
     /**
      * === BU FONKSİYON SİLİNDİ ===

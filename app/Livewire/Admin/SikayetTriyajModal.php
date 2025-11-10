@@ -13,6 +13,10 @@ use App\Models\IaaWorkflow; // <-- YENİ EKLENDİ (veya DB::table kullanacağız
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon; // Carbon'u ekledi
+use Illuminate\Support\Facades\Log; // <-- YENİ EKLENDİ (4. ADIM) (Loglama için)
+use Illuminate\Support\Facades\Mail; // <-- YENİ EKLENDİ (4. ADIM) (Mail göndermek için)
+use App\Mail\SikayetAtamaBildirimi; // <-- YENİ EKLENDİ (4. ADIM) (Atama mail sınıfı)
+use App\Mail\SikayetAtamaBilgilendirmesi;
 
 class SikayetTriyajModal extends Component
 {
@@ -89,6 +93,7 @@ class SikayetTriyajModal extends Component
         $this->showModal = true;
     }
 
+
     public function save()
     {
         $this->validate([
@@ -109,69 +114,103 @@ class SikayetTriyajModal extends Component
             $orijinalDurum = $sikayet->musteri_durum; 
             $yeniDurum = $orijinalDurum; 
 
+            // === YENİ DEĞİŞKEN (Mail göndermek için takım objesini tut) ===
+            $yeniAtananTakim = null;
+
             // 1. Takım Atama Kontrolü (Mevcut kodun)
             if ($sikayet->atanan_cozum_takimi_id != $this->atanan_cozum_takimi_id && !empty($this->atanan_cozum_takimi_id)) {
-                $takimAdi = Takim::find($this->atanan_cozum_takimi_id)->ad ?? 'Bilinmeyen Takım';
+                
+                // Takımı bul ve değişkene ata (Mail göndermek için)
+                $yeniAtananTakim = Takim::find($this->atanan_cozum_takimi_id); 
+                $takimAdi = $yeniAtananTakim->ad ?? 'Bilinmeyen Takım';
+                
                 $logAciklamalari[] = "Çözüm takımı '{$takimAdi}' olarak atandı.";
                 
+                // !!!!!!!!!! ÖNEMLİ: E-POSTA GÖNDERİMİ BURADAN KALDIRILDI !!!!!!!!!!
+
+                // ==========================================================
+                // === YENİ (KURUL OTOMASYONU) BAŞLANGIÇ ===================
+                // ==========================================================
+                if ($user->hasRole('Müşteri Şikayeti Kurulu') && !$user->hasRole('Superadmin')) 
+                {
+                    // ... (Mevcut Kurul Otomasyonu kodunuz - Değişiklik yok)
+                    if (empty($this->musteri_cozum_son_tarihi)) {
+                        $this->musteri_cozum_son_tarihi = now()->addHours(72);
+                        $logAciklamalari[] = "Çözüm son tarihi otomatik olarak 72 saat sonrasına ayarlandı.";
+                    }
+                    if (empty($this->etki_puani) && empty($this->karmasiklik_puani)) 
+                    {
+                        $defaultPuan = (int)(Setting::where('key', 'kurul_default_puan')->value('value') ?? 0);
+                        if ($defaultPuan > 0) {
+                            $this->musteri_puan = $defaultPuan;
+                            $logAciklamalari[] = "Kurul atamasıyla otomatik olarak {$defaultPuan} default puan ayarlandı.";
+                        }
+                    }
+                }
+                // ==========================================================
+                // === YENİ (KURUL OTOMASYONU) SON =========================
+                // ==========================================================
+
                 if ($yeniDurum == 'Yeni') {
                     $yeniDurum = 'İşlemde';
                     $logAciklamalari[] = "Durum otomatik olarak 'İşlemde' yapıldı.";
                 }
 
                 // ================== YENİ KÖPRÜ KODU BAŞLANGICI ==================
-                // Eğer bu şikayet için henüz bir IAA projesi oluşturulmamışsa (iaa_id = null), şimdi oluştur.
+                // (Mevcut kodunuz - Dokunulmadı)
                 if (is_null($sikayet->iaa_id)) {
                     
                     // a. Yeni Iaa projesini (iaas tablosuna) oluştur
                     $yeniProje = Iaa::create([
-                        'baslik' => $sikayet->musteri_sikayet_konusu, // Şikayet konusunu proje başlığı yap
-                        'mevcut_durum' => $sikayet->musteri_sikayet_detayi, // Şikayet detayını mevcut durum yap
+                        'baslik' => $sikayet->musteri_sikayet_konusu, 
+                        'mevcut_durum' => $sikayet->musteri_sikayet_detayi, 
                         'oneri' => 'Müşteri şikayetinden (ID: ' . $sikayet->id . ') dönüştürüldü.',
-                        'durum' => 'Atandı', // Otomatik olarak 'Atandı' yap
-                        'puan' => $this->musteri_puan ?? 100, // Triyajda belirlenen puanı al (varsa, yoksa 100)
-                        'gonderen_user_id' => null, // Sistem oluşturdu (veya $user->id)
+                        'durum' => 'Atandı', 
+                        'puan' => $this->musteri_puan ?? 100, // Triyajda belirlenen puan (default veya hesaplanan)
+                        'gonderen_user_id' => null, 
                         'guest_name' => $sikayet->musteri_adi,
                         'guest_email' => $sikayet->musteri_iletisim,
-                        'onaylayan_user_id' => $user->id, // İşlemi yapan admin
-                        'onaylanma_tarihi' => now(), // Havuza alınma tarihi
-                        'atanan_takim_id' => $this->atanan_cozum_takimi_id // Seçilen takıma ata
+                        'onaylayan_user_id' => $user->id, 
+                        'onaylanma_tarihi' => now(), 
+                        'atanan_takim_id' => $this->atanan_cozum_takimi_id 
                     ]);
 
                     // b. Proje Atamasını (iaa_talepleri tablosuna) oluştur
-                    // DB dump'ına göre 'Müşteri Şikayeti Çözüm Şablonu' ID: 2
                     $workflowId = 2; 
 
                     DB::table('iaa_talepleri')->insert([
                         'iaa_id' => $yeniProje->id,
                         'takim_id' => $this->atanan_cozum_takimi_id,
-                        'talep_eden_user_id' => $user->id, // Admin talep etmiş/atamış gibi
-                        'durum' => 'onaylandi', // Otomatik onay
+                        'talep_eden_user_id' => $user->id, 
+                        'durum' => 'onaylandi', 
                         'iaa_workflow_id' => $workflowId, 
                         'start_date' => now(),
-                        'due_date' => $this->musteri_cozum_son_tarihi ?? now()->addDays(14), // Triyajdaki tarihi veya 14 gün sonrasını al
-                        'status' => 'Devam Ediyor', // Proje durumu
+                        'due_date' => $this->musteri_cozum_son_tarihi ?? now()->addDays(14), // Triyajdaki tarihi (72 saat veya manuel)
+                        'status' => 'Devam Ediyor', 
                         'created_at' => now(),
                         'updated_at' => now()
                     ]);
 
                     // c. Şikayet kaydını, yeni Proje ID'si ile güncellemeye hazırla
-                    $sikayet->iaa_id = $yeniProje->id;
+                    $sikayet->iaa_id = $yeniProje->id; // Obje üzerinde ayarla
                     
                     $logAciklamalari[] = "Şikayet, ID:{$yeniProje->id} ile IAA Projesine dönüştürüldü.";
                 }
                 // ================== YENİ KÖPRÜ KODU SONU ==================
             }
 
+            // ... (Puanlama, Tarih vs. diğer mevcut kodlarınız) ...
+            
             // 2. Tarih Değişikliği Kontrolü (Mevcut kodun)
-            if ($sikayet->musteri_cozum_son_tarihi != $this->musteri_cozum_son_tarihi) {
-                $logAciklamalari[] = "Çözüm son tarihi '{$this->musteri_cozum_son_tarihi}' olarak ayarlandı.";
-                if($this->ek_sure_talep_durumu == 'Talep Edildi') {
-                    $this->ek_sure_talep_durumu = 'Onaylandı';
-                    $logAciklamalari[] = "Ek süre talebi onaylandı.";
-                }
+            if ($sikayet->musteri_cozum_son_tarihi != $this->musteri_cozum_son_tarihi && !($user->hasRole('Müşteri Şikayeti Kurulu') && !$user->hasRole('Superadmin'))) {
+                 if(strpos(implode(" ", $logAciklamalari), "72 saat") === false) {
+                     $logAciklamalari[] = "Çözüm son tarihi '{$this->musteri_cozum_son_tarihi}' olarak ayarlandı.";
+                 }
+                 if($this->ek_sure_talep_durumu == 'Talep Edildi') {
+                     $this->ek_sure_talep_durumu = 'Onaylandı';
+                     $logAciklamalari[] = "Ek süre talebi onaylandı.";
+                 }
             }
-
             // 3. Puanlama ve Kapatma Kontrolü (Mevcut kodun)
             $hesaplananPuan = 0;
             if ($this->etki_puani && $this->karmasiklik_puani) {
@@ -180,7 +219,17 @@ class SikayetTriyajModal extends Component
             
                 if ($this->musteri_puan != $hesaplananPuan) {
                     $this->musteri_puan = $hesaplananPuan;
-                    $logAciklamalari[] = "Çözüm puanı {$hesaplananPuan} olarak hesaplandı.";
+                    $logIndex = -1;
+                    foreach ($logAciklamalari as $index => $log) {
+                        if (strpos($log, 'default puan') !== false) {
+                            $logIndex = $index;
+                            break;
+                        }
+                    }
+                    if ($logIndex !== -1) {
+                        unset($logAciklamalari[$logIndex]);
+                    }
+                    $logAciklamalari[] = "Çözüm puanı (Superadmin) {$hesaplananPuan} olarak hesaplandı.";
                 }
 
                 if ($this->musteri_puan > 0 && in_array($orijinalDurum, ['İşlemde', 'Çözümlendi'])) {
@@ -188,12 +237,12 @@ class SikayetTriyajModal extends Component
                     $logAciklamalari[] = "Puanlama yapıldığı için durum otomatik olarak 'Kapatıldı' yapıldı.";
                 }
             }
-            
             // Puan Dağıtımı (Mevcut kodun)
             if ($yeniDurum == 'Kapatıldı' && $this->musteri_puan > 0 && $sikayet->musteri_puan != $this->musteri_puan) {
                 $this->dagitPuan($sikayet->atanan_cozum_takimi_id, $this->musteri_puan);
                 $logAciklamalari[] = "Puan takıma dağıtıldı.";
             }
+
             
             // === VERİ GÜNCELLEME DİZİSİ (GÜNCELLENDİ) ===
             $updateData = [
@@ -214,15 +263,33 @@ class SikayetTriyajModal extends Component
             }
             // === KİLİT MANTIĞI SONU ===
 
+            // !!!!! ÖNCE GÜNCELLEME YAP !!!!!
             $sikayet->update($updateData);
+            
+            
+            // !!!!! ŞİMDİ MAİL GÖNDER (ÇÜNKÜ $sikayet->iaa_id ARTIK DOLU) !!!!!
+            // === YENİ E-POSTA GÖNDERİM YERİ ===
+            // Sadece bu işlemde yeni bir takım atandıysa mail gönder
+            if ($yeniAtananTakim) { // $yeniAtananTakim'ı yukarıda (if bloğunda) doldurmuştuk
+                try {
+                    // $sikayet objesi artık güncel (iaa_id'si dolu)
+                    // $yeniAtananTakim objesi de dolu
+                    $this->notifyTeamAboutAssignment($sikayet, $yeniAtananTakim, null); 
+                } catch (\Exception $e) {
+                    Log::error('Atama maili gönderilemedi (Triyaj). Hata: ' . $e->getMessage());
+                }
+            }
+            // === E-POSTA GÖNDERİM SONU ===
             
             
             // Loglama (Mevcut kodun - Eylem adı güncellendi)
             if (!empty($logAciklamalari)) {
+                $eylemAdi = ($orijinalDurum == 'Yeni' && $yeniDurum == 'İşlemde') ? 'Atama Yapıldı (Triyaj)' : 'Şikayet Güncellendi (Triyaj)';
+                
                 $sikayet->loglar()->create([
                     'user_id' => $user->id,
                     'eylem' => 'Şikayet Güncellendi (Triyaj)', // 'Şikayet Güncellendi' yerine
-                    'aciklama' => $user->name . " tarafından: " . implode(' ', $logAciklamalari),
+                    'aciklama' => $user->name . " tarafından: " . implode(' ', array_unique($logAciklamalari)), // Tekrarlanan logları engelle
                 ]);
             }
         
@@ -232,7 +299,6 @@ class SikayetTriyajModal extends Component
         $this->showModal = false;
         $this->dispatch('sikayetGuncellendi');
         // === YENİ OLAYI BURADA TETİKLE ===
-        // (Bir durum değişikliği oldu, raporlar kendini yenilesin)
         try {
             event(new \App\Events\SikayetDurumuDegisti());
         } catch (\Exception $e) {
@@ -241,6 +307,7 @@ class SikayetTriyajModal extends Component
         // === TETİKLEME SONU ===
         session()->flash('success', 'Şikayet başarıyla güncellendi.');
     }
+
     
     // Atamayı Kaldır
     public function removeAtama()
@@ -299,6 +366,44 @@ class SikayetTriyajModal extends Component
             }
         }
     }
+
+   /**
+     * Atanan ekibe ve ayarlardaki ekstra kişilere bildirim gönderir.
+     * GÜNCELLENDİ: Artık 2 farklı mail gönderiyor.
+     * 1. SikayetAtamaBildirimi -> Ekip üyelerine ("Tarafınıza atandı")
+     * 2. SikayetAtamaBilgilendirmesi -> Manuel listeye ("Ekibe atandı" bilgisi)
+     */
+    private function notifyTeamAboutAssignment(MusteriSikayeti $sikayet, Takim $team, ?User $user)
+    {
+        // 1. Ekip üyelerinin e-postaları
+        $teamEmails = $team->uyeler()->pluck('email')->filter()->unique();
+        
+        if ($teamEmails->isNotEmpty()) {
+            $mailable = new SikayetAtamaBildirimi($sikayet, $team, $user); // "Tarafınıza" maili
+            foreach ($teamEmails as $recipient) {
+                if(filter_var(trim($recipient), FILTER_VALIDATE_EMAIL)) {
+                     Mail::to(trim($recipient))->queue($mailable);
+                }
+            }
+        }
+
+        // 2. Ayarlardan gelen ekstra manuel e-postalar
+        $manualEmails = collect();
+        $manualEmailsSetting = Setting::where('key', 'sikayet_atama_notify_manual_emails')->value('value');
+        if (!empty($manualEmailsSetting)) {
+             $manualEmails = collect(explode(',', $manualEmailsSetting))->filter()->unique();
+        }
+
+        if ($manualEmails->isNotEmpty()) {
+            $mailableInfo = new SikayetAtamaBilgilendirmesi($sikayet, $team); // "Bilgilendirme" maili
+            foreach ($manualEmails as $recipient) {
+                if(filter_var(trim($recipient), FILTER_VALIDATE_EMAIL)) {
+                     Mail::to(trim($recipient))->queue($mailableInfo);
+                }
+            }
+        }
+    }
+    // === YENİ EKLENEN METODUN SONU ===
 
     public function render()
     {

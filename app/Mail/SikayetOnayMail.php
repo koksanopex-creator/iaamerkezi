@@ -12,7 +12,7 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\URL; // Takip linki oluşturmak için
 
-class SikayetOnayMail extends Mailable
+class SikayetOnayMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 

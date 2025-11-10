@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use App\Exports\ProfesyonelIaalarExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\MusteriSikayeti; // <-- 1. BU SATIRI EKLEYİN
+
 
 class RaporController extends Controller
 {
@@ -82,6 +84,36 @@ class RaporController extends Controller
     {
         // Bu view, içinde Livewire bileşenini çağıracak
         return view('admin.raporlar.sikayet-raporlari');
+    }
+
+    /**
+     * YENİ METOT: Tüm şikayetleri listeleyen sayfa.
+     * (GÜNCELLENDİ: Yeni KPI'lar eklendi)
+     */
+    public function tumSikayetListesi()
+    {
+        // === 1. YENİ KPI'LARI HESAPLA ===
+        // Not: Bu sorgular tüm tabloyu sayar, sayfalama öncesi
+        $stats = [
+            'yeni' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
+            'islemde' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
+            'cozulen' => MusteriSikayeti::whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])->count(),
+            'enCokKategori' => MusteriSikayeti::join('sikayet_kategorileri', 'musteri_sikayetleri.sikayet_kategorisi_id', '=', 'sikayet_kategorileri.id')
+                ->select('sikayet_kategorileri.ad', DB::raw('count(*) as total'))
+                ->groupBy('sikayet_kategorileri.ad')
+                ->orderBy('total', 'desc')
+                ->first(),
+        ];
+        // === KPI HESAPLAMA SONU ===
+
+
+        // === 2. SAYFALANMIŞ VERİYİ ÇEK ===
+        $sikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
+            ->latest() // created_at'e göre en yeniden eskiye sıralar
+            ->paginate(50); // Sayfa başına 50 kayıt
+
+        // Veriyi yeni oluşturacağımız view'a gönder
+        return view('admin.raporlar.tum-sikayet-listesi', compact('sikayetler', 'stats'));
     }
 
     /**

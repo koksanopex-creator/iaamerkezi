@@ -28,18 +28,37 @@ class MusteriSikayetiPolicy
      */
     public function viewAny(User $user): bool
     {
-        // Kurul üyesi ise görebilir. (Superadmin zaten 'before' metodunda geçti)
-        return $user->hasRole('Müşteri Şikayeti Kurulu');
+        // 1. Ana roller (Admin/Kurul/Lider) tüm listeyi görebilir
+        if ($user->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri'])) {
+            return true;
+        }
+
+        // 2. Normal "Kullanıcı" ise, sadece bir 'sikayet' takımına üyeyse görebilir
+        // (Superadmin zaten 'before' metodunda true döndüğü için buraya hiç gelmez)
+        return $user->takimlar()->where('tur', 'sikayet')->exists();
     }
 
     /**
      * Determine whether the user can view the model.
      * Belirli bir şikayetin detayını kimler görebilir?
+     * === YENİ METOD / GÜNCELLEME ===
      */
     public function view(User $user, MusteriSikayeti $sikayet): bool
     {
-        // Kurul üyesi ise görebilir.
-        return $user->hasRole('Müşteri Şikayeti Kurulu');
+        // 1. Superadmin ve Kurul her zaman görebilir
+        if ($user->hasRole(['Müşteri Şikayeti Kurulu'])) {
+            return true;
+        }
+
+        // 2. Çözüm Lideri, SADECE lideri olduğu takımlara atananları görebilir
+        if ($user->hasRole('Müşteri Şikayeti Çözüm Lideri')) {
+            $lideriOlduguTakimIds = $user->lideriOlduguTakimlar()->where('tur', 'sikayet')->pluck('takimlar.id');
+            return $lideriOlduguTakimIds->contains($sikayet->atanan_cozum_takimi_id);
+        }
+
+        // 3. Normal Kullanıcı, SADECE üyesi olduğu takımlara atananları görebilir
+        $uyesiOlduguTakimIds = $user->takimlar()->where('tur', 'sikayet')->pluck('takimlar.id');
+        return $uyesiOlduguTakimIds->contains($sikayet->atanan_cozum_takimi_id);
     }
 
     /**

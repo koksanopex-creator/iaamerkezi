@@ -22,6 +22,12 @@ namespace App\Http\Controllers;
     use App\Models\MusteriSikayetiDosyasi; // Dosya kaydı için
     use App\Models\MusteriSikayeti; // <-- BU SATIR ÇOK ÖNEMLİ! Doğru yazıldığından emin ol.
 
+    // === YENİ EKLENENLER ===
+    use App\Models\User; // Yönetici/Kullanıcı e-postalarını çekmek için
+    use App\Mail\YeniSikayetBildirimi; // Yöneticiye giden mail sınıfı
+    use Spatie\Permission\Models\Role; // Rol'e göre kullanıcı çekmek için
+    // === YENİ EKLENENLER SONU ===
+
     class PublicSikayetController extends Controller
     {
         /**
@@ -146,14 +152,24 @@ namespace App\Http\Controllers;
                 }
                 // === TETİKLEME SONU ===
 
+                // === YÖNETİCİ BİLDİRİMİ GÖNDERME (YENİ EKLENEN KISIM) ===
+                try {
+                    // Ayarlara göre ilgili yöneticilere/rollere mail gönder
+                    $this->notifyAdminsAboutNewComplaint($sikayet);
+                } catch (\Exception $e) {
+                    Log::error('Yönetici bildirim maili gönderilemedi. Şikayet ID: ' . $sikayet->id . ' Hata: '. $e->getMessage());
+                    // Bu hatanın kullanıcıyı durdurmasına gerek yok, sadece loglansın.
+                }
+                // === YÖNETİCİ BİLDİRİMİ SONU ===
+
                 // === Yönlendirme ve E-posta ===
                 if ($isGuest && $token && $plainPassword) {
                     // Misafir ise e-posta gönder ve takip sayfasına yönlendir
                     try {
-                        Mail::to($validated['musteri_iletisim'])->send(new SikayetOnayMail($sikayet, $plainPassword));
-                        // E-posta gönderimi başarılı mesajı ile takip sayfasına yönlendir
+                        Mail::to($validated['musteri_iletisim'])->queue(new SikayetOnayMail($sikayet, $plainPassword)); // <-- DÜZELTİLDİ
                         return redirect()->route('public.sikayet.show', ['token' => $token])
-                                        ->with('success', 'Şikayetiniz başarıyla alındı! Takip bilgileriniz e-posta adresinize gönderildi.');
+                                        ->with('success', 'Şikayetiniz başarıyla alındı! ...');
+            
                     } catch (\Exception $e) {
                         Log::error('Şikayet onay e-postası gönderilemedi. Şikayet ID: ' . $sikayet->id . ' Hata: ' . $e->getMessage());
                         // E-posta gitmese bile şikayet kaydedildi, takip sayfasına yönlendir ama uyarı ver
@@ -412,4 +428,63 @@ namespace App\Http\Controllers;
             // Şimdilik boş bırakalım
             return redirect()->route('public.sikayet.show', ['token' => $token])->with('success', 'Geri bildiriminiz (geçici olarak) alındı!');
         }
+
+        // ======================================================================
+        // === YENİ EKLENEN YARDIMCI METOT (YÖNETİCİ BİLDİRİMİ İÇİN) ===
+        // ======================================================================
+
+        /**
+         * Ayarlara göre ilgili kişilere yeni şikayet bildirimini gönderir.
+         */
+        private function notifyAdminsAboutNewComplaint(MusteriSikayeti $sikayet)
+        {
+            // Ayarları veritabanından çek (performans için cache'lenebilir)
+            $settings = Setting::all()->keyBy('key');
+            $recipientEmails = collect();
+
+            // 1. Rollerden gelen kullanıcı e-postaları
+            $roleIdsValue = $settings->get('sikayet_notify_role_ids')?->value;
+            if (!empty($roleIdsValue)) {
+                $roleIds = explode(',', $roleIdsValue);
+                $usersFromRoles = User::whereHas('roles', function ($query) use ($roleIds) {
+                    $query->whereIn('id', $roleIds);
+                })->pluck('email');
+                $recipientEmails = $recipientEmails->merge($usersFromRoles);
+            }
+
+            // 2. Kullanıcılardan gelen e-postalar
+            $userIdsValue = $settings->get('sikayet_notify_user_ids')?->value;
+            if (!empty($userIdsValue)) {
+                $userIds = explode(',', $userIdsValue);
+                $usersFromIds = User::whereIn('id', $userIds)->pluck('email');
+                $recipientEmails = $recipientEmails->merge($usersFromIds);
+            }
+
+            // 3. Manuel e-postalar
+            $manualEmailsValue = $settings->get('sikayet_notify_manual_emails')?->value;
+            if (!empty($manualEmailsValue)) {
+                $manualEmails = explode(',', $manualEmailsValue);
+                $recipientEmails = $recipientEmails->merge($manualEmails);
+            }
+            
+            // 4. (Eski sistemden kalan) sikayet_admin_notification_email
+            //    Bu ayarı da listeye ekleyelim, belki hala kullanılıyordur.
+            $legacyAdminEmail = $settings->get('sikayet_admin_notification_email')?->value;
+            if (!empty($legacyAdminEmail)) {
+                $recipientEmails->push($legacyAdminEmail);
+            }
+
+
+            // Tekilleştir (aynı kişiye 5 mail gitmesin) ve boş olanları filtrele
+            $finalRecipients = $recipientEmails->filter()->unique();
+
+            if ($finalRecipients->isNotEmpty()) {
+                foreach ($finalRecipients as $recipient) {
+                    if(filter_var(trim($recipient), FILTER_VALIDATE_EMAIL)) {
+                        Mail::to(trim($recipient))->queue(new YeniSikayetBildirimi($sikayet)); // <-- DÜZELTİLDİ
+                    }
+                }
+            }
+        }
+
     }

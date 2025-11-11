@@ -29,7 +29,6 @@
                         <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
                             <x-dropdown-link :href="route('iaa.index')">{{ __('İAA\'larım') }}</x-dropdown-link>
                             <x-dropdown-link :href="route('iaa.havuz')">{{ __('İyileştirme Havuzu') }}</x-dropdown-link>
-                            <x-dropdown-link :href="route('iaa.takimProjeleri')">{{ __('Takım Projelerim') }}</x-dropdown-link>
                         </div>
                     </div>
 
@@ -40,6 +39,7 @@
                         </button>
                         <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
                             <x-dropdown-link :href="route('takimlar.index')">{{ __('Takımlar') }}</x-dropdown-link>
+                            <x-dropdown-link :href="route('iaa.takimProjeleri')">{{ __('Takım Projelerim') }}</x-dropdown-link>
                             <x-dropdown-link :href="route('takimlar.davetlerim')">{{ __('Davetlerim') }}</x-dropdown-link>
                         </div>
                     </div>
@@ -47,16 +47,23 @@
                     {{-- Superadmin, Kurul, Lider VEYA 'sikayet' takımındaysa göster --}}
                     @if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']) || $kullaniciSikayetTakimindaMi)
                     <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                        <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-kategorileri.*') || request()->routeIs('admin.cozum-takimlari.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                        <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-kategorileri.*') || request()->routeIs('admin.cozum-takimlari.*') || request()->routeIs('admin.sikayet-raporlari.index') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                             <span class="font-semibold text-sm">Müşteri Şikayetleri</span>
                             <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                         </button>
                         <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
-                            {{-- Herkes bu linke gider (içerik içeride filtrelenir) --}}
+                            
                             <x-dropdown-link :href="route('admin.sikayetler.index')">{{ __('Şikayet Paneli') }}</x-dropdown-link>
+                            
+                            {{-- === YENİ EKLENDİ (RAPOR LİNKİ) === --}}
+                            <x-dropdown-link :href="route('admin.sikayet-raporlari.index')" :active="request()->routeIs('admin.sikayet-raporlari.index')">
+                                {{ __('Şikayet Raporları') }}
+                            </x-dropdown-link>
+                            {{-- === YENİ EKLEME SONU === --}}
                             
                             {{-- Sadece Superadmin bu yönetim linklerini görebilir --}}
                             @role('Superadmin')
+                                <div class="border-t border-gray-100 my-1"></div>
                                 <x-dropdown-link :href="route('admin.sikayet-kategorileri.index')"> {{ __('Şikayet Kategorileri') }} </x-dropdown-link>
                                 <x-dropdown-link :href="route('admin.cozum-takimlari.index')">{{ __('Çözüm Takımları') }}</x-dropdown-link>
                             @endrole
@@ -65,7 +72,7 @@
                     @endif
                     @role('Superadmin')
                     <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                        <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ (request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.sikayet-kategorileri.*') && !request()->routeIs('admin.cozum-takimlari.*')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                        <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ (request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.sikayet-kategorileri.*') && !request()->routeIs('admin.cozum-takimlari.*') && !request()->routeIs('admin.sikayet-raporlari.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                             <span class="font-semibold text-sm">Yönetim Paneli</span>
                             <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                         </button>
@@ -77,9 +84,12 @@
                             <x-dropdown-link :href="route('admin.users.index')">{{ __('Kullanıcı Yönetimi') }}</x-dropdown-link>
                             <div class="border-t border-gray-100 my-1"></div>
                             <x-dropdown-link :href="route('admin.raporlar.index')">{{ __('İAA Raporları') }}</x-dropdown-link>
-                            <x-dropdown-link :href="route('admin.sikayet-raporlari.index')" :active="request()->routeIs('admin.sikayet-raporlari.index')">
+                            
+                            {{-- Link buradan (Yönetim) Müşteri Şikayetleri altına taşındı, Superadmin zaten Müşteri Şikayetleri menüsünü gördüğü için sorun yok --}}
+                            {{-- <x-dropdown-link :href="route('admin.sikayet-raporlari.index')" :active="request()->routeIs('admin.sikayet-raporlari.index')">
                                 {{ __('Şikayet Raporları (Canlı)') }}
-                            </x-dropdown-link>
+                            </x-dropdown-link> --}}
+
                             <div class="border-t border-gray-100 my-1"></div>
                             <x-dropdown-link :href="route('admin.sistem-ayarlari.index')">{{ __('Sistem Ayarları') }}</x-dropdown-link>
                         </div>
@@ -144,7 +154,6 @@
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('iaa.index')">{{ __('İAA\'larım') }}</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('iaa.havuz')">{{ __('İyileştirme Havuzu') }}</x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('iaa.takimProjeleri')">{{ __('Takım Projelerim') }}</x-responsive-nav-link>
             </div>
         </div>
         
@@ -152,6 +161,7 @@
             <div class="px-4"><div class="font-medium text-base text-gray-400">Takım Modülü</div></div>
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('takimlar.index')">{{ __('Takımlar') }}</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('iaa.takimProjeleri')">{{ __('Takım Projelerim') }}</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('takimlar.davetlerim')">{{ __('Davetlerim') }}</x-responsive-nav-link>
             </div>
         </div>
@@ -167,6 +177,12 @@
                     <x-responsive-nav-link :href="route('sikayet-gorevlerim.index')">{{ __('Şikayet Görevlerim') }}</x-responsive-nav-link>
                 @endrole
                 
+                {{-- === YENİ EKLENDİ (MOBİL RAPOR LİNKİ) === --}}
+                <x-responsive-nav-link :href="route('admin.sikayet-raporlari.index')" :active="request()->routeIs('admin.sikayet-raporlari.index')">
+                    {{ __('Şikayet Raporları') }}
+                </x-responsive-nav-link>
+                {{-- === YENİ EKLEME SONU === --}}
+
                 @role('Superadmin')
                     <x-responsive-nav-link :href="route('admin.sikayet-kategorileri.index')">{{ __('Şikayet Kategorileri') }}</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('admin.cozum-takimlari.index')">{{ __('Çözüm Takımları') }}</x-responsive-nav-link>
@@ -184,9 +200,12 @@
                 <x-responsive-nav-link :href="route('admin.workflows.index')">{{ __('Akış Şablonları') }}</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.users.index')">{{ __('Kullanıcı Yönetimi') }}</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.raporlar.index')">{{ __('İAA Raporları') }}</x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('admin.sikayet-raporlari.index')" :active="request()->routeIs('admin.sikayet-raporlari.index')">
+                
+                {{-- Link buradan (Yönetim) Müşteri Şikayetleri altına taşındı --}}
+                {{-- <x-responsive-nav-link :href="route('admin.sikayet-raporlari.index')" :active="request()->routeIs('admin.sikayet-raporlari.index')">
                     {{ __('Şikayet Raporları (Canlı)') }}
-                </x-responsive-nav-link>
+                </x-responsive-nav-link> --}}
+                
                 <x-responsive-nav-link :href="route('admin.sistem-ayarlari.index')">{{ __('Sistem Ayarları') }}</x-responsive-nav-link>
             </div>
         </div>

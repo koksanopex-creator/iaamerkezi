@@ -99,5 +99,30 @@ unset($__defined_vars, $__key, $__value); ?>
              ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
         <?php endif; ?>
 
+        
+        <?php if($isCompleted || $isCurrent): ?>
+        <div class="mt-8 mb-4 px-6 md:px-10">
+            <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('admin.proje-adim-yorumlari', [
+                'iaa' => $iaa, 
+                'step' => $step
+            ]);
+
+$__html = app('livewire')->mount($__name, $__params, $step->id, $__slots ?? [], get_defined_vars());
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__split);
+if (isset($__slots)) unset($__slots);
+?>
+        </div>
+        
+        <?php endif; ?>
     </div>
 </div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/proje-calisma-alani/partials/_step-item.blade.php ENDPATH**/ ?>

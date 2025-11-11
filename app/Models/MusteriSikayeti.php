@@ -160,5 +160,35 @@ class MusteriSikayeti extends Model
         return "<span class=\"inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {$class}\">{$this->musteri_durum}</span>";
     }
 
+ 
+
+    /**
+     * Hatanın Çözümü 1: Şikayete bağlı PROJE üzerinden TÜM yorumları getirir.
+     * Bu, withCount(['projeYorumlari']) için gereklidir.
+     */
+    public function projeYorumlari()
+    {
+        // hasManyThrough: Bu model (Şikayet), Iaa modeli üzerinden ProjeYorumu'na bağlanır.
+        return $this->hasManyThrough(
+            ProjeYorumu::class, // Hedef model (Yorumlar)
+            Iaa::class,         // Ara model (Projeler)
+            'id',               // Iaa tablosundaki 'id' (iaa.id)
+            'iaa_id',           // ProjeYorumu tablosundaki 'iaa_id' (proje_yorumlari.iaa_id)
+            'iaa_id',           // MusteriSikayeti tablosundaki 'iaa_id' (musteri_sikayetleri.iaa_id)
+            'id'                // Iaa tablosundaki 'id' (iaa.id)
+        );
+    }
+
+    /**
+     * Hatanın Çözümü 2: Şikayete bağlı PROJE üzerinden SADECE MÜŞTERİ yorumlarını getirir.
+     * Bu, withCount(['musteriProjeYorumlari']) için gereklidir.
+     */
+    public function musteriProjeYorumlari()
+    {
+        // Yukarıdaki 'projeYorumlari' ilişkisini kullanır ve onu Müşteri için filtreler
+        return $this->projeYorumlari()
+                    ->whereNull('proje_yorumlari.user_id')
+                    ->whereNotNull('proje_yorumlari.musteri_sikayeti_id');
+    }  
 
 }

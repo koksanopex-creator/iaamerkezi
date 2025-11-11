@@ -131,10 +131,12 @@ class MusteriSikayetRaporu extends Component
             ->pluck('total', 'ay');
 
             // === YENİ EKLENDİ (SON 10 ŞİKAYET TABLOSU İÇİN) ===
-        $sonSikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
-        ->latest() // En son ekleneni (created_at) en üste alır
-        ->take(10) // Sadece 10 tane alır
-        ->get();
+            $sonSikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
+            // 'iaa' ilişkisini ve o ilişki üzerinden 'projeYorumlari' ve 'musteriProjeYorumlari' sayımlarını yükle
+            ->withCount(['projeYorumlari', 'musteriProjeYorumlari'])
+            ->latest() // En son ekleneni (created_at) en üste alır
+            ->take(10) // Sadece 10 tane alır
+            ->get();
     // === YENİ EKLEME SONU ===
 
         return compact(

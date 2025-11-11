@@ -62,5 +62,15 @@
              ])
         @endif
 
+        {{-- === YORUM/LOG BİLEŞENİNİ BURAYA EKLEYİN === --}}
+        @if($isCompleted || $isCurrent)
+        <div class="mt-8 mb-4 px-6 md:px-10">
+            @livewire('admin.proje-adim-yorumlari', [
+                'iaa' => $iaa, 
+                'step' => $step
+            ], key($step->id))
+        </div>
+        {{-- === YORUM BİLEŞENİ SONU === --}}
+        @endif
     </div>
 </div>

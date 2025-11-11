@@ -183,4 +183,23 @@ class Iaa extends Model
         return $this->hasMany(IaaLog::class, 'iaa_id');
     }
 
+    /**
+     * Bu projeye ait TÜM yorumları getirir.
+     */
+    public function yorumlar()
+    {
+        return $this->hasMany(ProjeYorumu::class, 'iaa_id');
+    }
+
+    /**
+     * Bu projeye SADECE MÜŞTERİ tarafından yapılan yorumları getirir.
+     */
+    public function musteriYorumlari()
+    {
+        // Yorumu misafir yapmışsa user_id'si 'null' olur.
+        return $this->hasMany(ProjeYorumu::class, 'iaa_id')
+                    ->whereNull('user_id')
+                    ->whereNotNull('musteri_sikayeti_id');
+    }
+
 }

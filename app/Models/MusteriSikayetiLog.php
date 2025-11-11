@@ -33,4 +33,5 @@ class MusteriSikayetiLog extends Model
     {
         return $this->belongsTo(MusteriSikayeti::class, 'musteri_sikayeti_id');
     }
+    
 }

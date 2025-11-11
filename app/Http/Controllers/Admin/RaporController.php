@@ -109,6 +109,8 @@ class RaporController extends Controller
 
         // === 2. SAYFALANMIŞ VERİYİ ÇEK ===
         $sikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
+            // Yorum sayılarını da yükle
+            ->withCount(['projeYorumlari', 'musteriProjeYorumlari'])
             ->latest() // created_at'e göre en yeniden eskiye sıralar
             ->paginate(50); // Sayfa başına 50 kayıt
 

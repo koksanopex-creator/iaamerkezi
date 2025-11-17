@@ -21,7 +21,10 @@ class SikayetGorevlerim extends Component
         // 1. Kullanıcının üye olduğu 'sikayet' takımlarının ID'lerini al
         $sikayetTakimIds = $user->takimlar()
                                 ->where('tur', 'sikayet')
-                                ->pluck('id');
+                                // === DÜZELTME BURADA ===
+                             // 'id' yerine 'takimlar.id' yazarak hangi id olduğunu belirtiyoruz
+                             ->pluck('takimlar.id');
+                             // === DÜZELTME SONU ===
 
         // 2. Bu takımlara atanmış ve 'Atandı' (yani işlemde) olan projeleri (iaas) al
         $query = Iaa::whereIn('atanan_takim_id', $sikayetTakimIds)

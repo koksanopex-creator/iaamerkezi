@@ -5,6 +5,14 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
+        <script>
+            window.notificationApiUrls = {
+                index: '{{ route("notifications.index") }}',
+                unreadCount: '{{ route("notifications.unreadCount") }}',
+                markAsRead: '{{ route("notifications.markAsRead") }}'
+            };
+        </script>
+
         <title>{{ config('app.name', 'Laravel') }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">

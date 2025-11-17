@@ -1,3 +1,4 @@
+@import './notification-bell.css'; /* <-- BU SATIRI EKLEYİN */
 @tailwind base;
 
 [x-cloak] {

@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use App\Models\IaaProgressUpdate;
 use App\Models\IaaWorkflowStep;
 use App\Models\IaaLog;
+use Illuminate\Support\Facades\Notification; // <-- EKLE
+use App\Notifications\ProjeAdimiGuncellendi; // <-- EKLE
 
 class ProjectWorkspaceController extends Controller
 {
@@ -172,6 +174,20 @@ class ProjectWorkspaceController extends Controller
             'aciklama' => Auth::user()->name . " adlı kullanıcı, '" . $step->name . "' adımını kaydetti ve tamamladı."
         ]);
         // ================== LOGLAMA SONU ==================
+
+        // === BİLDİRİM KODU BAŞLANGICI ===
+        try {
+            // Adımı güncelleyen kişi HARİÇ takımdaki diğer üyeleri bul
+            $guncelleyenKullanici = Auth::user();
+            $bildirimAlacaklar = $takim->users->where('id', '!=', $guncelleyenKullanici->id);
+
+            if ($bildirimAlacaklar->isNotEmpty()) {
+                Notification::send($bildirimAlacaklar, new ProjeAdimiGuncellendi($iaa, $step, $guncelleyenKullanici));
+            }
+        } catch (\Exception $e) {
+            Log::error('Proje adımı güncellendi bildirimi gönderilemedi: ' . $e->getMessage());
+        }
+        // === BİLDİRİM KODU SONU ===
 
         return redirect()->route('proje.workspace.show', $iaa)
                         ->with('success', '"' . $step->name . '" adımı başarıyla tamamlandı!');

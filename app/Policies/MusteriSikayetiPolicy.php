@@ -46,7 +46,7 @@ class MusteriSikayetiPolicy
     public function view(User $user, MusteriSikayeti $sikayet): bool
     {
         // 1. Superadmin ve Kurul her zaman görebilir
-        if ($user->hasRole(['Müşteri Şikayeti Kurulu'])) {
+        if ($user->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri'])) {
             return true;
         }
 

@@ -67,3 +67,8 @@ function tableManager() {
 document.addEventListener('alpine:init', () => {
     Alpine.data('tableManager', tableManager);
 })
+
+// === BURAYA EKLEYİN ===
+// Bildirim sistemi için oluşturduğumuz JS'i import et
+import './notification-handler.js';
+// === EKLEME SONU ===

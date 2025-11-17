@@ -9,6 +9,9 @@ use App\Models\IaaWorkflowStep;
 use App\Models\ProjeYorumu;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Notification; // <-- EKLE
+use App\Notifications\YeniProjeYorumu; // <-- EKLE
+use App\Models\User; // <-- EKLE (Adminleri ve Kurul üyelerini bulmak için)
 
 class ProjeAdimYorumlari extends Component
 {
@@ -113,6 +116,29 @@ class ProjeAdimYorumlari extends Component
             'dosya_yolu' => $dosyaYolu,
             'dosya_adi' => $dosyaAdi,
         ]);
+
+        // === BİLDİRİM KODU BAŞLANGICI ===
+        try {
+            // 1. Takım üyelerini al (yorum yapan hariç)
+            $takimUyeleri = $this->iaa->atananTakim->users->where('id', '!=', $userId);
+
+            // 2. Superadminleri al (yorum yapan hariç)
+            $superAdminler = User::role('Superadmin')->get()->where('id', '!=', $userId);
+
+            // 3. Kurul üyelerini al (yorum yapan hariç)
+            $kurulUyeleri = User::role('Müşteri Şikayeti Kurulu')->get()->where('id', '!=', $userId);
+
+            // 4. Herkesi birleştir ve 'unique' ile mükerrer kayıtları temizle
+            $bildirimAlacaklar = $takimUyeleri->merge($superAdminler)->merge($kurulUyeleri)->unique('id');
+
+            if ($bildirimAlacaklar->isNotEmpty()) {
+                // Herkese Adım 2'de oluşturduğumuz bildirimi gönder
+                Notification::send($bildirimAlacaklar, new YeniProjeYorumu($yeniYorumKaydi));
+            }
+        } catch (\Exception $e) {
+            \Log::error('Yeni yorum bildirimi gönderilemedi: ' . $e->getMessage());
+        }
+        // === BİLDİRİM KODU SONU ===
 
         $this->reset('yeniYorum', 'yeniDosya');
         session()->flash('yorum_success', 'Yorumunuz başarıyla eklendi.');

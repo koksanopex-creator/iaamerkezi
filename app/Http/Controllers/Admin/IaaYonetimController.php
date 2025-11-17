@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\User; // <-- BU SATIRI EKLEYİN
 use App\Models\MusteriSikayeti; // <-- BU SATIRI DA EKLEYİN (Şikayet güncellemesi için şart)
+use Illuminate\Support\Facades\Notification; // <-- EKLE
+use App\Notifications\ProjeDurumuDegisti; // <-- EKLE
 
 class IaaYonetimController extends Controller
 {
@@ -477,6 +479,14 @@ class IaaYonetimController extends Controller
                     $sikayetGuncellendi = true;
                 }
 
+                // === BİLDİRİM KODU BAŞLANGICI ===
+                // Proje takımı bulunduysa ve durum değiştiyse bildirim gönder
+                if ($takim) {
+                    // Takımdaki tüm üyelere "onaylandı" bildirimi gönder
+                    Notification::send($takim->users, new ProjeDurumuDegisti($iaa, "onaylandı"));
+                }
+                // === BİLDİRİM KODU SONU ===
+
                 // 6. LOG KAYDI OLUŞTUR
                 IaaLog::create([
                     'iaa_id' => $iaa->id,
@@ -529,6 +539,19 @@ class IaaYonetimController extends Controller
             'aciklama' => $validated['rejection_reason']
         ]);
 
+        // === BİLDİRİM KODU BAŞLANGICI ===
+        try {
+            $takim = $iaa->atananTakim;
+            if ($takim) {
+                // Takımdaki tüm üyelere "reddedildi" bildirimi gönder
+                $neden = $validated['rejection_reason'];
+                Notification::send($takim->users, new ProjeDurumuDegisti($iaa, "reddedildi", $neden));
+            }
+        } catch (\Exception $e) {
+            Log::error('Proje reddedildi bildirimi gönderilemedi: ' . $e->getMessage());
+        }
+        // === BİLDİRİM KODU SONU ===
+
         return back()->with('success', 'Projenin tamamlanması reddedildi.');
     }
 
@@ -554,6 +577,19 @@ class IaaYonetimController extends Controller
             'eylem' => 'Revizyon Talep Edildi',
             'aciklama' => $validated['revision_reason']
         ]);
+
+        // === BİLDİRİM KODU BAŞLANGICI ===
+        try {
+            $takim = $iaa->atananTakim;
+            if ($takim) {
+                // Takımdaki tüm üyelere "revizyon" bildirimi gönder
+                $neden = $validated['revision_reason'];
+                Notification::send($takim->users, new ProjeDurumuDegisti($iaa, "revizyona gönderildi", $neden));
+            }
+        } catch (\Exception $e) {
+            Log::error('Proje revizyon bildirimi gönderilemedi: ' . $e->getMessage());
+        }
+        // === BİLDİRİM KODU SONU ===
 
         return back()->with('success', 'Proje için revizyon talebi takıma iletildi.');
     }

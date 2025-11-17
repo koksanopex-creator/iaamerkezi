@@ -5,6 +5,14 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
 
+        <script>
+            window.notificationApiUrls = {
+                index: '<?php echo e(route("notifications.index")); ?>',
+                unreadCount: '<?php echo e(route("notifications.unreadCount")); ?>',
+                markAsRead: '<?php echo e(route("notifications.markAsRead")); ?>'
+            };
+        </script>
+
         <title><?php echo e(config('app.name', 'Laravel')); ?></title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">

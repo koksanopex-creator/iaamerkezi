@@ -106,6 +106,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/sikayet-gorevlerim', \App\Livewire\SikayetGorevlerim::class) 
      ->middleware('auth') 
      ->name('sikayet-gorevlerim.index');
+
+    // === BİLDİRİM SİSTEMİ API ROTALARI (BURAYA EKLEYİN) ===
+    Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread-count', [App\Http\Controllers\NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
+    Route::post('/notifications/mark-as-read', [App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
 });
 
 // =================================================================

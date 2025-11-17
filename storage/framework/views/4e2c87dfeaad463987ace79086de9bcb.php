@@ -401,11 +401,25 @@
                         </div>
                     </div>
                     <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="hidden lg:flex items-center">
-                <?php if (isset($component)) { $__componentOriginaldf8083d4a852c446488d8d384bbc7cbe = $component; } ?>
+                    </div>
+                </div> <div class="hidden lg:flex items-center">
+                    
+                    <div class="notification-container relative mr-4"> 
+                        <a href="#" id="notification-bell-icon" class="relative block p-2 text-gray-300 hover:text-white transition-all">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 14h14a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path></svg>
+                            <span id="notification-count-badge" class="notification-badge" style="display: none;">0</span>
+                        </a>
+                        
+                        <div id="notification-dropdown" class="notification-dropdown-menu" style="display: none;">
+                            <div class="notification-header">Bildirimler</div>
+                            <ul id="notification-list" class="notification-list-items">
+                                </ul>
+                            <div id="notification-empty" class="notification-empty-message" style="display: none;">
+                                Yeni bildirim yok.
+                            </div>
+                        </div>
+                    </div>
+                    <?php if (isset($component)) { $__componentOriginaldf8083d4a852c446488d8d384bbc7cbe = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginaldf8083d4a852c446488d8d384bbc7cbe = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown','data' => ['align' => 'right','width' => '48']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('dropdown'); ?>
@@ -415,19 +429,19 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['align' => 'right','width' => '48']); ?>
-                     <?php $__env->slot('trigger', null, []); ?> 
-                        <button class="flex items-center space-x-3 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 group">
-                            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                                <?php echo e(substr(Auth::user()->name, 0, 1)); ?>
+                         <?php $__env->slot('trigger', null, []); ?> 
+                            <button class="flex items-center space-x-3 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 group">
+                                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                    <?php echo e(substr(Auth::user()->name, 0, 1)); ?>
 
-                            </div>
-                            <div class="text-left hidden xl:block">
-                                <p class="text-sm font-semibold text-white"><?php echo e(Auth::user()->name); ?></p>
-                                <p class="text-xs text-gray-400"><?php echo e(Auth::user()->roles->first()->name ?? 'Kullanıcı'); ?></p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300 group-hover:text-white transition-transform" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                        </button>
-                     <?php $__env->endSlot(); ?>
+                                </div>
+                                <div class="text-left hidden xl:block">
+                                    <p class="text-sm font-semibold text-white"><?php echo e(Auth::user()->name); ?></p>
+                                    <p class="text-xs text-gray-400"><?php echo e(Auth::user()->roles->first()->name ?? 'Kullanıcı'); ?></p>
+                                </div>
+                                <svg class="w-4 h-4 text-gray-300 group-hover:text-white transition-transform" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            </button>
+                         <?php $__env->endSlot(); ?>
 
                      <?php $__env->slot('content', null, []); ?> 
                          <div class="py-1">
@@ -915,7 +929,21 @@
         <?php endif; ?>
         
         <div class="pt-4 pb-1 border-t border-gray-700">
-            <div class="px-4">
+            <div class="px-2">
+                <div class="notification-container relative">
+                    <a href="#" id="notification-bell-icon" class="relative flex items-center w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 14h14a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path></svg>
+                        
+                        <span class="ml-3">Bildirimler</span>
+                        
+                        <span id="notification-count-badge" class="notification-badge" style="display: none; position: relative; top: -10px; right: -5px;">0</span>
+                    </a>
+                    
+                    </div>
+            </div>
+        </div>
+                <div class="pt-4 pb-1 border-t border-gray-700">
+            <div class="px-4">
                 <div class="font-medium text-base text-white"><?php echo e(Auth::user()->name); ?></div>
                 <div class="font-medium text-sm text-gray-400"><?php echo e(Auth::user()->email); ?></div>
             </div>

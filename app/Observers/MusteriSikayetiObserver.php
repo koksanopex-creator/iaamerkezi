@@ -9,6 +9,10 @@ use App\Notifications\YeniMusteriSikayetiBildirimi;
 use App\Notifications\SikayetTakimaAtandiBildirimi;
 use Illuminate\Support\Facades\Log; // Hata ayıklama için
 
+use App\Mail\SikayetAtandiMusteriBildirimi; // <-- MÜŞTERİ MAİLİ İÇİN BUNU EKLEYİN
+use Illuminate\Support\Facades\Mail;      // <-- MÜŞTERİ MAİLİ İÇİN BUNU EKLEYİN
+use App\Models\Takim;                      // <-- MÜŞTERİ MAİLİ İÇİN BUNU EKLEYİN (Eğer zaten yoksa)
+
 class MusteriSikayetiObserver
 {
     /**
@@ -43,6 +47,7 @@ class MusteriSikayetiObserver
     /**
      * Handle the MusteriSikayeti "updated" event.
      * SENARYO: Müşteri Şikayeti Bir Takıma Atandı
+     * (HEM TAKIMA BİLDİRİM HEM MÜŞTERİYE E-POSTA GÖNDERİR)
      */
     public function updated(MusteriSikayeti $musteriSikayeti): void
     {
@@ -53,16 +58,25 @@ class MusteriSikayetiObserver
                 $takim = $musteriSikayeti->cozumTakimi;
 
                 if ($takim) {
-                    // Takımdaki tüm üyeleri al (User->takimlar ilişkisi)
-                    $kullanicilar = $takim->uyeler; 
                     
-                    // Ekstra güvenlik kontrolü: $kullanicilar'ın null olmadığını da kontrol edelim
+                    // === 1. TAKIM İÇİ BİLDİRİM (SİZİN MEVCUT KODUNUZ) ===
+                    $kullanicilar = $takim->uyeler; 
                     if ($kullanicilar && $kullanicilar->isNotEmpty()) { 
                         Notification::send($kullanicilar, new SikayetTakimaAtandiBildirimi($musteriSikayeti));
                     }
+                    // === TAKIM BİLDİRİMİ SONU ===
+
+                    
+                    // === 2. MÜŞTERİYE E-POSTA BİLDİRİMİ (YENİ EKLEME) ===
+                    if ($musteriSikayeti->musteri_iletisim) {
+                        Mail::to($musteriSikayeti->musteri_iletisim)
+                            ->queue(new SikayetAtandiMusteriBildirimi($musteriSikayeti, $takim));
+                    }
+                    // === MÜŞTERİ E-POSTA SONU ===
+
                 }
             } catch (\Exception $e) {
-                Log::error('Şikayet atama bildirimi gönderilemedi: ' . $e->getMessage());
+                Log::error('Şikayet atama bildirimi/maili gönderilemedi: ' . $e->getMessage());
             }
         }
     }

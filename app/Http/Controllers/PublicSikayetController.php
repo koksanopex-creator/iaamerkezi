@@ -21,6 +21,10 @@ namespace App\Http\Controllers;
     use Illuminate\Support\Facades\Storage; // Dosya işlemleri için
     use App\Models\MusteriSikayetiDosyasi; // Dosya kaydı için
     use App\Models\MusteriSikayeti; // <-- BU SATIR ÇOK ÖNEMLİ! Doğru yazıldığından emin ol.
+    use App\Models\Iaa; // <-- EKLEYİN
+    use App\Models\IaaWorkflow; // <-- EKLEYİN
+    use App\Models\IaaProgressUpdate; // <-- EKLEYİN
+
 
     // === YENİ EKLENENLER ===
     use App\Models\User; // Yönetici/Kullanıcı e-postalarını çekmek için
@@ -235,8 +239,46 @@ namespace App\Http\Controllers;
                 // İlgili ilişkileri yükle (Model'de 'dosyalar' ve 'sikayetKategori' ilişkileri olmalı)
                 $sikayet->load('dosyalar', 'sikayetKategori', 'cozumTakimi', 'loglar.user');
 
+                // === YENİ EKLEME BAŞLANGICI ===
+                $totalSteps = 0;
+                $completedSteps = 0;
+
+                // Eğer şikayet bir projeye dönüştüyse (iaa_id'si varsa)
+                if ($sikayet->iaa_id) {
+                    // İlgili atama kaydını (iaa_talepleri) bul
+                    $assignment = DB::table('iaa_talepleri')
+                                    ->where('iaa_id', $sikayet->iaa_id)
+                                    ->first();
+
+                    // Atama kaydı ve workflow ID'si varsa devam et
+                    if ($assignment && $assignment->iaa_workflow_id) {
+                        // Toplam adım sayısını bul
+                        $workflow = IaaWorkflow::find($assignment->iaa_workflow_id);
+                        if ($workflow) {
+                            $totalSteps = $workflow->steps()->count();
+                        }
+
+                        // Tamamlanan adım sayısını bul
+                        $completedSteps = IaaProgressUpdate::where('iaa_talep_id', $assignment->id)
+                                            ->whereNotNull('completed_at')
+                                            ->count();
+                    }
+                }
+                // === YENİ EKLEME SONU ===
+
+                // Yorumları çek (Bu kod sizin 'show' metodunuzda eksikti, ekliyoruz)
+                $yorumlar = $sikayet->iaaProjesi // Bu, Iaa.php'deki 'hasOne' ilişkisidir
+                ? $sikayet->iaaProjesi->yorumlar()->latest()->get() // 'yorumlar' ilişkisi
+                : collect(); // Proje yoksa boş koleksiyon
+
                 // b. Kullanıcıya şikayet detay sayfasını göster
-                return view('public.sikayet.sikayet-detay', compact('sikayet'));
+                // View'e yeni değişkenleri gönder
+                return view('public.sikayet.sikayet-detay', compact(
+                    'sikayet', 
+                    'yorumlar', 
+                    'totalSteps',      // <-- EKLENDİ
+                    'completedSteps'   // <-- EKLENDİ
+                ));
             }
 
         /**

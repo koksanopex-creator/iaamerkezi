@@ -62,6 +62,13 @@ Route::post('/sikayetler/{token}/feedback', [PublicSikayetController::class, 'st
 
 // =============================================
 
+// =============================================
+// === YENİ EKLEME (MİSAFİR PROJE ERİŞİMİ) ===
+// Bu rotayı aşağıdaki 'auth' grubundan buraya taşıdık.
+// Güvenlik, Controller'ın içinde (Adım 2B'de) sağlanacak.
+Route::get('/proje-calisma-alani/{iaa}', [ProjectWorkspaceController::class, 'show'])->name('proje.workspace.show');
+// === EKLEME SONU ===
+
 
 // Giriş yapmış tüm kullanıcılar için ortak alan
 Route::middleware('auth')->group(function () {
@@ -96,7 +103,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('takimlar', TakimController::class)->parameters(['takimlar' => 'takim']);
 
     // Proje Çalışma Alanı Rotaları
-    Route::get('/proje-calisma-alani/{iaa}', [ProjectWorkspaceController::class, 'show'])->name('proje.workspace.show');
+    
+    // === DEĞİŞİKLİK ===
+    // GET rotası yukarı (public alana) taşındı.
+    // Route::get('/proje-calisma-alani/{iaa}', [ProjectWorkspaceController::class, 'show'])->name('proje.workspace.show');
+    // === DEĞİŞİKLİK SONU ===
+    
+    // Bu POST rotaları GİRİŞ YAPMAYI GEREKTİRİR (Erhan Cesur gibi), bu yüzden 'auth' içinde kalmalı
     Route::post('/proje-calisma-alani/{assignment_id}/adim/{step_id}', [ProjectWorkspaceController::class, 'storeStep'])->name('proje.workspace.storeStep');
     Route::post('/proje-calisma-alani/adim/{progress_update}/yeniden-ac', [ProjectWorkspaceController::class, 'reopenStep'])->name('proje.workspace.reopenStep');
     

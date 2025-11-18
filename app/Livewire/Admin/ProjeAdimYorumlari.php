@@ -9,9 +9,11 @@ use App\Models\IaaWorkflowStep;
 use App\Models\ProjeYorumu;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\Notification; // <-- EKLE
-use App\Notifications\YeniProjeYorumu; // <-- EKLE
-use App\Models\User; // <-- EKLE (Adminleri ve Kurul üyelerini bulmak için)
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\YeniProjeYorumu;
+use App\Models\User;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\YeniYorumBildirimiMail;
 
 class ProjeAdimYorumlari extends Component
 {
@@ -58,6 +60,7 @@ class ProjeAdimYorumlari extends Component
             if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri'])) {
                 $this->kullaniciYetkiliMi = true; return;
             }
+            // === DÜZELTME: 'uyeler' kullandığınızdan emin olalım (önceki hatadan ders alarak) ===
             if ($this->iaa->atananTakim && $this->iaa->atananTakim->uyeler->contains($user)) {
                 $this->kullaniciYetkiliMi = true; return;
             }
@@ -105,7 +108,8 @@ class ProjeAdimYorumlari extends Component
             $sikayetId = $this->iaa->musteriSikayeti->id;
         }
 
-        ProjeYorumu::create([
+        // === GÜNCELLEME (Hata 2: Değişkeni ata) ===
+        $yeniYorumKaydi = ProjeYorumu::create([
             'iaa_id' => $this->iaa->id,
             'iaa_workflow_step_id' => $this->step->id,
             'user_id' => $userId,
@@ -117,28 +121,61 @@ class ProjeAdimYorumlari extends Component
             'dosya_adi' => $dosyaAdi,
         ]);
 
-        // === BİLDİRİM KODU BAŞLANGICI ===
-        try {
-            // 1. Takım üyelerini al (yorum yapan hariç)
-            $takimUyeleri = $this->iaa->atananTakim->users->where('id', '!=', $userId);
+        // === BİLDİRİM KODU (HEM E-POSTA HEM IN-APP) ===
+    try {
+        // 1. İlişkilerin yüklendiğinden emin ol
+        $this->iaa->loadMissing('atananTakim.uyeler', 'musteriSikayeti');
 
-            // 2. Superadminleri al (yorum yapan hariç)
-            $superAdminler = User::role('Superadmin')->get()->where('id', '!=', $userId);
-
-            // 3. Kurul üyelerini al (yorum yapan hariç)
-            $kurulUyeleri = User::role('Müşteri Şikayeti Kurulu')->get()->where('id', '!=', $userId);
-
-            // 4. Herkesi birleştir ve 'unique' ile mükerrer kayıtları temizle
-            $bildirimAlacaklar = $takimUyeleri->merge($superAdminler)->merge($kurulUyeleri)->unique('id');
-
-            if ($bildirimAlacaklar->isNotEmpty()) {
-                // Herkese Adım 2'de oluşturduğumuz bildirimi gönder
-                Notification::send($bildirimAlacaklar, new YeniProjeYorumu($yeniYorumKaydi));
-            }
-        } catch (\Exception $e) {
-            \Log::error('Yeni yorum bildirimi gönderilemedi: ' . $e->getMessage());
+        // 2. Takım üyelerini al
+        $takimUyeleri = collect();
+        if ($this->iaa->atananTakim) {
+            $takimUyeleri = $this->iaa->atananTakim->uyeler;
         }
-        // === BİLDİRİM KODU SONU ===
+
+        // 3. Diğer ilgili rolleri al
+        $superAdminler = User::role('Superadmin')->get();
+        $kurulUyeleri = User::role('Müşteri Şikayeti Kurulu')->get();
+        $cozumLiderleri = User::role('Müşteri Şikayeti Çözüm Lideri')->get();
+
+        // 4. Herkesi birleştir
+        $bildirimAlacaklar = $takimUyeleri
+                            ->merge($superAdminler)
+                            ->merge($kurulUyeleri)
+                            ->merge($cozumLiderleri)
+                            ->unique('id');
+
+        // 5. Yorumu yapan kişiyi listeden çıkar (Eğer misafir değilse)
+        if ($userId) { 
+            $bildirimAlacaklar = $bildirimAlacaklar->where('id', '!=', $userId);
+        }
+
+        // 6. In-App Bildirim (Zil İkonu) Gönder
+        if ($bildirimAlacaklar->isNotEmpty()) {
+            Notification::send($bildirimAlacaklar, new YeniProjeYorumu($yeniYorumKaydi));
+        }
+
+        // === YENİ E-POSTA GÖNDERİMİ BAŞLANGICI ===
+
+        // 7. EKİBE E-POSTA GÖNDER (Erhan ve Kurul dahil)
+        // Not: Bu, $bildirimAlacaklar listesindeki herkese mail atar.
+        foreach ($bildirimAlacaklar as $kullanici) {
+            Mail::to($kullanici->email)
+                ->queue(new YeniYorumBildirimiMail($yeniYorumKaydi, $this->iaa));
+        }
+
+        // 8. MÜŞTERİYE E-POSTA GÖNDER
+        // Eğer yorumu yapan GİRİŞ YAPMIŞ BİR KULLANICIYSA ($userId doluysa)
+        // VE bu proje bir MÜŞTERİ ŞİKAYETİNE bağlıysa ($this->iaa->musteriSikayeti varsa)
+        if ($userId && $this->iaa->musteriSikayeti && $this->iaa->musteriSikayeti->musteri_iletisim) {
+            Mail::to($this->iaa->musteriSikayeti->musteri_iletisim)
+                ->queue(new YeniYorumBildirimiMail($yeniYorumKaydi, $this->iaa));
+        }
+        // === YENİ E-POSTA GÖNDERİMİ SONU ===
+
+    } catch (\Exception $e) {
+        \Log::error('Yeni yorum bildirimi VEYA E-POSTASI gönderilemedi: ' . $e->getMessage());
+    }
+    // === BİLDİRİM KODU SONU ===
 
         $this->reset('yeniYorum', 'yeniDosya');
         session()->flash('yorum_success', 'Yorumunuz başarıyla eklendi.');
@@ -204,7 +241,7 @@ class ProjeAdimYorumlari extends Component
 
         return view('livewire.admin.proje-adim-yorumlari', [
             'yorumlar' => $yorumlar,
-            'yorumSayisi' => $yorumSayisi,             // <-- Sayıyı View'a gönder
+            'yorumSayisi' => $yorumSayisi,            // <-- Sayıyı View'a gönder
             'musteriYorumSayisi' => $musteriYorumSayisi // <-- Müşteri sayısını View'a gönder
         ]);
     }

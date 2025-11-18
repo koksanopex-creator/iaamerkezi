@@ -11,61 +11,102 @@ use App\Models\IaaWorkflowStep;
 use App\Models\IaaLog;
 use Illuminate\Support\Facades\Notification; // <-- EKLE
 use App\Notifications\ProjeAdimiGuncellendi; // <-- EKLE
+use Illuminate\Support\Facades\Session; // <-- 1. BU SATIRI EKLEYİN
 
 class ProjectWorkspaceController extends Controller
 {
+    /**
+     * Proje çalışma alanını gösterir.
+     * Hem giriş yapmış kullanıcıları hem de şifreyle giriş yapmış misafirleri kontrol eder.
+     */
     public function show(Iaa $iaa)
     {
-        // === GÜNCELLEME: Şikayet detaylarını da yükle ===
+        // === 2. YENİ YETKİ KONTROLÜ (Mevcut 'abort_if' satırınızın yerine geçer) ===
+        $isYetkiliKullanici = false;
+        $isYetkiliMisafir = false;
+
+        // 1. Giriş yapmış bir "Kullanıcı" mı (Admin, Erhan Cesur vb.)?
+        if (Auth::check()) {
+            $user = Auth::user();
+            $takim = $iaa->atananTakim;
+            
+            // Proje takım üyesi, Admin, Kurul veya Lider ise yetkilidir
+            if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']) || 
+                ($takim && $user->takimlar->contains($takim))) 
+            {
+                $isYetkiliKullanici = true;
+            }
+        }
+
+        // 2. Giriş yapmış bir "Misafir" (Müşteri) mi?
+        // Projeye bağlı şikayeti ve token'ı kontrol et
+        $sikayet = $iaa->musteriSikayeti; // Bu ilişkiyi bir sonraki adımda Iaa modeline ekleyeceğiz
+        
+        if ($sikayet) {
+            // Müşterinin bu şikayet için şifre girip girmediğini (Session) kontrol et
+            $sessionKey = 'sikayet_logged_in_' . $sikayet->takip_token;
+            if (Session::has($sessionKey)) {
+                $isYetkiliMisafir = true; // Evet, şifreyle giriş yapmış
+            }
+        }
+
+        // 3. GÜVENLİK KONTROLÜ:
+        // Eğer giriş yapmış bir kullanıcı DEĞİLSE ve giriş yapmış bir misafir DEĞİLSE
+        if (!$isYetkiliKullanici && !$isYetkiliMisafir) {
+            
+            // Eğer bu proje bir şikayete bağlıysa (ama misafir giriş yapmamışsa)
+            if ($sikayet) {
+                // Misafiri, şifre girmesi için şikayet sayfasına geri yönlendir
+                return redirect()->route('public.sikayet.show', $sikayet->takip_token)
+                    ->with('error', 'Proje detaylarını görmek için lütfen şifrenizle giriş yapın.');
+            }
+            
+            // Tamamen yetkisiz biriyse (örn: başka bir projenin URL'sini deneyen) 403 hatası ver
+            abort(403, 'Bu projeyi görüntüleme yetkiniz yok.');
+        }
+        // === YENİ YETKİ KONTROLÜ SONU ===
+
+
+        // --- Yetki kontrolü geçildiyse, mevcut kodunuz buradan devam ediyor ---
+        
         $iaa->load([
             'musteriSikayeti.dosyalar', 
             'musteriSikayeti.sikayetKategori'
         ]);
-        // === GÜNCELLEME SONU ===
+        
         $takim = $iaa->atananTakim;
-        // === YETKİ GÜNCELLEMESİ: Müşteri Şikayeti Kurulu eklendi ===
-        abort_if(
-            !Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu']) && // Admin VEYA Kurul değilse VE
-            (!$takim || !Auth::user()->takimlar->contains($takim)), // Takım üyesi değilse
-            403, 
-            'Bu projeyi görüntüleme yetkiniz yok.'
-        );
-        // === YETKİ GÜNCELLEMESİ SONU ===
-
+        
         $assignment = DB::table('iaa_talepleri')
                         ->where('iaa_id', $iaa->id)
-                        ->where('takim_id', $takim->id)
-                        ->first();
-        abort_if(!$assignment, 404, 'Proje atama kaydı bulunamadı.');
+                        ->first(); // Güvenlik: Sadece ilk atamayı alıyoruz
+
+        // Eğer atama kaydı (iaa_talepleri) yoksa (örn: silinmiş)
+        if (!$assignment) {
+            if($sikayet) {
+                 return redirect()->route('public.sikayet.show', $sikayet->takip_token)
+                    ->with('error', 'Proje ataması bulunamadı veya iptal edildi.');
+            }
+            return redirect()->route('dashboard')->with('error', 'Proje ataması bulunamadı.');
+        }
 
         $workflow = \App\Models\IaaWorkflow::with('steps')->find($assignment->iaa_workflow_id);
         $steps = $workflow->steps;
 
-        // ================== DEĞİŞİKLİK BURADA BAŞLIYOR ==================
-        
-        // 1. Progress güncellemelerini normal bir koleksiyon olarak al
         $allProgressUpdates = \App\Models\IaaProgressUpdate::where('iaa_talep_id', $assignment->id)
-                                                           ->get();
+                                        ->get();
 
-        // 2. Tamamlanmış adımların ID'lerini bu normal koleksiyondan al
-        //    (whereNotNull filtresi + pluck)
         $completedStepIds = $allProgressUpdates->whereNotNull('completed_at')
-                                               ->pluck('iaa_workflow_step_id') 
-                                               ->toArray();
+                                            ->pluck('iaa_workflow_step_id') 
+                                            ->toArray();
 
-        // 3. View'de kullanmak için anahtarlı (keyed) versiyonunu oluştur
-        //    (Tüm güncellemeleri kullanarak)
         $progressUpdates = $allProgressUpdates->keyBy('iaa_workflow_step_id');
         
-        // ================== DEĞİŞİKLİK SONU ==================
-        
-        $isTeamMember = Auth::user()->takimlar->contains($takim);
+        // Misafirler takım üyesi değildir, bu yüzden $isTeamMember = false olmalı
+        $isTeamMember = $isYetkiliKullanici ? Auth::user()->takimlar->contains($takim) : false;
 
         $totalStepsCount = $steps->count();
         $completedStepsCount = count($completedStepIds);
         $progressPercentage = $totalStepsCount > 0 ? ($completedStepsCount / $totalStepsCount) * 100 : 0;
-
-        // ======================== YENİ EKLENEN TARİH SORGUSU BAŞLANGICI ========================
 
         $statusDate = null;
         $logAction = null;
@@ -81,20 +122,17 @@ class ProjectWorkspaceController extends Controller
 
         if ($logAction) {
             $latestLog = IaaLog::where('iaa_id', $iaa->id)
-                               ->where('eylem', $logAction)
-                               ->latest('created_at')
-                               ->first();
+                                ->where('eylem', $logAction)
+                                ->latest('created_at')
+                                ->first();
             if ($latestLog) {
                 $statusDate = $latestLog->created_at;
             }
         } 
         elseif ($iaa->durum === 'Tamamlandı') {
-            // "Tamamlandı" durumunun tarihi, kendi özel sütununda tutulduğu için oradan alıyoruz.
             $statusDate = $iaa->onaylanma_tarihi;
         }
 
-        // ================== LOG SORGUSU GÜNCELLEMESİ ==================
-        // TÜM logları çek (Modal için)
         $tumProjeLoglari = IaaLog::where('iaa_id', $iaa->id)
                             ->whereIn('eylem', [
                                 'Proje Adımı Tamamlandı', 
@@ -102,34 +140,17 @@ class ProjectWorkspaceController extends Controller
                                 'Revizyon Talep Edildi', 
                                 'Proje Onaylandı',
                                 'Onay Geri Alındı',
-                                // Belki eklemek istersin:
-                                // 'Tamamlanmış Projenin Reddi', 
                             ])
                             ->with('user') 
                             ->latest()     
                             ->get();
                             
-        // Sadece son 10 logu al (İlk tablo için)
         $sonOnLoglar = $tumProjeLoglari->take(5);
-        // ================== GÜNCELLEME SONU ==================
-
-        // dd($projeLoglari); // Debug satırını kaldırdığından emin ol!
 
         return view('proje-calisma-alani.show', compact(
-            'iaa',
-            'takim',
-            'assignment',
-            'workflow',
-            'steps',
-            'completedStepIds',
-            'progressUpdates',
-            'totalStepsCount',
-            'completedStepsCount',
-            'progressPercentage',
-            'isTeamMember',
-            'statusDate',
-            'tumProjeLoglari', // <-- TÜM logları gönder (Modal için)
-            'sonOnLoglar'      // <-- Son 10 logu gönder (Tablo için)
+            'iaa', 'takim', 'assignment', 'workflow', 'steps',
+            'completedStepIds', 'progressUpdates', 'totalStepsCount', 'completedStepsCount',
+            'progressPercentage', 'isTeamMember', 'statusDate', 'tumProjeLoglari', 'sonOnLoglar'
         ));
     }
 

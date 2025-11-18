@@ -38,11 +38,15 @@ class SikayetController extends Controller
     {
         $this->authorize('create', MusteriSikayeti::class);
 
+        // Validasyon Kuralları
         $validated = $request->validate([
             'musteri_adi' => 'required|string|max:255',
             'musteri_iletisim' => 'nullable|string|max:255',
-            'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı', // <-- YENİ: Konum Tipi validasyonu
-            'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id', // <-- YENİ: Kategori validasyonu
+            'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı',
+            'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id',
+            // Alt Kategori: "other" metni, boş veya ID gelebilir, o yüzden 'nullable' diyoruz.
+            'sikayet_alt_kategori_id' => 'nullable', 
+            'sikayet_alt_kategori_diger' => 'nullable|string|max:500',
             'musteri_oncelik' => 'required|string|in:Düşük,Normal,Yüksek,Acil',
             'musteri_sikayet_konusu' => 'required|string|max:255',
             'musteri_sikayet_detayi' => 'required|string',
@@ -53,57 +57,62 @@ class SikayetController extends Controller
         $user = auth()->user();
         $kazanilacakPuan = 0;
 
+        // Puan hesaplama (Superadmin değilse)
         if (!$user->hasRole('Superadmin')) {
             $kazanilacakPuan = (int)(Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0);
         }
 
-        // === Veritabanı işlemini Transaction içine alalım (daha güvenli) ===
         DB::beginTransaction();
         try {
-            $sikayet = MusteriSikayeti::create([
-                'musteri_adi' => $validated['musteri_adi'],
-                'musteri_iletisim' => $validated['musteri_iletisim'],
-                'konum_tipi' => $validated['konum_tipi'], // <-- YENİ: Konum Tipi eklendi
-                'sikayet_kategorisi_id' => $validated['sikayet_kategorisi_id'], // <-- YENİ: Kategori ID'sini ekle
-                'musteri_oncelik' => $validated['musteri_oncelik'],
-                'musteri_sikayet_konusu' => $validated['musteri_sikayet_konusu'],
-                'musteri_sikayet_detayi' => $validated['musteri_sikayet_detayi'],
-                'musteri_sikayet_tarihi' => $validated['musteri_sikayet_tarihi'],
-                'olusturan_kurul_uyesi_id' => $user->id,
-                'musteri_durum' => 'Yeni',
-                'kazanilan_puan' => $kazanilacakPuan,
-            ]);
+            // --- DÜZELTİLMİŞ VERİ HAZIRLAMA ---
+            $sikayetData = $validated;
 
+            // Alt Kategori Mantığı
+            if ($request->sikayet_alt_kategori_id === 'other') {
+                // Kullanıcı "Diğer" seçtiyse ID null olmalı, açıklama kaydedilmeli
+                $sikayetData['sikayet_alt_kategori_id'] = null;
+                $sikayetData['sikayet_alt_kategori_diger'] = $request->sikayet_alt_kategori_diger;
+            } else {
+                // Kullanıcı listeden bir şey seçtiyse (veya boşsa)
+                // Gelen değer boş string "" ise null yap, değilse ID'yi al
+                $sikayetData['sikayet_alt_kategori_id'] = $request->sikayet_alt_kategori_id ?: null;
+                $sikayetData['sikayet_alt_kategori_diger'] = null;
+            }
+
+            // Diğer otomatik alanlar
+            $sikayetData['olusturan_kurul_uyesi_id'] = $user->id;
+            $sikayetData['musteri_durum'] = 'Yeni';
+            $sikayetData['kazanilan_puan'] = $kazanilacakPuan;
+
+            // Veritabanına Kayıt
+            $sikayet = MusteriSikayeti::create($sikayetData);
+
+            // Puan Ekleme
             if ($kazanilacakPuan > 0) {
                 $user->increment('toplam_puan', $kazanilacakPuan);
             }
 
-            // Dosyaları kaydetme mantığı
+            // Dosya Yükleme
             if ($request->hasFile('dosyalar')) {
                 foreach ($request->file('dosyalar') as $dosya) {
                     $path = $dosya->store('sikayet_dosyalari', 'public');
-
-                    if ($path === false) {
-                        Log::error('Dosya fiziksel olarak kaydedilemedi: ' . $dosya->getClientOriginalName());
-                        continue; 
+                    if ($path) {
+                        $sikayet->dosyalar()->create([
+                            'dosya_yolu' => $path,
+                            'orijinal_adi' => $dosya->getClientOriginalName(),
+                            'mime_tipi' => $dosya->getMimeType(),
+                        ]);
                     }
-
-                    // Veritabanı kaydı
-                    $sikayet->dosyalar()->create([
-                        'dosya_yolu' => $path,
-                        'orijinal_adi' => $dosya->getClientOriginalName(),
-                        'mime_tipi' => $dosya->getMimeType(),
-                    ]);
                 }
             }
 
             DB::commit();
-            return redirect()->route('admin.sikayetler.index')->with('success', 'Şikayet ve dosyalar başarıyla oluşturuldu.');
+            return redirect()->route('admin.sikayetler.index')->with('success', 'Şikayet başarıyla oluşturuldu.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Şikayet veya dosya kaydında hata: ' . $e->getMessage());
-            return back()->with('error', 'Şikayet kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.');
+            Log::error('Şikayet oluşturma hatası: ' . $e->getMessage());
+            return back()->with('error', 'Şikayet kaydedilirken bir hata oluştu: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -132,11 +141,15 @@ class SikayetController extends Controller
     {
         $this->authorize('update', $sikayet);
 
+        // Validasyon Kuralları
         $validated = $request->validate([
             'musteri_adi' => 'required|string|max:255',
             'musteri_iletisim' => 'nullable|string|max:255',
-            'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı', // <-- YENİ: Konum Tipi validasyonu
-            'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id', // <-- YENİ: Kategori validasyonu
+            'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı',
+            'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id',
+            // Alt Kategori
+            'sikayet_alt_kategori_id' => 'nullable', 
+            'sikayet_alt_kategori_diger' => 'nullable|string|max:500',
             'musteri_oncelik' => 'required|string|in:Düşük,Normal,Yüksek,Acil',
             'musteri_sikayet_konusu' => 'required|string|max:255',
             'musteri_sikayet_detayi' => 'required|string',
@@ -148,39 +161,46 @@ class SikayetController extends Controller
 
         DB::beginTransaction();
         try {
-            // Sadece validate edilmiş alanları güncelle (kategori dahil)
-            $sikayet->update($validated);
+            // Validate edilmiş veriyi al, dosya işlemlerini (dizi oldukları için) çıkar
+            $updateData = collect($validated)->except(['dosyalar', 'dosyalar_sil'])->toArray();
 
-            // 2. === YENİ EKLENDİ: Silinmek üzere işaretlenen dosyaları sil ===
+            // --- DÜZELTİLMİŞ VERİ HAZIRLAMA ---
+            // Alt Kategori Mantığı
+            if ($request->sikayet_alt_kategori_id === 'other') {
+                // "Diğer" seçildiyse ID'yi temizle, açıklamayı ekle
+                $updateData['sikayet_alt_kategori_id'] = null;
+                $updateData['sikayet_alt_kategori_diger'] = $request->sikayet_alt_kategori_diger;
+            } else {
+                // Normal seçim yapıldıysa ID'yi al, açıklamayı temizle
+                $updateData['sikayet_alt_kategori_id'] = $request->sikayet_alt_kategori_id ?: null;
+                $updateData['sikayet_alt_kategori_diger'] = null;
+            }
+
+            // Veritabanını Güncelle
+            $sikayet->update($updateData);
+
+            // Silinmek istenen dosyaları sil
             if ($request->has('dosyalar_sil')) {
-                $dosyaIdsToSil = $request->input('dosyalar_sil');
-                
-                // Güvenlik: Sadece bu şikayete ait olan dosyaları sil
                 $dosyalar = MusteriSikayetiDosyasi::where('musteri_sikayeti_id', $sikayet->id)
-                                                  ->whereIn('id', $dosyaIdsToSil)
-                                                  ->get();
-
+                    ->whereIn('id', $request->input('dosyalar_sil'))->get();
+                
                 foreach ($dosyalar as $dosya) {
-                    Storage::disk('public')->delete($dosya->dosya_yolu); // Fiziksel dosyayı sil
-                    $dosya->delete(); // Veritabanı kaydını sil
+                    Storage::disk('public')->delete($dosya->dosya_yolu);
+                    $dosya->delete();
                 }
             }
-            // ==============================================================
 
-            // 3. Yeni dosyaları kaydetme mantığı (Bu kısım aynı kaldı)
+            // Yeni dosyaları ekle
             if ($request->hasFile('dosyalar')) {
                 foreach ($request->file('dosyalar') as $dosya) {
-                     $path = $dosya->store('sikayet_dosyalari', 'public');
-                     if ($path === false) {
-                         Log::error('Dosya fiziksel olarak kaydedilemedi (update): ' . $dosya->getClientOriginalName());
-                         continue;
-                     }
-                    // Veritabanı kaydı
-                    $sikayet->dosyalar()->create([
-                        'dosya_yolu' => $path,
-                        'orijinal_adi' => $dosya->getClientOriginalName(),
-                        'mime_tipi' => $dosya->getMimeType(),
-                    ]);
+                    $path = $dosya->store('sikayet_dosyalari', 'public');
+                    if ($path) {
+                        $sikayet->dosyalar()->create([
+                            'dosya_yolu' => $path,
+                            'orijinal_adi' => $dosya->getClientOriginalName(),
+                            'mime_tipi' => $dosya->getMimeType(),
+                        ]);
+                    }
                 }
             }
 
@@ -189,8 +209,8 @@ class SikayetController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Şikayet güncelleme veya dosya silme/kaydetmede hata: ' . $e->getMessage());
-            return back()->with('error', 'Şikayet güncellenirken bir hata oluştu. Lütfen tekrar deneyin.');
+            Log::error('Şikayet güncelleme hatası: ' . $e->getMessage());
+            return back()->with('error', 'Şikayet güncellenirken bir hata oluştu: ' . $e->getMessage());
         }
     }
 

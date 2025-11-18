@@ -69,6 +69,8 @@ Route::post('/sikayetler/{token}/feedback', [PublicSikayetController::class, 'st
 Route::get('/proje-calisma-alani/{iaa}', [ProjectWorkspaceController::class, 'show'])->name('proje.workspace.show');
 // === EKLEME SONU ===
 
+// Alt Kategorileri getiren API rotası (Herkese açık)
+Route::get('/api/get-alt-kategoriler/{kategori_id}', [SikayetKategoriController::class, 'getAltKategorilerApi'])->name('api.getAltKategoriler');
 
 // Giriş yapmış tüm kullanıcılar için ortak alan
 Route::middleware('auth')->group(function () {
@@ -117,8 +119,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/takim-projeleri', [IaaController::class, 'takimProjeleri'])->name('iaa.takimProjeleri');
     
     Route::get('/sikayet-gorevlerim', \App\Livewire\SikayetGorevlerim::class) 
-     ->middleware('auth') 
-     ->name('sikayet-gorevlerim.index');
+      ->middleware('auth') 
+      ->name('sikayet-gorevlerim.index');
 
     // === BİLDİRİM SİSTEMİ API ROTALARI (BURAYA EKLEYİN) ===
     Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
@@ -190,6 +192,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         Route::resource('sikayet-kategorileri', SikayetKategoriController::class)
             ->parameters(['sikayet-kategorileri' => 'sikayetKategori']) 
             ->except(['show']);
+
+        // === BURAYA EKLENDİ: ALT KATEGORİ YÖNETİMİ ===
+        Route::post('sikayet-kategorileri/{sikayetKategori}/alt-kategori', [SikayetKategoriController::class, 'storeAltKategori'])
+            ->name('sikayet-kategorileri.alt-kategori.store');
+        
+        Route::delete('sikayet-alt-kategori/{altKategori}', [SikayetKategoriController::class, 'destroyAltKategori'])
+            ->name('sikayet-alt-kategori.destroy');
+
+        Route::put('sikayet-alt-kategori/{altKategori}', [App\Http\Controllers\Admin\SikayetKategoriController::class, 'updateAltKategori'])
+        ->name('sikayet-alt-kategori.update');
+        // =================================================
 
         Route::resource('cozum-takimlari', CozumTakimiController::class)
             ->parameters(['cozum-takimlari' => 'cozumTakimi']);

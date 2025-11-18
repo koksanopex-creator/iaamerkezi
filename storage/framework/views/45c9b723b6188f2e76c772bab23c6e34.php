@@ -51,5 +51,9 @@
                 </p>
             </footer>
         </div>
+         
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <?php echo $__env->yieldPushContent('scripts'); ?>
+    
     </body>
 </html><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/layouts/guest.blade.php ENDPATH**/ ?>

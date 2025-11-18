@@ -31,6 +31,12 @@ class MusteriSikayeti extends Model
         'kurul_onay_tarihi',
         'olusturan_kurul_uyesi_id',
         'sikayet_kategorisi_id', // <-- YENİ EKLENDİ
+
+// === ŞUNLARI EKLE ===
+'sikayet_alt_kategori_id',
+'sikayet_alt_kategori_diger',
+// ====================
+
         'musteri_cozum_son_tarihi',
         'musteri_ek_sure_talep_durumu',
         'musteri_puan',
@@ -189,6 +195,14 @@ class MusteriSikayeti extends Model
         return $this->projeYorumlari()
                     ->whereNull('proje_yorumlari.user_id')
                     ->whereNotNull('proje_yorumlari.musteri_sikayeti_id');
-    }  
+    } 
+    
+    /**
+     * Şikayetin seçilen alt kategorisi
+     */
+    public function sikayetAltKategori()
+    {
+        return $this->belongsTo(SikayetAltKategori::class, 'sikayet_alt_kategori_id');
+    }
 
 }

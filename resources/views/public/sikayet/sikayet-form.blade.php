@@ -1,4 +1,19 @@
-<x-guest-layout> {{-- Senin mevcut guest layout'unu kullanıyoruz --}}
+<x-guest-layout>
+    {{-- ========================================== --}}
+    {{-- 🚨 HATA ÖNLEYİCİ YAMA (ÇOK ÖNEMLİ) 🚨 --}}
+    {{-- ========================================== --}}
+    <script>
+        // Bu kod, notification-handler.js dosyasının hata verip diğer kodları durdurmasını engeller.
+        // Eğer değişken tanımlı değilse, boş bir nesne olarak tanımlarız.
+        if (typeof window.notificationApiUrls === 'undefined') {
+            window.notificationApiUrls = { 
+                index: '', 
+                unreadCount: '', 
+                markRead: '' 
+            };
+        }
+    </script>
+    {{-- ========================================== --}}
 
     {{-- Form Başlığı ve Açıklama --}}
     <div class="mb-8 pb-6 border-b border-gray-200">
@@ -38,11 +53,11 @@
     {{-- Alpine.js ile dosya önizleme --}}
     <form action="{{ route('public.sikayet.store') }}" method="POST" enctype="multipart/form-data" x-data="fileUploadComponent()">
         @csrf
-        {{-- === Grid Sınıfları Güncellendi === --}}
+        {{-- === Grid Sınıfları === --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
 
             {{-- Müşteri Adı --}}
-            <div class="group col-span-1"> {{-- Explicit col-span --}}
+            <div class="group col-span-1">
                 <label for="musteri_adi" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
                     <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                     Müşteri Adı <span class="ml-1 text-red-500">*</span>
@@ -51,8 +66,8 @@
                 @error('musteri_adi') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror
             </div>
 
-            {{-- Müşteri İletişim (E-posta - Zorunlu) --}}
-            <div class="group col-span-1"> {{-- Explicit col-span --}}
+            {{-- Müşteri İletişim --}}
+            <div class="group col-span-1">
                 <label for="musteri_iletisim" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
                      <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
                     E-posta Adresiniz <span class="ml-1 text-red-500">*</span>
@@ -83,29 +98,69 @@
                 @error('konum_tipi') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
             </div>
 
-            {{-- Şikayet Kategorisi --}}
-            <div class="group col-span-1">
-                <label for="sikayet_kategorisi_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
-                    <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
-                    Şikayet Kategorisi <span class="ml-1 text-red-500">*</span> {{-- Zorunlu kabul edildi --}}
-                </label>
-                <div class="relative">
-                    <select name="sikayet_kategorisi_id" id="sikayet_kategorisi_id" required {{-- Zorunlu kabul edildi --}}
-                            class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-2.5 text-gray-900 appearance-none bg-white">
-                        <option value="">-- Kategori Seçiniz --</option>
-                        {{-- Controller'dan gelen $kategoriler değişkenini kullanıyoruz --}}
-                        @isset($kategoriler)
+            {{-- ============================================================== --}}
+            {{-- === KATEGORİ VE ALT KATEGORİ ALANI (Alpine.js) === --}}
+            {{-- ============================================================== --}}
+            <div class="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6"
+                 x-data="categorySystem()"
+                 x-init="init()">
+
+                {{-- 1. Ana Kategori --}}
+                <div class="group">
+                    <label for="sikayet_kategorisi_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                        <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+                        Şikayet Kategorisi <span class="ml-1 text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <select name="sikayet_kategorisi_id" id="sikayet_kategorisi_id" required 
+                                x-model="selectedCategory"
+                                @change="fetchSubCategories(false)"
+                                class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-2.5 text-gray-900 appearance-none bg-white">
+                            <option value="">-- Kategori Seçiniz --</option>
                             @foreach($kategoriler as $kategori)
-                                <option value="{{ $kategori->id }}" {{ old('sikayet_kategorisi_id') == $kategori->id ? 'selected' : '' }}>
-                                    {{ $kategori->ad }}
-                                </option>
+                                <option value="{{ $kategori->id }}">{{ $kategori->ad }}</option>
                             @endforeach
-                        @endisset
-                    </select>
-                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                    </div>
+                    @error('sikayet_kategorisi_id') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                 </div>
-                @error('sikayet_kategorisi_id') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
+
+                {{-- 2. Alt Kategori (Dinamik) --}}
+                <div class="group" x-show="subCategories.length > 0 || showOtherOption" style="display: none;">
+                    <label for="sikayet_alt_kategori_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                        Alt Kategori <span class="ml-1 text-red-500">*</span>
+                        <span x-show="isLoading" class="ml-2 text-xs text-gray-400">(Yükleniyor...)</span>
+                    </label>
+                    <div class="relative">
+                        <select name="sikayet_alt_kategori_id" id="sikayet_alt_kategori_id" 
+                                x-model="selectedSubCategory"
+                                class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-2.5 text-gray-900 appearance-none bg-white">
+                            <option value="">-- Alt Kategori Seçiniz --</option>
+                            <template x-for="sub in subCategories" :key="sub.id">
+                                <option :value="sub.id" x-text="sub.ad"></option>
+                            </template>
+                            <template x-if="showOtherOption">
+                                <option value="other">Diğer / Belirtilmemiş</option>
+                            </template>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                    </div>
+                    @error('sikayet_alt_kategori_id') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
+                </div>
+
+                {{-- 3. Diğer Açıklama Alanı --}}
+                <div class="group md:col-span-2 bg-yellow-50 p-4 rounded border border-yellow-200" 
+                     x-show="selectedSubCategory === 'other'" style="display: none;" x-transition>
+                    <label for="sikayet_alt_kategori_diger" class="block text-sm font-medium text-yellow-800 mb-1" x-text="otherLabel"></label>
+                    <input type="text" name="sikayet_alt_kategori_diger" id="sikayet_alt_kategori_diger" 
+                           value="{{ old('sikayet_alt_kategori_diger') }}"
+                           placeholder="Lütfen sorunu kısaca tanımlayınız..."
+                           class="block w-full border-yellow-300 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500">
+                     @error('sikayet_alt_kategori_diger') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
+                </div>
             </div>
+            {{-- ============================================================== --}}
 
             {{-- Şikayet Tarihi --}}
             <div class="group col-span-1">
@@ -158,7 +213,7 @@
                 @error('dosyalar.*') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
 
                 {{-- Önizleme Alanı --}}
-                <div x-show="previews.length > 0" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"> {{-- lg:grid-cols-5 eklendi --}}
+                <div x-show="previews.length > 0" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     <template x-for="(preview, index) in previews" :key="index">
                         <div class="relative group bg-gray-100 rounded-lg overflow-hidden border">
                             <template x-if="preview.url">
@@ -197,35 +252,79 @@
 
     {{-- Alpine.js Fonksiyonu --}}
     <script>
-            function fileUploadComponent() {
-                return {
-                    previews: [], files: [],
-                    updatePreviews(event) {
-                        let selectedFiles = Array.from(event.target.files);
-                        this.files = this.files.concat(selectedFiles);
-                        selectedFiles.forEach(file => {
-                            let reader = new FileReader();
-                            reader.onload = (e) => {
-                                let preview = {
-                                    url: file.type.startsWith('image/') ? e.target.result : null,
-                                    name: file.name
-                                };
-                                this.previews.push(preview);
+        function fileUploadComponent() {
+            return {
+                previews: [], files: [],
+                updatePreviews(event) {
+                    let selectedFiles = Array.from(event.target.files);
+                    this.files = this.files.concat(selectedFiles);
+                    selectedFiles.forEach(file => {
+                        let reader = new FileReader();
+                        reader.onload = (e) => {
+                            let preview = {
+                                url: file.type.startsWith('image/') ? e.target.result : null,
+                                name: file.name
                             };
-                            reader.readAsDataURL(file);
-                        });
-                        const dataTransfer = new DataTransfer();
-                        this.files.forEach(file => dataTransfer.items.add(file));
-                        this.$refs.fileInput.files = dataTransfer.files;
-                    },
-                    removePreview(index) {
-                        this.previews.splice(index, 1);
-                        this.files.splice(index, 1);
-                        const dataTransfer = new DataTransfer();
-                        this.files.forEach(file => dataTransfer.items.add(file));
-                        this.$refs.fileInput.files = dataTransfer.files;
-                    }
+                            this.previews.push(preview);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    const dataTransfer = new DataTransfer();
+                    this.files.forEach(file => dataTransfer.items.add(file));
+                    this.$refs.fileInput.files = dataTransfer.files;
+                },
+                removePreview(index) {
+                    this.previews.splice(index, 1);
+                    this.files.splice(index, 1);
+                    const dataTransfer = new DataTransfer();
+                    this.files.forEach(file => dataTransfer.items.add(file));
+                    this.$refs.fileInput.files = dataTransfer.files;
                 }
             }
-        </script>
+        }
+
+        // === KATEGORİ SİSTEMİ (Asset Mantığı İle) ===
+        function categorySystem() {
+            return {
+                selectedCategory: '{{ old('sikayet_kategorisi_id') }}',
+                selectedSubCategory: '{{ old('sikayet_alt_kategori_id', old('sikayet_alt_kategori_diger') ? 'other' : '') }}',
+                otherText: '{{ old('sikayet_alt_kategori_diger') }}',
+                subCategories: [],
+                showOtherOption: false,
+                otherLabel: 'Diğer Açıklama',
+                isLoading: false,
+
+                init() {
+                    if (this.selectedCategory) {
+                        this.fetchSubCategories(true);
+                    }
+                },
+
+                fetchSubCategories(keepSelection = false) {
+                    if (!this.selectedCategory) {
+                        this.subCategories = [];
+                        this.selectedSubCategory = '';
+                        this.showOtherOption = false;
+                        return;
+                    }
+                    this.isLoading = true;
+                    
+                    // === URL DÜZELTMESİ ===
+                    var baseUrl = "{{ asset('api/get-alt-kategoriler') }}";
+                    var apiUrl = baseUrl + "/" + this.selectedCategory;
+
+                    fetch(apiUrl)
+                        .then(res => res.json())
+                        .then(data => {
+                            this.subCategories = data.alt_kategoriler;
+                            this.showOtherOption = data.diger_goster;
+                            this.otherLabel = data.diger_baslik || 'Lütfen detay belirtiniz:';
+                            if (!keepSelection) { this.selectedSubCategory = ''; }
+                        })
+                        .catch(err => console.error(err))
+                        .finally(() => this.isLoading = false);
+                }
+            }
+        }
+    </script>
 </x-guest-layout>

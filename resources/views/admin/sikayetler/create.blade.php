@@ -13,17 +13,14 @@
     <div class="py-12 bg-gradient-to-br from-gray-50 to-gray-100">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-2xl sm:rounded-2xl">
-                <!-- Header Accent -->
                 <div class="h-2 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500"></div>
 
                 <div class="p-8">
-                    <!-- Form Title & Description -->
                     <div class="mb-8 pb-6 border-b border-gray-200">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">Şikayet Bilgileri</h3>
                         <p class="text-sm text-gray-600">Müşteri şikayetini detaylı bir şekilde kaydedin ve takip sürecini başlatın.</p>
                     </div>
 
-                    {{-- === x-data geri eklendi === --}}
                     <form action="{{ route('admin.sikayetler.store') }}" method="POST" enctype="multipart/form-data" x-data="fileUploadComponent()">
                         @csrf
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -35,7 +32,7 @@
                                     Müşteri Adı <span class="ml-1 text-red-500">*</span>
                                 </label>
                                 <input type="text" name="musteri_adi" id="musteri_adi" value="{{ old('musteri_adi') }}" required class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-4 py-3 text-gray-900" placeholder="Müşterinin adını ve soyadını giriniz">
-                                @error('musteri_adi') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
+                                @error('musteri_adi') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                             </div>
 
                             <!-- Müşteri İletişim -->
@@ -45,11 +42,11 @@
                                     Müşteri İletişim <span class="ml-2 text-xs text-gray-500 font-normal">(Telefon veya E-posta)</span>
                                 </label>
                                 <input type="text" name="musteri_iletisim" id="musteri_iletisim" value="{{ old('musteri_iletisim') }}" class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-4 py-3 text-gray-900" placeholder="0532 123 45 67 veya ornek@mail.com">
-                                @error('musteri_iletisim') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
+                                @error('musteri_iletisim') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                             </div>
 
                             <!-- Müşteri Konum -->
-                            <div class="group md:col-span-2"> {{-- Genişlesin diye md:col-span-2 ekledim --}}
+                            <div class="group md:col-span-2">
                                 <label class="flex items-center font-semibold text-sm text-gray-700 mb-2">
                                     <svg class="w-4 h-4 mr-2 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503-6.998l-6 .75m-.75-7.5l6 .75m6-.75l-6 .75M3 12h18M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
@@ -66,28 +63,71 @@
                                         <span class="ml-2 text-sm text-gray-700">Yurt Dışı</span>
                                     </label>
                                 </div>
-                                @error('konum_tipi') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
+                                @error('konum_tipi') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                             </div>
 
-                            <!-- şikayet kategori -->
-                            <div class="group">
-                                <label for="sikayet_kategorisi_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
-                                    <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
-                                    Şikayet Kategorisi <span class="ml-1 text-red-500">*</span>
-                                </label>
-                                <div class="relative">
-                                    <select name="sikayet_kategorisi_id" id="sikayet_kategorisi_id" required class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-3 text-gray-900 appearance-none bg-white">
-                                        <option value="">-- Kategori Seçiniz --</option>
-                                        @foreach($kategoriler as $kategori)
-                                            <option value="{{ $kategori->id }}" {{ old('sikayet_kategorisi_id') == $kategori->id ? 'selected' : '' }}>
-                                                {{ $kategori->ad }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                            {{-- ============================================================== --}}
+                            {{-- === KATEGORİ SİSTEMİ (YENİ JS İLE ÇALIŞACAK) === --}}
+                            {{-- ============================================================== --}}
+                            <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6" 
+                                 x-data="categoryDependency('{{ old('sikayet_kategorisi_id') }}', '{{ old('sikayet_alt_kategori_id', old('sikayet_alt_kategori_diger') ? 'other' : '') }}')">
+                                
+                                {{-- 1. Ana Kategori --}}
+                                <div class="group">
+                                    <label for="sikayet_kategorisi_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                                        <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+                                        Şikayet Kategorisi <span class="ml-1 text-red-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <select name="sikayet_kategorisi_id" id="sikayet_kategorisi_id" required 
+                                                x-model="selectedCategory"
+                                                @change="fetchSubCategories(false)"
+                                                class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-3 text-gray-900 appearance-none bg-white">
+                                            <option value="">-- Kategori Seçiniz --</option>
+                                            @foreach($kategoriler as $kategori)
+                                                <option value="{{ $kategori->id }}">{{ $kategori->ad }}</option>
+                                            @endforeach
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                                    </div>
+                                    @error('sikayet_kategorisi_id') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                                 </div>
-                                @error('sikayet_kategorisi_id') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
+
+                                {{-- 2. Alt Kategori --}}
+                                <div class="group" x-show="subCategories.length > 0 || showOtherOption" style="display: none;">
+                                    <label for="sikayet_alt_kategori_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                                        Alt Kategori
+                                        <span x-show="isLoading" class="ml-2 text-xs text-gray-400">(Yükleniyor...)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <select name="sikayet_alt_kategori_id" id="sikayet_alt_kategori_id" 
+                                                x-model="selectedSubCategory"
+                                                class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-3 text-gray-900 appearance-none bg-white">
+                                            <option value="">-- Alt Kategori Seçiniz --</option>
+                                            <template x-for="sub in subCategories" :key="sub.id">
+                                                <option :value="sub.id" x-text="sub.ad"></option>
+                                            </template>
+                                            <template x-if="showOtherOption">
+                                                <option value="other">Diğer / Belirtilmemiş</option>
+                                            </template>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                                    </div>
+                                    @error('sikayet_alt_kategori_id') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
+                                </div>
+
+                                {{-- 3. Diğer Açıklama --}}
+                                <div class="group md:col-span-2 bg-gray-50 p-4 rounded border border-gray-200" 
+                                     x-show="selectedSubCategory === 'other'" style="display: none;" x-transition>
+                                    <label for="sikayet_alt_kategori_diger" class="block text-sm font-medium text-gray-800 mb-1" x-text="otherLabel"></label>
+                                    <input type="text" name="sikayet_alt_kategori_diger" id="sikayet_alt_kategori_diger" 
+                                           value="{{ old('sikayet_alt_kategori_diger') }}"
+                                           placeholder="Lütfen sorunu kısaca tanımlayınız..."
+                                           class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 py-3">
+                                     @error('sikayet_alt_kategori_diger') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
+                                </div>
                             </div>
+                            {{-- ============================================================== --}}
 
                             <!-- Öncelik -->
                             <div class="group">
@@ -104,7 +144,7 @@
                                     </select>
                                     <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
                                 </div>
-                                @error('musteri_oncelik') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
+                                @error('musteri_oncelik') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                             </div>
 
                             <!-- Şikayet Tarihi -->
@@ -114,7 +154,7 @@
                                     Şikayet Tarihi <span class="ml-1 text-red-500">*</span>
                                 </label>
                                 <input type="date" name="musteri_sikayet_tarihi" id="musteri_sikayet_tarihi" value="{{ old('musteri_sikayet_tarihi', date('Y-m-d')) }}" required class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-4 py-3 text-gray-900">
-                                @error('musteri_sikayet_tarihi') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
+                                @error('musteri_sikayet_tarihi') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                             </div>
 
                             <!-- Şikayet Konusu -->
@@ -124,7 +164,7 @@
                                     Şikayet Konusu <span class="ml-1 text-red-500">*</span>
                                 </label>
                                 <input type="text" name="musteri_sikayet_konusu" id="musteri_sikayet_konusu" value="{{ old('musteri_sikayet_konusu') }}" required class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-4 py-3 text-gray-900" placeholder="Şikayetin kısa bir özeti">
-                                @error('musteri_sikayet_konusu') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
+                                @error('musteri_sikayet_konusu') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                             </div>
 
                             <!-- Şikayet Detayı -->
@@ -135,7 +175,7 @@
                                 </label>
                                 <textarea name="musteri_sikayet_detayi" id="musteri_sikayet_detayi" rows="5" required class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-4 py-3 text-gray-900 resize-y" placeholder="Şikayetin detaylı açıklamasını giriniz...">{{ old('musteri_sikayet_detayi') }}</textarea>
                                 <p class="mt-2 text-xs text-gray-500">Şikayetle ilgili tüm detayları mümkün olduğunca açıklayıcı bir şekilde yazınız.</p>
-                                @error('musteri_sikayet_detayi') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
+                                @error('musteri_sikayet_detayi') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                             </div>
 
                             <!-- Dosya Yükleme Alanı -->
@@ -144,8 +184,6 @@
                                     <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
                                     Kanıtlar (Dosya Ekle)
                                 </label>
-
-                                {{-- === @change ve x-ref geri eklendi === --}}
                                 <input
                                     type="file"
                                     name="dosyalar[]"
@@ -159,7 +197,7 @@
                                 <p class="mt-2 text-xs text-gray-500">Resim, PDF, Word, Video ekleyebilirsiniz (Mobil/Masaüstü). Maksimum: 10MB.</p>
                                 @error('dosyalar.*') <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</span> @enderror
 
-                                <!-- Resim Önizleme Alanı (Yorum kaldırıldı) -->
+                                <!-- Resim Önizleme Alanı -->
                                 <div x-show="previews.length > 0" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                     <template x-for="(preview, index) in previews" :key="index">
                                         <div class="relative group bg-gray-100 rounded-lg overflow-hidden border">
@@ -202,23 +240,14 @@
         </div>
     </div>
 
-    {{-- === Alpine.js Fonksiyonu (Yorum kaldırıldı) === --}}
     <script>
         function fileUploadComponent() {
             return {
-                previews: [], // Önizleme yapılacak dosyaların listesi (URL ve isim içerir)
-                files: [],    // Gerçek dosya nesnelerini tutan liste
-
+                previews: [],
+                files: [],
                 updatePreviews(event) {
-                    // Seçilen dosyaları al
                     let selectedFiles = Array.from(event.target.files);
-
-                    // Mevcut dosya listesine ekle
-                    // ÖNEMLİ: input[type=file] sadece dosya eklemeye izin verir,
-                    //         mevcut listeyi korumak için this.files'ı kullanıyoruz.
                     this.files = this.files.concat(selectedFiles);
-
-                    // Yeni seçilenler için önizlemeleri oluştur
                     selectedFiles.forEach(file => {
                         let reader = new FileReader();
                         reader.onload = (e) => {
@@ -230,30 +259,77 @@
                         };
                         reader.readAsDataURL(file);
                     });
-
-                    // Input'un file listesini GÜNCELLE (eskileri kaybetmeden yenileri ekle)
                     const dataTransfer = new DataTransfer();
                     this.files.forEach(file => dataTransfer.items.add(file));
                     this.$refs.fileInput.files = dataTransfer.files;
-
-                    // Input'un value'sunu temizle ki AYNI dosya tekrar seçilebilsin
-                    // event.target.value = null; // BU SATIR ŞÜPHELİYDİ, GEÇİCİ KALDIRALIM
                 },
-
                 removePreview(index) {
-                    // Hem önizlemeden hem de asıl dosya listesinden kaldır
                     this.previews.splice(index, 1);
                     this.files.splice(index, 1);
-
-                    // Dosyaları DataTransfer ile yeniden oluşturup input'a atama
                     const dataTransfer = new DataTransfer();
                     this.files.forEach(file => dataTransfer.items.add(file));
-
-                    // Tek input'un dosya listesini güncelle
                     this.$refs.fileInput.files = dataTransfer.files;
+                }
+            }
+        }
+
+        // === KATEGORİ SİSTEMİ (DÜZELTİLMİŞ) ===
+        function categoryDependency(initialCategoryId, initialSubCategoryId) {
+            return {
+                selectedCategory: initialCategoryId,
+                selectedSubCategory: initialSubCategoryId,
+                subCategories: [],
+                showOtherOption: false,
+                otherLabel: 'Diğer Açıklama',
+                isLoading: false,
+
+                init() {
+                    if (this.selectedCategory) {
+                        this.fetchSubCategories(true);
+                    }
+                },
+
+                fetchSubCategories(keepSelection = false) {
+                    if (!this.selectedCategory) {
+                        this.subCategories = [];
+                        this.selectedSubCategory = '';
+                        this.showOtherOption = false;
+                        return;
+                    }
+                    this.isLoading = true;
+
+                    // === URL DÜZELTMESİ ===
+                    // Tarayıcı adresini kullanarak kök dizini algıla (örn: /iaa/)
+                    var path = window.location.pathname;
+                    var rootUrl = window.location.origin;
+
+                    // Eğer URL içinde '/iaa/' geçiyorsa, API isteğine ekle
+                    if (path.indexOf('/iaa/') > -1) {
+                        rootUrl += '/iaa';
+                    }
+                    
+                    // Tam API adresi
+                    var apiUrl = rootUrl + '/api/get-alt-kategoriler/' + this.selectedCategory;
+
+                    console.log("API İsteği:", apiUrl); // Konsoldan kontrol edebilirsiniz
+
+                    fetch(apiUrl)
+                        .then(res => {
+                            if (!res.ok) throw new Error("API Hatası (404 veya 500)");
+                            return res.json();
+                        })
+                        .then(data => {
+                            this.subCategories = data.alt_kategoriler;
+                            this.showOtherOption = data.diger_goster;
+                            this.otherLabel = data.diger_baslik || 'Lütfen detay belirtiniz:';
+                            if (!keepSelection) {
+                                this.selectedSubCategory = '';
+                            }
+                        })
+                        .catch(err => console.error("HATA:", err))
+                        .finally(() => this.isLoading = false);
                 }
             }
         }
     </script>
 </x-app-layout>
-

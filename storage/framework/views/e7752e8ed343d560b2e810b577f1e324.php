@@ -22,17 +22,14 @@
     <div class="py-12 bg-gradient-to-br from-gray-50 to-gray-100">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-2xl sm:rounded-2xl">
-                <!-- Header Accent -->
                 <div class="h-2 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500"></div>
 
                 <div class="p-8">
-                    <!-- Form Title & Description -->
                     <div class="mb-8 pb-6 border-b border-gray-200">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">Şikayet Bilgileri</h3>
                         <p class="text-sm text-gray-600">Müşteri şikayetini detaylı bir şekilde kaydedin ve takip sürecini başlatın.</p>
                     </div>
 
-                    
                     <form action="<?php echo e(route('admin.sikayetler.store')); ?>" method="POST" enctype="multipart/form-data" x-data="fileUploadComponent()">
                         <?php echo csrf_field(); ?>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -48,7 +45,7 @@
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><?php echo e($message); ?></span> <?php unset($message);
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
@@ -65,14 +62,14 @@ unset($__errorArgs, $__bag); ?>
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><?php echo e($message); ?></span> <?php unset($message);
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
                             </div>
 
                             <!-- Müşteri Konum -->
-                            <div class="group md:col-span-2"> 
+                            <div class="group md:col-span-2">
                                 <label class="flex items-center font-semibold text-sm text-gray-700 mb-2">
                                     <svg class="w-4 h-4 mr-2 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503-6.998l-6 .75m-.75-7.5l6 .75m6-.75l-6 .75M3 12h18M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
@@ -93,39 +90,95 @@ unset($__errorArgs, $__bag); ?>
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><?php echo e($message); ?></span> <?php unset($message);
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
                             </div>
 
-                            <!-- şikayet kategori -->
-                            <div class="group">
-                                <label for="sikayet_kategorisi_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
-                                    <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
-                                    Şikayet Kategorisi <span class="ml-1 text-red-500">*</span>
-                                </label>
-                                <div class="relative">
-                                    <select name="sikayet_kategorisi_id" id="sikayet_kategorisi_id" required class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-3 text-gray-900 appearance-none bg-white">
-                                        <option value="">-- Kategori Seçiniz --</option>
-                                        <?php $__currentLoopData = $kategoriler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $kategori): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                            <option value="<?php echo e($kategori->id); ?>" <?php echo e(old('sikayet_kategorisi_id') == $kategori->id ? 'selected' : ''); ?>>
-                                                <?php echo e($kategori->ad); ?>
-
-                                            </option>
-                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                                    </select>
-                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
-                                </div>
-                                <?php $__errorArgs = ['sikayet_kategorisi_id'];
+                            
+                            
+                            
+                            <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6" 
+                                 x-data="categoryDependency('<?php echo e(old('sikayet_kategorisi_id')); ?>', '<?php echo e(old('sikayet_alt_kategori_id', old('sikayet_alt_kategori_diger') ? 'other' : '')); ?>')">
+                                
+                                
+                                <div class="group">
+                                    <label for="sikayet_kategorisi_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                                        <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+                                        Şikayet Kategorisi <span class="ml-1 text-red-500">*</span>
+                                    </label>
+                                    <div class="relative">
+                                        <select name="sikayet_kategorisi_id" id="sikayet_kategorisi_id" required 
+                                                x-model="selectedCategory"
+                                                @change="fetchSubCategories(false)"
+                                                class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-3 text-gray-900 appearance-none bg-white">
+                                            <option value="">-- Kategori Seçiniz --</option>
+                                            <?php $__currentLoopData = $kategoriler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $kategori): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                <option value="<?php echo e($kategori->id); ?>"><?php echo e($kategori->ad); ?></option>
+                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                                    </div>
+                                    <?php $__errorArgs = ['sikayet_kategorisi_id'];
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><?php echo e($message); ?></span> <?php unset($message);
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
+                                </div>
+
+                                
+                                <div class="group" x-show="subCategories.length > 0 || showOtherOption" style="display: none;">
+                                    <label for="sikayet_alt_kategori_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                                        Alt Kategori
+                                        <span x-show="isLoading" class="ml-2 text-xs text-gray-400">(Yükleniyor...)</span>
+                                    </label>
+                                    <div class="relative">
+                                        <select name="sikayet_alt_kategori_id" id="sikayet_alt_kategori_id" 
+                                                x-model="selectedSubCategory"
+                                                class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-3 text-gray-900 appearance-none bg-white">
+                                            <option value="">-- Alt Kategori Seçiniz --</option>
+                                            <template x-for="sub in subCategories" :key="sub.id">
+                                                <option :value="sub.id" x-text="sub.ad"></option>
+                                            </template>
+                                            <template x-if="showOtherOption">
+                                                <option value="other">Diğer / Belirtilmemiş</option>
+                                            </template>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                                    </div>
+                                    <?php $__errorArgs = ['sikayet_alt_kategori_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
+                                </div>
+
+                                
+                                <div class="group md:col-span-2 bg-gray-50 p-4 rounded border border-gray-200" 
+                                     x-show="selectedSubCategory === 'other'" style="display: none;" x-transition>
+                                    <label for="sikayet_alt_kategori_diger" class="block text-sm font-medium text-gray-800 mb-1" x-text="otherLabel"></label>
+                                    <input type="text" name="sikayet_alt_kategori_diger" id="sikayet_alt_kategori_diger" 
+                                           value="<?php echo e(old('sikayet_alt_kategori_diger')); ?>"
+                                           placeholder="Lütfen sorunu kısaca tanımlayınız..."
+                                           class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 py-3">
+                                     <?php $__errorArgs = ['sikayet_alt_kategori_diger'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
+                                </div>
                             </div>
+                            
 
                             <!-- Öncelik -->
                             <div class="group">
@@ -146,7 +199,7 @@ unset($__errorArgs, $__bag); ?>
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><?php echo e($message); ?></span> <?php unset($message);
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
@@ -163,7 +216,7 @@ unset($__errorArgs, $__bag); ?>
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><?php echo e($message); ?></span> <?php unset($message);
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
@@ -180,7 +233,7 @@ unset($__errorArgs, $__bag); ?>
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><?php echo e($message); ?></span> <?php unset($message);
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
@@ -198,7 +251,7 @@ unset($__errorArgs, $__bag); ?>
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1 flex items-center"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><?php echo e($message); ?></span> <?php unset($message);
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
@@ -210,8 +263,6 @@ unset($__errorArgs, $__bag); ?>
                                     <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>
                                     Kanıtlar (Dosya Ekle)
                                 </label>
-
-                                
                                 <input
                                     type="file"
                                     name="dosyalar[]"
@@ -232,7 +283,7 @@ if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
 
-                                <!-- Resim Önizleme Alanı (Yorum kaldırıldı) -->
+                                <!-- Resim Önizleme Alanı -->
                                 <div x-show="previews.length > 0" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                     <template x-for="(preview, index) in previews" :key="index">
                                         <div class="relative group bg-gray-100 rounded-lg overflow-hidden border">
@@ -275,23 +326,14 @@ unset($__errorArgs, $__bag); ?>
         </div>
     </div>
 
-    
     <script>
         function fileUploadComponent() {
             return {
-                previews: [], // Önizleme yapılacak dosyaların listesi (URL ve isim içerir)
-                files: [],    // Gerçek dosya nesnelerini tutan liste
-
+                previews: [],
+                files: [],
                 updatePreviews(event) {
-                    // Seçilen dosyaları al
                     let selectedFiles = Array.from(event.target.files);
-
-                    // Mevcut dosya listesine ekle
-                    // ÖNEMLİ: input[type=file] sadece dosya eklemeye izin verir,
-                    //         mevcut listeyi korumak için this.files'ı kullanıyoruz.
                     this.files = this.files.concat(selectedFiles);
-
-                    // Yeni seçilenler için önizlemeleri oluştur
                     selectedFiles.forEach(file => {
                         let reader = new FileReader();
                         reader.onload = (e) => {
@@ -303,27 +345,75 @@ unset($__errorArgs, $__bag); ?>
                         };
                         reader.readAsDataURL(file);
                     });
-
-                    // Input'un file listesini GÜNCELLE (eskileri kaybetmeden yenileri ekle)
                     const dataTransfer = new DataTransfer();
                     this.files.forEach(file => dataTransfer.items.add(file));
                     this.$refs.fileInput.files = dataTransfer.files;
-
-                    // Input'un value'sunu temizle ki AYNI dosya tekrar seçilebilsin
-                    // event.target.value = null; // BU SATIR ŞÜPHELİYDİ, GEÇİCİ KALDIRALIM
                 },
-
                 removePreview(index) {
-                    // Hem önizlemeden hem de asıl dosya listesinden kaldır
                     this.previews.splice(index, 1);
                     this.files.splice(index, 1);
-
-                    // Dosyaları DataTransfer ile yeniden oluşturup input'a atama
                     const dataTransfer = new DataTransfer();
                     this.files.forEach(file => dataTransfer.items.add(file));
-
-                    // Tek input'un dosya listesini güncelle
                     this.$refs.fileInput.files = dataTransfer.files;
+                }
+            }
+        }
+
+        // === KATEGORİ SİSTEMİ (DÜZELTİLMİŞ) ===
+        function categoryDependency(initialCategoryId, initialSubCategoryId) {
+            return {
+                selectedCategory: initialCategoryId,
+                selectedSubCategory: initialSubCategoryId,
+                subCategories: [],
+                showOtherOption: false,
+                otherLabel: 'Diğer Açıklama',
+                isLoading: false,
+
+                init() {
+                    if (this.selectedCategory) {
+                        this.fetchSubCategories(true);
+                    }
+                },
+
+                fetchSubCategories(keepSelection = false) {
+                    if (!this.selectedCategory) {
+                        this.subCategories = [];
+                        this.selectedSubCategory = '';
+                        this.showOtherOption = false;
+                        return;
+                    }
+                    this.isLoading = true;
+
+                    // === URL DÜZELTMESİ ===
+                    // Tarayıcı adresini kullanarak kök dizini algıla (örn: /iaa/)
+                    var path = window.location.pathname;
+                    var rootUrl = window.location.origin;
+
+                    // Eğer URL içinde '/iaa/' geçiyorsa, API isteğine ekle
+                    if (path.indexOf('/iaa/') > -1) {
+                        rootUrl += '/iaa';
+                    }
+                    
+                    // Tam API adresi
+                    var apiUrl = rootUrl + '/api/get-alt-kategoriler/' + this.selectedCategory;
+
+                    console.log("API İsteği:", apiUrl); // Konsoldan kontrol edebilirsiniz
+
+                    fetch(apiUrl)
+                        .then(res => {
+                            if (!res.ok) throw new Error("API Hatası (404 veya 500)");
+                            return res.json();
+                        })
+                        .then(data => {
+                            this.subCategories = data.alt_kategoriler;
+                            this.showOtherOption = data.diger_goster;
+                            this.otherLabel = data.diger_baslik || 'Lütfen detay belirtiniz:';
+                            if (!keepSelection) {
+                                this.selectedSubCategory = '';
+                            }
+                        })
+                        .catch(err => console.error("HATA:", err))
+                        .finally(() => this.isLoading = false);
                 }
             }
         }
@@ -337,6 +427,4 @@ unset($__errorArgs, $__bag); ?>
 <?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
 <?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
 <?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
-<?php endif; ?>
-
-<?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/admin/sikayetler/create.blade.php ENDPATH**/ ?>
+<?php endif; ?><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/admin/sikayetler/create.blade.php ENDPATH**/ ?>

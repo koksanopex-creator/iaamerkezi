@@ -35,6 +35,7 @@ unset($__split);
 if (isset($__slots)) unset($__slots);
 ?>
             
+           
         </div>
     </div>
 
@@ -127,6 +128,49 @@ if (isset($__slots)) unset($__slots);
         });
         aylikCozulenChart.render();
 
+        // === YENİ EKLENEN GRAFİKLERİN TANIMLAMALARI ===
+        
+        // 1. Bölüm - Kategori (Yığılmış Sütun)
+        var bolumKategoriChart = new ApexCharts(document.querySelector("#bolumKategoriChart"), {
+            series: [], // Livewire'dan gelecek
+            chart: { type: 'bar', height: 350, stacked: true, toolbar: { show: false } },
+            plotOptions: { bar: { horizontal: false, borderRadius: 4 } },
+            xaxis: { categories: [] }, // Livewire'dan gelecek
+            legend: { position: 'bottom' },
+            fill: { opacity: 1 },
+            dataLabels: { enabled: false },
+            tooltip: { y: { formatter: (val) => val + " Şikayet" } }
+        });
+        bolumKategoriChart.render();
+
+         // 2. Alt Kategori (Treemap) - GÜNCELLENDİ: Font Boyutu Artırıldı
+        var altKategoriChart = new ApexCharts(document.querySelector("#altKategoriChart"), {
+            series: [],
+            chart: { height: 350, type: 'treemap', toolbar: { show: false } },
+            colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
+            plotOptions: { treemap: { distributed: true, enableShades: true } },
+            dataLabels: {
+                enabled: true,
+                style: {
+                    fontSize: '14px',     // Yazı boyutu artırıldı (Eskisi: 12px)
+                    fontWeight: 'bold',   // Yazı kalınlaştırıldı
+                    colors: ['#ffffff']   // Yazı rengi beyaz
+                },
+                formatter: function(text, op) {
+                    return [text, op.value]; // Alt satıra değeri yazar
+                },
+                dropShadow: {             // Okunabilirlik için gölge eklendi
+                    enabled: true,
+                    top: 1,
+                    left: 1,
+                    blur: 1,
+                    color: '#000',
+                    opacity: 0.45
+                }
+            }
+        });
+        altKategoriChart.render();
+        // ==============================================
 
         // === 2. HELPER FONKSİYONLAR ===
         
@@ -210,6 +254,19 @@ if (isset($__slots)) unset($__slots);
                     xaxis: { categories: trendData.labels }
                 });
             }
+
+            // --- YENİ GRAFİKLERİN GÜNCELLENMESİ ---
+            if (data.bolumKategoriSeries && data.bolumKategoriXaxis) {
+                bolumKategoriChart.updateOptions({
+                    series: data.bolumKategoriSeries,
+                    xaxis: { categories: data.bolumKategoriXaxis }
+                });
+            }
+
+            if (data.altKategoriSeries) {
+                altKategoriChart.updateSeries(data.altKategoriSeries);
+            }
+
         });
     </script>
     <?php $__env->stopPush(); ?>

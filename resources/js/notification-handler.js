@@ -1,17 +1,32 @@
 document.addEventListener('DOMContentLoaded', function() {
 
+    // 👉 Bu sayfada bildirim config'i yoksa HİÇBİR ŞEY yapma
+    if (!window.notificationApiUrls) {
+        return;
+    }
+
     // HTML'den gerekli elemanları seç
-    const bellIcon = document.getElementById('notification-bell-icon');
-    const dropdown = document.getElementById('notification-dropdown');
-    const countBadge = document.getElementById('notification-count-badge');
-    const notificationList = document.getElementById('notification-list');
-    const emptyMessage = document.getElementById('notification-empty');
+    const bellIcon        = document.getElementById('notification-bell-icon');
+    const dropdown        = document.getElementById('notification-dropdown');
+    const countBadge      = document.getElementById('notification-count-badge');
+    const notificationList= document.getElementById('notification-list');
+    const emptyMessage    = document.getElementById('notification-empty');
+
+    // 👉 Bu elemanlar yoksa (guest sayfalar vs.) yine çık
+    if (!bellIcon || !dropdown || !countBadge || !notificationList || !emptyMessage) {
+        return;
+    }
 
     // Ana layout'a eklediğimiz global değişkenlerden verileri al
-    // Bu global değişkenler IIS/alt klasör sorununu çözer
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    const { index: notificationsUrl, unreadCount: unreadCountUrl, markAsRead: markAsReadUrl } = window.notificationApiUrls;
+    const csrfToken = document
+        .querySelector('meta[name="csrf-token"]')
+        .getAttribute('content');
 
+    const {
+        index: notificationsUrl,
+        unreadCount: unreadCountUrl,
+        markAsRead: markAsReadUrl
+    } = window.notificationApiUrls;
     let areNotificationsFetched = false; // Listeyi tekrar tekrar çekmemek için
     let isDropdownOpen = false;
 

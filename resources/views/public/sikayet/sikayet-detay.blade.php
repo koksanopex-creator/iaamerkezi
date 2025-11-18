@@ -88,6 +88,18 @@
                 <div><strong class="text-gray-500">Konum Tipi:</strong> <span class="text-gray-900">{{ $sikayet->konum_tipi }}</span></div>
                 <div><strong class="text-gray-500">Şikayet Tarihi:</strong> <span class="text-gray-900">{{ \Carbon\Carbon::parse($sikayet->musteri_sikayet_tarihi)->format('d.m.Y') }}</span></div>
                 <div class="md:col-span-2"><strong class="text-gray-500">Kategori:</strong> <span class="text-gray-900">{{ $sikayet->sikayetKategori->ad ?? 'Belirtilmemiş' }}</span></div>
+                {{-- Alt Kategori Gösterimi --}}
+                @if($sikayet->sikayetAltKategori)
+                    <div class="md:col-span-2">
+                        <strong class="text-gray-500">Alt Kategori:</strong> 
+                        <span class="text-gray-900">{{ $sikayet->sikayetAltKategori->ad }}</span>
+                    </div>
+                @elseif($sikayet->sikayet_alt_kategori_diger)
+                    <div class="md:col-span-2">
+                        <strong class="text-gray-500">Alt Kategori (Diğer):</strong> 
+                        <span class="text-gray-900">{{ $sikayet->sikayet_alt_kategori_diger }}</span>
+                    </div>
+                @endif
             </div>
             <div class="mt-6">
                 <strong class="text-sm text-gray-500 block mb-1">Şikayet Konusu:</strong>

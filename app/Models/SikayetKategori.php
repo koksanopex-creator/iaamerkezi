@@ -14,6 +14,9 @@ class SikayetKategori extends Model
     protected $fillable = [
         'ad',
         'varsayilan_takim_id',
+        // === YENİ EKLENENLER ===
+        'diger_secenegi_goster', 
+        'diger_aciklama_basligi',
     ];
 
     // Bir kategorinin varsayılan takımıyla olan ilişkisi
@@ -27,7 +30,15 @@ class SikayetKategori extends Model
      */
     public function sikayetler()
     {
-        // 'sikayet_kategorisi_id' foreign key'i üzerinden MusteriSikayeti modeline bağlanır
         return $this->hasMany(MusteriSikayeti::class, 'sikayet_kategorisi_id');
+    }
+
+    // === YENİ EKLENEN İLİŞKİ ===
+    /**
+     * Bu kategoriye ait alt kategoriler
+     */
+    public function altKategoriler()
+    {
+        return $this->hasMany(SikayetAltKategori::class, 'sikayet_kategori_id');
     }
 }

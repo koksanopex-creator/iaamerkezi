@@ -7,7 +7,22 @@
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\App\View\Components\GuestLayout::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes([]); ?> 
+<?php $component->withAttributes([]); ?>
+    
+    
+    
+    <script>
+        // Bu kod, notification-handler.js dosyasının hata verip diğer kodları durdurmasını engeller.
+        // Eğer değişken tanımlı değilse, boş bir nesne olarak tanımlarız.
+        if (typeof window.notificationApiUrls === 'undefined') {
+            window.notificationApiUrls = { 
+                index: '', 
+                unreadCount: '', 
+                markRead: '' 
+            };
+        }
+    </script>
+    
 
     
     <div class="mb-8 pb-6 border-b border-gray-200">
@@ -51,7 +66,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
 
             
-            <div class="group col-span-1"> 
+            <div class="group col-span-1">
                 <label for="musteri_adi" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
                     <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
                     Müşteri Adı <span class="ml-1 text-red-500">*</span>
@@ -68,7 +83,7 @@ unset($__errorArgs, $__bag); ?>
             </div>
 
             
-            <div class="group col-span-1"> 
+            <div class="group col-span-1">
                 <label for="musteri_iletisim" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
                      <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
                     E-posta Adresiniz <span class="ml-1 text-red-500">*</span>
@@ -114,28 +129,31 @@ unset($__errorArgs, $__bag); ?>
             </div>
 
             
-            <div class="group col-span-1">
-                <label for="sikayet_kategorisi_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
-                    <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
-                    Şikayet Kategorisi <span class="ml-1 text-red-500">*</span> 
-                </label>
-                <div class="relative">
-                    <select name="sikayet_kategorisi_id" id="sikayet_kategorisi_id" required 
-                            class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-2.5 text-gray-900 appearance-none bg-white">
-                        <option value="">-- Kategori Seçiniz --</option>
-                        
-                        <?php if(isset($kategoriler)): ?>
-                            <?php $__currentLoopData = $kategoriler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $kategori): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <option value="<?php echo e($kategori->id); ?>" <?php echo e(old('sikayet_kategorisi_id') == $kategori->id ? 'selected' : ''); ?>>
-                                    <?php echo e($kategori->ad); ?>
+            
+            
+            <div class="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6"
+                 x-data="categorySystem()"
+                 x-init="init()">
 
-                                </option>
+                
+                <div class="group">
+                    <label for="sikayet_kategorisi_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                        <svg class="w-4 h-4 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+                        Şikayet Kategorisi <span class="ml-1 text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <select name="sikayet_kategorisi_id" id="sikayet_kategorisi_id" required 
+                                x-model="selectedCategory"
+                                @change="fetchSubCategories(false)"
+                                class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-2.5 text-gray-900 appearance-none bg-white">
+                            <option value="">-- Kategori Seçiniz --</option>
+                            <?php $__currentLoopData = $kategoriler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $kategori): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <option value="<?php echo e($kategori->id); ?>"><?php echo e($kategori->ad); ?></option>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                        <?php endif; ?>
-                    </select>
-                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
-                </div>
-                <?php $__errorArgs = ['sikayet_kategorisi_id'];
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                    </div>
+                    <?php $__errorArgs = ['sikayet_kategorisi_id'];
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');
 if ($__bag->has($__errorArgs[0])) :
 if (isset($message)) { $__messageOriginal = $message; }
@@ -143,7 +161,57 @@ $message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm 
 if (isset($__messageOriginal)) { $message = $__messageOriginal; }
 endif;
 unset($__errorArgs, $__bag); ?>
+                </div>
+
+                
+                <div class="group" x-show="subCategories.length > 0 || showOtherOption" style="display: none;">
+                    <label for="sikayet_alt_kategori_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                        Alt Kategori <span class="ml-1 text-red-500">*</span>
+                        <span x-show="isLoading" class="ml-2 text-xs text-gray-400">(Yükleniyor...)</span>
+                    </label>
+                    <div class="relative">
+                        <select name="sikayet_alt_kategori_id" id="sikayet_alt_kategori_id" 
+                                x-model="selectedSubCategory"
+                                class="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-2.5 text-gray-900 appearance-none bg-white">
+                            <option value="">-- Alt Kategori Seçiniz --</option>
+                            <template x-for="sub in subCategories" :key="sub.id">
+                                <option :value="sub.id" x-text="sub.ad"></option>
+                            </template>
+                            <template x-if="showOtherOption">
+                                <option value="other">Diğer / Belirtilmemiş</option>
+                            </template>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"><svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></div>
+                    </div>
+                    <?php $__errorArgs = ['sikayet_alt_kategori_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
+                </div>
+
+                
+                <div class="group md:col-span-2 bg-yellow-50 p-4 rounded border border-yellow-200" 
+                     x-show="selectedSubCategory === 'other'" style="display: none;" x-transition>
+                    <label for="sikayet_alt_kategori_diger" class="block text-sm font-medium text-yellow-800 mb-1" x-text="otherLabel"></label>
+                    <input type="text" name="sikayet_alt_kategori_diger" id="sikayet_alt_kategori_diger" 
+                           value="<?php echo e(old('sikayet_alt_kategori_diger')); ?>"
+                           placeholder="Lütfen sorunu kısaca tanımlayınız..."
+                           class="block w-full border-yellow-300 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500">
+                     <?php $__errorArgs = ['sikayet_alt_kategori_diger'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <span class="text-red-500 text-sm mt-1"><?php echo e($message); ?></span> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
+                </div>
             </div>
+            
 
             
             <div class="group col-span-1">
@@ -224,7 +292,7 @@ endif;
 unset($__errorArgs, $__bag); ?>
 
                 
-                <div x-show="previews.length > 0" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"> 
+                <div x-show="previews.length > 0" class="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     <template x-for="(preview, index) in previews" :key="index">
                         <div class="relative group bg-gray-100 rounded-lg overflow-hidden border">
                             <template x-if="preview.url">
@@ -263,37 +331,81 @@ unset($__errorArgs, $__bag); ?>
 
     
     <script>
-            function fileUploadComponent() {
-                return {
-                    previews: [], files: [],
-                    updatePreviews(event) {
-                        let selectedFiles = Array.from(event.target.files);
-                        this.files = this.files.concat(selectedFiles);
-                        selectedFiles.forEach(file => {
-                            let reader = new FileReader();
-                            reader.onload = (e) => {
-                                let preview = {
-                                    url: file.type.startsWith('image/') ? e.target.result : null,
-                                    name: file.name
-                                };
-                                this.previews.push(preview);
+        function fileUploadComponent() {
+            return {
+                previews: [], files: [],
+                updatePreviews(event) {
+                    let selectedFiles = Array.from(event.target.files);
+                    this.files = this.files.concat(selectedFiles);
+                    selectedFiles.forEach(file => {
+                        let reader = new FileReader();
+                        reader.onload = (e) => {
+                            let preview = {
+                                url: file.type.startsWith('image/') ? e.target.result : null,
+                                name: file.name
                             };
-                            reader.readAsDataURL(file);
-                        });
-                        const dataTransfer = new DataTransfer();
-                        this.files.forEach(file => dataTransfer.items.add(file));
-                        this.$refs.fileInput.files = dataTransfer.files;
-                    },
-                    removePreview(index) {
-                        this.previews.splice(index, 1);
-                        this.files.splice(index, 1);
-                        const dataTransfer = new DataTransfer();
-                        this.files.forEach(file => dataTransfer.items.add(file));
-                        this.$refs.fileInput.files = dataTransfer.files;
-                    }
+                            this.previews.push(preview);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    const dataTransfer = new DataTransfer();
+                    this.files.forEach(file => dataTransfer.items.add(file));
+                    this.$refs.fileInput.files = dataTransfer.files;
+                },
+                removePreview(index) {
+                    this.previews.splice(index, 1);
+                    this.files.splice(index, 1);
+                    const dataTransfer = new DataTransfer();
+                    this.files.forEach(file => dataTransfer.items.add(file));
+                    this.$refs.fileInput.files = dataTransfer.files;
                 }
             }
-        </script>
+        }
+
+        // === KATEGORİ SİSTEMİ (Asset Mantığı İle) ===
+        function categorySystem() {
+            return {
+                selectedCategory: '<?php echo e(old('sikayet_kategorisi_id')); ?>',
+                selectedSubCategory: '<?php echo e(old('sikayet_alt_kategori_id', old('sikayet_alt_kategori_diger') ? 'other' : '')); ?>',
+                otherText: '<?php echo e(old('sikayet_alt_kategori_diger')); ?>',
+                subCategories: [],
+                showOtherOption: false,
+                otherLabel: 'Diğer Açıklama',
+                isLoading: false,
+
+                init() {
+                    if (this.selectedCategory) {
+                        this.fetchSubCategories(true);
+                    }
+                },
+
+                fetchSubCategories(keepSelection = false) {
+                    if (!this.selectedCategory) {
+                        this.subCategories = [];
+                        this.selectedSubCategory = '';
+                        this.showOtherOption = false;
+                        return;
+                    }
+                    this.isLoading = true;
+                    
+                    // === URL DÜZELTMESİ ===
+                    var baseUrl = "<?php echo e(asset('api/get-alt-kategoriler')); ?>";
+                    var apiUrl = baseUrl + "/" + this.selectedCategory;
+
+                    fetch(apiUrl)
+                        .then(res => res.json())
+                        .then(data => {
+                            this.subCategories = data.alt_kategoriler;
+                            this.showOtherOption = data.diger_goster;
+                            this.otherLabel = data.diger_baslik || 'Lütfen detay belirtiniz:';
+                            if (!keepSelection) { this.selectedSubCategory = ''; }
+                        })
+                        .catch(err => console.error(err))
+                        .finally(() => this.isLoading = false);
+                }
+            }
+        }
+    </script>
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal69dc84650370d1d4dc1b42d016d7226b)): ?>

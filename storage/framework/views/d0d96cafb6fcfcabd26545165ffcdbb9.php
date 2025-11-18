@@ -388,6 +388,8 @@
                             </p>
 
                             <div class="sm:ml-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3 text-sm bg-gray-50/70 rounded-lg p-3 border border-gray-200/60">
+                            <div class="flex flex-col gap-1">
+                                
                                 <div class="flex items-center gap-1.5 text-gray-600">
                                     <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
                                     <span class="font-medium">Kategori:</span>
@@ -396,6 +398,25 @@
 
                                     </span>
                                 </div>
+
+                                
+                                <div class="flex items-center gap-1.5 text-gray-500 text-xs ml-5">
+                                    <span class="text-gray-400">↳</span>
+                                    <!--[if BLOCK]><![endif]--><?php if($sikayet->sikayetAltKategori): ?>
+                                        <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-700 border border-gray-200">
+                                            <?php echo e($sikayet->sikayetAltKategori->ad); ?>
+
+                                        </span>
+                                    <?php elseif($sikayet->sikayet_alt_kategori_diger): ?>
+                                        <span class="bg-yellow-50 px-2 py-0.5 rounded text-yellow-800 border border-yellow-200" title="<?php echo e($sikayet->sikayet_alt_kategori_diger); ?>">
+                                            Diğer: <?php echo e(Str::limit($sikayet->sikayet_alt_kategori_diger, 15)); ?>
+
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-gray-400 italic">Alt Kategori Yok</span>
+                                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                </div>
+                            </div>
                                 <div class="flex items-center gap-1.5 text-gray-600">
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                                     <span class="font-medium">Takım:</span>

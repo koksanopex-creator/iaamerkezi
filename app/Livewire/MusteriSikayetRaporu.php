@@ -8,6 +8,7 @@ use App\Models\SikayetKategori;
 use App\Models\Takim;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str; // Str sınıfını ekledik
 
 class MusteriSikayetRaporu extends Component
 {
@@ -47,7 +48,7 @@ class MusteriSikayetRaporu extends Component
             'projeye_donusen' => MusteriSikayeti::whereNotNull('iaa_id')->count(),
         ];
 
-        // === 2. ORİJİNAL 4 GRAFİK VERİSİ (image_c80e84.png) ===
+        // === 2. ORİJİNAL 4 GRAFİK VERİSİ ===
         $durumData = MusteriSikayeti::select('musteri_durum', DB::raw('count(*) as total'))
             ->groupBy('musteri_durum')
             ->pluck('total', 'musteri_durum');
@@ -73,7 +74,7 @@ class MusteriSikayetRaporu extends Component
             ->orderBy('ay', 'asc')
             ->pluck('total', 'ay');
 
-        // === 3. YENİ LİSTELER (image_c87723.png) ===
+        // === 3. YENİ LİSTELER ===
         $cozulenListesi = MusteriSikayeti::whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])
             ->with('iaaProjesi')
             ->latest('updated_at')
@@ -98,7 +99,7 @@ class MusteriSikayetRaporu extends Component
             ->take(5)
             ->get();
 
-        // === 4. YENİ 4 DONUT GRAFİK VERİSİ (image_c87723.png) ===
+        // === 4. YENİ 4 DONUT GRAFİK VERİSİ ===
         $cozulenChartData = MusteriSikayeti::whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])
             ->select('musteri_oncelik as etiket', DB::raw('count(*) as total'))
             ->groupBy('etiket')
@@ -119,7 +120,7 @@ class MusteriSikayetRaporu extends Component
             ->groupBy('etiket')
             ->pluck('total', 'etiket');
 
-        // === 5. YENİ AYLIK ÇÖZÜLEN TREND VERİSİ (image_c87723.png) ===
+        // === 5. YENİ AYLIK ÇÖZÜLEN TREND VERİSİ ===
         $aylikCozulenTrend = MusteriSikayeti::whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])
             ->select(
                 DB::raw("DATE_FORMAT(updated_at, '%Y-%m') as ay"),
@@ -130,22 +131,70 @@ class MusteriSikayetRaporu extends Component
             ->orderBy('ay', 'asc')
             ->pluck('total', 'ay');
 
-            // === YENİ EKLENDİ (SON 10 ŞİKAYET TABLOSU İÇİN) ===
-            $sonSikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
-            // 'iaa' ilişkisini ve o ilişki üzerinden 'projeYorumlari' ve 'musteriProjeYorumlari' sayımlarını yükle
+        // === SON 10 ŞİKAYET TABLOSU İÇİN ===
+        $sonSikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
             ->withCount(['projeYorumlari', 'musteriProjeYorumlari'])
-            ->latest() // En son ekleneni (created_at) en üste alır
-            ->take(10) // Sadece 10 tane alır
+            ->latest()
+            ->take(10)
             ->get();
-    // === YENİ EKLEME SONU ===
+
+        // === YENİ GRAFİKLER İÇİN VERİ HAZIRLIĞI ===
+
+        // 1. BÖLÜM (TAKIM) - KATEGORİ DAĞILIMI (Hangi takımda hangi kategoriden kaç tane var?)
+        $bolumKategoriData = MusteriSikayeti::select('atanan_cozum_takimi_id', 'sikayet_kategorisi_id', DB::raw('count(*) as total'))
+            ->whereNotNull('atanan_cozum_takimi_id')
+            ->whereNotNull('sikayet_kategorisi_id')
+            ->with(['cozumTakimi', 'sikayetKategori'])
+            ->groupBy('atanan_cozum_takimi_id', 'sikayet_kategorisi_id')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'takim' => $item->cozumTakimi->ad ?? 'Atanmamış',
+                    'kategori' => $item->sikayetKategori->ad ?? 'Diğer',
+                    'total' => $item->total
+                ];
+            });
+
+        // Veriyi grafik formatına dönüştürme (Takımlar X ekseni, Kategoriler Seriler)
+        $takimlar = $bolumKategoriData->pluck('takim')->unique()->values()->toArray();
+        $kategoriler = $bolumKategoriData->pluck('kategori')->unique()->values()->toArray();
+        
+        $bolumKategoriSeries = [];
+        foreach ($kategoriler as $kategori) {
+            $data = [];
+            foreach ($takimlar as $takim) {
+                $record = $bolumKategoriData->where('takim', $takim)->where('kategori', $kategori)->first();
+                $data[] = $record ? $record['total'] : 0;
+            }
+            $bolumKategoriSeries[] = ['name' => $kategori, 'data' => $data];
+        }
+
+        // 2. KATEGORİ - ALT KATEGORİ DAĞILIMI (Treemap Verisi)
+        $altKategoriData = MusteriSikayeti::select('sikayet_kategorisi_id', 'sikayet_alt_kategori_id', 'sikayet_alt_kategori_diger', DB::raw('count(*) as total'))
+            ->whereNotNull('sikayet_kategorisi_id')
+            ->with(['sikayetKategori', 'sikayetAltKategori'])
+            ->groupBy('sikayet_kategorisi_id', 'sikayet_alt_kategori_id', 'sikayet_alt_kategori_diger')
+            ->get()
+            ->map(function($item) {
+                // İsimlendirme: Ana Kategori > Alt Kategori
+                $anaKat = $item->sikayetKategori->ad ?? 'Genel';
+                $altKat = $item->sikayetAltKategori->ad ?? ($item->sikayet_alt_kategori_diger ? 'Diğer: ' . Str::limit($item->sikayet_alt_kategori_diger, 15) : 'Belirtilmemiş');
+                
+                return [
+                    'x' => $anaKat . ' - ' . $altKat, // Etiket
+                    'y' => $item->total
+                ];
+            });
+
 
         return compact(
             'kpi', 
-            'durumData', 'kategoriData', 'takimData', 'aylikTrend', // Orijinal 4 grafik
-            'cozulenListesi', 'islemdeListesi', 'yeniListesi', 'projeyeDonusenListesi', // Yeni 4 liste
-            'cozulenChartData', 'islemdeChartData', 'yeniChartData', 'projeyeDonusenChartData', // Yeni 4 donut
-            'aylikCozulenTrend', // Yeni 1 line
-            'sonSikayetler' // <-- YENİ EKLENDİ
+            'durumData', 'kategoriData', 'takimData', 'aylikTrend', 
+            'cozulenListesi', 'islemdeListesi', 'yeniListesi', 'projeyeDonusenListesi', 
+            'cozulenChartData', 'islemdeChartData', 'yeniChartData', 'projeyeDonusenChartData', 
+            'aylikCozulenTrend', 
+            'sonSikayetler',
+            'bolumKategoriSeries', 'takimlar', 'altKategoriData' // Yeni grafik verileri
         );
     }
 
@@ -154,7 +203,13 @@ class MusteriSikayetRaporu extends Component
         $data = $this->calculateStats();
         
         // Tek bir olay (event) ile TÜM verileri JavaScript'e gönder
-        $this->dispatch('updateSikayetRaporlari', $data);
+        // Veri yapısını JS tarafındaki beklentiye göre düzenliyoruz
+        $dispatchData = array_merge($data, [
+            'bolumKategoriXaxis' => $data['takimlar'],
+            'altKategoriSeries' => [['data' => $data['altKategoriData']]]
+        ]);
+
+        $this->dispatch('updateSikayetRaporlari', $dispatchData);
 
         return view('livewire.admin.musteri-sikayet-raporu', $data);
     }

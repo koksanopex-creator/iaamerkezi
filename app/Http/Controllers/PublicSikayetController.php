@@ -80,6 +80,18 @@ namespace App\Http\Controllers;
                 'musteri_iletisim' => 'required|email|max:255', // E-posta zorunlu ve geçerli formatta olmalı
                 'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı',
                 'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id', // Kategori zorunlu
+                // YENİ: Alt Kategori Kuralları
+                'sikayet_alt_kategori_id' => [
+                    'nullable', 
+                    function ($attribute, $value, $fail) {
+                        if ($value !== 'other' && !is_null($value)) {
+                            if (!\App\Models\SikayetAltKategori::where('id', $value)->exists()) {
+                                $fail('Geçersiz alt kategori.');
+                            }
+                        }
+                    },
+                ],
+                'sikayet_alt_kategori_diger' => 'nullable|string|required_if:sikayet_alt_kategori_id,other|max:500',
                 'musteri_sikayet_tarihi' => 'required|date|before_or_equal:today', // Geçmiş veya bugün olabilir
                 'musteri_sikayet_konusu' => 'required|string|max:255',
                 'musteri_sikayet_detayi' => 'required|string|min:20', // Minimum karakter ekleyebiliriz
@@ -90,6 +102,14 @@ namespace App\Http\Controllers;
             DB::beginTransaction();
             try {
                 $sikayetData = $validated; // Doğrulanmış veriyi al
+                // YENİ: "Diğer" seçeneği mantığını uygula
+                if ($request->sikayet_alt_kategori_id === 'other') {
+                    // "Diğer" seçildiyse ID null olmalı, açıklama kaydedilmeli
+                    $sikayetData['sikayet_alt_kategori_id'] = null;
+                } else {
+                    // Normal kategori seçildiyse, açıklama null olmalı
+                    $sikayetData['sikayet_alt_kategori_diger'] = null;
+                }
                 $sikayetData['musteri_durum'] = 'Yeni'; // Başlangıç durumu
                 $sikayetData['musteri_oncelik'] = 'Normal'; // Varsayılan öncelik
 
@@ -355,6 +375,14 @@ namespace App\Http\Controllers;
                 $sikayet->load('dosyalar');
                 $kategoriler = SikayetKategori::orderBy('ad')->get();
                 // === GÜNCELLEME SONU ===
+
+                // YENİ: Mevcut seçime göre alt kategorileri doldur
+                $altKategoriler = [];
+                if ($sikayet->sikayet_kategorisi_id) {
+                    $altKategoriler = \App\Models\SikayetAltKategori::where('sikayet_kategori_id', $sikayet->sikayet_kategorisi_id)
+                                                        ->orderBy('ad')
+                                                        ->get();
+                }
 
                 // Düzenleme view'ını göster
                 return view('public.sikayet.sikayet-edit', compact('sikayet', 'kategoriler'));

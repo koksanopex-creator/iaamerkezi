@@ -334,6 +334,27 @@
     </div>
     
 
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div class="bg-white overflow-hidden shadow-lg sm:rounded-xl p-6 border border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Bölümlere Göre Şikayet Dağılımı</h3>
+                <span class="text-xs font-medium bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded">Kategori Bazlı</span>
+            </div>
+            
+            <div id="bolumKategoriChart" wire:ignore></div>
+        </div>
+
+        <div class="bg-white overflow-hidden shadow-lg sm:rounded-xl p-6 border border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Sorun Türleri Yoğunluk Haritası</h3>
+                <span class="text-xs font-medium bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded">Alt Kategoriler</span>
+            </div>
+            <div id="altKategoriChart" wire:ignore></div>
+        </div>
+    </div>
+    
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Şikayet Durum Dağılımı</h3>

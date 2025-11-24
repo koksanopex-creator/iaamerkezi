@@ -20,7 +20,6 @@
                         <th class="px-6 py-3">Proje Bilgileri</th>
                         <th class="px-6 py-3">Başlangıç Tarihi</th>
                         <th class="px-6 py-3">Onaylanma Tarihi</th>
-                        {{-- DEĞİŞİKLİK 1: Başlık Güncellendi --}}
                         <th class="px-6 py-3 text-center">Tamamlanma Süresi</th>
                         <th class="px-6 py-3 text-right">İşlemler</th>
                     </tr>
@@ -34,7 +33,7 @@
                             <td class="p-4 align-middle text-center">
                                 @if($iaa->completion_duration_in_days !== null)
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        {{ $iaa->completion_duration_in_days }}
+                                        {{ $iaa->completion_duration_in_days }} gün
                                     </span>
                                 @else
                                     -
@@ -42,11 +41,14 @@
                             </td>
                             <td class="p-4 align-middle text-right">
                                 <div class="flex justify-end items-center space-x-2">
-                                    {{-- DEĞİŞİKLİK 2: "Detay" Butonu Güncellendi --}}
+                                    
+                                    {{-- Herkes Görebilir: DETAY --}}
                                     <a href="{{ route('proje.workspace.show', $iaa) }}" class="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
                                         Detay
                                     </a>
                                     
+                                    {{-- SADECE SUPERADMIN GÖREBİLİR: GERİ AL --}}
+                                    @role('Superadmin')
                                     <form action="{{ route('admin.iaa-yonetim.geriAl', $iaa) }}" method="POST" onsubmit="return confirm('Bu projeyi tekrar \'Yönetici Onayı Bekliyor\' durumuna almak istediğinizden emin misiniz?');">
                                         @csrf
                                         @method('PATCH')
@@ -54,6 +56,8 @@
                                             Geri Al
                                         </button>
                                     </form>
+                                    @endrole
+
                                 </div>
                             </td>
                         </tr>
@@ -66,7 +70,7 @@
             </table>
         </div>
         
-        {{-- DEĞİŞİKLİK 3: "Tümünü Gör" Butonu Güncellendi --}}
+        {{-- Tümünü Gör Butonu --}}
         <div class="mt-6 text-right">
             <a href="{{ route('admin.iaa-yonetim.arsiv') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring ring-indigo-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm">
                 Tüm Tamamlanmış Projeleri Gör &rarr;

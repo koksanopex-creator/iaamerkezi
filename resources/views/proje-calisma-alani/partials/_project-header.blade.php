@@ -57,8 +57,38 @@
             </span>
         </div>
 
+        {{-- DURUM BİLGİLENDİRME KUTUSU (GÜNCELLENMİŞ) --}}
         @if($iaa->durum == 'Revize Ediliyor' || $iaa->durum == 'Tamamlanması Reddedildi' || $iaa->durum == 'Tamamlandı')
             @php
+                // === 1. LOG VERİSİNİ ÇEK ===
+                $logKaydi = null;
+                $yapanKisi = 'Yönetici';
+                $yapanUnvan = 'Yönetici';
+                $islemTarihi = $statusDate ?? now();
+
+                // Sadece Red veya Revize durumunda loga bakmaya gerek var
+                if ($iaa->durum == 'Revize Ediliyor' || $iaa->durum == 'Tamamlanması Reddedildi') {
+                    $aranacakKelime = ($iaa->durum == 'Revize Ediliyor') ? 'Revizyon' : 'Red';
+                    
+                    $logKaydi = \App\Models\IaaLog::where('iaa_id', $iaa->id)
+                        ->where('eylem', 'like', '%' . $aranacakKelime . '%')
+                        ->with('user')
+                        ->latest()
+                        ->first();
+
+                    if ($logKaydi && $logKaydi->user) {
+                        $yapanKisi = $logKaydi->user->name;
+                        $islemTarihi = $logKaydi->created_at;
+                        
+                        if ($logKaydi->user->hasRole('Superadmin')) {
+                            $yapanUnvan = 'Süper Yönetici';
+                        } elseif ($logKaydi->user->hasRole('Bölüm Kalite Yöneticisi')) {
+                            $yapanUnvan = 'Bölüm Yöneticisi';
+                        }
+                    }
+                }
+
+                // === 2. KUTU AYARLARINI YAP ===
                 $kutuAyar = match($iaa->durum) {
                     'Tamamlandı' => [
                         'baslik' => 'Proje Onaylandı',
@@ -67,13 +97,13 @@
                         'mesaj' => 'Proje yönetici tarafından onaylanarak başarıyla tamamlandı.'
                     ],
                     'Tamamlanması Reddedildi' => [
-                        'baslik' => 'Tamamlanma Talebi Reddedildi',
+                        'baslik' => $yapanUnvan . ' (' . $yapanKisi . ') Reddedildi', // Başlık Dinamik Oldu
                         'renk' => 'red',
                         'ikon' => '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />',
                         'mesaj' => $iaa->yonetici_notu
                     ],
                     'Revize Ediliyor' => [
-                        'baslik' => 'Yöneticiden Revizyon Talebi',
+                        'baslik' => $yapanUnvan . ' Revizyon Talebi', // Başlık Dinamik Oldu
                         'renk' => 'yellow',
                         'ikon' => '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />',
                         'mesaj' => $iaa->yonetici_notu
@@ -94,15 +124,22 @@
                     <div class="ml-3 flex-1">
                         <div class="flex justify-between items-start">
                             <div>
-                                <h4 class="text-sm font-bold text-{{ $kutuAyar['renk'] }}-800">{{ $kutuAyar['baslik'] }}</h4>
+                                <h4 class="text-sm font-bold text-{{ $kutuAyar['renk'] }}-800 flex items-center gap-2">
+                                    {{ $kutuAyar['baslik'] }}
+                                    @if(isset($yapanKisi) && ($iaa->durum == 'Revize Ediliyor' || $iaa->durum == 'Tamamlanması Reddedildi'))
+                                        <span class="text-xs font-normal bg-white/50 px-2 py-0.5 rounded text-{{ $kutuAyar['renk'] }}-700 border border-{{ $kutuAyar['renk'] }}-200">
+                                            {{ $yapanKisi }}
+                                        </span>
+                                    @endif
+                                </h4>
                                 <div class="mt-2 text-sm text-{{ $kutuAyar['renk'] }}-700">
-                                    <p class="whitespace-pre-wrap">{{ $kutuAyar['mesaj'] }}</p>
+                                    <p class="whitespace-pre-wrap font-medium">"{{ $kutuAyar['mesaj'] }}"</p>
                                 </div>
                             </div>
-                            @if(!empty($statusDate))
+                            @if(!empty($islemTarihi))
                             <div class="ml-4 flex-shrink-0 text-xs text-{{ $kutuAyar['renk'] }}-600 font-medium flex items-center space-x-1.5 whitespace-nowrap">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18M-4.5 12h18"></path></svg>
-                                <span>{{ \Carbon\Carbon::parse($statusDate)->format('d.m.Y H:i') }}</span>
+                                <span>{{ \Carbon\Carbon::parse($islemTarihi)->format('d.m.Y H:i') }}</span>
                             </div>
                             @endif
                         </div>

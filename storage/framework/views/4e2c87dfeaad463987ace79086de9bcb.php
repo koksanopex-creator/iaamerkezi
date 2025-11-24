@@ -1,7 +1,14 @@
 <?php
-    // === GÜNCELLEME ===
-    // Bu PHP bloğu @auth direktifinin içine taşındı
-    // $kullaniciSikayetTakimindaMi = Auth::user()->takimlar()->where('tur', 'sikayet')->exists();
+    // === GÜVENLİ KONTROL BLOKU ===
+    // Bu değişkeni en başta tanımlıyoruz ki aşağıda hem masaüstü hem mobil menüde kullanabilelim.
+    // Eğer kullanıcı giriş yapmışsa (Auth::check) veritabanından kontrol et,
+    // Misafir ise (Müşteri gibi) direkt FALSE yap ki kod patlamasın.
+    
+    $kullaniciSikayetTakimindaMi = false;
+
+    if(Auth::check()) {
+        $kullaniciSikayetTakimindaMi = Auth::user()->takimlar()->where('tur', 'sikayet')->exists();
+    }
 ?>
 
 <nav x-data="{ open: false }" class="bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-2xl border-b border-gray-700/50">
@@ -158,10 +165,7 @@
                     </div>
 
                     
-                    <?php
-                        $kullaniciSikayetTakimindaMi = Auth::user()->takimlar()->where('tur', 'sikayet')->exists();
-                    ?>
-
+                    
                     <?php if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']) || $kullaniciSikayetTakimindaMi): ?>
                     <div x-data="{ open: false }" @click.away="open = false" class="relative">
                         <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 <?php echo e(request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-kategorileri.*') || request()->routeIs('admin.cozum-takimlari.*') || request()->routeIs('admin.sikayet-raporlari.index') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'); ?>">
@@ -254,7 +258,8 @@
                         </div>
                     </div>
                     <?php endif; ?>
-                    <?php if (\Illuminate\Support\Facades\Blade::check('role', 'Superadmin')): ?>
+
+                    <?php if(Auth::user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi'])): ?>
                     <div x-data="{ open: false }" @click.away="open = false" class="relative">
                         <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 <?php echo e((request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.sikayet-kategorileri.*') && !request()->routeIs('admin.cozum-takimlari.*') && !request()->routeIs('admin.sikayet-raporlari.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'); ?>">
                             <span class="font-semibold text-sm">Yönetim Paneli</span>
@@ -280,6 +285,7 @@
 <?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
 <?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
 <?php endif; ?>
+                            <?php if (\Illuminate\Support\Facades\Blade::check('role', 'Superadmin')): ?>
                             <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => route('admin.bolumler.index')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -356,6 +362,25 @@
 <?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
 <?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
 <?php endif; ?>
+                            <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => route('admin.kalite-yoneticileri.index')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('dropdown-link'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('admin.kalite-yoneticileri.index'))]); ?><?php echo e(__('Bölüm Kalite Yöneticileri')); ?> <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal68cb1971a2b92c9735f83359058f7108)): ?>
+<?php $attributes = $__attributesOriginal68cb1971a2b92c9735f83359058f7108; ?>
+<?php unset($__attributesOriginal68cb1971a2b92c9735f83359058f7108); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal68cb1971a2b92c9735f83359058f7108)): ?>
+<?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
+<?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
+<?php endif; ?>
                             <div class="border-t border-gray-100 my-1"></div>
                             <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
@@ -396,6 +421,7 @@
 <?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
 <?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
 <?php endif; ?>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endif; ?>
@@ -886,6 +912,25 @@
 <?php endif; ?>
                 <?php if (isset($component)) { $__componentOriginald69b52d99510f1e7cd3d80070b28ca18 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginald69b52d99510f1e7cd3d80070b28ca18 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.responsive-nav-link','data' => ['href' => route('admin.kalite-yoneticileri.index')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('responsive-nav-link'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('admin.kalite-yoneticileri.index'))]); ?><?php echo e(__('Bölüm Kalite Yöneticileri')); ?> <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginald69b52d99510f1e7cd3d80070b28ca18)): ?>
+<?php $attributes = $__attributesOriginald69b52d99510f1e7cd3d80070b28ca18; ?>
+<?php unset($__attributesOriginald69b52d99510f1e7cd3d80070b28ca18); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginald69b52d99510f1e7cd3d80070b28ca18)): ?>
+<?php $component = $__componentOriginald69b52d99510f1e7cd3d80070b28ca18; ?>
+<?php unset($__componentOriginald69b52d99510f1e7cd3d80070b28ca18); ?>
+<?php endif; ?>
+                <?php if (isset($component)) { $__componentOriginald69b52d99510f1e7cd3d80070b28ca18 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald69b52d99510f1e7cd3d80070b28ca18 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.responsive-nav-link','data' => ['href' => route('admin.raporlar.index')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('responsive-nav-link'); ?>
 <?php if ($component->shouldRender()): ?>
@@ -986,6 +1031,4 @@
         </div>
     </div>
     <?php endif; ?>
-</nav>
-
-<?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/layouts/navigation.blade.php ENDPATH**/ ?>
+</nav><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/layouts/navigation.blade.php ENDPATH**/ ?>

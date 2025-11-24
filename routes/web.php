@@ -146,9 +146,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         // Kullanıcı Yönetimi
         Route::resource('users', UserController::class)->except(['show']);
         Route::patch('users/{user}/onayla', [UserController::class, 'onayla'])->name('users.onayla');
+        
+        // BÖLÜM KALİTE YÖNETİCİSİ ATAMA
+        Route::get('kalite-yoneticileri', [App\Http\Controllers\Admin\BolumKaliteYoneticisiController::class, 'index'])
+            ->name('kalite-yoneticileri.index');
+            
+        Route::post('kalite-yoneticileri/{user}', [App\Http\Controllers\Admin\BolumKaliteYoneticisiController::class, 'update'])
+            ->name('kalite-yoneticileri.update');
 
         // İAA Yönetimi
-        Route::get('iaa-yonetim', [IaaYonetimController::class, 'index'])->name('iaa-yonetim.index');
+
         Route::patch('iaa-yonetim/{iaa}/onayla', [IaaYonetimController::class, 'onayla'])->name('iaa-yonetim.onayla');
         Route::patch('iaa-yonetim/{iaa}/reddet', [IaaYonetimController::class, 'reddet'])->name('iaa-yonetim.reddet');
         Route::patch('iaa-yonetim/{iaa}/geri-al', [IaaYonetimController::class, 'geriAl'])->name('iaa-yonetim.geriAl');
@@ -165,7 +172,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         Route::post('iaa/{iaa}/approve-completed', [IaaYonetimController::class, 'approveCompleted'])->name('iaa.approveCompleted');
         Route::post('iaa/{iaa}/reject-completed', [IaaYonetimController::class, 'rejectCompleted'])->name('iaa.rejectCompleted');
         Route::post('iaa/{iaa}/request-revision', [IaaYonetimController::class, 'requestRevision'])->name('iaa.requestRevision');
-
+        
         // TAKIM YÖNETİMİ
         Route::post('takim-yonetim/{takim}/uye-ekle', [TakimYonetimController::class, 'uyeEkle'])->name('takim-yonetim.uyeEkle');
         Route::delete('takim-yonetim/{takim}/uye-cikar/{user}', [TakimYonetimController::class, 'uyeCikar'])->name('takim-yonetim.uyeCikar');
@@ -208,7 +215,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
             ->parameters(['cozum-takimlari' => 'cozumTakimi']);
     
     }); // --- Superadmin grubunun sonu ---
-    
+
+    Route::get('iaa-yonetim', [IaaYonetimController::class, 'index'])->name('iaa-yonetim.index');
+    Route::post('iaa-yonetim/{iaa}/bolum-onayi', [IaaYonetimController::class, 'bolumOnayiVer'])
+            ->name('iaa-yonetim.bolumOnayiVer');
+    Route::post('iaa-yonetim/{iaa}/bolum-revizyon', [IaaYonetimController::class, 'bolumRevizyonIste'])->name('iaa-yonetim.bolumRevizyon');
+    Route::post('iaa-yonetim/{iaa}/bolum-red', [IaaYonetimController::class, 'bolumReddet'])->name('iaa-yonetim.bolumReddet');
+    Route::post('iaa-yonetim/{iaa}/bolum-onayi-geri-al', [IaaYonetimController::class, 'bolumOnayiGeriAl'])
+    ->name('iaa-yonetim.bolumOnayiGeriAl');    
 
     // =================================================================
     // === MÜŞTERİ ŞİKAYETLERİ MODÜLÜ (İlgili Roller Erişebilir) ===
@@ -235,5 +249,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         ->parameters(['sikayetler' => 'sikayet']);
 
 }); // --- Admin prefix'inin sonu ---
+
+
 
 require __DIR__.'/auth.php';

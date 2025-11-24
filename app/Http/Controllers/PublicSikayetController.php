@@ -129,6 +129,17 @@ namespace App\Http\Controllers;
 
                     // Rastgele Şifre Oluşturma (8 karakter)
                     $plainPassword = Str::random(8);
+
+                    // === BURAYA EKLEME YAPIYORUZ ===
+                    // Şifreyi log dosyasına yazdırıyoruz ki mail gitmese bile görebilesiniz.
+                    Log::info('=============================================');
+                    Log::info('YENİ MÜŞTERİ ŞİKAYETİ OLUŞTURULDU (TEST)');
+                    Log::info('Müşteri: ' . $request->musteri_adi);
+                    Log::info('Token: ' . $token);
+                    Log::info('OLUŞTURULAN ŞİFRE: ' . $plainPassword);
+                    Log::info('=============================================');
+                    // =================================
+
                     $sikayetData['guest_password_hash'] = Hash::make($plainPassword);
 
                 } else {

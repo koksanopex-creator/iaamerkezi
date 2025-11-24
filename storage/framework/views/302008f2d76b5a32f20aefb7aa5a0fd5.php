@@ -48,7 +48,8 @@ foreach ($attributes->all() as $__key => $__value) {
 
 unset($__defined_vars, $__key, $__value); ?>
 
-<div class="mb-10 ml-6" x-data="{ open: <?php echo e($isCompleted ? 'false' : ($isCurrent ? 'true' : 'false')); ?> }">
+
+<div id="step-card-<?php echo e($step->id); ?>" class="mb-10 ml-6" x-data="{ open: <?php echo e($isCompleted ? 'false' : ($isCurrent ? 'true' : 'false')); ?> }">
     
     
     <span class="absolute flex items-center justify-center w-8 h-8 rounded-full -left-4 ring-4 ring-white shadow-md transition-all duration-300

@@ -311,7 +311,7 @@
                 <div class="hidden overflow-x-auto">
                     <table class="hidden min-w-full">
                         <thead>
-                            <tr class="bg-gray-50 border-b-2 border-gray-200">
+                            <tr class="bg-gray-5 border-b-2 border-gray-200">
                                 <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">#</th>
                                 <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Müşteri</th>
                                 <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Konu</th>
@@ -335,7 +335,30 @@
                                     </td>
                                     <td class="px-6 py-4 max-w-xs truncate"><span class="text-sm text-gray-600" title="{{ $sikayet->musteri_sikayet_konusu }}">{{ Str::limit($sikayet->musteri_sikayet_konusu, 30) }}</span></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $sikayet->olusturanKurulUyesi->name ?? 'Sistem' }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap">{!! $sikayet->musteri_durum_badge !!}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex flex-col items-start gap-1">
+                                            {{-- Ana Şikayet Durumu --}}
+                                            {!! $sikayet->musteri_durum_badge !!}
+                                            
+                                            {{-- Alt Proje Durumu --}}
+                                            @if($sikayet->iaaProjesi)
+                                                @php
+                                                    $pRenk = match($sikayet->iaaProjesi->durum) {
+                                                        'Bölüm Onayı Bekliyor' => 'purple',
+                                                        'Yönetici Onayı Bekliyor' => 'blue',
+                                                        'Atandı' => 'blue', // <--- YENİ EKLENDİ (MAVİ)
+                                                        'Revize Ediliyor' => 'orange',
+                                                        'Tamamlandı' => 'green',
+                                                        'Reddedildi', 'Tamamlanması Reddedildi' => 'red',
+                                                        default => 'gray'
+                                                    };
+                                                @endphp
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-{{ $pRenk }}-50 text-{{ $pRenk }}-700 border border-{{ $pRenk }}-200">
+                                                    {{ $sikayet->iaaProjesi->durum }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {{ $sikayet->oncelik_badge_class }}">
                                             {{ $sikayet->musteri_oncelik ?? 'Normal' }}
@@ -377,7 +400,7 @@
                                     </span>
                                     <div class="font-semibold text-lg text-gray-900">{{ $sikayet->musteri_adi }}</div>
                                 </div>
-                                {!! $sikayet->musteri_durum_badge !!}
+                                
                             </div>
 
                             <p class="text-base text-gray-700 mb-4 sm:ml-14 font-medium" title="{{ $sikayet->musteri_sikayet_konusu }}">
@@ -442,6 +465,32 @@
                                     <span class="font-medium">Kayıt Tarihi:</span>
                                     <span class="font-semibold text-gray-800">{{ $sikayet->created_at->format('d.m.Y') }}</span>
                                 </div>
+                                {{-- === YENİ EKLENECEK KISIM: PROJE DURUMU (AYNI STİLDE) === --}}
+                                @if($sikayet->iaaProjesi)
+                                    @php
+                                        $pDurum = $sikayet->iaaProjesi->durum;
+                                        $pRenk = match($pDurum) {
+                                            'Bölüm Onayı Bekliyor' => 'purple',
+                                            'Yönetici Onayı Bekliyor' => 'blue',
+                                            'Revize Ediliyor' => 'orange',
+                                            'Tamamlandı' => 'green',
+                                            'Atandı' => 'blue',
+                                            'Reddedildi', 'Tamamlanması Reddedildi' => 'red',
+                                            default => 'gray'
+                                        };
+                                    @endphp
+                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                        {{-- İkon --}}
+                                        <svg class="w-4 h-4 text-{{ $pRenk }}-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span class="font-medium">Proje Durumu:</span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-{{ $pRenk }}-50 text-{{ $pRenk }}-700 border border-{{ $pRenk }}-200">
+                                            {{ $pDurum }}
+                                        </span>
+                                    </div>
+                                @endif
+                                {{-- === EKLEME SONU === --}}
                                 <div class="flex items-center gap-1.5 text-gray-600 lg:col-span-1">
                                     <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     <span class="font-medium text-red-600">Son Tarih:</span>
@@ -467,8 +516,8 @@
                                 @role('Superadmin|Müşteri Şikayeti Kurulu')
                                     <button wire:click="$dispatch('openTriyajModal', { id: {{ $sikayet->id }} })"
                                             class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-green-700 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border border-green-200/70 hover:border-green-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
-                                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                                        Yönet
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                                    Yönet
                                     </button>
                                     @can('update', $sikayet)
                                         <a href="{{ route('admin.sikayetler.edit', $sikayet) }}"
@@ -480,13 +529,13 @@
                                     @can('delete', $sikayet)
                                         <form action="{{ route('admin.sikayetler.destroy', $sikayet) }}" method="POST"
                                               onsubmit="return confirm('Bu şikayeti silmek istediğinizden emin misiniz?');" class="inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                    class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 border border-red-200/70 hover:border-red-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
-                                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                Sil
-                                            </button>
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-gradient-to-r from-red-50 to-rose-50 hover:from-red-100 hover:to-rose-100 border border-red-200/70 hover:border-red-300 transition-all duration-200 transform hover:scale-105 shadow-sm hover:shadow-md">
+                                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            Sil
+                                        </button>
                                         </form>
                                     @endcan
                                 @endrole
@@ -518,7 +567,7 @@
                                     </a>
                                 @endif
                                 {{-- === BUTON BÖLÜMÜ SONU === --}}
-                             
+                            
                             </div>
 
                             {{-- === 3. YENİ AÇILIR LOG ALANI === --}}
@@ -586,7 +635,7 @@
             </div>
         </div>
     </div>
-
+    
     @livewire('admin.sikayet-triyaj-modal')
 
     {{-- CSS Animasyonları --}}

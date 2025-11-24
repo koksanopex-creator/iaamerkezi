@@ -406,6 +406,9 @@
                                 'iaa' => $iaa,
                                 'statusDate' => $statusDate ?? null
                             ])
+                            {{-- === YENİ EKLENECEK KISIM === --}}
+                            @include('proje-calisma-alani.partials._action-buttons', ['iaa' => $iaa])
+                            {{-- === BURAYA KADAR === --}}    
                         @endif
                     </div>
                 </div>
@@ -523,4 +526,31 @@
 
         </div> {{-- max-w-7xl kapanışı --}}
     </div> {{-- py-8 kapanışı --}}
+
+    {{-- OTOMATİK SCROLL SCRİPTİ --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Controller'dan gelen 'scroll_to_step' verisi varsa çalışır
+            @if(session('scroll_to_step'))
+                setTimeout(() => {
+                    // Tamamlanan adımın ID'sini al (Örn: 25)
+                    const stepId = "{{ session('scroll_to_step') }}";
+                    
+                    // Sayfada bu ID'ye sahip adımı bul (Örn: id="step-card-25")
+                    // NOT: Aşağıdaki adımda ID eklemeyi unutma!
+                    const element = document.getElementById('step-card-' + stepId);
+                    
+                    if (element) {
+                        // Oraya yumuşakça kaydır ve ortala
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        // İstersen kısa bir vurgu efekti de verebilirsin (opsiyonel)
+                        element.classList.add('ring-2', 'ring-green-500', 'ring-offset-2');
+                        setTimeout(() => element.classList.remove('ring-2', 'ring-green-500', 'ring-offset-2'), 2000);
+                    }
+                }, 500); // Sayfa tam yüklensin diye yarım saniye bekle
+            @endif
+        });
+    </script>
+
 </x-app-layout>

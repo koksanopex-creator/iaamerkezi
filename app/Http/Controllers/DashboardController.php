@@ -2,10 +2,7 @@
 
 namespace App\Http\Controllers;
 
-// === YENİ EKLENDİ (EKSİK OLAN SATIR) ===
 use App\Http\Controllers\Controller; 
-// ======================================
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
@@ -25,6 +22,9 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $stats = []; // İstatistikleri tutacak boş bir dizi
+        
+        // View'e gönderilecek ekstra değişkenler
+        $bolumOnayiBekleyenSayisi = 0; 
 
         if ($user->hasRole('Superadmin')) {
             // === 1. SUPERADMIN İSTATİSTİKLERİ ===
@@ -49,6 +49,9 @@ class DashboardController extends Controller
                 'islemde_sikayet' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
                 'son_sikayetler' => MusteriSikayeti::latest()->take(3)->get(),
             ];
+            
+            // Superadmin de genel durumu görebilsin
+            $bolumOnayiBekleyenSayisi = Iaa::where('durum', 'Bölüm Onayı Bekliyor')->count();
 
         } elseif ($user->hasRole('Müşteri Şikayeti Kurulu')) {
             // === 2. MÜŞTERİ ŞİKAYETİ KURULU İSTATİSTİKLERİ ===
@@ -94,13 +97,32 @@ class DashboardController extends Controller
                                                     ->take(3)
                                                     ->get();
             }
+            
+            // Lider de standart istatistikleri görsün
+            $user_stats = $this->getStandartKullaniciStats($user);
+            $stats = array_merge($stats, $user_stats);
+
+        } elseif ($user->hasRole('Bölüm Kalite Yöneticisi')) {
+            // === 4. BÖLÜM KALİTE YÖNETİCİSİ İSTATİSTİKLERİ (YENİ EKLENDİ) ===
+            
+            // a) Onay Bekleyen Sayısını Hesapla
+            $sorumluKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
+            
+            $bolumOnayiBekleyenSayisi = Iaa::where('durum', 'Bölüm Onayı Bekliyor')
+                ->whereHas('musteriSikayeti', function ($q) use ($sorumluKategoriler) {
+                    $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriler);
+                })->count();
+            
+            // b) Standart İstatistikleri de görsün
+            $stats = $this->getStandartKullaniciStats($user);
 
         } else {
-            // === 4. STANDART KULLANICI İSTATİSTİKLERİ ===
+            // === 5. STANDART KULLANICI İSTATİSTİKLERİ ===
             $stats = $this->getStandartKullaniciStats($user);
         }
 
-        return view('dashboard', compact('user', 'stats'));
+        // 'bolumOnayiBekleyenSayisi' değişkenini view'e gönderiyoruz
+        return view('dashboard', compact('user', 'stats', 'bolumOnayiBekleyenSayisi'));
     }
 
     /**
@@ -154,7 +176,6 @@ class DashboardController extends Controller
     }
 
     // ... (puanDurumu ve kullaniciPuanlari metodları aynı kalabilir) ...
-
     public function puanDurumu()
     {
         $kullanicilar = User::where('onaylandi_mi', 1)

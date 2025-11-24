@@ -14,6 +14,8 @@
                 </h3>
             </div>
             
+            
+            <?php if (\Illuminate\Support\Facades\Blade::check('role', 'Superadmin')): ?>
             <div x-show="selectedIds.length > 0" x-transition class="mt-4 sm:mt-0">
                 <button type="button" @click="submitBulkDelete" class="group relative w-full sm:w-auto inline-flex items-center justify-center bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold py-2 px-5 rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
                     <span class="absolute -top-2 -left-2 inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-800 rounded-full ring-2 ring-white" x-text="selectedIds.length"></span>
@@ -21,6 +23,7 @@
                     Seçilenleri Sil
                 </button>
             </div>
+            <?php endif; ?>
         </div>
 
         <div class="bg-white/60 backdrop-blur-sm rounded-xl shadow-md border border-gray-200/80 overflow-hidden">
@@ -28,7 +31,11 @@
                 
                 <thead class="hidden sm:table-header-group">
                     <tr class="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                        
+                        <?php if (\Illuminate\Support\Facades\Blade::check('role', 'Superadmin')): ?>
                         <th class="p-4 w-12"><input type="checkbox" @click="toggleAll" :checked="isAllSelected" class="w-4 h-4 text-<?php echo e($color); ?>-600 bg-gray-100 border-gray-300 rounded focus:ring-<?php echo e($color); ?>-500 focus:ring-2"></th>
+                        <?php endif; ?>
+
                         <?php if(in_array($type, ['havuz', 'atanmis'])): ?><th class="px-6 py-3 text-center">Puan</th><?php endif; ?>
                         <th class="px-6 py-3">Başlık</th>
                         <?php if(in_array($type, ['onay', 'havuz', 'reddedilmis'])): ?><th class="px-6 py-3">Öneren</th><?php endif; ?>
@@ -42,7 +49,10 @@
                     <?php $__empty_1 = true; $__currentLoopData = $iaas; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $iaa): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <tr class="block mb-4 border bg-white border-gray-200 rounded-lg sm:table-row sm:mb-0 sm:border-0 sm:border-b sm:border-gray-100 hover:bg-<?php echo e($color); ?>-50 transition-colors group">
                             
+                            
+                            <?php if (\Illuminate\Support\Facades\Blade::check('role', 'Superadmin')): ?>
                             <td class="p-4 align-middle sm:table-cell"><input type="checkbox" class="iaa-checkbox w-4 h-4 text-<?php echo e($color); ?>-600 bg-gray-100 border-gray-300 rounded focus:ring-<?php echo e($color); ?>-500 focus:ring-2" value="<?php echo e($iaa->id); ?>" x-model="selectedIds"></td>
+                            <?php endif; ?>
 
                             <?php if(in_array($type, ['havuz', 'atanmis'])): ?>
                                 <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
@@ -73,7 +83,6 @@
                                                 Revizyon Bekliyor
                                             </span>
                                         <?php endif; ?>
-                                        
                                     </p>
                                 </div>
                             </td>
@@ -81,7 +90,6 @@
                             <?php if(in_array($type, ['onay', 'havuz', 'reddedilmis'])): ?>
                                 <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Öneren:</span><div class="text-right sm:text-left"><?php if($iaa->gonderen): ?><div class="inline-flex items-center space-x-2"><div class="w-7 h-7 bg-gradient-to-br from-<?php echo e($color); ?>-400 to-<?php echo e($color); ?>-600 rounded-full flex items-center justify-center"><span class="text-xs font-bold text-white"><?php echo e(substr($iaa->gonderen->name, 0, 1)); ?></span></div><span class="text-sm font-medium text-gray-700"><?php echo e($iaa->gonderen->name); ?></span></div><?php else: ?><div class="inline-flex items-center space-x-2"><div class="w-7 h-7 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center"><span class="text-xs font-bold text-white">M</span></div><div><span class="text-sm font-medium text-gray-700"><?php echo e($iaa->guest_name); ?></span><span class="text-xs text-white bg-gray-500 px-1.5 py-0.5 rounded-full ml-1">Misafir</span></div></div><?php endif; ?></div></td>
                             <?php endif; ?>
-                            
                             
                             <?php if(in_array($type, ['atanmis'])): ?>
                                  <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
@@ -98,7 +106,6 @@
                             
                             <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Tarih:</span><span class="text-right sm:text-left text-sm text-gray-500">
                                     <?php if($type === 'onay'): ?> <?php echo e($iaa->created_at->format('d.m.Y')); ?> <?php endif; ?>
-                                    
                                     <?php if($type === 'atanmis'): ?> <?php echo e($iaa->updated_at->format('d.m.Y')); ?> <?php endif; ?>
                                     <?php if($type === 'havuz'): ?> <?php echo e($iaa->onaylanma_tarihi ? \Carbon\Carbon::parse($iaa->onaylanma_tarihi)->format('d.m.Y') : 'N/A'); ?> <?php endif; ?>
                                     <?php if($type === 'reddedilmis'): ?> <?php echo e($iaa->updated_at->format('d.m.Y')); ?> <?php endif; ?>

@@ -89,4 +89,18 @@ class User extends Authenticatable
     {
         return $this->hasMany(Takim::class, 'lider_user_id');
     }
+
+    /**
+     * Bu kullanıcının YÖNETİCİSİ (Bölüm Kalite Yöneticisi) olduğu Şikayet Kategorileri.
+     * (Ara Onay yetkisi için kullanılır)
+     */
+    public function yonettigiSikayetKategorileri()
+    {
+        return $this->belongsToMany(
+            SikayetKategori::class, 
+            'bolum_kalite_yoneticileri', // Ara tablo adı
+            'user_id', 
+            'sikayet_kategori_id'
+        );
+    }
 }

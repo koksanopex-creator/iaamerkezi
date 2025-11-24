@@ -301,13 +301,50 @@ class ActiveStep extends Component
 
                 // Proje durumu güncelleme... (önceki gibi)
                 $assignmentModel = IaaTalep::find($this->assignment->id); $iaaModel = ($this->iaa instanceof Iaa) ? $this->iaa : Iaa::find($this->iaa['id'] ?? null);
-                if ($assignmentModel && $assignmentModel->workflow && $iaaModel) { $totalSteps = $assignmentModel->workflow->steps()->count(); $completedSteps = IaaProgressUpdate::where('iaa_talep_id', $this->assignment->id)->whereNotNull('completed_at')->count(); if ($completedSteps >= $totalSteps) { $iaaModel->update(['durum' => 'Yönetici Onayı Bekliyor']); $assignmentModel->update(['status' => 'Tamamlandı']); } }
+                if ($assignmentModel && $assignmentModel->workflow && $iaaModel) { $totalSteps = $assignmentModel->workflow->steps()->count(); 
+                    $completedSteps = IaaProgressUpdate::where('iaa_talep_id', $this->assignment->id)->whereNotNull('completed_at')->count(); 
+                    if ($completedSteps >= $totalSteps) { 
+                        $iaaModel->update(['durum' => 'Bölüm Onayı Bekliyor']);
+                        $assignmentModel->update(['status' => 'Bölüm Onayında']); 
+                        // 1. Bu projenin kategorisinden sorumlu olan yöneticileri bul
+                        if ($iaaModel->musteriSikayeti && $iaaModel->musteriSikayeti->sikayet_kategorisi_id) {
+                            $kategoriId = $iaaModel->musteriSikayeti->sikayet_kategorisi_id;
+                            
+                            // Bu kategoriye atanmış "Bölüm Kalite Yöneticisi" rolündeki kullanıcıları bul
+                            $yoneticiler = User::role('Bölüm Kalite Yöneticisi')
+                                ->whereHas('yonettigiSikayetKategorileri', function($q) use ($kategoriId) {
+                                    $q->where('sikayet_kategorileri.id', $kategoriId);
+                                })->get();
+
+                            // 2. Bildirimi Gönder
+                            if ($yoneticiler->isNotEmpty()) {
+                                
+                                // İşlemi yapan kişinin adını al (Örn: Erhan Cesur)
+                                $yapanKisi = Auth::user()->name; 
+
+                                \Illuminate\Support\Facades\Notification::send($yoneticiler, new \App\Notifications\ProjeDurumuDegisti(
+                                    $iaaModel, 
+                                    $yapanKisi . ' tarafından onayınıza sunuldu', // <-- DİNAMİK İSİM BURADA
+                                    'Proje tamamlandı ve bölüm onayı bekliyor.' 
+                                ));
+                            }
+                        }
+                    } 
+                }
             }); // Transaction sonu
 
-             session()->flash('success', '"' . ($this->currentStep->name ?? 'Adım') . '" başarıyla tamamlandı!');
-             $iaaId = ($this->iaa instanceof Iaa) ? $this->iaa->id : ($this->iaa['id'] ?? null);
-             if ($iaaId) { return redirect()->route('proje.workspace.show', $iaaId); }
-             else { Log::error('Yönlendirme için iaaId bulunamadı.'); return redirect()->route('home'); }
+            session()->flash('success', '"' . ($this->currentStep->name ?? 'Adım') . '" başarıyla tamamlandı!');
+            $iaaId = ($this->iaa instanceof Iaa) ? $this->iaa->id : ($this->iaa['id'] ?? null);
+            
+            if ($iaaId) { 
+                // DÜZELTME: with('scroll_to_step', ...) ile tamamlanan adımın ID'sini gönderiyoruz.
+                return redirect()->route('proje.workspace.show', $iaaId)
+                        ->with('scroll_to_step', $this->currentStep->id); 
+            }
+            else { 
+                Log::error('Yönlendirme için iaaId bulunamadı.'); 
+                return redirect()->route('home'); 
+            }
 
         } catch (\Exception $e) { /* ... (Hata loglama aynı) ... */
              Log::error('Adım kaydedilirken hata oluştu: ' . $e->getMessage(), [ 'iaa_id' => ($this->iaa instanceof Iaa) ? $this->iaa->id : ($this->iaa['id'] ?? null), 'assignment_id' => $this->assignment->id ?? null, 'step_id' => $this->currentStep->id ?? null, 'user_id' => Auth::id() ]);

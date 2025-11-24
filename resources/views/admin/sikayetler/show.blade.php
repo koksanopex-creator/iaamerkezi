@@ -58,6 +58,51 @@
                         
                         <!-- Sol Taraf - Şikayet Detayları -->
                         <div class="md:col-span-2 space-y-6">
+
+                        {{-- === YENİ EKLENEN PROJE DURUM KARTI === --}}
+    @if($sikayet->iaaProjesi)
+        @php
+            $pDurum = $sikayet->iaaProjesi->durum;
+            $pRenk = match($pDurum) {
+                'Bölüm Onayı Bekliyor' => 'purple',
+                'Yönetici Onayı Bekliyor' => 'blue',
+                'Revize Ediliyor' => 'orange',
+                'Tamamlandı' => 'green',
+                'Tamamlanması Reddedildi', 'Reddedildi' => 'red',
+                default => 'gray'
+            };
+        @endphp
+        
+        <div class="border border-{{ $pRenk }}-200 rounded-xl p-6 bg-{{ $pRenk }}-50 shadow-sm flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-{{ $pRenk }}-600">
+                    @if($pDurum == 'Bölüm Onayı Bekliyor')
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    @elseif($pDurum == 'Yönetici Onayı Bekliyor')
+                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    @elseif($pDurum == 'Tamamlandı')
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    @else
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    @endif
+                </div>
+                <div>
+                    <h4 class="text-sm font-bold text-{{ $pRenk }}-800 uppercase tracking-wide">Proje Süreç Durumu</h4>
+                    <p class="text-lg font-semibold text-{{ $pRenk }}-900">{{ $pDurum }}</p>
+                    @if($pDurum == 'Bölüm Onayı Bekliyor')
+                        <p class="text-xs text-{{ $pRenk }}-700 mt-1">Bölüm yöneticisi onayı bekleniyor.</p>
+                    @elseif($pDurum == 'Yönetici Onayı Bekliyor')
+                        <p class="text-xs text-{{ $pRenk }}-700 mt-1">Üst yönetici onayı bekleniyor.</p>
+                    @endif
+                </div>
+            </div>
+            <a href="{{ route('proje.workspace.show', $sikayet->iaaProjesi->id) }}" target="_blank" class="hidden sm:inline-flex items-center px-4 py-2 bg-white border border-{{ $pRenk }}-300 rounded-lg text-sm font-medium text-{{ $pRenk }}-700 hover:bg-white/50 transition-colors">
+                Projeye Git <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </a>
+        </div>
+    @endif
+    {{-- === PROJE DURUM KARTI SONU === --}}
+
                             <div class="border border-gray-200 rounded-xl p-6 bg-white shadow-sm hover:shadow-md transition-shadow">
                                 <div class="flex items-center mb-5">
                                     <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">

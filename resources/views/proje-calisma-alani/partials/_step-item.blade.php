@@ -11,7 +11,8 @@
     'takim'
 ])
 
-<div class="mb-10 ml-6" x-data="{ open: {{ $isCompleted ? 'false' : ($isCurrent ? 'true' : 'false') }} }">
+{{-- === KRİTİK DEĞİŞİKLİK BURADA: ID EKLENDİ === --}}
+<div id="step-card-{{ $step->id }}" class="mb-10 ml-6" x-data="{ open: {{ $isCompleted ? 'false' : ($isCurrent ? 'true' : 'false') }} }">
     
     {{-- Zaman Çizgisi İkonu --}}
     <span class="absolute flex items-center justify-center w-8 h-8 rounded-full -left-4 ring-4 ring-white shadow-md transition-all duration-300

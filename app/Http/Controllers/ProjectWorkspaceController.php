@@ -30,11 +30,21 @@ class ProjectWorkspaceController extends Controller
             $user = Auth::user();
             $takim = $iaa->atananTakim;
             
-            // Proje takım üyesi, Admin, Kurul veya Lider ise yetkilidir
-            if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']) || 
+            // === GÜNCELLEME: 'Bölüm Kalite Yöneticisi' rolü eklendi ===
+            if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi']) || 
                 ($takim && $user->takimlar->contains($takim))) 
             {
-                $isYetkiliKullanici = true;
+                // Eğer 'Bölüm Kalite Yöneticisi' ise, projenin kategorisinden sorumlu mu diye de bakmalıyız
+                if ($user->hasRole('Bölüm Kalite Yöneticisi') && !$user->hasRole('Superadmin')) {
+                     if ($iaa->musteriSikayeti && $iaa->musteriSikayeti->sikayet_kategorisi_id) {
+                         if ($user->yonettigiSikayetKategorileri->contains($iaa->musteriSikayeti->sikayet_kategorisi_id)) {
+                             $isYetkiliKullanici = true;
+                         }
+                     }
+                } else {
+                    // Diğer roller için genel yetki
+                    $isYetkiliKullanici = true;
+                }
             }
         }
 
@@ -55,13 +65,19 @@ class ProjectWorkspaceController extends Controller
         if (!$isYetkiliKullanici && !$isYetkiliMisafir) {
             
             // Eğer bu proje bir şikayete bağlıysa (ama misafir giriş yapmamışsa)
-            if ($sikayet) {
-                // Misafiri, şifre girmesi için şikayet sayfasına geri yönlendir
-                return redirect()->route('public.sikayet.show', $sikayet->takip_token)
+            // $sikayet->takip_token kontrolü de ekledik ki null hatası almayalım
+            if ($sikayet && $sikayet->takip_token) {
+                // === HATA DÜZELTMESİ BURADA: Token parametresi array olarak ['token' => ...] gönderilmeli ===
+                return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])
                     ->with('error', 'Proje detaylarını görmek için lütfen şifrenizle giriş yapın.');
             }
             
-            // Tamamen yetkisiz biriyse (örn: başka bir projenin URL'sini deneyen) 403 hatası ver
+            // Eğer login değilse Login sayfasına yönlendir (Yetki yoksa login olsun)
+            if (!Auth::check()) {
+                return redirect()->route('login');
+            }
+            
+            // Login olmuş ama yetkisi yoksa (Bölüm yöneticisi olup yetkisi olmayan kategoriye girenler vb.)
             abort(403, 'Bu projeyi görüntüleme yetkiniz yok.');
         }
         // === YENİ YETKİ KONTROLÜ SONU ===

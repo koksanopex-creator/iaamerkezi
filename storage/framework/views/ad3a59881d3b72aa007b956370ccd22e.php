@@ -1,4 +1,0 @@
-<div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-red-200">
-    <div class="bg-gradient-to-r from-red-50 to-white px-6 py-5 border-b border-red-200"><h3 class="text-lg font-semibold text-red-800">Reddedilen Öneriler (<?php echo e($reddedilenler->count()); ?>)</h3></div>
-    <?php echo $__env->make('admin.iaa-yonetim.partials.table-content', ['iaas' => $reddedilenler, 'type' => 'reddedilmis'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
-</div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/admin/iaa-yonetim/partials/reddedilen-oneriler-table.blade.php ENDPATH**/ ?>

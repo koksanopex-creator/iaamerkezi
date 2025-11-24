@@ -22,7 +22,6 @@
                         <th class="px-6 py-3">Proje Bilgileri</th>
                         <th class="px-6 py-3">Başlangıç Tarihi</th>
                         <th class="px-6 py-3">Onaylanma Tarihi</th>
-                        
                         <th class="px-6 py-3 text-center">Tamamlanma Süresi</th>
                         <th class="px-6 py-3 text-right">İşlemler</th>
                     </tr>
@@ -36,8 +35,7 @@
                             <td class="p-4 align-middle text-center">
                                 <?php if($iaa->completion_duration_in_days !== null): ?>
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        <?php echo e($iaa->completion_duration_in_days); ?>
-
+                                        <?php echo e($iaa->completion_duration_in_days); ?> gün
                                     </span>
                                 <?php else: ?>
                                     -
@@ -46,10 +44,13 @@
                             <td class="p-4 align-middle text-right">
                                 <div class="flex justify-end items-center space-x-2">
                                     
+                                    
                                     <a href="<?php echo e(route('proje.workspace.show', $iaa)); ?>" class="inline-flex items-center px-3 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
                                         Detay
                                     </a>
                                     
+                                    
+                                    <?php if (\Illuminate\Support\Facades\Blade::check('role', 'Superadmin')): ?>
                                     <form action="<?php echo e(route('admin.iaa-yonetim.geriAl', $iaa)); ?>" method="POST" onsubmit="return confirm('Bu projeyi tekrar \'Yönetici Onayı Bekliyor\' durumuna almak istediğinizden emin misiniz?');">
                                         <?php echo csrf_field(); ?>
                                         <?php echo method_field('PATCH'); ?>
@@ -57,6 +58,8 @@
                                             Geri Al
                                         </button>
                                     </form>
+                                    <?php endif; ?>
+
                                 </div>
                             </td>
                         </tr>

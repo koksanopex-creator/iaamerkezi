@@ -27,6 +27,7 @@ class RolesSeeder extends Seeder // Class adı RolesSeeder olarak değiştirildi
         Role::firstOrCreate(['name' => 'Kullanıcı']);
         Role::firstOrCreate(['name' => 'Müşteri Şikayeti Kurulu']);
         Role::firstOrCreate(['name' => 'Müşteri Şikayeti Çözüm Lideri']);
+        Role::firstOrCreate(['name' => 'Bölüm Kalite Yöneticisi']);
         // ===============================================
 
         // İzinler eklemek isterseniz örnek:

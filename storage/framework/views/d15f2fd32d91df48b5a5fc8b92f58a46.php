@@ -26,44 +26,253 @@ foreach ($attributes->all() as $__key => $__value) {
     if (array_key_exists($__key, $__defined_vars)) unset($$__key);
 }
 
-unset($__defined_vars, $__key, $__value); ?> 
+unset($__defined_vars, $__key, $__value); ?>
 
 <?php
-    $sonucKutusu = match($iaa->durum) {
-        'Tamamlandı' => [
-            'renk' => 'green',
-            'ikon' => '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
-            'baslik' => 'Proje Başarıyla Onaylandı!',
-            'mesaj' => 'Tüm adımlar tamamlandı ve proje yönetici tarafından onaylandı. Harika iş çıkardınız!'
-        ],
-        'Tamamlanması Reddedildi' => [
-            'renk' => 'red',
-            'ikon' => '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />',
-            'baslik' => 'Proje Reddedildi',
-            'mesaj' => $iaa->yonetici_notu ?? 'Proje adımları tamamlandı ancak yönetici tarafından reddedildi.'
-        ],
-        'Revize Ediliyor' => [
-            'renk' => 'yellow',
-            'ikon' => '<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0011.667 0l3.182-3.182m0-4.991v4.99" />',
-            'baslik' => 'Revizyon Bekleniyor',
-            'mesaj' => $iaa->yonetici_notu ?? 'Proje, yönetici tarafından incelenip revizyona gönderildi.'
-        ],
-        default => [ // Yönetici Onayı Bekliyor durumu
-            'renk' => 'blue',
-            'ikon' => '<path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />',
-            'baslik' => 'Yönetici Onayı Bekleniyor',
-            'mesaj' => 'Projenin tüm adımlarını başarıyla tamamladınız. Şimdi yönetici onayı bekleniyor.'
-        ],
-    };
+    use App\Models\IaaLog;
+
+    // ========================================================================
+    // 1. BÖLÜM YÖNETİCİSİ VERİLERİ
+    // ========================================================================
+    $bolumLog = IaaLog::where('iaa_id', $iaa->id)
+        ->where(function($q) {
+            $q->where('eylem', 'Bölüm Onayı Verildi')
+              ->orWhere('eylem', 'Revizyon Talep Edildi (Bölüm)')
+              ->orWhere('eylem', 'Proje Reddedildi (Bölüm)')
+              ->orWhere('eylem', 'Bölüm İşlemi Geri Alındı');
+        })
+        ->with('user')
+        ->latest()
+        ->first();
+
+    $bolumDurum = [
+        'tip' => 'waiting',
+        'baslik' => 'Bölüm Onayı Bekleniyor',
+        'mesaj' => 'Proje tamamlandığında bölüm yöneticisi inceleyecektir.',
+        'tarih' => null,
+        'kisi' => 'Bölüm Yöneticisi'
+    ];
+
+    if ($bolumLog && $bolumLog->eylem !== 'Bölüm İşlemi Geri Alındı') {
+        $bolumDurum['tarih'] = $bolumLog->created_at;
+        $bolumDurum['kisi'] = $bolumLog->user->name ?? 'Bölüm Yöneticisi';
+        
+        switch ($bolumLog->eylem) {
+            case 'Bölüm Onayı Verildi':
+                $bolumDurum['tip'] = 'success';
+                $bolumDurum['baslik'] = 'Bölüm Onayı Verildi';
+                $bolumDurum['mesaj'] = 'Bölüm yöneticisi projeyi uygun buldu ve üst yönetime iletti.';
+                break;
+            case 'Revizyon Talep Edildi (Bölüm)':
+                $bolumDurum['tip'] = 'warning';
+                $bolumDurum['baslik'] = 'Revizyon Talebi';
+                $bolumDurum['mesaj'] = $bolumLog->aciklama;
+                break;
+            case 'Proje Reddedildi (Bölüm)':
+                $bolumDurum['tip'] = 'danger';
+                $bolumDurum['baslik'] = 'Bölüm Tarafından Reddedildi';
+                $bolumDurum['mesaj'] = $bolumLog->aciklama;
+                break;
+        }
+    } elseif ($bolumLog) {
+         $bolumDurum['kisi'] = $bolumLog->user->name ?? 'Bölüm Yöneticisi';
+    }
+
+    // ========================================================================
+    // 2. SÜPER YÖNETİCİ VERİLERİ
+    // ========================================================================
+    $adminLog = IaaLog::where('iaa_id', $iaa->id)
+        ->where(function($q) {
+            $q->where('eylem', 'Proje Onaylandı')
+              ->orWhere('eylem', 'Revizyon Talep Edildi')
+              ->orWhere('eylem', 'Tamamlanmış Projenin Reddi')
+              ->orWhere('eylem', 'İşlem Geri Alındı');
+        })
+        ->with('user')
+        ->latest()
+        ->first();
+
+    $adminDurum = [
+        'tip' => 'waiting',
+        'baslik' => 'Yönetici Onayı Bekleniyor',
+        'mesaj' => 'Bölüm onayı tamamlandıktan sonra üst yönetim inceleyecektir.',
+        'tarih' => null,
+        'kisi' => 'Süper Yönetici',
+        'locked' => true // Varsayılan olarak kilitli başlar
+    ];
+
+    // Kilit Mantığı: Eğer Bölüm Onayı verildiyse kilit açılır.
+    if ($bolumDurum['tip'] == 'success') {
+        $adminDurum['locked'] = false;
+    }
+
+    // AMMA VE LAKİN: Eğer Admin zaten bir işlem yaptıysa (Onay/Red/Revize), 
+    // Bölüm durumu ne olursa olsun (Yedek Lastik mantığı) kilit AÇIK olmalı ve admin verisi görünmeli.
+    if ($adminLog && $adminLog->eylem !== 'İşlem Geri Alındı') {
+        $adminDurum['locked'] = false; // Kilidi Zorla Aç
+        $adminDurum['tarih'] = $adminLog->created_at;
+        $adminDurum['kisi'] = $adminLog->user->name ?? 'Süper Yönetici';
+        
+        switch ($adminLog->eylem) {
+            case 'Proje Onaylandı':
+                $adminDurum['tip'] = 'success';
+                $adminDurum['baslik'] = 'Proje Onaylandı';
+                $adminDurum['mesaj'] = 'Proje onaylanmış ve puan dağıtımı yapılmıştır.';
+                break;
+            case 'Revizyon Talep Edildi':
+                $adminDurum['tip'] = 'warning';
+                $adminDurum['baslik'] = 'Revizyon Talebi';
+                $adminDurum['mesaj'] = $adminLog->aciklama;
+                break;
+            case 'Tamamlanmış Projenin Reddi':
+                $adminDurum['tip'] = 'danger';
+                $adminDurum['baslik'] = 'Proje Reddedildi';
+                $adminDurum['mesaj'] = $adminLog->aciklama;
+                break;
+        }
+    }
+
+    // Renk Paleti
+    function getColors($type) {
+        return match($type) {
+            'success' => ['bg' => 'bg-green-50', 'border' => 'border-green-200', 'icon_bg' => 'bg-green-100', 'icon_text' => 'text-green-600', 'title' => 'text-green-800'],
+            'warning' => ['bg' => 'bg-yellow-50', 'border' => 'border-yellow-200', 'icon_bg' => 'bg-yellow-100', 'icon_text' => 'text-yellow-600', 'title' => 'text-yellow-800'],
+            'danger'  => ['bg' => 'bg-red-50', 'border' => 'border-red-200', 'icon_bg' => 'bg-red-100', 'icon_text' => 'text-red-600', 'title' => 'text-red-800'],
+            'waiting' => ['bg' => 'bg-gray-50', 'border' => 'border-gray-200', 'icon_bg' => 'bg-gray-100', 'icon_text' => 'text-gray-400', 'title' => 'text-gray-700'],
+            default   => ['bg' => 'bg-gray-50', 'border' => 'border-gray-200', 'icon_bg' => 'bg-gray-100', 'icon_text' => 'text-gray-400', 'title' => 'text-gray-700'],
+        };
+    }
+
+    $bRenk = getColors($bolumDurum['tip']);
+    $aRenk = getColors($adminDurum['tip']);
 ?>
 
-<div class="bg-gradient-to-r from-<?php echo e($sonucKutusu['renk']); ?>-50 to-<?php echo e($sonucKutusu['renk']); ?>-100 p-8 text-center rounded-xl shadow-lg border-2 border-<?php echo e($sonucKutusu['renk']); ?>-200">
-    <div class="inline-flex items-center justify-center w-16 h-16 bg-<?php echo e($sonucKutusu['renk']); ?>-500 rounded-full mb-4">
-        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <?php echo $sonucKutusu['ikon']; ?>
+<div class="mt-10">
+    <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Onay Durum Paneli
+    </h3>
 
-        </svg>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        
+        
+        
+        <div class="rounded-xl p-6 border <?php echo e($bRenk['bg']); ?> <?php echo e($bRenk['border']); ?> shadow-sm relative overflow-hidden group transition-all hover:shadow-md">
+            <div class="flex items-start gap-4">
+                
+                <div class="w-12 h-12 rounded-full <?php echo e($bRenk['icon_bg']); ?> flex items-center justify-center flex-shrink-0">
+                    <?php if($bolumDurum['tip'] == 'success'): ?>
+                        <svg class="w-6 h-6 <?php echo e($bRenk['icon_text']); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <?php elseif($bolumDurum['tip'] == 'warning'): ?>
+                        <svg class="w-6 h-6 <?php echo e($bRenk['icon_text']); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <?php elseif($bolumDurum['tip'] == 'danger'): ?>
+                        <svg class="w-6 h-6 <?php echo e($bRenk['icon_text']); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <?php else: ?>
+                        <svg class="w-6 h-6 <?php echo e($bRenk['icon_text']); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <?php endif; ?>
+                </div>
+
+                <div class="flex-1">
+                    <h4 class="text-base font-bold <?php echo e($bRenk['title']); ?> mb-2"><?php echo e($bolumDurum['baslik']); ?></h4>
+                    
+                    
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-6 h-6 rounded-full bg-white/80 border border-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600 shadow-sm">
+                            <?php echo e(substr($bolumDurum['kisi'], 0, 1)); ?>
+
+                        </div>
+                        <span class="text-xs font-semibold text-gray-700"><?php echo e($bolumDurum['kisi']); ?></span>
+                    </div>
+
+                    <p class="text-sm text-gray-600 leading-relaxed mb-3">
+                        <?php echo e(Str::limit($bolumDurum['mesaj'], 150)); ?>
+
+                    </p>
+
+                    <?php if($bolumDurum['tarih']): ?>
+                        <div class="pt-3 border-t border-gray-200/60 text-xs text-gray-500 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <?php echo e($bolumDurum['tarih']->format('d.m.Y H:i')); ?>
+
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        
+        
+        
+        
+        <div class="rounded-xl p-6 border <?php echo e($aRenk['bg']); ?> <?php echo e($aRenk['border']); ?> shadow-sm relative overflow-hidden group transition-all hover:shadow-md <?php echo e($adminDurum['locked'] ? 'opacity-80 bg-gray-50' : ''); ?>">
+             
+             
+             <?php if($adminDurum['tip'] == 'success'): ?>
+                <div class="absolute top-0 right-0">
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-bl-xl text-[10px] font-bold uppercase tracking-widest bg-green-100 text-green-800 border-l border-b border-green-200 shadow-sm">
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Şikayet Kapatıldı
+                    </span>
+                </div>
+             <?php endif; ?>
+
+             <div class="flex items-start gap-4">
+                
+                <div class="w-12 h-12 rounded-full <?php echo e($aRenk['icon_bg']); ?> flex items-center justify-center flex-shrink-0">
+                    <?php if($adminDurum['locked']): ?>
+                         
+                         <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    <?php elseif($adminDurum['tip'] == 'success'): ?>
+                        <svg class="w-6 h-6 <?php echo e($aRenk['icon_text']); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <?php elseif($adminDurum['tip'] == 'warning'): ?>
+                        <svg class="w-6 h-6 <?php echo e($aRenk['icon_text']); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <?php elseif($adminDurum['tip'] == 'danger'): ?>
+                        <svg class="w-6 h-6 <?php echo e($aRenk['icon_text']); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <?php else: ?>
+                        <svg class="w-6 h-6 <?php echo e($aRenk['icon_text']); ?>" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <?php endif; ?>
+                </div>
+
+                <div class="flex-1">
+                    <h4 class="text-base font-bold <?php echo e($aRenk['title']); ?> mb-2"><?php echo e($adminDurum['baslik']); ?></h4>
+                    
+                    
+                    <div class="flex items-center gap-2 mb-3">
+                        <?php if(!$adminDurum['locked']): ?>
+                            <div class="w-6 h-6 rounded-full bg-white/80 border border-gray-200 flex items-center justify-center text-[10px] font-bold text-gray-600 shadow-sm">
+                                <?php echo e(substr($adminDurum['kisi'], 0, 1)); ?>
+
+                            </div>
+                            <span class="text-xs font-semibold text-gray-700"><?php echo e($adminDurum['kisi']); ?></span>
+                        <?php else: ?>
+                            
+                            <div class="w-6 h-6 rounded-full bg-gray-100 border border-gray-200"></div>
+                            <span class="text-xs font-semibold text-gray-400">Süper Yönetici</span>
+                        <?php endif; ?>
+                    </div>
+
+                    <p class="text-sm text-gray-600 leading-relaxed mb-3">
+                        <?php echo e(Str::limit($adminDurum['mesaj'], 150)); ?>
+
+                    </p>
+
+                    
+                    <?php if(!$adminDurum['locked'] && $adminDurum['tarih']): ?>
+                        <div class="pt-3 border-t border-gray-200/60 text-xs text-gray-500 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <?php echo e($adminDurum['tarih']->format('d.m.Y H:i')); ?>
+
+                        </div>
+                    <?php elseif($adminDurum['locked']): ?>
+                         
+                         <div class="pt-3 border-t border-gray-200/60 text-xs text-gray-400 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            Sıra Bekleniyor
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
     </div>
-    <h3 class="text-2xl font-bold text-<?php echo e($sonucKutusu['renk']); ?>-700 mb-2"><?php echo e($sonucKutusu['baslik']); ?></h3>
-    <p class="text-gray-700 mt-2 whitespace-pre-wrap"><?php echo e($sonucKutusu['mesaj']); ?></p>
 </div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/proje-calisma-alani/partials/_project-final-status.blade.php ENDPATH**/ ?>

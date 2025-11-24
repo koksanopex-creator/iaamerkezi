@@ -418,6 +418,9 @@
                                 'iaa' => $iaa,
                                 'statusDate' => $statusDate ?? null
                             ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                            
+                            <?php echo $__env->make('proje-calisma-alani.partials._action-buttons', ['iaa' => $iaa], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                                
                         <?php endif; ?>
                     </div>
                 </div>
@@ -535,6 +538,33 @@
 
         </div> 
     </div> 
+
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Controller'dan gelen 'scroll_to_step' verisi varsa çalışır
+            <?php if(session('scroll_to_step')): ?>
+                setTimeout(() => {
+                    // Tamamlanan adımın ID'sini al (Örn: 25)
+                    const stepId = "<?php echo e(session('scroll_to_step')); ?>";
+                    
+                    // Sayfada bu ID'ye sahip adımı bul (Örn: id="step-card-25")
+                    // NOT: Aşağıdaki adımda ID eklemeyi unutma!
+                    const element = document.getElementById('step-card-' + stepId);
+                    
+                    if (element) {
+                        // Oraya yumuşakça kaydır ve ortala
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        // İstersen kısa bir vurgu efekti de verebilirsin (opsiyonel)
+                        element.classList.add('ring-2', 'ring-green-500', 'ring-offset-2');
+                        setTimeout(() => element.classList.remove('ring-2', 'ring-green-500', 'ring-offset-2'), 2000);
+                    }
+                }, 500); // Sayfa tam yüklensin diye yarım saniye bekle
+            <?php endif; ?>
+        });
+    </script>
+
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>

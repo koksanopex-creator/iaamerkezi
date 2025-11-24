@@ -1,7 +1,14 @@
 @php
-    // === GÜNCELLEME ===
-    // Bu PHP bloğu @auth direktifinin içine taşındı
-    // $kullaniciSikayetTakimindaMi = Auth::user()->takimlar()->where('tur', 'sikayet')->exists();
+    // === GÜVENLİ KONTROL BLOKU ===
+    // Bu değişkeni en başta tanımlıyoruz ki aşağıda hem masaüstü hem mobil menüde kullanabilelim.
+    // Eğer kullanıcı giriş yapmışsa (Auth::check) veritabanından kontrol et,
+    // Misafir ise (Müşteri gibi) direkt FALSE yap ki kod patlamasın.
+    
+    $kullaniciSikayetTakimindaMi = false;
+
+    if(Auth::check()) {
+        $kullaniciSikayetTakimindaMi = Auth::user()->takimlar()->where('tur', 'sikayet')->exists();
+    }
 @endphp
 
 <nav x-data="{ open: false }" class="bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-2xl border-b border-gray-700/50">
@@ -9,13 +16,13 @@
         <div class="flex justify-between h-20">
             <div class="flex items-center space-x-6">
                 <div class="shrink-0 flex items-center group">
-                    {{-- === GÜNCELLEME: Misafir de ana sayfaya gidebilmeli === --}}
+                    {{-- Misafir de ana sayfaya gidebilmeli --}}
                     <a href="{{ Auth::check() ? route('dashboard') : url('/') }}" class="flex items-center space-x-3 transition-transform hover:scale-105">
                         <x-application-logo class="block h-10 w-auto fill-current text-white" />
                     </a>
                 </div>
 
-                {{-- Bu @auth bloğu, misafirlerin bu menüleri görmesini engeller --}}
+                {{-- Sadece GİRİŞ YAPMIŞ kullanıcılar menüleri görür --}}
                 @auth
                 <div class="hidden lg:flex items-center space-x-2">
                     <a href="{{ route('dashboard') }}" class="group relative px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('dashboard') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
@@ -48,11 +55,8 @@
                         </div>
                     </div>
 
-                    {{-- Çökmeye neden olan PHP bloğu buraya, @auth içine taşındı --}}
-                    @php
-                        $kullaniciSikayetTakimindaMi = Auth::user()->takimlar()->where('tur', 'sikayet')->exists();
-                    @endphp
-
+                    {{-- Hata veren PHP bloğunu buradan kaldırdık, en tepeye aldık --}}
+                    
                     @if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']) || $kullaniciSikayetTakimindaMi)
                     <div x-data="{ open: false }" @click.away="open = false" class="relative">
                         <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-kategorileri.*') || request()->routeIs('admin.cozum-takimlari.*') || request()->routeIs('admin.sikayet-raporlari.index') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
@@ -72,7 +76,8 @@
                         </div>
                     </div>
                     @endif
-                    @role('Superadmin')
+
+                    @if(Auth::user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi']))
                     <div x-data="{ open: false }" @click.away="open = false" class="relative">
                         <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ (request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.sikayet-kategorileri.*') && !request()->routeIs('admin.cozum-takimlari.*') && !request()->routeIs('admin.sikayet-raporlari.index')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                             <span class="font-semibold text-sm">Yönetim Paneli</span>
@@ -80,17 +85,20 @@
                         </button>
                         <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
                             <x-dropdown-link :href="route('admin.iaa-yonetim.index')">{{ __('İAA Yönetimi') }}</x-dropdown-link>
+                            @role('Superadmin')
                             <x-dropdown-link :href="route('admin.bolumler.index')">{{ __('Bölüm Yönetimi') }}</x-dropdown-link>
                             <x-dropdown-link :href="route('admin.takim-yonetim.index')">{{ __('Takım Yönetimi') }}</x-dropdown-link>
                             <x-dropdown-link :href="route('admin.workflows.index')">{{ __('Akış Şablonları') }}</x-dropdown-link>
                             <x-dropdown-link :href="route('admin.users.index')">{{ __('Kullanıcı Yönetimi') }}</x-dropdown-link>
+                            <x-dropdown-link :href="route('admin.kalite-yoneticileri.index')">{{ __('Bölüm Kalite Yöneticileri') }}</x-dropdown-link>
                             <div class="border-t border-gray-100 my-1"></div>
                             <x-dropdown-link :href="route('admin.raporlar.index')">{{ __('İAA Raporları') }}</x-dropdown-link>
                             <div class="border-t border-gray-100 my-1"></div>
                             <x-dropdown-link :href="route('admin.sistem-ayarlari.index')">{{ __('Sistem Ayarları') }}</x-dropdown-link>
+                            @endrole
                         </div>
                     </div>
-                    @endrole
+                    @endif
                 </div>
                 @endauth
                 </div>
@@ -213,6 +221,7 @@
                 <x-responsive-nav-link :href="route('admin.takim-yonetim.index')">{{ __('Takım Yönetimi') }}</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.workflows.index')">{{ __('Akış Şablonları') }}</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.users.index')">{{ __('Kullanıcı Yönetimi') }}</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.kalite-yoneticileri.index')">{{ __('Bölüm Kalite Yöneticileri') }}</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.raporlar.index')">{{ __('İAA Raporları') }}</x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('admin.sistem-ayarlari.index')">{{ __('Sistem Ayarları') }}</x-responsive-nav-link>
             </div>
@@ -244,4 +253,3 @@
     </div>
     @endauth
 </nav>
-

@@ -301,154 +301,151 @@
                     </div>
                 </div>
                 
+                <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 h-full flex flex-col">
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-gray-800">Alt Kategoriler</h3>
+                <p class="text-xs text-gray-500">Bu kategori seçildiğinde görünecek seçenekler</p>
+            </div>
+        </div>
+        <span class="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full"><?php echo e($sikayetKategori->altKategoriler->count()); ?> Adet</span>
+    </div>
+
+    
+    <form action="<?php echo e(route('admin.sikayet-kategorileri.alt-kategori.store', $sikayetKategori)); ?>" method="POST" class="mb-4">
+        <?php echo csrf_field(); ?>
+        <div class="flex gap-2">
+            <input type="text" name="ad" placeholder="Yeni alt kategori adı (Örn: Leke)" class="flex-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm" required>
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                EKLE
+            </button>
+        </div>
+    </form>
+
+    
+    <div class="relative mb-2">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </div>
+        <input type="text" id="altKategoriSearch" placeholder="Listede ara..." class="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150 ease-in-out">
+    </div>
+
+    
+    
+    <div class="flex-1 overflow-y-auto pr-2 max-h-[500px] space-y-2 custom-scrollbar" id="altKategoriList">
+    
+    <?php $__empty_1 = true; $__currentLoopData = $sikayetKategori->altKategoriler->sortBy('ad', SORT_NATURAL|SORT_FLAG_CASE); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $altKategori): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+            <div class="group flex items-center justify-between p-3 bg-gray-50 hover:bg-indigo-50 rounded-lg border border-gray-100 hover:border-indigo-200 transition-all search-item">
                 
-                <div class="bg-white overflow-hidden shadow-lg sm:rounded-2xl border border-gray-100">
-                    <div class="p-8">
-                        <div class="flex items-center gap-3 mb-2">
-                            <div class="p-2 bg-green-100 rounded-lg">
-                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 class="text-xl font-semibold text-gray-900">Alt Kategoriler</h3>
-                                <p class="text-sm text-gray-500 mt-0.5">Bu kategori seçildiğinde görünecek seçenekler</p>
-                            </div>
-                        </div>
-                        
-                        
-                        <form action="<?php echo e(route('admin.sikayet-kategorileri.alt-kategori.store', $sikayetKategori)); ?>" method="POST" class="mt-6 p-5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
-                            <?php echo csrf_field(); ?>
-                            <div class="flex flex-col sm:flex-row gap-3">
-                                <div class="flex-1">
-                                    <label for="alt_kategori_ad" class="sr-only">Alt Kategori Adı</label>
-                                    <?php if (isset($component)) { $__componentOriginal18c21970322f9e5c938bc954620c12bb = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal18c21970322f9e5c938bc954620c12bb = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.text-input','data' => ['type' => 'text','name' => 'ad','id' => 'alt_kategori_ad','placeholder' => 'Yeni alt kategori adı (örn: Leke, Bombe, Renk Hatası)','class' => 'block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all duration-200','required' => true]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('text-input'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['type' => 'text','name' => 'ad','id' => 'alt_kategori_ad','placeholder' => 'Yeni alt kategori adı (örn: Leke, Bombe, Renk Hatası)','class' => 'block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-2 focus:ring-green-500 transition-all duration-200','required' => true]); ?>
-<?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal18c21970322f9e5c938bc954620c12bb)): ?>
-<?php $attributes = $__attributesOriginal18c21970322f9e5c938bc954620c12bb; ?>
-<?php unset($__attributesOriginal18c21970322f9e5c938bc954620c12bb); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal18c21970322f9e5c938bc954620c12bb)): ?>
-<?php $component = $__componentOriginal18c21970322f9e5c938bc954620c12bb; ?>
-<?php unset($__componentOriginal18c21970322f9e5c938bc954620c12bb); ?>
-<?php endif; ?>
-                                </div>
-                                <?php if (isset($component)) { $__componentOriginald411d1792bd6cc877d687758b753742c = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginald411d1792bd6cc877d687758b753742c = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.primary-button','data' => ['class' => 'px-6 py-2.5 !bg-green-600 hover:!bg-green-700 focus:ring-4 focus:ring-green-200 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 whitespace-nowrap']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('primary-button'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['class' => 'px-6 py-2.5 !bg-green-600 hover:!bg-green-700 focus:ring-4 focus:ring-green-200 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 whitespace-nowrap']); ?>
-                                    <svg class="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                    </svg>
-                                    Ekle
-                                 <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginald411d1792bd6cc877d687758b753742c)): ?>
-<?php $attributes = $__attributesOriginald411d1792bd6cc877d687758b753742c; ?>
-<?php unset($__attributesOriginald411d1792bd6cc877d687758b753742c); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginald411d1792bd6cc877d687758b753742c)): ?>
-<?php $component = $__componentOriginald411d1792bd6cc877d687758b753742c; ?>
-<?php unset($__componentOriginald411d1792bd6cc877d687758b753742c); ?>
-<?php endif; ?>
-                            </div>
-                            
-                            <?php $__errorArgs = ['ad'];
-$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
-if ($__bag->has($__errorArgs[0])) :
-if (isset($message)) { $__messageOriginal = $message; }
-$message = $__bag->first($__errorArgs[0]); ?>
-                                <p class="text-sm text-red-600 mt-2"><?php echo e($message); ?></p>
-                            <?php unset($message);
-if (isset($__messageOriginal)) { $message = $__messageOriginal; }
-endif;
-unset($__errorArgs, $__bag); ?>
-                        </form>
-
-                        
-                        <div class="mt-6">
-                            <ul role="list" class="space-y-2">
-                                <?php $__empty_1 = true; $__currentLoopData = $sikayetKategori->altKategoriler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $altKategori): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
-                                    
-                                    <li class="group p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-all duration-200 border border-gray-200 hover:border-gray-300" 
-                                        x-data="{ editing: false, newName: '<?php echo e($altKategori->ad); ?>' }">
-                                        
-                                        
-                                        <div class="flex items-center justify-between" x-show="!editing">
-                                            <div class="flex items-center gap-3">
-                                                <div class="p-1.5 bg-white rounded-md shadow-sm">
-                                                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                                                    </svg>
-                                                </div>
-                                                <span class="text-sm font-medium text-gray-900"><?php echo e($altKategori->ad); ?></span>
-                                            </div>
-                                            
-                                            <div class="flex items-center gap-2">
-                                                
-                                                <button @click="editing = true" type="button" class="text-blue-600 hover:text-blue-800 p-1">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                                </button>
-
-                                                
-                                                <form action="<?php echo e(route('admin.sikayet-alt-kategori.destroy', $altKategori)); ?>" method="POST" onsubmit="return confirm('Silmek istediğinize emin misiniz?');">
-                                                    <?php echo csrf_field(); ?>
-                                                    <?php echo method_field('DELETE'); ?>
-                                                    <button type="submit" class="text-red-600 hover:text-red-800 p-1">
-                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-
-                                        
-                                        <div class="flex items-center justify-between gap-2" x-show="editing" style="display: none;">
-                                            <form action="<?php echo e(route('admin.sikayet-alt-kategori.update', $altKategori)); ?>" method="POST" class="flex-1 flex gap-2">
-                                                <?php echo csrf_field(); ?>
-                                                <?php echo method_field('PUT'); ?>
-                                                <input type="text" name="ad" x-model="newName" class="flex-1 text-sm rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-1">
-                                                
-                                                <button type="submit" class="text-green-600 hover:text-green-800 p-1" title="Kaydet">
-                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                                </button>
-                                            </form>
-                                            <button @click="editing = false; newName = '<?php echo e($altKategori->ad); ?>'" type="button" class="text-gray-500 hover:text-gray-700 p-1" title="İptal">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                            </button>
-                                        </div>
-
-                                    </li>
-                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
-                                    <li class="p-8 text-center">
-                                        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-3">
-                                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
-                                            </svg>
-                                        </div>
-                                        <p class="text-sm text-gray-500 font-medium">Bu kategori için henüz alt kategori eklenmemiş</p>
-                                        <p class="text-xs text-gray-400 mt-1">Yukarıdaki formu kullanarak yeni alt kategori ekleyebilirsiniz</p>
-                                    </li>
-                                <?php endif; ?>
-                            </ul>
-                        </div>
+                
+                <span class="text-sm text-gray-700 font-medium flex-1 search-text"><?php echo e($altKategori->ad); ?></span>
+                
+                
+                <form action="<?php echo e(route('admin.sikayet-alt-kategori.update', $altKategori)); ?>" method="POST" class="hidden flex-1 mr-2 edit-form">
+                    <?php echo csrf_field(); ?>
+                    <?php echo method_field('PUT'); ?>
+                    <div class="flex gap-2">
+                        <input type="text" name="ad" value="<?php echo e($altKategori->ad); ?>" class="w-full rounded border-gray-300 text-sm py-1 px-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <button type="submit" class="text-green-600 hover:text-green-800 p-1"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg></button>
+                        <button type="button" onclick="toggleEdit(this)" class="text-gray-500 hover:text-gray-700 p-1"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
                     </div>
+                </form>
+
+                
+                <div class="flex items-center gap-2 action-buttons">
+                    <button type="button" onclick="toggleEdit(this)" class="text-blue-400 hover:text-blue-600 transition-colors p-1 rounded-md hover:bg-blue-100">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    </button>
+                    
+                    <form action="<?php echo e(route('admin.sikayet-alt-kategori.destroy', $altKategori)); ?>" method="POST" onsubmit="return confirm('Bu alt kategoriyi silmek istediğinize emin misiniz?');" class="inline">
+                        <?php echo csrf_field(); ?>
+                        <?php echo method_field('DELETE'); ?>
+                        <button type="submit" class="text-red-400 hover:text-red-600 transition-colors p-1 rounded-md hover:bg-red-100">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </form>
                 </div>
+            </div>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+            <div class="text-center py-8 text-gray-400">
+                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                <p>Henüz alt kategori eklenmemiş.</p>
+            </div>
+        <?php endif; ?>
+        
+        
+        <div id="noResult" class="hidden text-center py-4 text-gray-500 text-sm">
+            Aradığınız kriterde bir alt kategori bulunamadı.
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Arama Fonksiyonu
+    document.getElementById('altKategoriSearch').addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let listItems = document.querySelectorAll('.search-item');
+        let hasResult = false;
+
+        listItems.forEach(function(item) {
+            let text = item.querySelector('.search-text').textContent.toLowerCase();
+            if (text.includes(filter)) {
+                item.style.display = "";
+                hasResult = true;
+            } else {
+                item.style.display = "none";
+            }
+        });
+
+        // Sonuç yoksa mesaj göster
+        document.getElementById('noResult').style.display = hasResult ? 'none' : 'block';
+    });
+
+    // Düzenleme Modunu Aç/Kapat
+    function toggleEdit(btn) {
+        const container = btn.closest('.search-item');
+        const textSpan = container.querySelector('.search-text');
+        const editForm = container.querySelector('.edit-form');
+        const actionButtons = container.querySelector('.action-buttons');
+
+        if (editForm.classList.contains('hidden')) {
+            // Düzenleme modunu aç
+            textSpan.classList.add('hidden');
+            actionButtons.classList.add('hidden');
+            editForm.classList.remove('hidden');
+            editForm.querySelector('input').focus();
+        } else {
+            // Düzenleme modunu kapat
+            textSpan.classList.remove('hidden');
+            actionButtons.classList.remove('hidden');
+            editForm.classList.add('hidden');
+        }
+    }
+</script>
+
+<style>
+    /* İnce Scrollbar Tasarımı */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+</style>
             </div>
 
         </div>

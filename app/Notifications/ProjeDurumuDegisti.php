@@ -12,7 +12,7 @@ class ProjeDurumuDegisti extends Notification
     use Queueable;
 
     protected $iaa;
-    protected $durumText; // "onaylandı", "reddedildi", "revizyona gönderildi"
+    protected $durumText; // Örn: "Erhan Cesur tarafından onayınıza sunuldu" veya "reddedildi"
     protected $neden; // Opsiyonel
 
     /**
@@ -41,8 +41,10 @@ class ProjeDurumuDegisti extends Notification
         // Rota adını web.php dosyanızdan aldım
         $link = route('proje.workspace.show', $this->iaa->id);
         
-        // İstediğiniz mesaj
-        $message = "'{$this->iaa->baslik}' başlıklı projeniz yönetici tarafından {$this->durumText}.";
+        // === DÜZELTME BURADA ===
+        // "yönetici tarafından" ibaresini sildik. 
+        // Artık $this->durumText ne gelirse direkt onu yazacak.
+        $message = "'{$this->iaa->baslik}' başlıklı projeniz {$this->durumText}.";
         
         // Eğer bir 'neden' (revizyon veya red notu) varsa, mesaja ekle
         if ($this->neden) {

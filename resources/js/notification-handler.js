@@ -83,10 +83,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.notifications.forEach(notification => {
                         const li = document.createElement('li');
                         const a = document.createElement('a');
-                        a.href = notification.data.link; 
+                        a.href = notification.data.action_url || '#';
 
                         // --- YENİ EKLENEN KISIM: Tarih/Saat ---
-                        const date = new Date(notification.created_at);
+                        const dateStr = notification.created_at || new Date().toISOString();
+                        const date = new Date(dateStr);
                         // Türkiye formatına (GG.AA.YYYY SS:DD) çevir
                         const formattedDate = date.toLocaleString('tr-TR', { 
                             day: '2-digit', 

@@ -92,13 +92,17 @@
                                     </td>
                                     <td class="px-6 py-4">
                                         @if($takim->lider)
-                                            <div class="flex items-center gap-2">
-                                                 {{-- Lider ikonu rengi maviye döndü --}}
-                                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-xs shadow">
-                                                    {{ strtoupper(substr($takim->lider->name, 0, 2)) }}
-                                                </div>
-                                                <span class="text-sm font-medium text-gray-700">{{ $takim->lider->name }}</span>
-                                            </div>
+                                            <a href="{{ route('profile.show', $takim->lider->id) }}" target="_blank" class="flex items-center gap-2 group">
+                                                {{-- Avatar Varsa Göster, Yoksa Baş Harf --}}
+                                                @if($takim->lider->profile_photo_path)
+                                                    <img class="h-8 w-8 rounded-full object-cover border border-gray-200 group-hover:border-indigo-500 transition-colors shadow-sm" src="{{ asset('storage/' . $takim->lider->profile_photo_path) }}" alt="{{ $takim->lider->name }}">
+                                                @else
+                                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-xs shadow group-hover:from-blue-500 group-hover:to-cyan-600 transition-all">
+                                                        {{ strtoupper(substr($takim->lider->name, 0, 1)) }}
+                                                    </div>
+                                                @endif
+                                                <span class="text-sm font-medium text-gray-700 group-hover:text-indigo-600 hover:underline transition-colors">{{ $takim->lider->name }}</span>
+                                            </a>
                                         @else
                                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
                                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -187,13 +191,16 @@
                                     <div class="flex-1 min-w-0">
                                         <p class="text-xs font-medium text-gray-500">Lider</p>
                                         @if($takim->lider)
-                                            <div class="flex items-center gap-2 mt-1">
-                                                 {{-- Lider ikonu rengi maviye döndü --}}
-                                                <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-xs shadow">
-                                                    {{ strtoupper(substr($takim->lider->name, 0, 2)) }}
-                                                </div>
-                                                <span class="text-sm text-gray-700 font-medium truncate">{{ $takim->lider->name }}</span>
-                                            </div>
+                                            <a href="{{ route('profile.show', $takim->lider->id) }}" target="_blank" class="flex items-center gap-2 mt-1 group">
+                                                @if($takim->lider->profile_photo_path)
+                                                    <img class="w-6 h-6 rounded-full object-cover border border-gray-200 group-hover:border-indigo-500 transition-colors" src="{{ asset('storage/' . $takim->lider->profile_photo_path) }}" alt="{{ $takim->lider->name }}">
+                                                @else
+                                                    <div class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white font-semibold text-xs shadow group-hover:from-blue-500 group-hover:to-cyan-600 transition-all">
+                                                        {{ strtoupper(substr($takim->lider->name, 0, 1)) }}
+                                                    </div>
+                                                @endif
+                                                <span class="text-sm text-gray-700 font-medium truncate group-hover:text-indigo-600 hover:underline transition-colors">{{ $takim->lider->name }}</span>
+                                            </a>
                                         @else
                                             <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600 mt-1">
                                                 Atanmamış

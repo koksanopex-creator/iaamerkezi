@@ -10,14 +10,18 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Storage; 
 use Illuminate\Support\Facades\Config; 
 
-// === BU MODELLERİ VE OBSERVER'LARI EKLEYİN ===
+// === EKLENEN: LOGİN İŞLEMİ İÇİN GEREKLİ SINIFLAR ===
+use Illuminate\Support\Facades\Event;
+use Illuminate\Auth\Events\Login;
+use App\Models\LoginActivity;
+// ===================================================
+
 use App\Models\MusteriSikayeti;
 use App\Observers\MusteriSikayetiObserver;
 use App\Models\Iaa;
 use App\Observers\IaaObserver;
 use App\Models\TakimDavetiyesi;
 use App\Observers\TakimDavetiyesiObserver;
-// === EKLEME SONU ===
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,6 +38,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // === YENİ EKLENEN: GİRİŞ HAREKETLERİNİ KAYDET (LOGIN HISTORY) ===
+        // Kullanıcı giriş yaptığında bu kod çalışır ve kayıt atar.
+        Event::listen(Login::class, function ($event) {
+            LoginActivity::create([
+                'user_id' => $event->user->id,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'created_at' => now(),
+            ]);
+        });
+        // ================================================================
+
         // === GÖZLEMCİLERİ (OBSERVERS) BURAYA KAYDEDİN ===
         MusteriSikayeti::observe(MusteriSikayetiObserver::class);
         Iaa::observe(IaaObserver::class);
@@ -53,7 +69,7 @@ class AppServiceProvider extends ServiceProvider
             $kayitOnay = $settings->get('kayit_onay_sistemi');
             View::share('kayitOnaySistemiAktif', $kayitOnay ? (bool)$kayitOnay->value : true);
             
-            // YENİ: Para birimlerini bir dizi olarak paylaş
+            // Para birimlerini bir dizi olarak paylaş
             $paraBirimleriSetting = $settings->get('para_birimleri');
             $paraBirimleri = $paraBirimleriSetting ? explode(',', $paraBirimleriSetting->value) : ['TL', 'USD', 'EUR'];
             View::share('paraBirimleri', $paraBirimleri);

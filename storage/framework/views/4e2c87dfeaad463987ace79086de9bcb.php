@@ -51,6 +51,14 @@
                         <?php endif; ?>
                     </a>
 
+                    
+                    <a href="<?php echo e(route('user-directory.index')); ?>" class="group relative px-4 py-2.5 rounded-xl transition-all duration-300 <?php echo e(request()->routeIs('user-directory.index') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'); ?>">
+                        <span class="font-semibold text-sm">Kullanıcı Rehberi</span>
+                        <?php if(request()->routeIs('user-directory.index')): ?>
+                            <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                        <?php endif; ?>
+                    </a>
+
                     <div x-data="{ open: false }" @click.away="open = false" class="relative">
                         <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 <?php echo e(request()->routeIs('iaa.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'); ?>">
                             <span class="font-semibold text-sm">İAA Modülü</span>
@@ -459,10 +467,15 @@
 <?php $component->withAttributes(['align' => 'right','width' => '48']); ?>
                      <?php $__env->slot('trigger', null, []); ?> 
                         <button class="flex items-center space-x-3 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 group">
-                            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                                <?php echo e(substr(Auth::user()->name, 0, 1)); ?>
+                                 
+                                <?php if(Auth::user()->profile_photo_path): ?>
+                                    <img class="h-9 w-9 rounded-full object-cover border-2 border-indigo-500 shadow-lg" src="<?php echo e(asset('storage/' . Auth::user()->profile_photo_path)); ?>" alt="<?php echo e(Auth::user()->name); ?>" />
+                                <?php else: ?>
+                                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                        <?php echo e(substr(Auth::user()->name, 0, 1)); ?>
 
-                            </div>
+                                    </div>
+                                <?php endif; ?>
                             <div class="text-left hidden xl:block">
                                 <p class="text-sm font-semibold text-white"><?php echo e(Auth::user()->name); ?></p>
                                 <p class="text-xs text-gray-400"><?php echo e(Auth::user()->roles->first()->name ?? 'Kullanıcı'); ?></p>
@@ -590,6 +603,30 @@
 <?php unset($__componentOriginald69b52d99510f1e7cd3d80070b28ca18); ?>
 <?php endif; ?>
         </div>
+
+        
+        <?php if (isset($component)) { $__componentOriginald69b52d99510f1e7cd3d80070b28ca18 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald69b52d99510f1e7cd3d80070b28ca18 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.responsive-nav-link','data' => ['href' => route('user-directory.index'),'active' => request()->routeIs('user-directory.index')]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('responsive-nav-link'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('user-directory.index')),'active' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(request()->routeIs('user-directory.index'))]); ?>
+            <?php echo e(__('Kullanıcı Rehberi')); ?>
+
+         <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginald69b52d99510f1e7cd3d80070b28ca18)): ?>
+<?php $attributes = $__attributesOriginald69b52d99510f1e7cd3d80070b28ca18; ?>
+<?php unset($__attributesOriginald69b52d99510f1e7cd3d80070b28ca18); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginald69b52d99510f1e7cd3d80070b28ca18)): ?>
+<?php $component = $__componentOriginald69b52d99510f1e7cd3d80070b28ca18; ?>
+<?php unset($__componentOriginald69b52d99510f1e7cd3d80070b28ca18); ?>
+<?php endif; ?>
         
         <div class="pt-4 pb-1 border-t border-gray-700">
             <div class="px-4"><div class="font-medium text-base text-gray-400">İAA Modülü</div></div>
@@ -984,9 +1021,21 @@
         </div>
 
         <div class="pt-4 pb-1 border-t border-gray-700">
-            <div class="px-4">
-                <div class="font-medium text-base text-white"><?php echo e(Auth::user()->name); ?></div>
-                <div class="font-medium text-sm text-gray-400"><?php echo e(Auth::user()->email); ?></div>
+            <div class="px-4 flex items-center"> 
+                <div class="flex-shrink-0 mr-3"> 
+                    <?php if(Auth::user()->profile_photo_path): ?>
+                        <img class="h-10 w-10 rounded-full object-cover border-2 border-gray-500" src="<?php echo e(asset('storage/' . Auth::user()->profile_photo_path)); ?>" alt="<?php echo e(Auth::user()->name); ?>" />
+                    <?php else: ?>
+                        <div class="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                            <?php echo e(substr(Auth::user()->name, 0, 1)); ?>
+
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <div>
+                    <div class="font-medium text-base text-white"><?php echo e(Auth::user()->name); ?></div>
+                    <div class="font-medium text-sm text-gray-400"><?php echo e(Auth::user()->email); ?></div>
+                </div>
             </div>
             <div class="mt-3 space-y-1">
                 <?php if (isset($component)) { $__componentOriginald69b52d99510f1e7cd3d80070b28ca18 = $component; } ?>

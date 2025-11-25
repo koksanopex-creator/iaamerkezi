@@ -182,10 +182,52 @@
                                             </svg>
                                             Şikayeti Giren Personel
                                         </dt>
-                                        <dd class="mt-2 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                {{ $sikayet->olusturanKurulUyesi->name ?? 'Sistem' }}
-                                            </span>
+                                        <dd class="mt-2 text-sm text-gray-900 sm:mt-0 sm:col-span-2 flex items-center">
+                                            
+                                            {{-- SENARYO 1: İAA Üzerinden Gelen Kayıtlı Kullanıcı --}}
+                                            @if($sikayet->iaa && $sikayet->iaa->gonderen)
+                                                <a href="{{ route('profile.show', $sikayet->iaa->gonderen->id) }}" target="_blank" class="inline-flex items-center gap-2 group">
+                                                    @if($sikayet->iaa->gonderen->profile_photo_path)
+                                                        <img class="h-6 w-6 rounded-full object-cover border border-gray-300 group-hover:border-indigo-500 transition-colors" src="{{ asset('storage/' . $sikayet->iaa->gonderen->profile_photo_path) }}" alt="">
+                                                    @else
+                                                        <div class="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] text-indigo-700 font-bold group-hover:bg-indigo-200 transition-colors">
+                                                            {{ substr($sikayet->iaa->gonderen->name, 0, 1) }}
+                                                        </div>
+                                                    @endif
+                                                    <span class="font-semibold text-indigo-600 hover:underline transition-colors">
+                                                        {{ $sikayet->iaa->gonderen->name }}
+                                                    </span>
+                                                </a>
+                                            
+                                            {{-- SENARYO 2: İAA Üzerinden Gelen Misafir --}}
+                                            @elseif($sikayet->iaa && $sikayet->iaa->guest_name)
+                                                <span class="font-semibold text-gray-800 flex items-center gap-2">
+                                                    <div class="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold">M</div>
+                                                    {{ $sikayet->iaa->guest_name }}
+                                                    <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">Misafir</span>
+                                                </span>
+
+                                            {{-- SENARYO 3: Admin Panelinden Direkt Ekleyen Üye --}}
+                                            @elseif($sikayet->olusturanKurulUyesi)
+                                                <a href="{{ route('profile.show', $sikayet->olusturanKurulUyesi->id) }}" target="_blank" class="inline-flex items-center gap-2 group">
+                                                    @if($sikayet->olusturanKurulUyesi->profile_photo_path)
+                                                        <img class="h-6 w-6 rounded-full object-cover border border-gray-300 group-hover:border-indigo-500 transition-colors" src="{{ asset('storage/' . $sikayet->olusturanKurulUyesi->profile_photo_path) }}" alt="">
+                                                    @else
+                                                        <div class="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] text-indigo-700 font-bold group-hover:bg-indigo-200 transition-colors">
+                                                            {{ substr($sikayet->olusturanKurulUyesi->name, 0, 1) }}
+                                                        </div>
+                                                    @endif
+                                                    <span class="font-semibold text-indigo-600 hover:underline transition-colors">
+                                                        {{ $sikayet->olusturanKurulUyesi->name }}
+                                                    </span>
+                                                </a>
+
+                                            {{-- SENARYO 4: Hiçbiri Yoksa --}}
+                                            @else
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                    Sistem
+                                                </span>
+                                            @endif
                                         </dd>
                                     </div>
                                 </dl>

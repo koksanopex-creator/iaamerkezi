@@ -51,7 +51,30 @@
                                 @forelse ($takimlar as $takim)
                                     <tr class="block mb-4 border bg-white border-gray-200 rounded-lg sm:table-row sm:mb-0 sm:border-0 sm:border-b sm:border-gray-100 hover:bg-indigo-50 transition-colors">
                                         <td class="flex justify-between items-center p-3 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Takım:</span><span class="text-right sm:text-left font-medium text-indigo-600">{{ $takim->ad }}</span></td>
-                                        <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Lider:</span><span class="text-right sm:text-left text-gray-600">{{ $takim->lider->name }}</span></td>
+
+                                        <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
+                                        <span class="font-semibold text-sm text-gray-500 sm:hidden">Lider:</span>
+                                        <div class="text-right sm:text-left">
+                                            @if($takim->lider)
+                                                <a href="{{ route('profile.show', $takim->lider->id) }}" target="_blank" class="inline-flex items-center gap-2 group">
+                                                    {{-- Avatar --}}
+                                                    @if($takim->lider->profile_photo_path)
+                                                        <img class="h-8 w-8 rounded-full object-cover border border-gray-200 group-hover:border-indigo-500 transition-colors" src="{{ asset('storage/' . $takim->lider->profile_photo_path) }}" alt="{{ $takim->lider->name }}">
+                                                    @else
+                                                        <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs text-indigo-700 font-bold group-hover:bg-indigo-200 transition-colors">
+                                                            {{ substr($takim->lider->name, 0, 1) }}
+                                                        </div>
+                                                    @endif
+                                                    <span class="text-sm font-medium text-gray-600 group-hover:text-indigo-600 hover:underline transition-colors">
+                                                        {{ $takim->lider->name }}
+                                                    </span>
+                                                </a>
+                                            @else
+                                                <span class="text-sm text-gray-400 italic">Lider Yok</span>
+                                            @endif
+                                        </div>
+                                    </td>
+
                                         <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Üyeler:</span><div class="w-full text-right sm:text-center"><span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">{{ $takim->uyeler_count }} Üye</span></div></td>
                                         <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Tarih:</span><span class="text-right sm:text-left text-sm text-gray-500">{{ $takim->created_at->format('d.m.Y') }}</span></td>
                                         <td class="p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">

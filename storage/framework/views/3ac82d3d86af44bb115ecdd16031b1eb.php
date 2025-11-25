@@ -60,14 +60,27 @@
                         <ul class="divide-y divide-gray-100">
                             <?php $__currentLoopData = $gelenIstekler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $istek): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                 <li class="p-4 sm:p-6 hover:bg-gray-50/70 flex flex-col sm:flex-row items-start sm:items-center justify-between">
-                                    <div class="flex items-center mb-3 sm:mb-0">
+                                <div class="flex items-center mb-3 sm:mb-0">
+                                        
                                         <div class="flex-shrink-0 h-10 w-10">
-                                            <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                                <span class="text-sm font-bold text-gray-600"><?php echo e(Str::substr($istek->davetEden->name, 0, 1)); ?></span>
-                                            </div>
+                                            <a href="<?php echo e(route('profile.show', $istek->davetEden->id)); ?>" target="_blank">
+                                                <?php if($istek->davetEden->profile_photo_path): ?>
+                                                    <img class="h-10 w-10 rounded-full object-cover border border-gray-200 hover:border-indigo-500 transition-colors" src="<?php echo e(asset('storage/' . $istek->davetEden->profile_photo_path)); ?>" alt="<?php echo e($istek->davetEden->name); ?>">
+                                                <?php else: ?>
+                                                    <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center hover:bg-indigo-100 transition-colors">
+                                                        <span class="text-sm font-bold text-gray-600 hover:text-indigo-700"><?php echo e(Str::substr($istek->davetEden->name, 0, 1)); ?></span>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </a>
                                         </div>
                                         <div class="ml-4">
-                                            <p class="font-semibold text-gray-800"><?php echo e($istek->davetEden->name); ?></p>
+                                            
+                                            <p class="font-semibold text-gray-800">
+                                                <a href="<?php echo e(route('profile.show', $istek->davetEden->id)); ?>" target="_blank" class="hover:text-indigo-600 hover:underline transition-colors">
+                                                    <?php echo e($istek->davetEden->name); ?>
+
+                                                </a>
+                                            </p>
                                             <p class="text-sm text-gray-500"><?php echo e($istek->davetEden->bolum->ad ?? 'Bölüm Atanmamış'); ?></p>
                                         </div>
                                     </div>
@@ -318,15 +331,27 @@
                         <li class="px-6 py-3 bg-gray-50/70"><h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Mevcut Üyeler (<?php echo e($takim->uyeler->count()); ?>)</h4></li>
                         <?php $__empty_1 = true; $__currentLoopData = $takim->uyeler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $uye): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                             <li class="p-4 sm:p-6 hover:bg-gray-50/70 flex items-center justify-between">
-                                <div class="flex items-center">
+                            <div class="flex items-center">
+                                    
                                     <div class="flex-shrink-0 h-10 w-10">
-                                        <div class="h-10 w-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
-                                            <span class="text-sm font-bold text-white"><?php echo e(Str::substr($uye->name, 0, 1)); ?></span>
-                                        </div>
+                                        <a href="<?php echo e(route('profile.show', $uye->id)); ?>" target="_blank">
+                                            <?php if($uye->profile_photo_path): ?>
+                                                <img class="h-10 w-10 rounded-full object-cover border border-gray-200 hover:border-indigo-500 transition-colors" src="<?php echo e(asset('storage/' . $uye->profile_photo_path)); ?>" alt="<?php echo e($uye->name); ?>">
+                                            <?php else: ?>
+                                                <div class="h-10 w-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center hover:from-green-500 hover:to-blue-600 transition-colors">
+                                                    <span class="text-sm font-bold text-white"><?php echo e(Str::substr($uye->name, 0, 1)); ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                        </a>
                                     </div>
+                                    
                                     <div class="ml-4">
-                                        <p class="font-semibold text-gray-800"><?php echo e($uye->name); ?>
+                                        
+                                        <p class="font-semibold text-gray-800">
+                                            <a href="<?php echo e(route('profile.show', $uye->id)); ?>" target="_blank" class="hover:text-indigo-600 hover:underline transition-colors">
+                                                <?php echo e($uye->name); ?>
 
+                                            </a>
                                             <?php if($uye->id === $takim->lider_user_id): ?> 
                                                 <span class="ms-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">Lider</span> 
                                             <?php endif; ?>
@@ -351,14 +376,27 @@
                             <li class="px-6 py-3 bg-gray-50/70 border-t border-gray-100"><h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Gönderilen Davetler (<?php echo e($gonderilenDavetler->count()); ?>)</h4></li>
                             <?php $__currentLoopData = $gonderilenDavetler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $davet): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                 <li class="p-4 sm:p-6 hover:bg-gray-50/70 flex items-center justify-between">
-                                    <div class="flex items-center">
+                                <div class="flex items-center">
+                                        
                                         <div class="flex-shrink-0 h-10 w-10">
-                                            <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                                                <span class="text-sm font-bold text-gray-600"><?php echo e(Str::substr($davet->davetEdilen->name, 0, 1)); ?></span>
-                                            </div>
+                                            <a href="<?php echo e(route('profile.show', $davet->davetEdilen->id)); ?>" target="_blank">
+                                                <?php if($davet->davetEdilen->profile_photo_path): ?>
+                                                    <img class="h-10 w-10 rounded-full object-cover border border-gray-200 hover:border-indigo-500 transition-colors" src="<?php echo e(asset('storage/' . $davet->davetEdilen->profile_photo_path)); ?>" alt="<?php echo e($davet->davetEdilen->name); ?>">
+                                                <?php else: ?>
+                                                    <div class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center hover:bg-indigo-100 transition-colors">
+                                                        <span class="text-sm font-bold text-gray-600 hover:text-indigo-700"><?php echo e(Str::substr($davet->davetEdilen->name, 0, 1)); ?></span>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </a>
                                         </div>
                                         <div class="ml-4">
-                                            <p class="font-semibold text-gray-800"><?php echo e($davet->davetEdilen->name); ?></p>
+                                            
+                                            <p class="font-semibold text-gray-800">
+                                                <a href="<?php echo e(route('profile.show', $davet->davetEdilen->id)); ?>" target="_blank" class="hover:text-indigo-600 hover:underline transition-colors">
+                                                    <?php echo e($davet->davetEdilen->name); ?>
+
+                                                </a>
+                                            </p>
                                             <p class="text-sm text-gray-500"><?php echo e($davet->davetEdilen->bolum->ad ?? 'Bölüm Atanmamış'); ?></p>
                                         </div>
                                     </div>
@@ -392,12 +430,24 @@
                         </div>
                     </div>
                     <div class="p-6 text-center bg-gradient-to-br from-indigo-50 to-blue-50/70 border-b border-gray-100">
-                        <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 text-white font-bold text-xl mb-3 shadow-lg">
-                            <?php echo e(Str::substr($takim->lider->name, 0, 1)); ?>
+                        
+                        <a href="<?php echo e(route('profile.show', $takim->lider->id)); ?>" target="_blank" class="group block">
+                            <div class="inline-flex items-center justify-center h-16 w-16 rounded-full mb-3 shadow-lg transition-transform transform group-hover:scale-105">
+                                <?php if($takim->lider->profile_photo_path): ?>
+                                    <img class="h-16 w-16 rounded-full object-cover border-4 border-white" src="<?php echo e(asset('storage/' . $takim->lider->profile_photo_path)); ?>" alt="<?php echo e($takim->lider->name); ?>">
+                                <?php else: ?>
+                                    <div class="h-16 w-16 rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white font-bold text-xl border-4 border-white">
+                                        <?php echo e(Str::substr($takim->lider->name, 0, 1)); ?>
 
-                        </div>
-                        <p class="text-xs text-indigo-700 uppercase font-bold tracking-widest mb-1">Takım Lideri</p>
-                        <h2 class="text-xl font-bold text-gray-900 truncate"><?php echo e($takim->lider->name); ?></h2>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            <p class="text-xs text-indigo-700 uppercase font-bold tracking-widest mb-1">Takım Lideri</p>
+                            <h2 class="text-xl font-bold text-gray-900 truncate group-hover:text-indigo-600 transition-colors underline-offset-2 group-hover:underline">
+                                <?php echo e($takim->lider->name); ?>
+
+                            </h2>
+                        </a>
                     </div>
                     <div class="p-6 space-y-6">
                         <div class="grid grid-cols-2 gap-4">

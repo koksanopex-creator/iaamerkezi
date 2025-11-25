@@ -32,6 +32,14 @@
                         @endif
                     </a>
 
+                    {{-- EKLENECEK KISIM: KULLANICI REHBERİ --}}
+                    <a href="{{ route('user-directory.index') }}" class="group relative px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('user-directory.index') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                        <span class="font-semibold text-sm">Kullanıcı Rehberi</span>
+                        @if(request()->routeIs('user-directory.index'))
+                            <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                        @endif
+                    </a>
+
                     <div x-data="{ open: false }" @click.away="open = false" class="relative">
                         <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('iaa.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                             <span class="font-semibold text-sm">İAA Modülü</span>
@@ -124,9 +132,14 @@
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="flex items-center space-x-3 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 group">
-                            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                                {{ substr(Auth::user()->name, 0, 1) }}
-                            </div>
+                                 {{-- Profil Fotosu Varsa Göster, Yoksa Harf Göster --}}
+                                @if(Auth::user()->profile_photo_path)
+                                    <img class="h-9 w-9 rounded-full object-cover border-2 border-indigo-500 shadow-lg" src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}" alt="{{ Auth::user()->name }}" />
+                                @else
+                                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                        {{ substr(Auth::user()->name, 0, 1) }}
+                                    </div>
+                                @endif
                             <div class="text-left hidden xl:block">
                                 <p class="text-sm font-semibold text-white">{{ Auth::user()->name }}</p>
                                 <p class="text-xs text-gray-400">{{ Auth::user()->roles->first()->name ?? 'Kullanıcı' }}</p>
@@ -172,6 +185,11 @@
         <div class="px-2 pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('Dashboard') }}</x-responsive-nav-link>
         </div>
+
+        {{-- EKLENECEK KISIM --}}
+        <x-responsive-nav-link :href="route('user-directory.index')" :active="request()->routeIs('user-directory.index')">
+            {{ __('Kullanıcı Rehberi') }}
+        </x-responsive-nav-link>
         
         <div class="pt-4 pb-1 border-t border-gray-700">
             <div class="px-4"><div class="font-medium text-base text-gray-400">İAA Modülü</div></div>
@@ -241,9 +259,20 @@
         </div>
 
         <div class="pt-4 pb-1 border-t border-gray-700">
-            <div class="px-4">
-                <div class="font-medium text-base text-white">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-400">{{ Auth::user()->email }}</div>
+            <div class="px-4 flex items-center"> {{-- flex ekledim --}}
+                <div class="flex-shrink-0 mr-3"> {{-- Avatar Alanı --}}
+                    @if(Auth::user()->profile_photo_path)
+                        <img class="h-10 w-10 rounded-full object-cover border-2 border-gray-500" src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}" alt="{{ Auth::user()->name }}" />
+                    @else
+                        <div class="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                            {{ substr(Auth::user()->name, 0, 1) }}
+                        </div>
+                    @endif
+                </div>
+                <div>
+                    <div class="font-medium text-base text-white">{{ Auth::user()->name }}</div>
+                    <div class="font-medium text-sm text-gray-400">{{ Auth::user()->email }}</div>
+                </div>
             </div>
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('profile.edit')">{{ __('Profil') }}</x-responsive-nav-link>

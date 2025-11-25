@@ -25,6 +25,10 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            // === YENİ EKLENEN KURALLAR ===
+            'telefon' => ['nullable', 'string', 'max:20'], // Boş olabilir, en fazla 20 karakter
+            'photo' => ['nullable', 'image', 'max:1024'],  // Boş olabilir, resim dosyası olmalı, max 1MB
+            // =============================
         ];
     }
 }

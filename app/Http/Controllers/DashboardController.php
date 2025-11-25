@@ -11,6 +11,8 @@ use App\Models\Bolum;
 use App\Models\Takim;
 use App\Models\MusteriSikayeti;
 use Carbon\Carbon;
+use App\Models\ProjeYorumu; // Yorumlar için model
+use App\Models\ProfileComment;
 
 class DashboardController extends Controller
 {
@@ -21,10 +23,73 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $stats = []; // İstatistikleri tutacak boş bir dizi
+        $stats = [];
+        $bolumOnayiBekleyenSayisi = 0;
+
+        // --- 1. ONLINE ve SON GÖRÜLEN KULLANICILAR ---
+        // Son 5 dakika içinde işlem yapanlar "Online"
+        $onlineKullanicilar = User::where('last_seen_at', '>=', now()->subMinutes(5))
+            ->orderBy('last_seen_at', 'desc')
+            ->take(10)
+            ->get();
+
+        // Sisteme en son aktif olan 10 kişi (Online olsun olmasın)
+        $sonAktifKullanicilar = User::whereNotNull('last_seen_at')
+            ->orderBy('last_seen_at', 'desc')
+            ->take(10)
+            ->get();
+
+        // --- 2. EKSTRA İSTATİSTİKLER (Sadece Superadmin için hazırlayalım) ---
+        $ekstraTablolar = [];
         
-        // View'e gönderilecek ekstra değişkenler
-        $bolumOnayiBekleyenSayisi = 0; 
+        if ($user->hasRole('Superadmin')) {
+            // a) Son Kurulan 10 Takım
+            $ekstraTablolar['son_takimlar'] = Takim::with('lider')
+                ->latest()
+                ->take(10)
+                ->get();
+
+            // b) Son Çözülen 10 Şikayet
+            $ekstraTablolar['son_cozulen_sikayetler'] = MusteriSikayeti::where('musteri_durum', 'Kapatıldı') // DB'de 'Kapatıldı' yazıyor
+                ->with('cozumTakimi')
+                ->latest('updated_at')
+                ->take(10)
+                ->get();
+
+            // c) Son Tamamlanan 10 İAA
+            $ekstraTablolar['son_tamamlanan_iaa'] = Iaa::where('durum', 'Tamamlandı')
+                ->with('atananTakim')
+                ->latest('updated_at') // Tamamlanma tarihi genelde updated_at olur
+                ->take(10)
+                ->get();
+
+            // d) Son Yapılan 10 Yorum (Proje Yorumları tablosundan)
+            $ekstraTablolar['son_yorumlar'] = ProjeYorumu::with('iaa') // İlişki varsa
+                ->latest()
+                ->take(10)
+                ->get();
+
+            // 3. Son Yapılan 10 Profil Yorumu
+            $ekstraTablolar['son_profil_yorumlari'] = \App\Models\ProfileComment::with(['yazan', 'profileUser']) 
+                ->latest()
+                ->take(10)
+                ->get();
+
+                // 2. Son Kazanılan Puanlar (DÜZELTİLDİ: Durum metnine bakmaksızın puanı olanları getirir)
+                $ekstraTablolar['son_kazanilan_puanlar'] = Iaa::where('puan', '>', 0)
+                ->with('atananTakim') // Puanı kazanan takımı getir
+                ->latest('updated_at') // Puanlama genelde son işlem olduğu için updated_at
+                ->take(10)
+                ->get();
+
+            // e) Son Kazanılan 10 Puan (Tamamlanan İAA'lardan çekiyoruz)
+            $ekstraTablolar['son_puanlar'] = Iaa::where('puan', '>', 0)
+                ->where('durum', 'Tamamlandı')
+                ->with('atananTakim')
+                ->latest('updated_at')
+                ->take(10)
+                ->get();
+        } 
 
         if ($user->hasRole('Superadmin')) {
             // === 1. SUPERADMIN İSTATİSTİKLERİ ===
@@ -122,7 +187,14 @@ class DashboardController extends Controller
         }
 
         // 'bolumOnayiBekleyenSayisi' değişkenini view'e gönderiyoruz
-        return view('dashboard', compact('user', 'stats', 'bolumOnayiBekleyenSayisi'));
+        return view('dashboard', compact(
+            'user', 
+            'stats', 
+            'bolumOnayiBekleyenSayisi', 
+            'onlineKullanicilar',   // <-- Bu eksikti
+            'sonAktifKullanicilar', // <-- Bu eksikti
+            'ekstraTablolar'        // <-- Bu eksikti
+        ));
     }
 
     /**

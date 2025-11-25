@@ -84,6 +84,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // Kullanıcı Rehberi (Herkes Erişebilir)
+    Route::get('/kullanici-listesi', [App\Http\Controllers\UserDirectoryController::class, 'index'])->name('user-directory.index');
+
+    // Herkesin görebileceği Genel Profil Sayfası
+    Route::get('/kullanici-profil/{user}', [ProfileController::class, 'show'])->name('profile.show');
+    Route::post('/kullanici-profil/{user}/yorum', [ProfileController::class, 'storeComment'])->name('profile.comment.store');
+    Route::delete('/kullanici-profil/yorum/{comment}', [ProfileController::class, 'destroyComment'])->name('profile.comment.destroy');
     // --- İAA MODÜLÜ ROTALARI ---
     Route::get('/havuz', [IaaController::class, 'havuz'])->name('iaa.havuz');
     Route::post('/iaa/{iaa}/takimla-talep-et', [IaaController::class, 'takimlaTalepEt'])->name('iaa.takimlaTalepEt');

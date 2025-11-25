@@ -30,6 +30,8 @@ class User extends Authenticatable
         'password',
         'bolum_id',
         'onaylandi_mi',
+        'telefon',             // <-- YENİ EKLENDİ
+        'profile_photo_path',  // <-- YENİ EKLENDİ
     ];
 
     /**
@@ -102,5 +104,11 @@ class User extends Authenticatable
             'user_id', 
             'sikayet_kategori_id'
         );
+    }
+
+    // Profilime yapılan yorumlar
+    public function profilYorumlari()
+    {
+        return $this->hasMany(ProfileComment::class)->orderBy('created_at', 'desc');
     }
 }

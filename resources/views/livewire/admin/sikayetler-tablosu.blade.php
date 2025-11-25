@@ -4,7 +4,7 @@
     <div class="bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 min-h-screen p-4 md:p-6">
         <div class="max-w-7xl mx-auto">
 
-        {{-- === YENİ BAŞLIK TASARIMI (SİZİN KODUNUZ) === --}}
+        {{-- === BAŞLIK TASARIMI (GÜNCELLENMİŞ) === --}}
         <div class="mb-8">
             <div class="rounded-2xl border border-gray-200/70 bg-white/80 backdrop-blur p-6 shadow-sm">
                 <div class="flex flex-col gap-6 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -64,7 +64,7 @@
         {{-- === BAŞLIK TASARIMI SONU === --}}
 
 
-@if (session()->has('success'))
+        @if (session()->has('success'))
                 <div class="mb-4 bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 text-green-800 px-6 py-4 rounded-xl shadow-sm animate-slide-in" role="alert" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform translate-y-2" x-transition:enter-end="opacity-100 transform translate-y-0" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 transform translate-y-0" x-transition:leave-end="opacity-0 transform translate-y-2">
                     <div class="flex items-center gap-3">
                         <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,7 +458,15 @@
                                 <div class="flex items-center gap-1.5 text-gray-600">
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                     <span class="font-medium">Ekleyen:</span>
-                                    <span class="font-semibold text-gray-800">{{ $sikayet->olusturanKurulUyesi->name ?? 'Sistem' }}</span>
+                                    {{-- GÜNCELLEME: LİNKLİ İSİM --}}
+                                    @if($sikayet->olusturanKurulUyesi)
+                                        <a href="{{ route('profile.show', $sikayet->olusturanKurulUyesi->id) }}" target="_blank" class="font-semibold text-indigo-600 hover:underline">
+                                            {{ $sikayet->olusturanKurulUyesi->name }}
+                                        </a>
+                                    @else
+                                        <span class="font-semibold text-gray-800">Sistem</span>
+                                    @endif
+                                    {{-- ======================== --}}
                                 </div>
                                 <div class="flex items-center gap-1.5 text-gray-600">
                                     <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -485,7 +493,7 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                         <span class="font-medium">Proje Durumu:</span>
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-{{ $pRenk }}-50 text-{{ $pRenk }}-700 border border-{{ $pRenk }}-200">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-{{ $pRenk }}-50 text-{{ $pRenk }}-700 border border-{{ $pRenk }}-200">
                                             {{ $pDurum }}
                                         </span>
                                     </div>
@@ -586,7 +594,7 @@
                                                         <div>
                                                             <span class="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center ring-4 ring-white">
                                                                 <svg class="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                                                 </svg>
                                                             </span>
                                                         </div>

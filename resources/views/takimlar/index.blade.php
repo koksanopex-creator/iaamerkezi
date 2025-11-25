@@ -31,18 +31,52 @@
             <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-yellow-200">
                 <div class="bg-gradient-to-r from-yellow-50 to-white px-6 py-5 border-b border-yellow-200"><div class="flex items-center justify-between"><h3 class="text-lg font-semibold text-yellow-800">Gönderdiğim Katılma İstekleri</h3><div class="flex items-center space-x-2 text-sm text-yellow-600"><span>{{ $gonderdigimIstekler->count() }} Bekleyen İstek</span></div></div></div>
                 <div class="bg-white/60 backdrop-blur-sm overflow-hidden">
-                    <table class="block sm:table min-w-full">
+                <table class="block sm:table min-w-full">
                         <thead class="hidden sm:table-header-group">
                             <tr class="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                                <th class="px-6 py-4">Takım Adı</th><th class="px-6 py-4">İstek Tarihi</th><th class="px-6 py-4">Durum</th><th class="relative px-6 py-4"></th>
+                                <th class="px-6 py-4">Takım Adı</th>
+                                <th class="px-6 py-4">Lider</th> {{-- YENİ SÜTUN --}}
+                                <th class="px-6 py-4">İstek Tarihi</th>
+                                <th class="px-6 py-4">Durum</th>
+                                <th class="relative px-6 py-4"></th>
                             </tr>
                         </thead>
                         <tbody class="block sm:table-row-group">
                             @foreach ($gonderdigimIstekler as $istek)
                                 <tr class="block mb-4 border bg-white border-gray-200 rounded-lg sm:table-row sm:mb-0 sm:border-0 sm:border-b sm:border-gray-100 hover:bg-yellow-50 transition-colors">
-                                    <td class="flex justify-between items-center p-3 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Takım:</span><span class="text-right sm:text-left font-semibold text-gray-800">{{ $istek->takim->ad }}</span></td>
+                                    
+                                    <td class="flex justify-between items-center p-3 sm:table-cell sm:p-4 align-middle">
+                                        <span class="font-semibold text-sm text-gray-500 sm:hidden">Takım:</span>
+                                        <span class="text-right sm:text-left font-semibold text-gray-800">{{ $istek->takim->ad }}</span>
+                                    </td>
+
+                                    {{-- YENİ: LİDER AVATARI VE İSMİ --}}
+                                    <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
+                                        <span class="font-semibold text-sm text-gray-500 sm:hidden">Lider:</span>
+                                        <div class="text-right sm:text-left">
+                                            @if($istek->takim->lider)
+                                                <a href="{{ route('profile.show', $istek->takim->lider->id) }}" target="_blank" class="inline-flex items-center gap-2 group">
+                                                    @if($istek->takim->lider->profile_photo_path)
+                                                        <img class="h-8 w-8 rounded-full object-cover border border-gray-200 group-hover:border-indigo-500 transition-colors" src="{{ asset('storage/' . $istek->takim->lider->profile_photo_path) }}" alt="">
+                                                    @else
+                                                        <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs text-indigo-700 font-bold group-hover:bg-indigo-200 transition-colors">
+                                                            {{ substr($istek->takim->lider->name, 0, 1) }}
+                                                        </div>
+                                                    @endif
+                                                    <span class="text-sm font-medium text-gray-700 group-hover:text-indigo-600 transition-colors">
+                                                        {{ $istek->takim->lider->name }}
+                                                    </span>
+                                                </a>
+                                            @else
+                                                <span class="text-sm text-gray-400 italic">Lider Yok</span>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    {{-- =========================== --}}
+
                                     <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Tarih:</span><span class="text-right sm:text-left text-sm text-gray-600">{{ $istek->created_at->format('d.m.Y') }}</span></td>
                                     <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Durum:</span><span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{{ Str::ucfirst($istek->durum) }}</span></td>
+                                    
                                     <td class="p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
                                         <div class="flex justify-end">
                                             <form action="{{ route('takimlar.istegiGeriCek', $istek) }}" method="POST" onsubmit="return confirm('Bu katılma isteğini geri çekmek istediğinizden emin misiniz?');">@csrf @method('DELETE')<button type="submit" class="text-red-600 hover:text-red-800 text-sm font-semibold">İsteği Geri Çek</button></form>

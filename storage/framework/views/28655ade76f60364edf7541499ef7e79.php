@@ -200,11 +200,57 @@
                                             </svg>
                                             Şikayeti Giren Personel
                                         </dt>
-                                        <dd class="mt-2 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                <?php echo e($sikayet->olusturanKurulUyesi->name ?? 'Sistem'); ?>
+                                        <dd class="mt-2 text-sm text-gray-900 sm:mt-0 sm:col-span-2 flex items-center">
+                                            
+                                            
+                                            <?php if($sikayet->iaa && $sikayet->iaa->gonderen): ?>
+                                                <a href="<?php echo e(route('profile.show', $sikayet->iaa->gonderen->id)); ?>" target="_blank" class="inline-flex items-center gap-2 group">
+                                                    <?php if($sikayet->iaa->gonderen->profile_photo_path): ?>
+                                                        <img class="h-6 w-6 rounded-full object-cover border border-gray-300 group-hover:border-indigo-500 transition-colors" src="<?php echo e(asset('storage/' . $sikayet->iaa->gonderen->profile_photo_path)); ?>" alt="">
+                                                    <?php else: ?>
+                                                        <div class="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] text-indigo-700 font-bold group-hover:bg-indigo-200 transition-colors">
+                                                            <?php echo e(substr($sikayet->iaa->gonderen->name, 0, 1)); ?>
 
-                                            </span>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    <span class="font-semibold text-indigo-600 hover:underline transition-colors">
+                                                        <?php echo e($sikayet->iaa->gonderen->name); ?>
+
+                                                    </span>
+                                                </a>
+                                            
+                                            
+                                            <?php elseif($sikayet->iaa && $sikayet->iaa->guest_name): ?>
+                                                <span class="font-semibold text-gray-800 flex items-center gap-2">
+                                                    <div class="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] text-gray-600 font-bold">M</div>
+                                                    <?php echo e($sikayet->iaa->guest_name); ?>
+
+                                                    <span class="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 text-gray-500">Misafir</span>
+                                                </span>
+
+                                            
+                                            <?php elseif($sikayet->olusturanKurulUyesi): ?>
+                                                <a href="<?php echo e(route('profile.show', $sikayet->olusturanKurulUyesi->id)); ?>" target="_blank" class="inline-flex items-center gap-2 group">
+                                                    <?php if($sikayet->olusturanKurulUyesi->profile_photo_path): ?>
+                                                        <img class="h-6 w-6 rounded-full object-cover border border-gray-300 group-hover:border-indigo-500 transition-colors" src="<?php echo e(asset('storage/' . $sikayet->olusturanKurulUyesi->profile_photo_path)); ?>" alt="">
+                                                    <?php else: ?>
+                                                        <div class="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] text-indigo-700 font-bold group-hover:bg-indigo-200 transition-colors">
+                                                            <?php echo e(substr($sikayet->olusturanKurulUyesi->name, 0, 1)); ?>
+
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    <span class="font-semibold text-indigo-600 hover:underline transition-colors">
+                                                        <?php echo e($sikayet->olusturanKurulUyesi->name); ?>
+
+                                                    </span>
+                                                </a>
+
+                                            
+                                            <?php else: ?>
+                                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                    Sistem
+                                                </span>
+                                            <?php endif; ?>
                                         </dd>
                                     </div>
                                 </dl>

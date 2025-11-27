@@ -118,9 +118,38 @@ class SikayetController extends Controller
 
     public function show(MusteriSikayeti $sikayet)
     {
-        $this->authorize('view', $sikayet);
-        // Kategori ilişkisini de yükle
-        $sikayet->load('cozumTakimi', 'olusturanKurulUyesi', 'dosyalar', 'sikayetKategori'); // <-- 'sikayetKategori' eklendi
+        $user = Auth::user();
+        
+        // === YENİ HİBRİT YETKİ KONTROLÜ ===
+        // Standart Policy ($this->authorize) yerine manuel kontrol yapıyoruz
+        // çünkü Policy dosyası squad mantığını henüz bilmiyor olabilir.
+        
+        $yetkiVar = false;
+
+        // 1. Admin veya Kurul ise girer
+        if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi'])) {
+            $yetkiVar = true;
+        }
+        // 2. Atanan Takımın Üyesi ise girer
+        elseif ($sikayet->atanan_cozum_takimi_id && $user->takimlar->contains($sikayet->atanan_cozum_takimi_id)) {
+            $yetkiVar = true;
+        }
+        // 3. İAA Projesi Varsa ve Squad Üyesi ise girer (CİHANGİR BURADAN GİRECEK)
+        elseif ($sikayet->iaa_id) {
+             $iaa = \App\Models\Iaa::find($sikayet->iaa_id);
+             if ($iaa && $iaa->projeEkibi()->where('user_id', $user->id)->wherePivot('durum', 'onaylandi')->exists()) {
+                 $yetkiVar = true;
+             }
+        }
+
+        if (!$yetkiVar) {
+            abort(403, 'Bu şikayeti görüntüleme yetkiniz yok.');
+        }
+        // === KONTROL SONU ===
+
+        // İlişkileri yükle
+        $sikayet->load('cozumTakimi', 'olusturanKurulUyesi', 'dosyalar', 'sikayetKategori');
+        
         return view('admin.sikayetler.show', compact('sikayet'));
     }
 

@@ -111,4 +111,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(ProfileComment::class)->orderBy('created_at', 'desc');
     }
+
+    // Kullanıcının dahil olduğu proje bazlı görevler
+    public function gorevliOlduguProjeler()
+    {
+        return $this->belongsToMany(Iaa::class, 'iaa_user', 'user_id', 'iaa_id')
+                    ->withPivot('rol', 'kazanilan_puan', 'durum')
+                    ->withTimestamps();
+    }
 }

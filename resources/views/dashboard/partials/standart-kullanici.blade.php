@@ -11,7 +11,9 @@
                 @forelse($stats['son_havuz_onerileri'] as $iaa)
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-700 font-medium truncate flex-1 mr-2">{{ Str::limit($iaa->baslik, 20) }}</span>
-                        <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">{{ $iaa->created_at->format('d.m.Y') }}</span>
+                        <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">
+                            {{ optional($iaa->created_at)->format('d.m.Y') ?? '-' }}
+                        </span>
                     </div>
                 @empty
                     <p class="text-gray-500 text-sm italic">Havuzda öneri yok.</p>
@@ -83,7 +85,9 @@
                     @forelse($stats['son_iaa_projelerim'] as $proje)
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-700 font-medium truncate flex-1 mr-2">{{ Str::limit($proje->baslik, 20) }}</span>
-                            <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">{{ $proje->onaylanma_tarihi->format('d.m.Y') }}</span>
+                            <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">
+                                {{ optional($proje->onaylanma_tarihi)->format('d.m.Y') ?? '-' }}
+                            </span>
                         </div>
                     @empty
                         <p class="text-gray-500 text-sm italic">Devam eden İAA projeniz yok.</p>
@@ -109,7 +113,9 @@
                     @forelse($stats['son_sikayet_projelerim'] as $proje)
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-700 font-medium truncate flex-1 mr-2">{{ Str::limit($proje->baslik, 20) }}</span>
-                            <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">{{ $proje->onaylanma_tarihi->format('d.m.Y') }}</span>
+                            <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">
+                                {{ optional($proje->onaylanma_tarihi)->format('d.m.Y') ?? '-' }}
+                            </span>
                         </div>
                     @empty
                         <p class="text-gray-500 text-sm italic">Devam eden şikayet projeniz yok.</p>

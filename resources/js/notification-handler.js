@@ -32,10 +32,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 1. Okunmamış Sayısını Çekme Fonksiyonu
     function fetchUnreadCount() {
-        fetch(unreadCountUrl)
-            .then(response => response.json())
+        // --- DEĞİŞİKLİK BAŞLANGICI ---
+        fetch(unreadCountUrl, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest' // <-- BU SATIR YÖNLENDİRME HATASINI ÇÖZER
+            }
+        })
+        // --- DEĞİŞİKLİK SONU ---
+            .then(response => {
+                // Eğer oturum düşmüşse işlemi durdur (Yönlendirme yapmasın)
+                if (response.status === 401 || response.status === 419) return null;
+                return response.json();
+            })
             .then(data => {
-                updateCountBadge(data.count);
+                if (data) { // Veri varsa güncelle
+                    updateCountBadge(data.count);
+                }
             })
             .catch(error => console.error('Bildirim sayısı alınamadı:', error));
     }
@@ -73,7 +87,13 @@ document.addEventListener('DOMContentLoaded', function() {
         emptyMessage.style.display = 'none';
         areNotificationsFetched = true; 
 
-        fetch(notificationsUrl) // Bu API artık bize son 5 bildirimi getiriyor
+        fetch(notificationsUrl, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest' // <-- BURAYA DA EKLİYORUZ
+            }
+        }) // Bu API artık bize son 5 bildirimi getiriyor
             .then(response => response.json())
             .then(data => {
                 notificationList.innerHTML = ''; // Listeyi temizle
@@ -83,7 +103,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.notifications.forEach(notification => {
                         const li = document.createElement('li');
                         const a = document.createElement('a');
-                        a.href = notification.data.action_url || '#';
+                        // Hem action_url'e hem de link'e bak, hangisi varsa onu kullan.
+                        a.href = notification.data.action_url || notification.data.link || '#';
 
                         // --- YENİ EKLENEN KISIM: Tarih/Saat ---
                         const dateStr = notification.created_at || new Date().toISOString();

@@ -1,14 +1,13 @@
 <?php
 
-namespace App\Livewire; // 'Admin' namespace'i kaldırıldı
+namespace App\Livewire;
 
 use Livewire\Component;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Iaa; // Projeleri (şikayetler) çekmek için
+use App\Models\Iaa; 
 use Livewire\WithPagination;
-use Livewire\Attributes\Layout; // Layout'u belirtmek için
+use Livewire\Attributes\Layout;
 
-// Bu component'in ana layout dosyasını (app.blade.php) kullanmasını sağlar
 #[Layout('layouts.app')]
 class SikayetGorevlerim extends Component
 {
@@ -18,21 +17,36 @@ class SikayetGorevlerim extends Component
     {
         $user = Auth::user();
 
-        // 1. Kullanıcının üye olduğu 'sikayet' takımlarının ID'lerini al
-        $sikayetTakimIds = $user->takimlar()
-                                ->where('tur', 'sikayet')
-                                // === DÜZELTME BURADA ===
-                             // 'id' yerine 'takimlar.id' yazarak hangi id olduğunu belirtiyoruz
-                             ->pluck('takimlar.id');
-                             // === DÜZELTME SONU ===
+        // 1. Kalıcı Takım Üyelikleri (Müşteri Şikayeti Takımları)
+        // Mevcut kodundaki o kısmı burası karşılıyor.
+        $takimIdleri = $user->takimlar()
+                            ->where('tur', 'sikayet')
+                            ->pluck('takimlar.id');
 
-        // 2. Bu takımlara atanmış ve 'Atandı' (yani işlemde) olan projeleri (iaas) al
-        $query = Iaa::whereIn('atanan_takim_id', $sikayetTakimIds)
-                     ->where('durum', 'Atandı'); // Sadece devam edenler
-        
-        $projeler = $query->with('musteriSikayeti') // Orijinal şikayet detayları için
-                          ->latest('onaylanma_tarihi')
-                          ->paginate(10);
+        // 2. Squad (Geçici) Üyelikleri (Sadece onayladıkları)
+        // Cihangir'in projeyi görmesini sağlayan "Sihirli Dokunuş" burası.
+        $squadProjeIdleri = $user->gorevliOlduguProjeler()
+                                 ->wherePivot('durum', 'onaylandi')
+                                 ->pluck('iaas.id');
+
+        // 3. SORGULAMA
+        $query = Iaa::with([
+            'musteriSikayeti.sikayetKategori', // Kategori adını almak için
+            'atananTakim', 
+            'logs' => function($q) { // Son işlemi yapanı bulmak için logları çekiyoruz
+                $q->with('user')->latest()->take(1);
+            }
+        ])
+        // Sadece bir Müşteri Şikayetine bağlı projeleri getir
+        ->has('musteriSikayeti') 
+        // KAPSAM: (Takımımdakiler) VEYA (Squad'ındakiler)
+        ->where(function($q) use ($takimIdleri, $squadProjeIdleri) {
+            $q->whereIn('atanan_takim_id', $takimIdleri)
+              ->orWhereIn('id', $squadProjeIdleri);
+        })
+        ->whereNotIn('durum', ['Tamamlandı', 'Reddedildi', 'Havuzda', 'Onay Bekliyor']);
+
+    $projeler = $query->latest('updated_at')->paginate(10);
 
         return view('livewire.sikayet-gorevlerim', [
             'projeler' => $projeler

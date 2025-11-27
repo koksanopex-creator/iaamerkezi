@@ -338,26 +338,27 @@ class IaaYonetimController extends Controller
 
                 case 'Tamamlandı':
                     $takim = $iaa->atananTakim;
+                    
+                    // Puan verilmişse geri al
                     if ($takim && $iaa->puan > 0) {
                         
-                        // 1. TAKIMDAN PUANI DÜŞÜR (Mevcut kodun)
+                        // 1. TAKIMIN KENDİ HANESİNDEN PUANI DÜŞ (Bu kalmalı, takım puanı her zaman işler)
                         $takim->decrement('toplam_puan', $iaa->puan);
 
-                        // ================== GÜNCELLEME BURADA ==================
-                        // 2. ÜYELERDEN PUANI DÜŞÜR (Eksik olan buydu)
-                        foreach ($takim->uyeler as $uye) {
-                            $uye->decrement('toplam_puan', $iaa->puan);
-                        }
-                        // ================== GÜNCELLEME SONU ==================
-
-                        // Puan logu tutuyorsan, burada silmen gerekir. Örn:
-                        // \App\Models\PuanLog::where('iaa_id', $iaa->id)->delete();
+                        // ================== DÜZELTİLEN KISIM BURASI ==================
+                        // ESKİ (YANLIŞ): foreach ($takim->uyeler as $uye) { ... } -> BUNU SİLİYORUZ
+                        
+                        // YENİ (DOĞRU): Sadece bu projede çalışmış SQUAD üyelerinden puanı düş
+                        // Proje ekibindeki kişilerin ID'lerini al (Lider, Cihangir, Mehmet vs.)
+                        $squadUyeIdleri = $iaa->projeEkibi()->pluck('users.id');
+                        
+                        // Bu ID'ye sahip kullanıcıların puanını toplu halde düşür
+                        User::whereIn('id', $squadUyeIdleri)->decrement('toplam_puan', $iaa->puan);
+                        // =============================================================
                     }
                     
-                    // Onay ve tamamlanma tarihlerini sıfırla (Mevcut kodun)
+                    // Tarihleri sıfırla
                     $iaa->onaylanma_tarihi = null; 
-                    // YENİ EKLEME: Sadece onay tarihini değil, 'tamamlanma' tarihini de sıfırla.
-                    // 'onayla' fonksiyonu 'tamamlanma_tarihi'ne bakacak.
                     $iaa->tamamlanma_tarihi = null; 
                     
                     $yeniDurum = 'Yönetici Onayı Bekliyor';
@@ -493,6 +494,41 @@ class IaaYonetimController extends Controller
             'eylem' => 'Bölüm Onayı Verildi',
             'aciklama' => $user->name . ' tarafından ara onay verildi, proje son onay için üst yönetime iletildi.'
         ]);
+
+        // === 5. BİLDİRİM ZİNCİRİ (YENİ EKLENDİ) ===
+        try {
+            // A) Takım Liderine Bildirim ("Bölüm Yöneticisi Onayladı")
+            $takim = $iaa->atananTakim;
+            if ($takim && $takim->lider) {
+                \Illuminate\Support\Facades\Notification::send(
+                    $takim->lider, 
+                    new \App\Notifications\ProjeDurumuDegisti(
+                        $iaa, 
+                        "bölüm yöneticisi tarafından onaylandı", 
+                        "Yönetici onayı bekleniyor."
+                    )
+                );
+            }
+
+            // B) Superadmin'e Bildirim
+            $superadmins = User::role('Superadmin')->get();
+            if ($superadmins->isNotEmpty()) {
+                \Illuminate\Support\Facades\Notification::send(
+                    $superadmins, 
+                    new \App\Notifications\ProjeDurumuDegisti(
+                        $iaa, 
+                        // Mesajın ilk kısmı: "Onayınızı beklemektedir."
+                        "onayınızı beklemektedir.", 
+                        // Mesajın ikinci kısmı (Parantez içi / Neden):
+                        "Bölüm yöneticisi {$user->name} tarafından onaylanmıştır."
+                    )
+                );
+            }
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Bölüm onayı bildirim hatası: ' . $e->getMessage());
+        }
+        // === BİLDİRİM SONU ===
 
         return back()->with('success', 'Bölüm onayı verildi. Proje, son onay ve puan dağıtımı için yöneticiye iletildi.');
     }
@@ -726,14 +762,23 @@ class IaaYonetimController extends Controller
                 
                 // 3. PUANLARI DAĞIT
                 if (is_null($iaa->onaylanma_tarihi) && $takim && $projePuani > 0) {
+                    
+                    // A) Takımın KENDİ hanesine puan yaz (Liderlik tablosu için)
                     $takim->increment('toplam_puan', $projePuani);
                     
-                    // DÜZELTME: İlişki adı 'uyeler' olarak kullanıldı
-                    $uyeIdleri = $takim->uyeler()->pluck('users.id');
+                    // B) === DÜZELTME BURADA: SADECE SQUAD ÜYELERİNE PUAN VER ===
+                    // Eski Hatalı Kod: $uyeIdleri = $takim->uyeler()->pluck('users.id');
+                    
+                    // YENİ DOĞRU KOD: Sadece iaa_user tablosundaki proje ekibini çek
+                    // (Lider de bu tabloya eklendiği için o da puanını alır)
+                    $uyeIdleri = $iaa->projeEkibi()->pluck('users.id'); 
+                    
                     User::whereIn('id', $uyeIdleri)->increment('toplam_puan', $projePuani);
                     
                     $puanVerildi = true;
-                    $logAciklama = 'Proje onaylandı. ' . $projePuani . ' puan, ' . $takim->ad . ' takımına ve üyelerine eklendi.';
+                    
+                    // Log açıklamasını da güncelleyelim
+                    $logAciklama = 'Proje onaylandı. ' . $projePuani . ' puan, ' . $takim->ad . ' hanesine ve görevli ' . $uyeIdleri->count() . ' proje çalışanına (Squad) eklendi.';
                 
                 } elseif (!is_null($iaa->onaylanma_tarihi)) {
                     $logAciklama .= ' (Proje daha önce onaylandığı için tekrar puan verilmedi.)';

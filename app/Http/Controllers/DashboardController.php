@@ -186,62 +186,96 @@ class DashboardController extends Controller
             $stats = $this->getStandartKullaniciStats($user);
         }
 
-        // 'bolumOnayiBekleyenSayisi' değişkenini view'e gönderiyoruz
+        // Bekleyen Proje Davetleri
+        $bekleyenProjeDavetleri = $user->gorevliOlduguProjeler()
+                                       ->wherePivot('durum', 'bekliyor')
+                                       ->with('atananTakim.lider')
+                                       ->get();
+
+        // === YENİ: BEKLEYEN PROJE DAVETLERİ ===
+        // Kullanıcının 'iaa_user' tablosunda 'bekliyor' durumundaki kayıtlarını çek
+        $bekleyenProjeDavetleri = $user->gorevliOlduguProjeler()
+                                       ->wherePivot('durum', 'bekliyor')
+                                       ->with('atananTakim.lider') // Davet eden lideri görmek için
+                                       ->get();
+
+        // View'e gönder (compact içine eklemeyi unutma!)
         return view('dashboard', compact(
             'user', 
             'stats', 
             'bolumOnayiBekleyenSayisi', 
-            'onlineKullanicilar',   // <-- Bu eksikti
-            'sonAktifKullanicilar', // <-- Bu eksikti
-            'ekstraTablolar'        // <-- Bu eksikti
+            'onlineKullanicilar', 
+            'sonAktifKullanicilar', 
+            'ekstraTablolar',
+            'bekleyenProjeDavetleri' // <--- BU DEĞİŞKENİ BURAYA EKLE
         ));
     }
 
     /**
      * Standart Kullanıcı ve Kurul Üyeleri için ortak dashboard verilerini çeker.
      */
+    /**
+     * Standart Kullanıcı ve Kurul Üyeleri için ortak dashboard verilerini çeker.
+     * GÜNCELLENDİ: Hem Takım Projelerini hem de Squad Projelerini kapsar.
+     */
     private function getStandartKullaniciStats(User $user)
     {
-        $takimlarim_ids = $user->takimlar()->pluck('takim_id');
         $stats = [];
 
-        // Card 1: Havuzdaki Öneriler
+        // 1. Havuzdaki Öneriler (Değişmedi)
         $stats['havuz_oneri_sayisi'] = Iaa::where('durum', 'Havuzda')->count();
         $stats['son_havuz_onerileri'] = Iaa::where('durum', 'Havuzda')->latest()->take(3)->get();
 
-        // Card 2: Takımlarım
+        // 2. Takımlarım (Değişmedi - Sadece kalıcı üyelikler)
+        $takimlarim_ids = $user->takimlar()->pluck('takim_id');
         $stats['takimlarim_sayisi'] = $takimlarim_ids->count();
         $stats['son_takimlarim'] = Takim::whereIn('id', $takimlarim_ids)->latest()->take(3)->get();
 
-        // Card 3: Katılıma Açık Takımlar
+        // 3. Katılıma Açık Takımlar (Değişmedi)
         $acik_takimlar_query = Takim::whereDoesntHave('uyeler', fn($q) => $q->where('user_id', $user->id));
         $stats['acik_takim_sayisi'] = $acik_takimlar_query->count();
         $stats['son_acik_takimlar'] = $acik_takimlar_query->withCount('uyeler')->latest()->take(3)->get();
 
-        // Card 4: Projelerim (IAA)
-        $iaa_takim_ids = Takim::whereIn('id', $takimlarim_ids)->where('tur', 'iaa')->pluck('id');
-        if ($iaa_takim_ids->isNotEmpty()) {
-            $stats['iaa_projelerim_count'] = Iaa::whereIn('atanan_takim_id', $iaa_takim_ids)
-                                                ->where('durum', 'Atandı')
-                                                ->count();
-            $stats['son_iaa_projelerim'] = Iaa::whereIn('atanan_takim_id', $iaa_takim_ids)
-                                                ->where('durum', 'Atandı')
-                                                ->latest()
-                                                ->take(3)
-                                                ->get();
-        }
+        // === KRİTİK GÜNCELLEME BURADA ===
+        
+        // A) Kullanıcının erişebileceği TÜM proje ID'lerini topla (Takım + Squad)
+        $takimProjeleriIds = Iaa::whereIn('atanan_takim_id', $takimlarim_ids)->pluck('id')->toArray();
+        
+        $squadProjeleriIds = $user->gorevliOlduguProjeler()
+                                  ->wherePivot('durum', 'onaylandi')
+                                  ->pluck('iaas.id')
+                                  ->toArray();
+                                  
+        $tumProjeIds = array_unique(array_merge($takimProjeleriIds, $squadProjeleriIds));
 
-        // Card 5: Projelerim (Müşteri Şikayeti)
-        $sikayet_takim_ids = Takim::whereIn('id', $takimlarim_ids)->where('tur', 'sikayet')->pluck('id');
-        if ($sikayet_takim_ids->isNotEmpty()) {
-            $stats['sikayet_projelerim_count'] = Iaa::whereIn('atanan_takim_id', $sikayet_takim_ids)
-                                                    ->where('durum', 'Atandı')
-                                                    ->count();
-            $stats['son_sikayet_projelerim'] = Iaa::whereIn('atanan_takim_id', $sikayet_takim_ids)
-                                                    ->where('durum', 'Atandı')
-                                                    ->latest()
-                                                    ->take(3)
-                                                    ->get();
+        // AKTİF STATÜLER LİSTESİ (Burası Eksikti!)
+        // Tamamlanmış hariç, sürecin içindeki her şeyi kapsar.
+        $aktifStatuler = [
+            'Atandı', 
+            'Revize Ediliyor', 
+            'Bölüm Onayı Bekliyor', 
+            'Yönetici Onayı Bekliyor', 
+            'Tamamlanması Reddedildi'
+        ];
+
+        // B) İAA Projeleri (Saf İAA)
+        $iaaQuery = Iaa::whereIn('id', $tumProjeIds)
+                        ->doesntHave('musteriSikayeti')
+                        ->whereIn('durum', $aktifStatuler); // <--- DÜZELTİLDİ
+
+        $stats['iaa_projelerim_count'] = $iaaQuery->count();
+        $stats['son_iaa_projelerim'] = $iaaQuery->latest()->take(3)->get();
+
+        // C) Şikayet Projeleri (Cihangir'in Göremediği Yer)
+        $sikayetQuery = Iaa::whereIn('id', $tumProjeIds)
+                           ->has('musteriSikayeti')
+                           ->whereIn('durum', $aktifStatuler); // <--- DÜZELTİLDİ: Artık Bölüm Onayındakileri de sayar
+
+        // Eğer sayı 0 ise bu değişkeni hiç gönderme (Böylece Blade'deki @isset çalışmaz ve kart gizlenir)
+        $count = $sikayetQuery->count();
+        if ($count > 0) {
+            $stats['sikayet_projelerim_count'] = $count;
+            $stats['son_sikayet_projelerim'] = $sikayetQuery->latest()->take(3)->get();
         }
         
         return $stats;
@@ -265,11 +299,21 @@ class DashboardController extends Controller
 
     public function kullaniciPuanlari(User $user)
     {
+        // 1. Takım Üyeliğinden Gelen Projeler (Mevcut kod)
         $takimIdleri = $user->takimlar()->pluck('takim_id');
         
+        // 2. SQUAD Üyeliğinden Gelen Projeler (YENİ)
+        $squadProjeIdleri = $user->gorevliOlduguProjeler()->pluck('iaas.id');
+
+        // 3. Birleştirilmiş Sorgu
         $projeler = Iaa::where('iaas.durum', 'Tamamlandı')
-            ->whereIn('iaas.atanan_takim_id', $takimIdleri)
             ->where('iaas.puan', '>', 0)
+            ->where(function($q) use ($takimIdleri, $squadProjeIdleri) {
+                // Takımıma atananlar
+                $q->whereIn('iaas.atanan_takim_id', $takimIdleri)
+                // VEYA Bizzat squad üyesi olduklarım
+                  ->orWhereIn('iaas.id', $squadProjeIdleri);
+            })
             ->with('musteriSikayeti') 
             ->get()
             ->map(function ($proje) {
@@ -277,7 +321,7 @@ class DashboardController extends Controller
                     'id' => $proje->id,
                     'tip' => $proje->musteriSikayeti ? 'Müşteri Şikayeti' : 'Proje',
                     'baslik' => $proje->baslik,
-                    'tarih' => $proje->onaylanma_tarihi,
+                    'tarih' => $proje->onaylanma_tarihi ?? $proje->updated_at, // Onay tarihi yoksa güncelleme tarihini al
                     'puan' => $proje->puan,
                     'url' => route('proje.workspace.show', $proje->id)
                 ];

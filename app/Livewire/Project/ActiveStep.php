@@ -357,13 +357,18 @@ class ActiveStep extends Component
         if ($iaaId) { return redirect()->route('proje.workspace.show', $iaaId); }
         else { Log::warning('Cancel işleminde yönlendirme için iaaId bulunamadı.'); return redirect()->route('home'); }
     }
+    
 
     public function render()
     {
-        // İlk çizim için hesaplanan veriyi Blade'e gönder
         return view('livewire.project.active-step', [
             'initialChartData' => $this->initialChartData,
-            // Pareto için $paretoProcessedData hala gönderiliyor (uyumluluk)
+            
+            // === İŞTE ÇÖZÜM BURASI ===
+            // PHP'deki '$progressUpdateModel'i, Blade'e '$progressUpdate' adıyla gönderiyoruz.
+            'progressUpdate' => $this->progressUpdateModel, 
+            // ==========================
+            
             'paretoProcessedData' => $this->calculateParetoData()
         ]);
     }

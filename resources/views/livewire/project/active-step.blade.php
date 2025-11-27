@@ -68,14 +68,14 @@
                                 {{-- Sütun grafiği için ilk veriyi global değişkene yaz --}}
                                 @php $chartId = $this->getId() . '-' . $index; @endphp
                                 {{-- $initialChartData PHP component'inden geliyor --}}
-<script> window['initialChartData_{{ $chartId }}'] = @json($initialChartData['bar_chart'][$chartId] ?? null); </script>
+                                <script> window['initialChartData_{{ $chartId }}'] = @json($initialChartData['bar_chart'][$chartId] ?? null); </script>
 
                                 @include('livewire.project.widgets._bar-chart', $widgetData)
                                 @break
                             @case('line_chart')
                                 {{-- Çizgi grafiği için ilk veriyi global değişkene yaz --}}
                                 @php $chartId = $this->getId() . '-' . $index; @endphp
-<script> window['initialChartData_{{ $chartId }}'] = @json($initialChartData['line_chart'][$chartId] ?? null); </script>
+                                <script> window['initialChartData_{{ $chartId }}'] = @json($initialChartData['line_chart'][$chartId] ?? null); </script>
                                 @include('livewire.project.widgets._line-chart', $widgetData)
                                 @break
                             {{-- ============================== --}}
@@ -90,23 +90,48 @@
             @endif
         </div>
 
-        {{-- Kaydet ve İptal Butonları --}}
-        <div class="mt-8 flex justify-end space-x-4 border-t pt-6">
-            <button type="button"
-                    wire:click.prevent="cancel"
-                    class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center">
-                İptal
-            </button>
+        {{-- ANA FORMUN BUTON ALANI --}}
+        <div class="mt-8 flex justify-end items-center gap-3 border-t pt-6">
+            
+            {{-- Bu buton sadece GÖRSEL amaçlıdır, tıklandığında aşağıdaki gizli formu tetikler --}}
+            @if(isset($progressUpdate) && $progressUpdate && $progressUpdate->id)
+                <button type="button" 
+                        onclick="if(confirm('Değişiklikleri iptal edip adımı tekrar kapatmak istiyor musunuz?')) { document.getElementById('form-vazgec-{{ $progressUpdate->id }}').submit(); }"
+                        class="bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 hover:border-red-300 py-2 px-4 rounded-md shadow-sm text-sm font-medium transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    Vazgeç (Kapat)
+                </button>
+            @else
+                {{-- Normal İptal --}}
+                 <button type="button" wire:click.prevent="cancel" class="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    İptal
+                </button>
+            @endif
 
-            <button type="submit"
-                    class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700">
+            {{-- KAYDET BUTONU --}}
+            <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-md">
                 <div wire:loading wire:target="save" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 Adımı Tamamla ve Kaydet
             </button>
         </div>
-    </form>
+    </form> 
+    {{-- DİKKAT: </form> BURADA BİTTİ. VAZGEÇ FORMU BUNUN ALTINDA OLMALI --}}
+
+
+    {{-- === GİZLİ VAZGEÇME FORMU (BAĞIMSIZ) === --}}
+    @if(isset($progressUpdate) && $progressUpdate && $progressUpdate->id)
+        <form id="form-vazgec-{{ $progressUpdate->id }}" 
+              action="{{ route('proje.workspace.cancelReopenStep', ['id' => $progressUpdate->id]) }}" 
+              method="POST" 
+              style="display: none;">
+            @csrf
+        </form>
+    @endif
+
 </div>
 
-{{-- Genel Grafik Alpine JS component'ini yükle (sadece bir kere) --}}
+{{-- Grafik Scriptleri --}}
 @include('livewire.project.widgets._generic-chart-script')
+
+
 

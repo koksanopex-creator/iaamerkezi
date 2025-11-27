@@ -9,98 +9,69 @@ use Illuminate\Support\Facades\DB;
 use App\Models\IaaProgressUpdate;
 use App\Models\IaaWorkflowStep;
 use App\Models\IaaLog;
-use Illuminate\Support\Facades\Notification; // <-- EKLE
-use App\Notifications\ProjeAdimiGuncellendi; // <-- EKLE
-use Illuminate\Support\Facades\Session; // <-- 1. BU SATIRI EKLEYİN
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\ProjeAdimiGuncellendi;
+use Illuminate\Support\Facades\Session;
 
 class ProjectWorkspaceController extends Controller
 {
     /**
      * Proje çalışma alanını gösterir.
-     * Hem giriş yapmış kullanıcıları hem de şifreyle giriş yapmış misafirleri kontrol eder.
      */
-    public function show(Iaa $iaa)
+    public function show($id) // ID olarak alıyoruz, model binding yerine manuel çekeceğiz ki ilişkileri yönetelim
     {
-        // === 2. YENİ YETKİ KONTROLÜ (Mevcut 'abort_if' satırınızın yerine geçer) ===
+        // İlişkileri yüklüyoruz (Squad için projeEkibi şart)
+        $iaa = Iaa::with(['musteriSikayeti', 'atananTakim', 'projeEkibi', 'talepEdenTakimlar.lider', 'talepEdenTakimlar.uyeler'])->findOrFail($id);
+        
         $isYetkiliKullanici = false;
         $isYetkiliMisafir = false;
 
-        // 1. Giriş yapmış bir "Kullanıcı" mı (Admin, Erhan Cesur vb.)?
+        // 1. GİRİŞ YAPMIŞ KULLANICI KONTROLÜ (HİBRİT YAPI)
         if (Auth::check()) {
-            $user = Auth::user();
-            $takim = $iaa->atananTakim;
-            
-            // === GÜNCELLEME: 'Bölüm Kalite Yöneticisi' rolü eklendi ===
-            if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi']) || 
-                ($takim && $user->takimlar->contains($takim))) 
-            {
-                // Eğer 'Bölüm Kalite Yöneticisi' ise, projenin kategorisinden sorumlu mu diye de bakmalıyız
-                if ($user->hasRole('Bölüm Kalite Yöneticisi') && !$user->hasRole('Superadmin')) {
-                     if ($iaa->musteriSikayeti && $iaa->musteriSikayeti->sikayet_kategorisi_id) {
-                         if ($user->yonettigiSikayetKategorileri->contains($iaa->musteriSikayeti->sikayet_kategorisi_id)) {
-                             $isYetkiliKullanici = true;
-                         }
-                     }
-                } else {
-                    // Diğer roller için genel yetki
-                    $isYetkiliKullanici = true;
-                }
-            }
+            $isYetkiliKullanici = $this->checkAuthorization($iaa);
         }
 
-        // 2. Giriş yapmış bir "Misafir" (Müşteri) mi?
-        // Projeye bağlı şikayeti ve token'ı kontrol et
-        $sikayet = $iaa->musteriSikayeti; // Bu ilişkiyi bir sonraki adımda Iaa modeline ekleyeceğiz
+        // 2. MİSAFİR (MÜŞTERİ) KONTROLÜ (Token ve Session ile)
+        $sikayet = $iaa->musteriSikayeti;
         
         if ($sikayet) {
-            // Müşterinin bu şikayet için şifre girip girmediğini (Session) kontrol et
             $sessionKey = 'sikayet_logged_in_' . $sikayet->takip_token;
             if (Session::has($sessionKey)) {
-                $isYetkiliMisafir = true; // Evet, şifreyle giriş yapmış
+                $isYetkiliMisafir = true;
             }
         }
 
-        // 3. GÜVENLİK KONTROLÜ:
-        // Eğer giriş yapmış bir kullanıcı DEĞİLSE ve giriş yapmış bir misafir DEĞİLSE
+        // 3. NİHAİ GÜVENLİK DUVARI
         if (!$isYetkiliKullanici && !$isYetkiliMisafir) {
             
-            // Eğer bu proje bir şikayete bağlıysa (ama misafir giriş yapmamışsa)
-            // $sikayet->takip_token kontrolü de ekledik ki null hatası almayalım
+            // Eğer müşteri ise ve token varsa giriş sayfasına yönlendir
             if ($sikayet && $sikayet->takip_token) {
-                // === HATA DÜZELTMESİ BURADA: Token parametresi array olarak ['token' => ...] gönderilmeli ===
                 return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])
                     ->with('error', 'Proje detaylarını görmek için lütfen şifrenizle giriş yapın.');
             }
             
-            // Eğer login değilse Login sayfasına yönlendir (Yetki yoksa login olsun)
+            // Eğer kullanıcı giriş yapmamışsa login'e at
             if (!Auth::check()) {
                 return redirect()->route('login');
             }
             
-            // Login olmuş ama yetkisi yoksa (Bölüm yöneticisi olup yetkisi olmayan kategoriye girenler vb.)
-            abort(403, 'Bu projeyi görüntüleme yetkiniz yok.');
+            // Giriş yapmış ama yetkisi yoksa 403 ver
+            abort(403, 'Bu projeye erişim yetkiniz bulunmamaktadır. (Squad veya Takım listesinde değilsiniz.)');
         }
-        // === YENİ YETKİ KONTROLÜ SONU ===
 
-
-        // --- Yetki kontrolü geçildiyse, mevcut kodunuz buradan devam ediyor ---
-        
-        $iaa->load([
-            'musteriSikayeti.dosyalar', 
-            'musteriSikayeti.sikayetKategori'
-        ]);
+        // --- VERİLERİN HAZIRLANMASI ---
         
         $takim = $iaa->atananTakim;
         
         $assignment = DB::table('iaa_talepleri')
                         ->where('iaa_id', $iaa->id)
-                        ->first(); // Güvenlik: Sadece ilk atamayı alıyoruz
+                        ->first(); 
 
-        // Eğer atama kaydı (iaa_talepleri) yoksa (örn: silinmiş)
+        // Atama yoksa hata ver
         if (!$assignment) {
             if($sikayet) {
-                 return redirect()->route('public.sikayet.show', $sikayet->takip_token)
-                    ->with('error', 'Proje ataması bulunamadı veya iptal edildi.');
+                 return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])
+                    ->with('error', 'Proje ataması bulunamadı.');
             }
             return redirect()->route('dashboard')->with('error', 'Proje ataması bulunamadı.');
         }
@@ -108,17 +79,17 @@ class ProjectWorkspaceController extends Controller
         $workflow = \App\Models\IaaWorkflow::with('steps')->find($assignment->iaa_workflow_id);
         $steps = $workflow->steps;
 
-        $allProgressUpdates = \App\Models\IaaProgressUpdate::where('iaa_talep_id', $assignment->id)
-                                        ->get();
+        $allProgressUpdates = IaaProgressUpdate::where('iaa_talep_id', $assignment->id)->get();
 
         $completedStepIds = $allProgressUpdates->whereNotNull('completed_at')
-                                            ->pluck('iaa_workflow_step_id') 
-                                            ->toArray();
+                                                ->pluck('iaa_workflow_step_id') 
+                                                ->toArray();
 
         $progressUpdates = $allProgressUpdates->keyBy('iaa_workflow_step_id');
         
-        // Misafirler takım üyesi değildir, bu yüzden $isTeamMember = false olmalı
-        $isTeamMember = $isYetkiliKullanici ? Auth::user()->takimlar->contains($takim) : false;
+        // Takım üyesi mi? (Görselde 'Düzenle' butonlarını göstermek için)
+        // Misafirler üye değildir. Yetkili kullanıcı ise kontrol edilir.
+        $isTeamMember = $isYetkiliKullanici; 
 
         $totalStepsCount = $steps->count();
         $completedStepsCount = count($completedStepIds);
@@ -137,29 +108,25 @@ class ProjectWorkspaceController extends Controller
         }
 
         if ($logAction) {
-            $latestLog = IaaLog::where('iaa_id', $iaa->id)
-                                ->where('eylem', $logAction)
-                                ->latest('created_at')
-                                ->first();
+            $latestLog = IaaLog::where('iaa_id', $iaa->id)->where('eylem', $logAction)->latest('created_at')->first();
             if ($latestLog) {
                 $statusDate = $latestLog->created_at;
             }
-        } 
-        elseif ($iaa->durum === 'Tamamlandı') {
+        } elseif ($iaa->durum === 'Tamamlandı') {
             $statusDate = $iaa->onaylanma_tarihi;
         }
 
         $tumProjeLoglari = IaaLog::where('iaa_id', $iaa->id)
-                            ->whereIn('eylem', [
-                                'Proje Adımı Tamamlandı', 
-                                'Proje Adımı Yeniden Açıldı',
-                                'Revizyon Talep Edildi', 
-                                'Proje Onaylandı',
-                                'Onay Geri Alındı',
-                            ])
-                            ->with('user') 
-                            ->latest()     
-                            ->get();
+            ->whereIn('eylem', [
+                'Proje Adımı Tamamlandı', 
+                'Proje Adımı Yeniden Açıldı',
+                'Revizyon Talep Edildi', 
+                'Proje Onaylandı',
+                'Onay Geri Alındı',
+            ])
+            ->with('user') 
+            ->latest()    
+            ->get();
                             
         $sonOnLoglar = $tumProjeLoglari->take(5);
 
@@ -170,24 +137,27 @@ class ProjectWorkspaceController extends Controller
         ));
     }
 
+    /**
+     * Adım Kaydetme İşlemi
+     */
     public function storeStep(Request $request, $assignment_id, $step_id)
     {
-        // 1. Gelen veriyi doğrula
         $validated = $request->validate([
             'content' => 'required|string|min:20',
         ]);
 
-        // 2. İlgili kayıtları bul
         $assignment = DB::table('iaa_talepleri')->find($assignment_id);
         $step = IaaWorkflowStep::find($step_id);
 
-        // ================== DEĞİŞİKLİK BURADA ==================
-        // 3. Yetki Kontrolü: Takımı Eloquent Model olarak buluyoruz.
-        $takim = \App\Models\Takim::find($assignment->takim_id);
-        abort_if(!$takim || !Auth::user()->takimlar->contains($takim), 403, 'Bu projeye kayıt ekleme yetkiniz yok.');
-        // ========================================================
+        // İlgili projeyi bul
+        $iaa = Iaa::find($assignment->iaa_id);
 
-        // 4. İlerleme kaydını oluştur veya güncelle
+        // === HİBRİT YETKİ KONTROLÜ ===
+        if (!$this->checkAuthorization($iaa)) {
+            abort(403, 'Bu projeye müdahale etme yetkiniz yok.');
+        }
+        // ==============================
+
         IaaProgressUpdate::updateOrCreate(
             [
                 'iaa_talep_id' => $assignment->id,
@@ -200,57 +170,64 @@ class ProjectWorkspaceController extends Controller
             ]
         );
         
-        // 5. Projenin ana kaydını bul ve geri yönlendir
-        $iaa = Iaa::find($assignment->iaa_id);
-
-        // ================== YENİ LOGLAMA KODU ==================
+        // Loglama
         IaaLog::create([
             'iaa_id' => $iaa->id,
             'user_id' => Auth::id(),
             'eylem' => 'Proje Adımı Tamamlandı',
             'aciklama' => Auth::user()->name . " adlı kullanıcı, '" . $step->name . "' adımını kaydetti ve tamamladı."
         ]);
-        // ================== LOGLAMA SONU ==================
 
-        // === BİLDİRİM KODU BAŞLANGICI ===
+        // Bildirim (Takım üyelerine)
         try {
-            // Adımı güncelleyen kişi HARİÇ takımdaki diğer üyeleri bul
-            $guncelleyenKullanici = Auth::user();
-            $bildirimAlacaklar = $takim->users->where('id', '!=', $guncelleyenKullanici->id);
+            $takim = \App\Models\Takim::find($assignment->takim_id);
+            if ($takim) {
+                $guncelleyenKullanici = Auth::user();
+                $bildirimAlacaklar = $takim->users->where('id', '!=', $guncelleyenKullanici->id);
 
-            if ($bildirimAlacaklar->isNotEmpty()) {
-                Notification::send($bildirimAlacaklar, new ProjeAdimiGuncellendi($iaa, $step, $guncelleyenKullanici));
+                if ($bildirimAlacaklar->isNotEmpty()) {
+                    Notification::send($bildirimAlacaklar, new ProjeAdimiGuncellendi($iaa, $step, $guncelleyenKullanici));
+                }
             }
         } catch (\Exception $e) {
-            Log::error('Proje adımı güncellendi bildirimi gönderilemedi: ' . $e->getMessage());
+            // Bildirim hatası süreci durdurmasın
         }
-        // === BİLDİRİM KODU SONU ===
 
-        return redirect()->route('proje.workspace.show', $iaa)
-                        ->with('success', '"' . $step->name . '" adımı başarıyla tamamlandı!');
+        return redirect()->route('proje.workspace.show', $iaa->id)
+                         ->with('success', '"' . $step->name . '" adımı başarıyla tamamlandı!');
     }
 
     /**
-     * Tamamlanmış bir adımı ve ondan sonraki adımları yeniden düzenlemek için açar.
+     * Adımı Yeniden Açma İşlemi
      */
     public function reopenStep(IaaProgressUpdate $progress_update)
     {
-        // 1. Yetki Kontrolü
         $assignment = DB::table('iaa_talepleri')->find($progress_update->iaa_talep_id);
-        $takim = \App\Models\Takim::find($assignment->takim_id);
-        abort_if(!$takim || !Auth::user()->takimlar->contains($takim), 403, 'Bu adımı düzenleme yetkiniz yok.');
-
-        // Sadece mevcut adımın "tamamlanma" işaretini kaldırarak onu tekrar aktif hale getir.
-        $progress_update->update(['completed_at' => null]);
-
-        // Projenin genel durumunu da "Devam Ediyor" olarak güncelle.
-        DB::table('iaa_talepleri')->where('id', $assignment->id)->update(['status' => 'Devam Ediyor']);
-
-        // 5. Kullanıcıyı, projenin ana kaydını bularak çalışma alanına geri yönlendir.
         $iaa = Iaa::find($assignment->iaa_id);
 
-        // ================== YENİ LOGLAMA KODU ==================
-        // Adımın adını alabilmek için step ilişkisini yüklüyoruz
+        // === HİBRİT YETKİ KONTROLÜ ===
+        if (!$this->checkAuthorization($iaa)) {
+            abort(403, 'Bu adımı düzenleme yetkiniz yok.');
+        }
+        // ==============================
+
+        // === 2. YENİ EKLENEN KISIM: DURUM KİLİDİ ===
+        // Eğer proje onay sürecindeyse veya bitmişse, adım açılamaz.
+        $kilitliDurumlar = [
+            'Bölüm Onayı Bekliyor', 
+            'Yönetici Onayı Bekliyor', 
+            'Tamamlandı'
+        ];
+
+        if (in_array($iaa->durum, $kilitliDurumlar)) {
+            return back()->with('error', 'Proje onay aşamasında veya tamamlandığı için değişiklik yapılamaz. Önce revizyon talep edilmelidir.');
+        }
+        // === KİLİT SONU ===
+
+        $progress_update->update(['completed_at' => null]);
+        DB::table('iaa_talepleri')->where('id', $assignment->id)->update(['status' => 'Devam Ediyor']);
+
+        // Loglama
         $progress_update->load('step'); 
         $stepName = $progress_update->step ? $progress_update->step->name : 'Bilinmeyen Adım';
 
@@ -260,9 +237,88 @@ class ProjectWorkspaceController extends Controller
             'eylem' => 'Proje Adımı Yeniden Açıldı',
             'aciklama' => Auth::user()->name . " adlı kullanıcı, '" . $stepName . "' adımını yeniden düzenlemek için açtı."
         ]);
-        // ================== LOGLAMA SONU ==================
 
-        return redirect()->route('proje.workspace.show', $iaa)
+        return redirect()->route('proje.workspace.show', $iaa->id)
                          ->with('success', 'Adım yeniden düzenlemeye açıldı.');
+    }
+
+    /**
+     * Yanlışlıkla açılan adımı tekrar kapatır (DB Update Yöntemi).
+     */
+    public function cancelReopenStep($id)
+    {
+        // 1. Adımın kime ait olduğunu bul (Güvenlik için)
+        $update = \Illuminate\Support\Facades\DB::table('iaa_progress_updates')->where('id', $id)->first();
+        
+        if (!$update) {
+            return back()->with('error', 'Kayıt bulunamadı.');
+        }
+
+        // 2. Hangi projeye ait olduğunu bul
+        $assignment = \Illuminate\Support\Facades\DB::table('iaa_talepleri')->where('id', $update->iaa_talep_id)->first();
+        
+        // 3. ZORLA KAPAT (Veritabanına direkt yazıyoruz)
+        \Illuminate\Support\Facades\DB::table('iaa_progress_updates')
+            ->where('id', $id)
+            ->update([
+                'completed_at' => now(), // Şu anki zamanı bas
+                'updated_at' => now()
+            ]);
+
+        // 4. Proje sayfasına geri dön
+        return redirect()->route('proje.workspace.show', $assignment->iaa_id)->with('info', 'İşlem iptal edildi, adım kapatıldı.');
+
+    }
+
+    /**
+     * ============================================================
+     * MERKEZİ YETKİ KONTROLÜ (HİBRİT MANTIK)
+     * ============================================================
+     */
+    private function checkAuthorization(Iaa $iaa)
+    {
+        $user = Auth::user();
+        
+        // 1. Superadmin Joker
+        if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
+        // 2. Müşteri Şikayeti Kaynaklı Proje (SQUAD MANTIĞI)
+        if ($iaa->musteriSikayeti) {
+            
+            // A) Takım Lideri mi? (Ana lider her zaman yetkilidir)
+            if ($iaa->atananTakim && $iaa->atananTakim->lider_user_id == $user->id) {
+                return true;
+            }
+
+            // === DEĞİŞEN KISIM BURASI ===
+            // B) Squad Üyesi mi? (Lider eklemiş VE Kullanıcı KABUL ETMİŞ mi?)
+            // contains() yerine veritabanı sorgusu ile pivot tablodaki 'durum'u kontrol ediyoruz.
+            if ($iaa->projeEkibi()->where('user_id', $user->id)->wherePivot('durum', 'onaylandi')->exists()) {
+                return true;
+            }
+            // ============================
+
+            // C) Bölüm Kalite Yöneticisi mi? (Kategori Sorumlusu)
+            if ($user->hasRole('Bölüm Kalite Yöneticisi')) {
+                $sikayetKategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
+                if ($sikayetKategoriId && $user->yonettigiSikayetKategorileri->contains($sikayetKategoriId)) {
+                    return true;
+                }
+            }
+
+            return false; // Hiçbiri değilse giremez
+        }
+
+        // 3. Standart İAA Projesi (TAKIM HAVUZU MANTIĞI)
+        else {
+            // Takımın herhangi bir üyesi girebilir
+            if ($user->takimlar->contains($iaa->atanan_takim_id)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

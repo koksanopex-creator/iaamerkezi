@@ -31,7 +31,99 @@
                 'statusDate' => $statusDate ?? null
             ])
 
-            
+            {{-- ========================================================= --}}
+            {{-- === YENİ: SQUAD (PROJE EKİBİ) YÖNETİM ALANI (LİDER) === --}}
+            {{-- ========================================================= --}}
+            @if($iaa->musteriSikayeti && Auth::id() == $iaa->atananTakim->lider_user_id)
+                <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-5 flex items-center justify-between animate-fade-in-up">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        {{-- ... Üst kısım (ikon ve başlık) aynı ... --}}
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Proje Görev Gücü (Squad)</h3>
+                            
+                            {{-- HESAPLAMALAR --}}
+                            @php
+                                // Aktif: Lider olanlar VEYA durumu 'onaylandi' olanlar
+                                $aktifSayisi = $iaa->projeEkibi->filter(function($uye) {
+                                    return $uye->pivot->rol == 'Lider' || $uye->pivot->durum == 'onaylandi';
+                                })->count();
+
+                                // Bekleyen: Durumu 'bekliyor' olanlar
+                                $bekleyenSayisi = $iaa->projeEkibi->where('pivot.durum', 'bekliyor')->count();
+                            @endphp
+
+                            <div class="flex items-center gap-3 mt-2">
+                                {{-- Avatarlar --}}
+                                <div class="flex -space-x-2 overflow-hidden">
+                                    @foreach($iaa->projeEkibi as $uye)
+                                        @if($uye->profile_photo_path)
+                                            <img class="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover {{ $uye->pivot->durum == 'bekliyor' ? 'opacity-50 grayscale' : '' }}" 
+                                                 src="{{ asset('storage/'.$uye->profile_photo_path) }}" 
+                                                 title="{{ $uye->name }} ({{ $uye->pivot->durum == 'bekliyor' ? 'Davet Bekleniyor' : $uye->pivot->rol }})">
+                                        @else
+                                            <div class="inline-flex items-center justify-center h-8 w-8 rounded-full ring-2 ring-white bg-gray-100 text-xs font-bold text-gray-600 {{ $uye->pivot->durum == 'bekliyor' ? 'opacity-50 grayscale' : '' }}" 
+                                                 title="{{ $uye->name }} ({{ $uye->pivot->durum == 'bekliyor' ? 'Davet Bekleniyor' : $uye->pivot->rol }})">
+                                                {{ substr($uye->name, 0, 1) }}
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+
+                                {{-- YENİ: Detaylı Durum Bilgisi --}}
+                                <div class="flex flex-col text-xs border-l pl-3 border-gray-200">
+                                    <span class="text-gray-500 font-semibold mb-0.5">Toplam {{ $iaa->projeEkibi->count() }} Kişi</span>
+                                    
+                                    <div class="flex items-center gap-2">
+                                        {{-- Aktif Sayısı --}}
+                                        <span class="inline-flex items-center text-green-700 bg-green-50 px-1.5 py-0.5 rounded font-bold">
+                                            <span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                                            {{ $aktifSayisi }} Aktif
+                                        </span>
+
+                                        {{-- Bekleyen Sayısı (Varsa Göster) --}}
+                                        @if($bekleyenSayisi > 0)
+                                            <span class="inline-flex items-center text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded font-bold animate-pulse">
+                                                <span class="w-1.5 h-1.5 bg-amber-500 rounded-full mr-1"></span>
+                                                {{ $bekleyenSayisi }} Bekliyor
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                  
+                    
+                    {{-- Modal Tetikleyici Buton --}}
+                    @php
+                        // Kilitlenecek Durumlar
+                        $kilitliDurumlar = ['Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlandı'];
+                        $kilitliMi = in_array($iaa->durum, $kilitliDurumlar);
+                    @endphp
+
+                    @if(!$kilitliMi)
+                        <button onclick="Livewire.dispatch('openSquadModal', { iaaId: {{ $iaa->id }} })" 
+                                class="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            Ekibi Yönet
+                        </button>
+                    @else
+                        <span class="flex items-center px-4 py-2 bg-gray-100 text-gray-500 text-sm font-medium rounded-lg cursor-not-allowed" title="Proje onay aşamasında olduğu için ekip kilitlenmiştir.">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Ekip Kilitlendi
+                        </span>
+                    @endif
+                </div>
+                
+                {{-- Livewire Modal Bileşeni (Sayfanın en altına da koyabilirsin ama burada da çalışır) --}}
+                <livewire:admin.squad-yonetim-modal />
+            @endif
+            {{-- ========================================================= --}}
+
             {{-- ========================================================= --}}
             {{-- === İSTEDİĞİNİZ MODERN MÜŞTERİ ŞİKAYETİ KARTI === --}}
             {{-- ========================================================= --}}

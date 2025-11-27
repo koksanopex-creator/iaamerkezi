@@ -84,7 +84,8 @@ unset($__defined_vars, $__key, $__value); ?>
         <?php if($isCompleted && $progressUpdate): ?>
             <?php echo $__env->make('proje-calisma-alani.partials._step-content-completed', [
                 'progressUpdate' => $progressUpdate,
-                'step' => $step
+                'step' => $step,
+                'iaa' => $iaa // <--- BU SATIRI EKLEDİM
             ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
         <?php endif; ?>
 

@@ -47,7 +47,8 @@
         @if($isCompleted && $progressUpdate)
             @include('proje-calisma-alani.partials._step-content-completed', [
                 'progressUpdate' => $progressUpdate,
-                'step' => $step
+                'step' => $step,
+                'iaa' => $iaa // <--- BU SATIRI EKLEDİM
             ])
         @endif
 

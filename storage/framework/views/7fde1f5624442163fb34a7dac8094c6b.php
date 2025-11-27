@@ -11,7 +11,10 @@
                 <?php $__empty_1 = true; $__currentLoopData = $stats['son_havuz_onerileri']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $iaa): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-gray-700 font-medium truncate flex-1 mr-2"><?php echo e(Str::limit($iaa->baslik, 20)); ?></span>
-                        <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap"><?php echo e($iaa->created_at->format('d.m.Y')); ?></span>
+                        <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">
+                            <?php echo e(optional($iaa->created_at)->format('d.m.Y') ?? '-'); ?>
+
+                        </span>
                     </div>
                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                     <p class="text-gray-500 text-sm italic">Havuzda öneri yok.</p>
@@ -83,7 +86,10 @@
                     <?php $__empty_1 = true; $__currentLoopData = $stats['son_iaa_projelerim']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $proje): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-700 font-medium truncate flex-1 mr-2"><?php echo e(Str::limit($proje->baslik, 20)); ?></span>
-                            <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap"><?php echo e($proje->onaylanma_tarihi->format('d.m.Y')); ?></span>
+                            <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">
+                                <?php echo e(optional($proje->onaylanma_tarihi)->format('d.m.Y') ?? '-'); ?>
+
+                            </span>
                         </div>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                         <p class="text-gray-500 text-sm italic">Devam eden İAA projeniz yok.</p>
@@ -109,7 +115,10 @@
                     <?php $__empty_1 = true; $__currentLoopData = $stats['son_sikayet_projelerim']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $proje): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-700 font-medium truncate flex-1 mr-2"><?php echo e(Str::limit($proje->baslik, 20)); ?></span>
-                            <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap"><?php echo e($proje->onaylanma_tarihi->format('d.m.Y')); ?></span>
+                            <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">
+                                <?php echo e(optional($proje->onaylanma_tarihi)->format('d.m.Y') ?? '-'); ?>
+
+                            </span>
                         </div>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                         <p class="text-gray-500 text-sm italic">Devam eden şikayet projeniz yok.</p>

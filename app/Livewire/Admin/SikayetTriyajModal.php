@@ -194,6 +194,18 @@ class SikayetTriyajModal extends Component
                     // c. Şikayet kaydını, yeni Proje ID'si ile güncellemeye hazırla
                     $sikayet->iaa_id = $yeniProje->id; // Obje üzerinde ayarla
                     
+                    // --- EKSİK OLAN PARÇA: LİDERİ SQUAD'A EKLE ---
+                    // Atanan takımı bul (Zaten $this->atanan_cozum_takimi_id elimizde var)
+                    $atananTakim = \App\Models\Takim::find($this->atanan_cozum_takimi_id);
+                    
+                    if ($atananTakim && $atananTakim->lider_user_id) {
+                        // Lideri, bu projenin özel ekibine (iaa_user) "Lider" rolüyle ekle
+                        $yeniProje->projeEkibi()->syncWithoutDetaching([
+                            $atananTakim->lider_user_id => ['rol' => 'Lider']
+                        ]);
+                    }
+                    // ----------------------------------------------
+
                     $logAciklamalari[] = "Şikayet, ID:{$yeniProje->id} ile IAA Projesine dönüştürüldü.";
                 }
                 // ================== YENİ KÖPRÜ KODU SONU ==================

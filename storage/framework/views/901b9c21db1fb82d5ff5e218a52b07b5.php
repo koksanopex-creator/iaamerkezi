@@ -30,16 +30,57 @@ unset($__defined_vars, $__key, $__value); ?>
 
 <div x-show="open" x-transition class="mt-4 border-t-2 border-gray-100 pt-4 space-y-6">
     
-    <div class="flex justify-between items-center text-xs text-gray-500">
-        <span class="flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            <?php echo e($progressUpdate->completed_at ? \Carbon\Carbon::parse($progressUpdate->completed_at)->format('d.m.Y H:i') : '-'); ?>
+    
+    <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-200">
+        
+        
+        <div class="flex items-center gap-2 text-sm text-gray-600">
+            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span class="font-medium">Tamamlanma:</span>
+            <span class="font-bold text-gray-800">
+                <?php echo e($progressUpdate->completed_at ? \Carbon\Carbon::parse($progressUpdate->completed_at)->format('d.m.Y H:i') : '-'); ?>
 
-        </span>
-        <form action="<?php echo e(route('proje.workspace.reopenStep', $progressUpdate)); ?>" method="POST" onsubmit="return confirm('Bu adımı yeniden düzenlemeye açmak istediğinizden emin misiniz?');">
-            <?php echo csrf_field(); ?>
-            <button type="submit" class="font-semibold text-blue-600 hover:text-blue-800 transition-colors">Yeniden Düzenle</button>
-        </form>
+            </span>
+        </div>
+
+        
+        <?php
+            // Projenin durumunu kontrol et (Controller'da yaptığımız kilit mantığı)
+            // Not: Bu partial içinde $iaa değişkeni direkt gelmeyebilir, $progressUpdate üzerinden erişiriz.
+            // $iaa değişkeni show.blade.php'den gelebilir ama garanti olsun diye sorgulayalım:
+            
+            $iaaDurum = null;
+            // Eğer üst katmandan $iaa geldiyse kullan, yoksa sorgula (Performans için üstten gelmesi iyidir)
+            if(isset($iaa)) {
+                $iaaDurum = $iaa->durum;
+            } else {
+                // Veritabanından bul (Maliyetli ama güvenli)
+                $iaaDurum = DB::table('iaa_talepleri')
+                    ->join('iaas', 'iaa_talepleri.iaa_id', '=', 'iaas.id')
+                    ->where('iaa_talepleri.id', $progressUpdate->iaa_talep_id)
+                    ->value('iaas.durum');
+            }
+
+            $kilitliDurumlar = ['Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlandı'];
+            $isLocked = in_array($iaaDurum, $kilitliDurumlar);
+        ?>
+
+        <?php if(!$isLocked): ?>
+            <form action="<?php echo e(route('proje.workspace.reopenStep', $progressUpdate)); ?>" method="POST" onsubmit="return confirm('Dikkat: Bu adımı yeniden açmak, onay sürecini sıfırlayabilir. Devam etmek istiyor musunuz?');">
+                <?php echo csrf_field(); ?>
+                <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
+                    <svg class="w-4 h-4 mr-1.5 text-gray-500 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    Düzenle / Aç
+                </button>
+            </form>
+        <?php else: ?>
+            <span class="inline-flex items-center px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-md font-semibold text-xs text-gray-400 uppercase tracking-widest cursor-not-allowed" title="Proje onay aşamasında olduğu için düzenleme yapılamaz.">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                Kilitli
+            </span>
+        <?php endif; ?>
     </div>
 
     
@@ -88,8 +129,8 @@ unset($__defined_vars, $__key, $__value); ?>
                          <h5 class="text-base font-semibold text-gray-800 mb-2"><?php echo e($widgetConfigDefaults['title'] ?? Str::ucfirst(str_replace('_', ' ', $widgetType))); ?></h5>
 
                          <?php if($widgetType === 'textbox'): ?>
-                            <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200 min-h-[50px] whitespace-pre-wrap">
-                                <?php echo !empty($widgetValue['text']) ? nl2br(e($widgetValue['text'])) : '<span class="text-gray-400 italic">Girilmemiş</span>'; ?>
+                         <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200">
+                         <?php echo !empty($widgetValue['text']) ? nl2br(e($widgetValue['text'])) : '<span class="text-gray-400 italic">Girilmemiş</span>'; ?>
 
                             </p>
                         <?php elseif($widgetType === 'user_select'): ?>
@@ -199,7 +240,7 @@ unset($__defined_vars, $__key, $__value); ?>
 </div>
 
 
-<?php if (! $__env->hasRenderedOnce('7e726ed5-2e4f-4864-98a9-55d6551ebe43')): $__env->markAsRenderedOnce('7e726ed5-2e4f-4864-98a9-55d6551ebe43');
+<?php if (! $__env->hasRenderedOnce('276617e2-ca3e-4283-bc38-fc80df55b618')): $__env->markAsRenderedOnce('276617e2-ca3e-4283-bc38-fc80df55b618');
 $__env->startPush('scripts'); ?>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />

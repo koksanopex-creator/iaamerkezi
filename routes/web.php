@@ -121,13 +121,19 @@ Route::middleware('auth')->group(function () {
     // Bu POST rotaları GİRİŞ YAPMAYI GEREKTİRİR (Erhan Cesur gibi), bu yüzden 'auth' içinde kalmalı
     Route::post('/proje-calisma-alani/{assignment_id}/adim/{step_id}', [ProjectWorkspaceController::class, 'storeStep'])->name('proje.workspace.storeStep');
     Route::post('/proje-calisma-alani/adim/{progress_update}/yeniden-ac', [ProjectWorkspaceController::class, 'reopenStep'])->name('proje.workspace.reopenStep');
-    
+    // VAZGEÇME ROTASI
+    Route::post('/proje-calisma-alani/adim/{id}/vazgec', [App\Http\Controllers\ProjectWorkspaceController::class, 'cancelReopenStep'])
+    ->name('proje.workspace.cancelReopenStep');
+
     // === YENİ: Takım Projelerim buraya taşındı ===
     Route::get('/takim-projeleri', [IaaController::class, 'takimProjeleri'])->name('iaa.takimProjeleri');
     
     Route::get('/sikayet-gorevlerim', \App\Livewire\SikayetGorevlerim::class) 
       ->middleware('auth') 
       ->name('sikayet-gorevlerim.index');
+
+    // Proje Davet Yanıt Rotaları
+    Route::post('/proje-davet/{iaa}/yanit', [App\Http\Controllers\IaaController::class, 'davetYanitla'])->name('iaa.davetYanitla');
 
     // === BİLDİRİM SİSTEMİ API ROTALARI (BURAYA EKLEYİN) ===
     Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');

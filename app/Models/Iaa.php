@@ -202,4 +202,12 @@ class Iaa extends Model
                     ->whereNotNull('musteri_sikayeti_id');
     }
 
+    // Bu projeye özel atanmış SQUAD ekibi (Sadece şikayet kaynaklı projeler için kritik)
+    public function projeEkibi()
+    {
+        return $this->belongsToMany(User::class, 'iaa_user', 'iaa_id', 'user_id')
+                    ->withPivot('rol', 'kazanilan_puan', 'durum')
+                    ->withTimestamps();
+    }
+
 }

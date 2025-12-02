@@ -9,11 +9,11 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage; // <-- BU SATIRIN EKLENDİĞİNDEN EMİN OLUN
+use Illuminate\Support\Facades\Storage; 
 use Illuminate\Support\Facades\Log;
-use App\Models\MusteriSikayetiDosyasi; // <-- BU SATIRIN EKLENDİĞİNDEN EMİN OLUN
+use App\Models\MusteriSikayetiDosyasi; 
 use App\Models\SikayetKategori;
-use Illuminate\Support\Facades\Auth; // <-- 1. BU SATIRI EKLEYİN
+use Illuminate\Support\Facades\Auth;
 
 
 class SikayetController extends Controller
@@ -31,7 +31,7 @@ class SikayetController extends Controller
         $this->authorize('create', MusteriSikayeti::class);
         // Kategorileri çek ve view'e gönder
         $kategoriler = SikayetKategori::orderBy('ad')->get();
-        return view('admin.sikayetler.create', compact('kategoriler')); // <-- 'kategoriler' eklendi
+        return view('admin.sikayetler.create', compact('kategoriler')); 
     }
 
     public function store(Request $request)
@@ -127,7 +127,7 @@ class SikayetController extends Controller
         $yetkiVar = false;
 
         // 1. Admin veya Kurul ise girer
-        if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi'])) {
+        if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi', 'Yonetim'])) {
             $yetkiVar = true;
         }
         // 2. Atanan Takımın Üyesi ise girer
@@ -176,7 +176,6 @@ class SikayetController extends Controller
             'musteri_iletisim' => 'nullable|string|max:255',
             'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı',
             'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id',
-            // Alt Kategori
             'sikayet_alt_kategori_id' => 'nullable', 
             'sikayet_alt_kategori_diger' => 'nullable|string|max:500',
             'musteri_oncelik' => 'required|string|in:Düşük,Normal,Yüksek,Acil',
@@ -275,10 +274,6 @@ class SikayetController extends Controller
     /**
      * Sadece Kurul üyelerinin girdiği şikayetleri filtreleyerek gösterir.
      */
-    
-    /**
-     * Sadece Kurul üyelerinin girdiği şikayetleri filtreleyerek gösterir.
-     */
     public function kurulGirdileri(Request $request)
     {
         $girisYapanKullanici = Auth::user();
@@ -331,7 +326,7 @@ class SikayetController extends Controller
 
         // Ana veriyi al ve view'e gönder
         $sikayetler = $filteredQuery->with('olusturanKurulUyesi', 'cozumTakimi', 'sikayetKategori')
-                                  ->latest() // En yeniler üste gelsin
+                                  ->latest()
                                   ->paginate(15)
                                   ->withQueryString();
 
@@ -339,8 +334,8 @@ class SikayetController extends Controller
             'sikayetler', 
             'kurulUyeleri', 
             'selectedUserId',
-            'stats_filtrelenmis', // Filtrelenmiş istatistikler
-            'stats_kisisel'     // Kişisel istatistikler
+            'stats_filtrelenmis',
+            'stats_kisisel' 
         ));
     }
     // === YENİ METOD SONU ===

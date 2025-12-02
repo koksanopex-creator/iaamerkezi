@@ -91,6 +91,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/kullanici-profil/{user}', [ProfileController::class, 'show'])->name('profile.show');
     Route::post('/kullanici-profil/{user}/yorum', [ProfileController::class, 'storeComment'])->name('profile.comment.store');
     Route::delete('/kullanici-profil/yorum/{comment}', [ProfileController::class, 'destroyComment'])->name('profile.comment.destroy');
+    
+    // =================================================================
+    // === YENİ EKLENEN KISIM: YÖNETİM KOKPİTİ ===
+    // =================================================================
+    // Sadece 'Superadmin' VEYA 'Yonetim' rolüne sahip olanlar görebilir.
+    // URL: http://localhost:8000/yonetim
+    Route::group(['middleware' => ['role:Superadmin|Yonetim']], function () {
+        Route::get('/yonetim', [App\Http\Controllers\Admin\ExecutiveReportController::class, 'index'])
+             ->name('yonetim.index');
+
+
+             
+    });
+    // =================================================================
+    
     // --- İAA MODÜLÜ ROTALARI ---
     Route::get('/havuz', [IaaController::class, 'havuz'])->name('iaa.havuz');
     Route::post('/iaa/{iaa}/takimla-talep-et', [IaaController::class, 'takimlaTalepEt'])->name('iaa.takimlaTalepEt');
@@ -128,6 +143,10 @@ Route::middleware('auth')->group(function () {
     // === YENİ: Takım Projelerim buraya taşındı ===
     Route::get('/takim-projeleri', [IaaController::class, 'takimProjeleri'])->name('iaa.takimProjeleri');
     
+    // Adıma Sorumlu Atama Rotası
+    Route::post('/proje-calisma-alani/{iaa}/adim/{step}/ata', [App\Http\Controllers\ProjectWorkspaceController::class, 'assignUserToStep'])
+    ->name('proje.workspace.assignUserToStep');
+
     Route::get('/sikayet-gorevlerim', \App\Livewire\SikayetGorevlerim::class) 
       ->middleware('auth') 
       ->name('sikayet-gorevlerim.index');
@@ -203,10 +222,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         Route::get('sistem-ayarlari', [SistemAyarController::class, 'index'])->name('sistem-ayarlari.index');
         Route::post('sistem-ayarlari', [SistemAyarController::class, 'update'])->name('sistem-ayarlari.update');
 
-        // RAPORLAMA MODÜLÜ (Sadece İAA Raporları)
-        Route::get('raporlar', [RaporController::class, 'index'])->name('raporlar.index');
-        Route::get('raporlar/excel', [RaporController::class, 'exportExcel'])->name('raporlar.exportExcel');
-        Route::get('raporlar/pdf', [RaporController::class, 'exportPdf'])->name('raporlar.exportPdf');
+        
 
         // Şikayet KATEGORİ ve ÇÖZÜM TAKIMI Yönetimi (Sadece Superadmin)
         Route::resource('sikayet-kategorileri', SikayetKategoriController::class)
@@ -226,8 +242,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 
         Route::resource('cozum-takimlari', CozumTakimiController::class)
             ->parameters(['cozum-takimlari' => 'cozumTakimi']);
+
+     
     
     }); // --- Superadmin grubunun sonu ---
+
+    // =============================================================
+    // GRUP: RAPORLAR (Superadmin ve Yönetim Görebilir)
+    // =============================================================
+    Route::middleware(['role:Superadmin|Yonetim'])->group(function () {
+        Route::get('raporlar', [RaporController::class, 'index'])->name('raporlar.index');
+        Route::get('raporlar/excel', [RaporController::class, 'exportExcel'])->name('raporlar.exportExcel');
+        Route::get('raporlar/pdf', [RaporController::class, 'exportPdf'])->name('raporlar.exportPdf');
+    });
 
     Route::get('iaa-yonetim', [IaaYonetimController::class, 'index'])->name('iaa-yonetim.index');
     Route::post('iaa-yonetim/{iaa}/bolum-onayi', [IaaYonetimController::class, 'bolumOnayiVer'])

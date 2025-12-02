@@ -516,7 +516,8 @@ if (isset($__slots)) unset($__slots);
                                 'isTeamMember' => $isTeamMember,
                                 'iaa' => $iaa,
                                 'assignment' => $assignment,
-                                'takim' => $takim
+                                'takim' => $takim,
+                                'stepAssignments' => $stepAssignments ?? [] // <--- YENİ EKLENEN
                             ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         

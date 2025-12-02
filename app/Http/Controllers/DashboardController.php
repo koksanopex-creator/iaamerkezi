@@ -13,6 +13,7 @@ use App\Models\MusteriSikayeti;
 use Carbon\Carbon;
 use App\Models\ProjeYorumu; // Yorumlar için model
 use App\Models\ProfileComment;
+use Illuminate\Support\Facades\DB; // <--- BU EKSİK, EKLE!
 
 class DashboardController extends Controller
 {
@@ -27,150 +28,78 @@ class DashboardController extends Controller
         $bolumOnayiBekleyenSayisi = 0;
 
         // --- 1. ONLINE ve SON GÖRÜLEN KULLANICILAR ---
-        // Son 5 dakika içinde işlem yapanlar "Online"
         $onlineKullanicilar = User::where('last_seen_at', '>=', now()->subMinutes(5))
             ->orderBy('last_seen_at', 'desc')
             ->take(10)
             ->get();
 
-        // Sisteme en son aktif olan 10 kişi (Online olsun olmasın)
         $sonAktifKullanicilar = User::whereNotNull('last_seen_at')
             ->orderBy('last_seen_at', 'desc')
             ->take(10)
             ->get();
 
-        // --- 2. EKSTRA İSTATİSTİKLER (Sadece Superadmin için hazırlayalım) ---
+        // --- 2. EKSTRA İSTATİSTİKLER (Superadmin için) ---
         $ekstraTablolar = [];
         
         if ($user->hasRole('Superadmin')) {
-            // a) Son Kurulan 10 Takım
-            $ekstraTablolar['son_takimlar'] = Takim::with('lider')
-                ->latest()
-                ->take(10)
-                ->get();
-
-            // b) Son Çözülen 10 Şikayet
-            $ekstraTablolar['son_cozulen_sikayetler'] = MusteriSikayeti::where('musteri_durum', 'Kapatıldı') // DB'de 'Kapatıldı' yazıyor
-                ->with('cozumTakimi')
-                ->latest('updated_at')
-                ->take(10)
-                ->get();
-
-            // c) Son Tamamlanan 10 İAA
-            $ekstraTablolar['son_tamamlanan_iaa'] = Iaa::where('durum', 'Tamamlandı')
-                ->with('atananTakim')
-                ->latest('updated_at') // Tamamlanma tarihi genelde updated_at olur
-                ->take(10)
-                ->get();
-
-            // d) Son Yapılan 10 Yorum (Proje Yorumları tablosundan)
-            $ekstraTablolar['son_yorumlar'] = ProjeYorumu::with('iaa') // İlişki varsa
-                ->latest()
-                ->take(10)
-                ->get();
-
-            // 3. Son Yapılan 10 Profil Yorumu
-            $ekstraTablolar['son_profil_yorumlari'] = \App\Models\ProfileComment::with(['yazan', 'profileUser']) 
-                ->latest()
-                ->take(10)
-                ->get();
-
-                // 2. Son Kazanılan Puanlar (DÜZELTİLDİ: Durum metnine bakmaksızın puanı olanları getirir)
-                $ekstraTablolar['son_kazanilan_puanlar'] = Iaa::where('puan', '>', 0)
-                ->with('atananTakim') // Puanı kazanan takımı getir
-                ->latest('updated_at') // Puanlama genelde son işlem olduğu için updated_at
-                ->take(10)
-                ->get();
-
-            // e) Son Kazanılan 10 Puan (Tamamlanan İAA'lardan çekiyoruz)
-            $ekstraTablolar['son_puanlar'] = Iaa::where('puan', '>', 0)
-                ->where('durum', 'Tamamlandı')
-                ->with('atananTakim')
-                ->latest('updated_at')
-                ->take(10)
-                ->get();
+            $ekstraTablolar['son_takimlar'] = Takim::with('lider')->latest()->take(10)->get();
+            $ekstraTablolar['son_cozulen_sikayetler'] = MusteriSikayeti::where('musteri_durum', 'Kapatıldı')->with('cozumTakimi')->latest('updated_at')->take(10)->get();
+            $ekstraTablolar['son_tamamlanan_iaa'] = Iaa::where('durum', 'Tamamlandı')->with('atananTakim')->latest('updated_at')->take(10)->get();
+            $ekstraTablolar['son_yorumlar'] = ProjeYorumu::with('iaa')->latest()->take(10)->get();
+            $ekstraTablolar['son_profil_yorumlari'] = ProfileComment::with(['yazan', 'profileUser'])->latest()->take(10)->get();
+            $ekstraTablolar['son_kazanilan_puanlar'] = Iaa::where('puan', '>', 0)->with('atananTakim')->latest('updated_at')->take(10)->get();
         } 
 
+        // --- 3. ROLE GÖRE ANA İSTATİSTİKLER ---
+
+        // A) SUPERADMIN
         if ($user->hasRole('Superadmin')) {
-            // === 1. SUPERADMIN İSTATİSTİKLERİ ===
             $stats = [
                 'toplam_kullanici' => User::count(),
                 'onay_bekleyen_kullanici' => User::where('onaylandi_mi', false)->count(),
                 'son_kullanicilar' => User::latest()->take(3)->get(),
-                
                 'toplam_iaa' => Iaa::count(),
                 'onay_bekleyen_iaa' => Iaa::where('durum', 'Onay Bekliyor')->count(),
                 'atama_bekleyen_iaa' => Iaa::where('durum', 'Talep Edildi')->count(),
                 'son_iaalar' => Iaa::latest()->take(3)->get(),
-
                 'toplam_bolum' => Bolum::count(),
                 'son_bolumler' => Bolum::latest()->take(3)->get(),
-                
                 'toplam_takim' => Takim::count(),
                 'son_takimlar' => Takim::with('lider')->withCount('uyeler')->latest()->take(3)->get(),
-                
                 'toplam_sikayet' => MusteriSikayeti::count(),
                 'yeni_sikayet' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
                 'islemde_sikayet' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
                 'son_sikayetler' => MusteriSikayeti::latest()->take(3)->get(),
             ];
-            
-            // Superadmin de genel durumu görebilsin
             $bolumOnayiBekleyenSayisi = Iaa::where('durum', 'Bölüm Onayı Bekliyor')->count();
 
+        // B) MÜŞTERİ ŞİKAYETİ KURULU
         } elseif ($user->hasRole('Müşteri Şikayeti Kurulu')) {
-            // === 2. MÜŞTERİ ŞİKAYETİ KURULU İSTATİSTİKLERİ ===
-            
-            // a) Kurul İstatistikleri
             $kurul_stats = [
                 'toplam_sikayet' => MusteriSikayeti::count(),
                 'yeni_sikayet' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
                 'islemde_sikayet' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
-                'son_sikayetler' => MusteriSikayeti::with('sikayetKategori', 'cozumTakimi') 
-                                    ->latest() 
-                                    ->take(5)
-                                    ->get(),
+                'son_sikayetler' => MusteriSikayeti::with('sikayetKategori', 'cozumTakimi')->latest()->take(5)->get(),
             ];
-
-            // b) Standart Kullanıcı İstatistikleri
             $user_stats = $this->getStandartKullaniciStats($user);
-            
-            // c) İki diziyi birleştir
             $stats = array_merge($kurul_stats, $user_stats);
 
-
+        // C) ÇÖZÜM LİDERİ
         } elseif ($user->hasRole('Müşteri Şikayeti Çözüm Lideri')) {
-            // === 3. MÜŞTERİ ŞİKAYETİ ÇÖZÜM LİDERİ İSTATİSTİKLERİ ===
-            $liderinTakimi = Takim::where('lider_user_id', $user->id)
-                                ->where('tur', 'sikayet') // Sadece şikayet takımı
-                                ->withCount('uyeler')
-                                ->first();
-            
-            $stats = []; // Boş başlat
+            $liderinTakimi = Takim::where('lider_user_id', $user->id)->where('tur', 'sikayet')->withCount('uyeler')->first();
+            $stats = [];
             if ($liderinTakimi) {
                 $stats['lider_takim'] = $liderinTakimi;
-                
-                $stats['cozulen_projeler_count'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)
-                                                    ->where('durum', 'Tamamlandı')
-                                                    ->count();
-                $stats['islemde_projeler_count'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)
-                                                    ->where('durum', 'Atandı')
-                                                    ->count();
-                $stats['son_islemde_projeler'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)
-                                                    ->where('durum', 'Atandı')
-                                                    ->latest()
-                                                    ->take(3)
-                                                    ->get();
+                $stats['cozulen_projeler_count'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)->where('durum', 'Tamamlandı')->count();
+                $stats['islemde_projeler_count'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)->where('durum', 'Atandı')->count();
+                $stats['son_islemde_projeler'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)->where('durum', 'Atandı')->latest()->take(3)->get();
             }
-            
-            // Lider de standart istatistikleri görsün
             $user_stats = $this->getStandartKullaniciStats($user);
             $stats = array_merge($stats, $user_stats);
 
+        // D) BÖLÜM KALİTE YÖNETİCİSİ (Serkan Tölek)
         } elseif ($user->hasRole('Bölüm Kalite Yöneticisi')) {
-            // === 4. BÖLÜM KALİTE YÖNETİCİSİ İSTATİSTİKLERİ (YENİ EKLENDİ) ===
             
-            // a) Onay Bekleyen Sayısını Hesapla
             $sorumluKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
             
             $bolumOnayiBekleyenSayisi = Iaa::where('durum', 'Bölüm Onayı Bekliyor')
@@ -178,42 +107,69 @@ class DashboardController extends Controller
                     $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriler);
                 })->count();
             
-            // b) Standart İstatistikleri de görsün
-            $stats = $this->getStandartKullaniciStats($user);
+            // İstatistikler
+            $toplamSikayet = MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriler)->count();
+            $cozulenSikayet = MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriler)->where('musteri_durum', 'Kapatıldı')->count();
+            $islemdekiSikayet = MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriler)->where('musteri_durum', 'İşlemde')->count();
 
+            $onayBekleyenProjelerListe = Iaa::where('durum', 'Bölüm Onayı Bekliyor')
+                ->whereHas('musteriSikayeti', function ($q) use ($sorumluKategoriler) {
+                    $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriler);
+                })
+                ->with(['atananTakim', 'musteriSikayeti'])
+                ->latest('updated_at')
+                ->take(5)
+                ->get();
+
+            $sonDepartmanSikayetleri = MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriler)
+                ->with('cozumTakimi')
+                ->latest()
+                ->take(5)
+                ->get();
+
+            $stats = [
+                'bolum_onay_sayisi' => $bolumOnayiBekleyenSayisi,
+                'toplam_sikayet' => $toplamSikayet,
+                'cozulen_sikayet' => $cozulenSikayet,
+                'islemdeki_sikayet' => $islemdekiSikayet,
+                'onay_bekleyen_liste' => $onayBekleyenProjelerListe,
+                'son_departman_sikayetleri' => $sonDepartmanSikayetleri,
+                ...$this->getStandartKullaniciStats($user)
+            ];
+
+        // E) STANDART KULLANICI
         } else {
-            // === 5. STANDART KULLANICI İSTATİSTİKLERİ ===
             $stats = $this->getStandartKullaniciStats($user);
         }
 
-        // Bekleyen Proje Davetleri
+        // --- 4. BEKLEYEN DAVETLER ---
         $bekleyenProjeDavetleri = $user->gorevliOlduguProjeler()
-                                       ->wherePivot('durum', 'bekliyor')
-                                       ->with('atananTakim.lider')
-                                       ->get();
+            ->wherePivot('durum', 'bekliyor')
+            ->with('atananTakim.lider')
+            ->get();
 
-        // === YENİ: BEKLEYEN PROJE DAVETLERİ ===
-        // Kullanıcının 'iaa_user' tablosunda 'bekliyor' durumundaki kayıtlarını çek
-        $bekleyenProjeDavetleri = $user->gorevliOlduguProjeler()
-                                       ->wherePivot('durum', 'bekliyor')
-                                       ->with('atananTakim.lider') // Davet eden lideri görmek için
-                                       ->get();
+        // --- 5. BEKLEYEN ADIM GÖREVLERİ (TURUNCU KART İÇİN) ---
+        $bekleyenAdimGorevleri = DB::table('iaa_step_assignments')
+            ->join('iaas', 'iaa_step_assignments.iaa_id', '=', 'iaas.id')
+            ->join('iaa_workflow_steps', 'iaa_step_assignments.iaa_workflow_step_id', '=', 'iaa_workflow_steps.id')
+            ->where('iaa_step_assignments.user_id', $user->id)
+            ->whereIn('iaas.durum', ['Atandı', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlanması Reddedildi'])
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                      ->from('iaa_progress_updates')
+                      ->join('iaa_talepleri', 'iaa_progress_updates.iaa_talep_id', '=', 'iaa_talepleri.id')
+                      ->whereColumn('iaa_talepleri.iaa_id', 'iaa_step_assignments.iaa_id')
+                      ->whereColumn('iaa_progress_updates.iaa_workflow_step_id', 'iaa_step_assignments.iaa_workflow_step_id')
+                      ->whereNotNull('iaa_progress_updates.completed_at');
+            })
+            ->select('iaas.id as iaa_id', 'iaas.baslik as proje_baslik', 'iaa_workflow_steps.name as adim_adi', 'iaa_step_assignments.updated_at as atama_tarihi')
+            ->get();
 
-        // View'e gönder (compact içine eklemeyi unutma!)
         return view('dashboard', compact(
-            'user', 
-            'stats', 
-            'bolumOnayiBekleyenSayisi', 
-            'onlineKullanicilar', 
-            'sonAktifKullanicilar', 
-            'ekstraTablolar',
-            'bekleyenProjeDavetleri' // <--- BU DEĞİŞKENİ BURAYA EKLE
+            'user', 'stats', 'bolumOnayiBekleyenSayisi', 'onlineKullanicilar', 
+            'sonAktifKullanicilar', 'ekstraTablolar', 'bekleyenProjeDavetleri', 'bekleyenAdimGorevleri'
         ));
     }
-
-    /**
-     * Standart Kullanıcı ve Kurul Üyeleri için ortak dashboard verilerini çeker.
-     */
     /**
      * Standart Kullanıcı ve Kurul Üyeleri için ortak dashboard verilerini çeker.
      * GÜNCELLENDİ: Hem Takım Projelerini hem de Squad Projelerini kapsar.

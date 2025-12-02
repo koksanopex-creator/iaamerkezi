@@ -22,60 +22,67 @@ class RaporController extends Controller
      * KPI kartları ve YENİ GRAFİKLER için gerekli tüm istatistikleri hesaplar.
      */
     public function index()
-{
-    // === KPI KARTLARI İÇİN VERİLER (Mevcut Kodunuz) ===
-    $stats = [
-        'toplam_oneri'          => Iaa::count(),
-        'onay_bekleyen_oneri'   => Iaa::where('durum', 'Onay Bekliyor')->count(),
-        'havuzdaki_oneri'       => Iaa::where('durum', 'Havuzda')->count(),
-        'reddedilen_oneri'      => Iaa::whereIn('durum', ['Reddedildi', 'Tamamlanması Reddedildi'])->count(),
-        'atanmis_proje'         => Iaa::whereIn('durum', ['Atandı', 'Revize Ediliyor', 'Yönetici Onayı Bekliyor'])->count(),
-        'tamamlanan_proje'      => Iaa::where('durum', 'Tamamlandı')->count(),
-        'misafir_onerileri'     => Iaa::whereNull('gonderen_user_id')->count(),
-        'kullanici_onerileri'   => Iaa::whereNotNull('gonderen_user_id')->count(),
-        'toplam_kullanici'      => User::count(),
-        'toplam_takim'          => Takim::count(),
-    ];
+    {
 
-    // ==========================================================
-    // === YENİ APEXCHARTS GRAFİKLERİ İÇİN TÜM VERİLER ===========
-    // ==========================================================
-    
-    // 1. Başarı Oranı Grafiği
-    $oranChartData = [$stats['tamamlanan_proje'], $stats['toplam_oneri'] - $stats['tamamlanan_proje']];
+        // === DÜZELTME BURADA: YETKİ KONTROLÜNE 'Yonetim' EKLENDİ ===
+        // Artık Yönetim rolü de bu sayfayı görebilecek.
+        if (!auth()->user()->hasRole(['Superadmin', 'Yonetim'])) {
+            abort(403, 'Bu sayfaya erişim yetkiniz yok.');
+        }
+        // ========================================================
+        // === KPI KARTLARI İÇİN VERİLER (Mevcut Kodunuz) ===
+        $stats = [
+            'toplam_oneri'          => Iaa::count(),
+            'onay_bekleyen_oneri'   => Iaa::where('durum', 'Onay Bekliyor')->count(),
+            'havuzdaki_oneri'       => Iaa::where('durum', 'Havuzda')->count(),
+            'reddedilen_oneri'      => Iaa::whereIn('durum', ['Reddedildi', 'Tamamlanması Reddedildi'])->count(),
+            'atanmis_proje'         => Iaa::whereIn('durum', ['Atandı', 'Revize Ediliyor', 'Yönetici Onayı Bekliyor'])->count(),
+            'tamamlanan_proje'      => Iaa::where('durum', 'Tamamlandı')->count(),
+            'misafir_onerileri'     => Iaa::whereNull('gonderen_user_id')->count(),
+            'kullanici_onerileri'   => Iaa::whereNotNull('gonderen_user_id')->count(),
+            'toplam_kullanici'      => User::count(),
+            'toplam_takim'          => Takim::count(),
+        ];
 
-    // 2. Puan Liderlik Tablosu
-    $topKullanicilar = User::where('toplam_puan', '>', 0)->select('users.*')->addSelect(DB::raw('(SELECT count(*) FROM iaas WHERE iaas.durum = "Tamamlandı" AND iaas.atanan_takim_id IN (SELECT takim_id FROM takim_user WHERE takim_user.user_id = users.id)) as proje_sayisi'))->orderBy('toplam_puan', 'desc')->take(5)->get();
-    $puanChartLabels = $topKullanicilar->pluck('name');
-    $puanChartData = $topKullanicilar->pluck('toplam_puan');
-    $projeChartData = $topKullanicilar->pluck('proje_sayisi');
-
-    // 3. Aylık Trend Grafiği (Başlangıç verisi)
-    $chartLabels = []; $chartData = [];
-    for ($i = 11; $i >= 0; $i--) { $ay = now()->subMonths($i); $chartLabels[] = $ay->translatedFormat('F Y'); $chartData[] = Iaa::whereYear('created_at', $ay->year)->whereMonth('created_at', $ay->month)->count(); }
-
-    // 4. En Çok Takıma Üye Olanlar
-    $cokluUyelik = DB::table('takim_user')->join('users', 'takim_user.user_id', '=', 'users.id')->select('users.name', DB::raw('COUNT(takim_user.takim_id) as takim_sayisi'))->groupBy('users.name')->orderBy('takim_sayisi', 'desc')->limit(5)->pluck('takim_sayisi', 'name');
-    $cokluUyelikData = ['labels' => $cokluUyelik->keys(), 'series' => $cokluUyelik->values()];
-
-    // 5. En Yüksek Puanlı 5 Proje (Havuzda)
-    $havuzPuan = Iaa::where('durum', 'Havuzda')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
-    $havuzPuanData = ['labels' => $havuzPuan->keys(), 'series' => $havuzPuan->values()];
-
-    // 6. En Yüksek Puanlı 5 Proje (Tamamlanan)
-    $tamamlananPuan = Iaa::where('durum', 'Tamamlandı')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
-    $tamamlananPuanData = ['labels' => $tamamlananPuan->keys(), 'series' => $tamamlananPuan->values()];
+        // ==========================================================
+        // === YENİ APEXCHARTS GRAFİKLERİ İÇİN TÜM VERİLER ===========
+        // ==========================================================
         
-    // 7. En Kısa Sürede Biten 5 Proje (Tamamlanan)
-    $hizliProjeler = Iaa::where('durum', 'Tamamlandı')->whereNotNull('onaylanma_tarihi')->select('baslik', DB::raw('DATEDIFF(updated_at, onaylanma_tarihi) as sure_gun'))->orderBy('sure_gun', 'asc')->limit(5)->pluck('sure_gun', 'baslik');
-    $hizliProjeData = ['labels' => $hizliProjeler->keys(), 'series' => $hizliProjeler->values()];
+        // 1. Başarı Oranı Grafiği
+        $oranChartData = [$stats['tamamlanan_proje'], $stats['toplam_oneri'] - $stats['tamamlanan_proje']];
 
-    // --- TÜM VERİLERİ ANA VIEW'E GÖNDER ---
-    return view('admin.raporlar.index', compact(
-        'stats', 'oranChartData', 'puanChartLabels', 'puanChartData', 'projeChartData', 'chartLabels', 'chartData',
-        'cokluUyelikData', 'havuzPuanData', 'tamamlananPuanData', 'hizliProjeData'
-    ));
-}
+        // 2. Puan Liderlik Tablosu
+        $topKullanicilar = User::where('toplam_puan', '>', 0)->select('users.*')->addSelect(DB::raw('(SELECT count(*) FROM iaas WHERE iaas.durum = "Tamamlandı" AND iaas.atanan_takim_id IN (SELECT takim_id FROM takim_user WHERE takim_user.user_id = users.id)) as proje_sayisi'))->orderBy('toplam_puan', 'desc')->take(5)->get();
+        $puanChartLabels = $topKullanicilar->pluck('name');
+        $puanChartData = $topKullanicilar->pluck('toplam_puan');
+        $projeChartData = $topKullanicilar->pluck('proje_sayisi');
+
+        // 3. Aylık Trend Grafiği (Başlangıç verisi)
+        $chartLabels = []; $chartData = [];
+        for ($i = 11; $i >= 0; $i--) { $ay = now()->subMonths($i); $chartLabels[] = $ay->translatedFormat('F Y'); $chartData[] = Iaa::whereYear('created_at', $ay->year)->whereMonth('created_at', $ay->month)->count(); }
+
+        // 4. En Çok Takıma Üye Olanlar
+        $cokluUyelik = DB::table('takim_user')->join('users', 'takim_user.user_id', '=', 'users.id')->select('users.name', DB::raw('COUNT(takim_user.takim_id) as takim_sayisi'))->groupBy('users.name')->orderBy('takim_sayisi', 'desc')->limit(5)->pluck('takim_sayisi', 'name');
+        $cokluUyelikData = ['labels' => $cokluUyelik->keys(), 'series' => $cokluUyelik->values()];
+
+        // 5. En Yüksek Puanlı 5 Proje (Havuzda)
+        $havuzPuan = Iaa::where('durum', 'Havuzda')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
+        $havuzPuanData = ['labels' => $havuzPuan->keys(), 'series' => $havuzPuan->values()];
+
+        // 6. En Yüksek Puanlı 5 Proje (Tamamlanan)
+        $tamamlananPuan = Iaa::where('durum', 'Tamamlandı')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
+        $tamamlananPuanData = ['labels' => $tamamlananPuan->keys(), 'series' => $tamamlananPuan->values()];
+            
+        // 7. En Kısa Sürede Biten 5 Proje (Tamamlanan)
+        $hizliProjeler = Iaa::where('durum', 'Tamamlandı')->whereNotNull('onaylanma_tarihi')->select('baslik', DB::raw('DATEDIFF(updated_at, onaylanma_tarihi) as sure_gun'))->orderBy('sure_gun', 'asc')->limit(5)->pluck('sure_gun', 'baslik');
+        $hizliProjeData = ['labels' => $hizliProjeler->keys(), 'series' => $hizliProjeler->values()];
+
+        // --- TÜM VERİLERİ ANA VIEW'E GÖNDER ---
+        return view('admin.raporlar.index', compact(
+            'stats', 'oranChartData', 'puanChartLabels', 'puanChartData', 'projeChartData', 'chartLabels', 'chartData',
+            'cokluUyelikData', 'havuzPuanData', 'tamamlananPuanData', 'hizliProjeData'
+        ));
+    }
 
 /**
      * Müşteri Şikayetleri için canlı raporlama sayfasını gösterir.

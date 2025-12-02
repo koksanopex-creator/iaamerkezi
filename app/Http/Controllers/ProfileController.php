@@ -31,7 +31,7 @@ class ProfileController extends Controller
         $currentUser = auth()->user();
 
         // Güvenlik: Normal kullanıcı Admin profilini göremez
-        if ($user->hasRole('Superadmin') && !$currentUser->hasRole('Superadmin')) {
+        if ($user->hasRole('Superadmin', 'Yonetim') && !$currentUser->hasRole('Superadmin')) {
             abort(404);
         }
 

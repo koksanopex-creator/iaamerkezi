@@ -488,7 +488,8 @@
                                 'isTeamMember' => $isTeamMember,
                                 'iaa' => $iaa,
                                 'assignment' => $assignment,
-                                'takim' => $takim
+                                'takim' => $takim,
+                                'stepAssignments' => $stepAssignments ?? [] // <--- YENİ EKLENEN
                             ])
                         @endforeach
                         

@@ -85,6 +85,12 @@ class ProjectWorkspaceController extends Controller
                                                 ->pluck('iaa_workflow_step_id') 
                                                 ->toArray();
 
+        // Adım atamalarını çek
+        $stepAssignments = DB::table('iaa_step_assignments')
+            ->where('iaa_id', $iaa->id)
+            ->get()
+            ->keyBy('iaa_workflow_step_id'); // Step ID'ye göre erişmek için
+
         $progressUpdates = $allProgressUpdates->keyBy('iaa_workflow_step_id');
         
         // Takım üyesi mi? (Görselde 'Düzenle' butonlarını göstermek için)
@@ -133,7 +139,7 @@ class ProjectWorkspaceController extends Controller
         return view('proje-calisma-alani.show', compact(
             'iaa', 'takim', 'assignment', 'workflow', 'steps',
             'completedStepIds', 'progressUpdates', 'totalStepsCount', 'completedStepsCount',
-            'progressPercentage', 'isTeamMember', 'statusDate', 'tumProjeLoglari', 'sonOnLoglar'
+            'progressPercentage', 'isTeamMember', 'statusDate', 'tumProjeLoglari', 'sonOnLoglar', 'stepAssignments'
         ));
     }
 
@@ -157,6 +163,28 @@ class ProjectWorkspaceController extends Controller
             abort(403, 'Bu projeye müdahale etme yetkiniz yok.');
         }
         // ==============================
+
+        // === SORUMLULUK KONTROLÜ (YENİ) ===
+        // 1. Adım ataması var mı bak
+        $assignmentRecord = DB::table('iaa_step_assignments')
+            ->where('iaa_id', $iaa->id)
+            ->where('iaa_workflow_step_id', $step->id)
+            ->first();
+
+        // 2. Eğer atama varsa ve işlem yapan kişi:
+        //    - Atanan kişi değilse
+        //    - VE Lider değilse (Lider her şeyi yapar)
+        //    - VE Admin değilse
+        if ($assignmentRecord) {
+            $liderId = $iaa->atananTakim->lider_user_id ?? 0;
+            $userId = Auth::id();
+
+            if ($assignmentRecord->user_id != $userId && $userId != $liderId && !Auth::user()->hasRole('Superadmin')) {
+                $sorumluUser = \App\Models\User::find($assignmentRecord->user_id);
+                abort(403, "Bu adım '{$sorumluUser->name}' kullanıcısına atanmıştır. Sadece sorumlu kişi veya lider tamamlayabilir.");
+            }
+        }
+        // ==================================
 
         IaaProgressUpdate::updateOrCreate(
             [
@@ -279,8 +307,9 @@ class ProjectWorkspaceController extends Controller
     {
         $user = Auth::user();
         
-        // 1. Superadmin Joker
-        if ($user->hasRole('Superadmin')) {
+        // 1. Superadmin veya Yönetim Joker
+        // Yönetim rolü de Superadmin gibi her yere girebilsin (izleme amaçlı)
+        if ($user->hasRole(['Superadmin', 'Yonetim'])) {
             return true;
         }
 
@@ -320,5 +349,56 @@ class ProjectWorkspaceController extends Controller
         }
 
         return false;
+    }
+
+    public function assignUserToStep(Request $request, $iaa_id, $step_id)
+    {
+        $iaa = Iaa::with('atananTakim', 'projeEkibi')->findOrFail($iaa_id);
+        $step = IaaWorkflowStep::findOrFail($step_id);
+        $liderId = $iaa->atananTakim->lider_user_id;
+        $currentUser = Auth::user();
+
+        // Yetki: Sadece Lider veya Admin atama yapabilir
+        if ($currentUser->id != $liderId && !$currentUser->hasRole('Superadmin')) {
+            abort(403, 'Atama yapma yetkiniz yok.');
+        }
+
+        $targetUserId = $request->input('user_id');
+        
+        // Atamayı kaydet veya güncelle (updateOrCreate)
+        // DB::table kullanarak model oluşturmadan hızlıca yapıyoruz
+        if ($targetUserId) {
+            DB::table('iaa_step_assignments')->updateOrInsert(
+                ['iaa_id' => $iaa->id, 'iaa_workflow_step_id' => $step->id],
+                [
+                    'user_id' => $targetUserId,
+                    'assigned_by' => $currentUser->id,
+                    'updated_at' => now(),
+                    'created_at' => now() // updateOrInsert created_at'i otomatik doldurmaz, ilk kayıtta lazım
+                ]
+            );
+            
+            $sorumlu = \App\Models\User::find($targetUserId);
+            $mesaj = "Adım sorumlusu '{$sorumlu->name}' olarak güncellendi.";
+
+            // BİLDİRİM GÖNDER (Tüm Ekibe)
+            // Lider hariç herkese gitsin
+            $ekip = $iaa->projeEkibi->merge([$iaa->atananTakim->lider]); // Lideri de listeye al (eğer admin atadıysa)
+            $notifyList = $ekip->filter(fn($u) => $u->id != $currentUser->id);
+            
+            if($notifyList->isNotEmpty()){
+                 \Illuminate\Support\Facades\Notification::send($notifyList, new \App\Notifications\AdimSorumlusuAtandi($iaa, $step, $sorumlu, $currentUser));
+            }
+
+        } else {
+            // Eğer user_id boş geldiyse atamayı kaldır (Opsiyonel)
+             DB::table('iaa_step_assignments')
+                ->where('iaa_id', $iaa->id)
+                ->where('iaa_workflow_step_id', $step->id)
+                ->delete();
+             $mesaj = "Adım ataması kaldırıldı, herkes işlem yapabilir.";
+        }
+
+        return back()->with('success', $mesaj);
     }
 }

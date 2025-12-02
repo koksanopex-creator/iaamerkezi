@@ -130,4 +130,45 @@
             </div>
         </a>
     <?php endif; ?>
+
+    <?php if(isset($bekleyenAdimGorevleri) && $bekleyenAdimGorevleri->count() > 0): ?>
+        <div class="group relative bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-6 hover:shadow-2xl hover:scale-105 transition-all duration-300 overflow-hidden col-span-1 md:col-span-2 xl:col-span-1">
+            <div class="absolute inset-0 bg-gradient-to-br from-orange-600/5 to-amber-600/5 rounded-2xl"></div>
+            <div class="relative">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-md shadow-orange-200">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    </div>
+                    <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                        <?php echo e($bekleyenAdimGorevleri->count()); ?> Görev Bekliyor
+                    </span>
+                </div>
+                
+                <h3 class="text-lg font-bold text-gray-900 mb-1">Adım Görevlerim</h3>
+                <p class="text-xs text-gray-500 mb-4">Size özel atanmış tamamlanmayı bekleyen adımlar.</p>
+
+                <div class="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    <?php $__currentLoopData = $bekleyenAdimGorevleri; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $gorev): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <a href="<?php echo e(route('proje.workspace.show', $gorev->iaa_id)); ?>" class="block bg-white p-3 rounded-lg border border-orange-100 shadow-sm hover:border-orange-300 hover:shadow-md transition-all group/item">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="text-xs font-bold text-orange-600 mb-0.5 uppercase tracking-wide">Adım: <?php echo e($gorev->adim_adi); ?></p>
+                                    <p class="text-sm font-semibold text-gray-800 leading-tight group-hover/item:text-orange-700 transition-colors">
+                                        <?php echo e(Str::limit($gorev->proje_baslik, 40)); ?>
+
+                                    </p>
+                                </div>
+                                <svg class="w-4 h-4 text-gray-300 group-hover/item:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-2 text-right">
+                                <?php echo e(\Carbon\Carbon::parse($gorev->atama_tarihi)->diffForHumans()); ?> atandı
+                            </p>
+                        </a>
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+
 </div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/dashboard/partials/standart-kullanici.blade.php ENDPATH**/ ?>

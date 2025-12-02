@@ -79,9 +79,21 @@ class SikayetlerTablosu extends Component
         ]);
 
         // === YENİ YETKİ VE FİLTRELEME MANTIĞI ===
-        if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu'])) {
+        if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Yonetim'])) {
             // Admin ve Kurul tüm şikayetleri görür.
         } 
+        elseif ($user->hasRole('Bölüm Kalite Yöneticisi')) {
+            // Yönettiği kategorilerin ID'lerini al (User modelindeki ilişki)
+            $yonettigiKategoriIds = $user->yonettigiSikayetKategorileri->pluck('id');
+            
+            if ($yonettigiKategoriIds->isEmpty()) {
+                // Hiçbir kategoriye atanmamışsa boş dönsün
+                $query->whereRaw('1 = 0');
+            } else {
+                // Sadece bu kategorilere ait şikayetleri getir
+                $query->whereIn('sikayet_kategorisi_id', $yonettigiKategoriIds);
+            }
+        }
         elseif ($user->hasRole('Müşteri Şikayeti Çözüm Lideri')) {
             // Çözüm Lideri, SADECE lideri olduğu 'sikayet' takımlarının şikayetlerini görür.
             $lideriOlduguTakimIds = $user->lideriOlduguTakimlar()->where('tur', 'sikayet')->pluck('takimlar.id');

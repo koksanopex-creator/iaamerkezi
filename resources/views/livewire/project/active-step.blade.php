@@ -108,10 +108,48 @@
                 </button>
             @endif
 
+            {{-- === BUTON KİLİTLEME MANTIĞI === --}}
+            @php
+                // Bu adım için bir atama var mı diye kontrol et
+                $assignmentRecord = \Illuminate\Support\Facades\DB::table('iaa_step_assignments')
+                    ->where('iaa_id', $iaa instanceof \App\Models\Iaa ? $iaa->id : $iaa['id'])
+                    ->where('iaa_workflow_step_id', $currentStep->id)
+                    ->first();
+                
+                $isLockedForUser = false;
+                $assigneeName = '';
+
+                if ($assignmentRecord) {
+                    $userId = auth()->id();
+                    // Atanan kişi ben değilsem
+                    if ($assignmentRecord->user_id != $userId) {
+                         // Lider miyim? (Lider her şeyi yapabilir)
+                         $liderId = $iaa->atananTakim->lider_user_id ?? 0;
+                         $isAdmin = auth()->user()->hasRole('Superadmin');
+                         
+                         if ($userId != $liderId && !$isAdmin) {
+                             $isLockedForUser = true;
+                             // Atanan kişinin ismini bul (Uyarı için)
+                             $assigneeName = \App\Models\User::find($assignmentRecord->user_id)->name ?? 'Başkası';
+                         }
+                    }
+                }
+            @endphp
+
             {{-- KAYDET BUTONU --}}
-            <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-md">
-                <div wire:loading wire:target="save" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Adımı Tamamla ve Kaydet
+            <button type="submit"
+                    @if($isLockedForUser) disabled @endif
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest shadow-md transition-colors
+                    {{ $isLockedForUser ? 'bg-gray-400 cursor-not-allowed hover:bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700' }}"
+                    @if($isLockedForUser) title="Bu adım {{ $assigneeName }} sorumluluğundadır." @endif>
+                
+                @if(!$isLockedForUser)
+                    <div wire:loading wire:target="save" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                @else
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                @endif
+
+                {{ $isLockedForUser ? ($assigneeName . ' Bekleniyor') : 'Adımı Tamamla ve Kaydet' }}
             </button>
         </div>
     </form> 

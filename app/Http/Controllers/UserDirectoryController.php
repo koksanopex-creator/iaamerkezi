@@ -17,11 +17,12 @@ class UserDirectoryController extends Controller
         // Sorguyu Başlat
         $query = User::query();
 
-        // === KRİTİK KURAL: GİZLİLİK ===
-        // Eğer bakan kişi Superadmin DEĞİLSE, Superadminleri listeden gizle.
+        // === KRİTİK KURAL: GİZLİLİK (GÜNCELLENDİ) ===
+        // Eğer bakan kişi Superadmin DEĞİLSE:
+        // Hem 'Superadmin' hem de 'Yonetim' rolüne sahip kullanıcıları listeden gizle.
         if (!$currentUser->hasRole('Superadmin')) {
             $query->whereDoesntHave('roles', function ($q) {
-                $q->where('name', 'Superadmin');
+                $q->whereIn('name', ['Superadmin', 'Yonetim']);
             });
         }
 
@@ -38,9 +39,9 @@ class UserDirectoryController extends Controller
 
         // Sıralama ve Sayfalama
         $users = $query->with('bolum', 'roles')
-                       ->orderBy('name')
-                       ->paginate(12) // Sayfada 12 kişi
-                       ->withQueryString();
+                        ->orderBy('name')
+                        ->paginate(12) // Sayfada 12 kişi
+                        ->withQueryString();
 
         return view('user-directory.index', compact('users', 'search'));
     }

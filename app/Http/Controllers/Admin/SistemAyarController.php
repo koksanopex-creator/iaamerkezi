@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use Spatie\Permission\Models\Role; // <-- ROL MODELİNİ EKLE
 use Illuminate\Validation\Rule;
+use App\Models\Bolum;
 
 class SistemAyarController extends Controller
 {
@@ -17,6 +18,7 @@ class SistemAyarController extends Controller
         $settings = Setting::all()->keyBy('key');
         $users = User::orderBy('name')->get();
         $roles = Role::orderBy('name')->get(); // <-- ROLLERİ ÇEK
+        $bolumler = Bolum::orderBy('ad')->get(); // <--- EKLENDİ: Bölümleri Çek
 
         // Ayarları daha dinamik alalım
         $logo = $settings->get('site_logo');
@@ -31,6 +33,7 @@ class SistemAyarController extends Controller
             'settings',
             'users',
             'roles', // <-- ROLLERİ VIEW'A GÖNDER
+            'bolumler', // <--- EKLENDİ: View'a gönder
             'logo',
             'kayitOnay',
             'paraBirimleri',
@@ -66,6 +69,10 @@ class SistemAyarController extends Controller
             'sikayet_notify_role_ids.*' => 'integer|exists:roles,id', // <-- YENİ (Roller)
             'sikayet_notify_manual_emails' => 'nullable|string',
             'sikayet_atama_notify_manual_emails' => 'nullable|string', // <-- YENİ (Atama Bildirimi)
+
+            // <--- EKLENDİ: Bölüm Yetkisi Validasyonu
+            'global_disciplinary_departments' => 'nullable|array',
+            'global_disciplinary_departments.*' => 'exists:bolumler,id',
         ]);
 
         // 1-7 arası (Mevcut ayarlarınız) ...
@@ -203,9 +210,37 @@ class SistemAyarController extends Controller
 
         // ================== KAYDETME SONU ==================
 
-        return back()->with('success', 'Ayarlar başarıyla güncellendi.');
-    }
+       // ================== GÜNCELLENMİŞ: DİSİPLİN YETKİ AYARLARI ==================
+        
+        // 1. Önce temizlik (Reset)
+        Bolum::query()->update([
+            'is_disciplinary_global' => 0,
+            'disciplinary_target_depts' => null
+        ]);
 
+        // 2. Formdan gelen verileri işle
+        if ($request->has('disciplinary_auth')) {
+            foreach ($request->input('disciplinary_auth') as $bolumId => $data) {
+                $bolum = Bolum::find($bolumId);
+                if ($bolum) {
+                    // Global Yetki (Tüm Fabrika) İşaretli mi?
+                    $isGlobal = isset($data['global']) && $data['global'] == '1';
+                    
+                    $bolum->is_disciplinary_global = $isGlobal;
+                    
+                    // Eğer Global değilse ama spesifik bölümler seçildiyse onları kaydet
+                    // (Şimdilik global ise 'all' yapalım, değilse null bırakalım, mantığı basitleştirelim)
+                    // İleride buraya "Sadece Üretim ve Depo'ya tutabilsin" gibi detay ekleyebiliriz.
+                    
+                    $bolum->save();
+                }
+            }
+        }
+        
+        // ================== KAYDETME SONU ==================
+
+        return back()->with('success', 'Ayarlar ve Bölüm Yetkileri başarıyla güncellendi.');
+    }
     /**
      * E-posta adreslerini temizler ve virgülle ayrılmış string'e dönüştürür.
      *

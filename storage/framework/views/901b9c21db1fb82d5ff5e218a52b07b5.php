@@ -240,7 +240,7 @@ unset($__defined_vars, $__key, $__value); ?>
 </div>
 
 
-<?php if (! $__env->hasRenderedOnce('276617e2-ca3e-4283-bc38-fc80df55b618')): $__env->markAsRenderedOnce('276617e2-ca3e-4283-bc38-fc80df55b618');
+<?php if (! $__env->hasRenderedOnce('8057db93-db15-4386-817d-aa4a2316874c')): $__env->markAsRenderedOnce('8057db93-db15-4386-817d-aa4a2316874c');
 $__env->startPush('scripts'); ?>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />

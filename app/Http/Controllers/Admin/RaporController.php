@@ -89,8 +89,24 @@ class RaporController extends Controller
      */
     public function sikayetRaporlari()
     {
-        // Bu view, içinde Livewire bileşenini çağıracak
-        return view('admin.raporlar.sikayet-raporlari');
+        // 1. Müşteri Geri Bildirim Oranları (Pasta Grafik)
+        $feedbackCounts = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->selectRaw('musteri_feedback, count(*) as total')
+            ->groupBy('musteri_feedback')
+            ->pluck('total', 'musteri_feedback');
+
+        // 2. Bölüm Bazlı Memnuniyet (Sütun Grafik)
+        $bolumMemnuniyeti = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->join('iaas', 'musteri_sikayetleri.iaa_id', '=', 'iaas.id')
+            ->join('bolumler', 'iaas.bolum_id', '=', 'bolumler.id')
+            ->selectRaw('bolumler.ad as bolum_adi, 
+                         SUM(CASE WHEN musteri_feedback = "Onaylandı" THEN 1 ELSE 0 END) as onay_sayisi,
+                         SUM(CASE WHEN musteri_feedback = "Reddedildi" THEN 1 ELSE 0 END) as red_sayisi,
+                         SUM(CASE WHEN musteri_feedback = "Revizyon İstendi" THEN 1 ELSE 0 END) as revizyon_sayisi')
+            ->groupBy('bolumler.ad')
+            ->get();
+
+        return view('admin.raporlar.sikayet-raporlari', compact('feedbackCounts', 'bolumMemnuniyeti'));
     }
 
     /**

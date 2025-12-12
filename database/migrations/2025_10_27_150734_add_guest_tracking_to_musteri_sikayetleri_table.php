@@ -32,7 +32,7 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-    public function down(): void
+    /**public function down(): void
     {
         Schema::table('musteri_sikayetleri', function (Blueprint $table) {
             // Sütunları kaldırırken index'i de belirtmek iyi bir pratiktir
@@ -45,5 +45,5 @@ return new class extends Migration
                 'edit_locked_at'
             ]);
         });
-    }
+    }*/
 };

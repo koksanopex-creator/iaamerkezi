@@ -41,6 +41,9 @@
                     @include('profile.partials.show.tab-security')
                 @endrole
 
+                {{-- DİSİPLİN İÇERİĞİ --}}
+                @include('profile.partials.show.tab-disciplinary')
+
             </div>
         </div>
     </div>

@@ -82,6 +82,36 @@ class ExecutiveReportController extends Controller
         ];
 
         // ======================================================
+        // === 3. MÜŞTERİ MEMNUNİYET ANALİZİ (GÜNCELLENDİ: TAKIM BAZLI) ===
+        // ======================================================
+
+        // 1. Genel Pasta Grafik (Değişmedi)
+        $feedbackCounts = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->selectRaw('musteri_feedback, count(*) as total')
+            ->groupBy('musteri_feedback')
+            ->pluck('total', 'musteri_feedback');
+
+        // 2. Bölüm/Takım Bazlı Analiz (DÜZELTİLDİ)
+        // Artık 'iaas' ve 'bolumler' yerine doğrudan 'takimlar' tablosuna bağlanıyoruz.
+        // Eğer Takım atanmamışsa, 'sikayet_kategorileri' tablosundaki kategori adını kullanıyoruz.
+        
+        $bolumMemnuniyeti = MusteriSikayeti::query()
+            ->whereNotNull('musteri_feedback')
+            // Şikayetin atandığı Çözüm Takımına bağlan
+            ->leftJoin('takimlar', 'musteri_sikayetleri.atanan_cozum_takimi_id', '=', 'takimlar.id')
+            // Yedek olarak Kategoriye bağlan (Takım yoksa kategori adı gelsin)
+            ->leftJoin('sikayet_kategorileri', 'musteri_sikayetleri.sikayet_kategorisi_id', '=', 'sikayet_kategorileri.id')
+            ->selectRaw('
+                -- Öncelik Takım Adı, yoksa Kategori Adı, o da yoksa "Belirsiz"
+                COALESCE(takimlar.ad, sikayet_kategorileri.ad, "Genel / Atanmamış") as bolum_adi,
+                SUM(CASE WHEN musteri_feedback LIKE "%Onay%" THEN 1 ELSE 0 END) as onay_sayisi,
+                SUM(CASE WHEN musteri_feedback LIKE "%Red%" THEN 1 ELSE 0 END) as red_sayisi,
+                SUM(CASE WHEN musteri_feedback LIKE "%Revizyon%" THEN 1 ELSE 0 END) as revizyon_sayisi
+            ')
+            ->groupBy('bolum_adi')
+            ->get();
+
+        // ======================================================
 // === 3. BÖLÜM PERFORMANS KARNESİ (ÇOK YILLIK DAĞILIM)
 // ======================================================
 $kategoriler = SikayetKategori::all();
@@ -197,9 +227,18 @@ $bolumPerformansi = collect($bolumPerformansi)
         // ======================================================
         // === VIEW'E GÖNDERİLEN VERİLER
         // ======================================================
+        // === YENİ: MÜŞTERİ MEMNUNİYET İSTATİSTİKLERİ ===
+        $musteriKararIstatistikleri = [
+            'onay_orani' => MusteriSikayeti::where('musteri_feedback', 'Onaylandı')->count(),
+            'red_orani'  => MusteriSikayeti::where('musteri_feedback', 'Reddedildi')->count(),
+            'revizyon'   => MusteriSikayeti::where('musteri_feedback', 'Revizyon İstendi')->count(),
+        ];
         return view('admin.raporlar.executive', [
             'sonSikayetler' => $sonSikayetler,
             'bolumPerformansi' => $bolumPerformansi,
+            'feedbackCounts' => $feedbackCounts,
+            'bolumMemnuniyeti' => $bolumMemnuniyeti,
+            'musteriKararIstatistikleri' => $musteriKararIstatistikleri,
 
             'kpi' => [
                 'toplam' => $toplamSikayet,

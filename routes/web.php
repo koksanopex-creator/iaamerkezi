@@ -140,6 +140,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/proje-calisma-alani/adim/{id}/vazgec', [App\Http\Controllers\ProjectWorkspaceController::class, 'cancelReopenStep'])
     ->name('proje.workspace.cancelReopenStep');
 
+    // === MÜŞTERİ BİLDİRİM ROTALARI (BURAYA EKLE) ===
+    Route::post('/proje-calisma-alani/{id}/musteri-bildir', [ProjectWorkspaceController::class, 'notifyCustomer'])->name('proje.notify_customer');
+    Route::post('/proje-calisma-alani/{id}/musteri-sifre-sifirla', [ProjectWorkspaceController::class, 'resetCustomerPassword'])->name('proje.reset_customer_password');
+    // ===============================================
+
     // === YENİ: Takım Projelerim buraya taşındı ===
     Route::get('/takim-projeleri', [IaaController::class, 'takimProjeleri'])->name('iaa.takimProjeleri');
     
@@ -288,8 +293,136 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         ->names('sikayetler')
         ->parameters(['sikayetler' => 'sikayet']);
 
+    // =================================================================
+    // 1. GENEL DİSİPLİN ERİŞİMİ (Görüntüleme ve Oluşturma)
+    // =================================================================
+    // EKLENEN ROL: 'Disiplin Kurulu Üyesi' (Artık sayfayı görebilecekler)
+    Route::middleware(['auth'])
+        ->prefix('disiplin')
+        ->name('disiplin.')
+        ->group(function () {
+            
+            // Liste
+            Route::get('/', [App\Http\Controllers\Admin\DisciplinaryController::class, 'index'])->name('index');
+
+            // Yeni Tutanak (Controller içinde yetki kontrolü var, herkes oluşturamaz)
+            Route::get('/yeni', [App\Http\Controllers\Admin\DisciplinaryController::class, 'create'])->name('create');
+            Route::post('/kaydet', [App\Http\Controllers\Admin\DisciplinaryController::class, 'store'])->name('store');
+
+            // Tutanak Sorumlusu Atama Ekranı
+            Route::get('/sorumlu-yonetimi', [App\Http\Controllers\Admin\DisiplinSorumlusuController::class, 'index'])->name('sorumlular.index');
+            Route::post('/sorumlu-yonetimi/{user}', [App\Http\Controllers\Admin\DisiplinSorumlusuController::class, 'update'])->name('sorumlular.update');
+
+            // --- YENİ EKLENEN ROTALAR (SİLME & YORUM) ---
+            
+            // Tutanak Silme (Controller içinde Matris Kontrolü var)
+            Route::delete('/{case}', [App\Http\Controllers\Admin\DisciplinaryController::class, 'destroy'])->name('destroy');
+
+            // Yorum Ekleme ve Silme
+            Route::post('/{case}/yorum-yap', [App\Http\Controllers\Admin\DisciplinaryController::class, 'storeComment'])->name('comment.store');
+            Route::put('/yorum-duzenle/{comment}', [App\Http\Controllers\Admin\DisciplinaryController::class, 'updateComment'])->name('comment.update');
+            Route::delete('/yorum-sil/{comment}', [App\Http\Controllers\Admin\DisciplinaryController::class, 'destroyComment'])->name('comment.destroy');
+
+            // ---------------------------------------------
+
+            // Detay Görüntüleme
+            Route::get('/{case}', [App\Http\Controllers\Admin\DisciplinaryController::class, 'show'])->name('show');
+            
+            // Düzenleme
+            Route::get('/{case}/duzenle', [App\Http\Controllers\Admin\DisciplinaryController::class, 'edit'])->name('edit');
+            Route::put('/{case}', [App\Http\Controllers\Admin\DisciplinaryController::class, 'update'])->name('update');
+    });
+
+    // =================================================================
+    // 2. KARAR MERCİİ (Hukuk ve Yönetim)
+    // =================================================================
+    // Kimler: SADECE Hukuk Yöneticisi, Hukuk Admini ve Superadmin.
+    // DİKKAT: Bölüm Lideri ve Kurul Başkanı BURAYA GİREMEZ.
+    Route::middleware(['role:Superadmin|Hukuk Yöneticisi|Hukuk Admini|Disiplin Kurulu Başkanı'])
+        ->prefix('disiplin')
+        ->name('disiplin.')
+        ->group(function () {
+
+           
+
+           
+    });
+
+            // =================================================================
+            // 3. DİSİPLİN KURULU İŞLEMLERİ (Oy Kullanma)
+            // =================================================================
+            // Kimler: Kurul Üyeleri, Başkan ve Üst Yönetim
+            Route::middleware(['role:Superadmin|Hukuk Yöneticisi|Hukuk Admini|Disiplin Kurulu Başkanı|Disiplin Kurulu Üyesi'])
+                ->prefix('disiplin')
+                ->name('disiplin.')
+                ->group(function () {
+
+                    // Oy Kullanma
+                    Route::post('/{case}/oy-kullan', [App\Http\Controllers\Admin\DisciplinaryController::class, 'saveVote'])->name('vote.save');
+                    Route::delete('/{case}/oy-sil', [App\Http\Controllers\Admin\DisciplinaryController::class, 'deleteVote'])->name('vote.delete');
+
+                     // Kritik Karar Butonları
+                    Route::post('/{case}/cezayi-onayla', [App\Http\Controllers\Admin\DisciplinaryController::class, 'approvePenalty'])->name('penalty.approve');
+                    Route::post('/{case}/savunmayi-kabul-et', [App\Http\Controllers\Admin\DisciplinaryController::class, 'acceptDefense'])->name('defense.accept');
+                    Route::post('/{case}/kurula-sevk', [App\Http\Controllers\Admin\DisciplinaryController::class, 'sendToBoard'])->name('board.send');
+                    Route::post('/{case}/karari-geri-al', [App\Http\Controllers\Admin\DisciplinaryController::class, 'revokeDecision'])->name('decision.revoke');
+            });
+
+    
+
+    // =================================================================
+    // DİSİPLİN AYARLARI (URL: /admin/disiplin-ayarlari)
+    // =================================================================
+    Route::middleware(['role:Superadmin|Hukuk Admini'])
+        ->prefix('disiplin-ayarlari') // Başında 'admin/' YOK
+        ->name('disiplin.settings.')  // Başında 'admin.' YOK (Otomatik eklenir)
+        ->group(function () {
+        
+            Route::get('/', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'index'])->name('index');
+            
+            // Kategoriler
+            Route::post('/kategori', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'storeCategory'])->name('category.store');
+            Route::put('/kategori/{category}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'updateCategory'])->name('category.update'); // <-- BU EKSİKTİ
+            Route::delete('/kategori/{category}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'deleteCategory'])->name('category.delete');
+            // Etki
+            Route::post('/etki', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'storeImpact'])->name('impact.store');
+            Route::put('/etki/{impact}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'updateImpact'])->name('impact.update'); // <-- BU
+            Route::delete('/etki/{impact}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'deleteImpact'])->name('impact.delete');
+
+            // Kapsam
+            Route::post('/kapsam', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'storeScope'])->name('scope.store');
+            Route::put('/kapsam/{scope}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'updateScope'])->name('scope.update'); // <-- BU
+            Route::delete('/kapsam/{scope}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'deleteScope'])->name('scope.delete');
+
+            // Suçlar
+            Route::post('/davranis', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'storeBehavior'])->name('behavior.store');
+            Route::put('/davranis/{behavior}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'updateBehavior'])->name('behavior.update');
+            Route::delete('/davranis/{behavior}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'deleteBehavior'])->name('behavior.delete');
+
+            // Hesaplama
+            Route::post('/katsayi', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'storeMultiplier'])->name('multiplier.store');
+            Route::post('/skala', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'storeScale'])->name('scale.store');
+            Route::delete('/skala/{scale}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'deleteScale'])->name('scale.delete');
+    });
+
 }); // --- Admin prefix'inin sonu ---
 
+// =================================================================
+    // 3. DİSİPLİN ORTAK ALAN (Tüm Personel Erişebilir)
+    // =================================================================
+    // Buraya "auth" middleware koyuyoruz, yani giriş yapmış herkes erişebilir.
+    // Ancak Controller içinde "Kendi dosyam mı?" kontrolü yapacağız.
+    Route::middleware(['auth']) 
+        ->prefix('disiplin')
+        ->name('disiplin.')
+        ->group(function () {
 
+            // Detay Görüntüleme (Personel kendi dosyasını görebilmeli)
+            // NOT: Yukarıdaki yönetici grubundan 'show' rotasını buraya taşıdık veya kopyaladık
+            Route::get('/{case}', [App\Http\Controllers\Admin\DisciplinaryController::class, 'show'])->name('show');
+
+            // Savunma Verme (YENİ ROTA BURADA OLMALI)
+            Route::post('/{case}/savunma-ver', [App\Http\Controllers\Admin\DisciplinaryController::class, 'saveDefense'])->name('defense.store');
+    });
 
 require __DIR__.'/auth.php';

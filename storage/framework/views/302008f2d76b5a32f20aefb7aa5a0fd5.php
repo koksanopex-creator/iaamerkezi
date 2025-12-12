@@ -11,7 +11,8 @@ $__propNames = \Illuminate\View\ComponentAttributeBag::extractPropNames(([
     'isTeamMember',
     'iaa',
     'assignment',
-    'takim'
+    'takim',
+    'stepAssignments' => []
 ]));
 
 foreach ($attributes->all() as $__key => $__value) {
@@ -35,7 +36,8 @@ foreach (array_filter(([
     'isTeamMember',
     'iaa',
     'assignment',
-    'takim'
+    'takim',
+    'stepAssignments' => []
 ]), 'is_string', ARRAY_FILTER_USE_KEY) as $__key => $__value) {
     $$__key = $$__key ?? $__value;
 }
@@ -47,7 +49,6 @@ foreach ($attributes->all() as $__key => $__value) {
 }
 
 unset($__defined_vars, $__key, $__value); ?>
-
 
 <div id="step-card-<?php echo e($step->id); ?>" class="mb-10 ml-6" x-data="{ open: <?php echo e($isCompleted ? 'false' : ($isCurrent ? 'true' : 'false')); ?> }">
     
@@ -80,24 +81,21 @@ unset($__defined_vars, $__key, $__value); ?>
           
             
             <?php
-                // Bu verileri show.blade.php'den (Controller'dan) gönderdiğimiz stepAssignments değişkeninden çekiyoruz
-                // Eğer stepAssignments yoksa (hata olmasın diye) boş dizi kabul ediyoruz
                 $assignmentData = $stepAssignments[$step->id] ?? null;
                 
-                // Lider mi?
-                $isLeader = (Auth::id() == $takim->lider_user_id) || Auth::user()->hasRole('Superadmin');
+                // === HATA DÜZELTMESİ BURADA YAPILDI ===
+                // Önce giriş yapılmış mı (Auth::check()) bakıyoruz.
+                // Giriş yapılmadıysa (Misafir ise) sağ taraftaki Auth::user() çalışmaz, hata vermez.
+                $isLeader = Auth::check() && ((Auth::id() == $takim->lider_user_id) || Auth::user()->hasRole('Superadmin'));
                 
-                // Sorumlu Var mı?
                 $sorumluUser = $assignmentData ? \App\Models\User::find($assignmentData->user_id) : null;
                 
-                // Ben miyim?
+                // Ben miyim? (Misafirde Auth::id null döner, eşitlik false olur, sorun çıkmaz)
                 $isMe = $assignmentData && $assignmentData->user_id == Auth::id();
                 
-                // Bekleme Süresi
                 $waitingSince = $assignmentData ? \Carbon\Carbon::parse($assignmentData->updated_at)->diffForHumans() : '';
             ?>
 
-            
             <div class="mt-3 mb-3 flex items-center justify-between bg-gray-50 p-2.5 rounded-lg border border-gray-200 shadow-sm">
                 
                 
@@ -109,7 +107,6 @@ unset($__defined_vars, $__key, $__value); ?>
                                 <span class="font-medium text-gray-900"><?php echo e($sorumluUser->name); ?></span> tarafından tamamlandı.
                             </span>
                         <?php else: ?>
-                            
                             <div class="flex items-center gap-3">
                                 <div class="relative">
                                     <?php if($sorumluUser->profile_photo_path): ?>
@@ -117,7 +114,6 @@ unset($__defined_vars, $__key, $__value); ?>
                                     <?php else: ?>
                                         <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 shadow-sm"><?php echo e(substr($sorumluUser->name, 0, 1)); ?></div>
                                     <?php endif; ?>
-                                    
                                     <span class="absolute -bottom-1 -right-1 flex h-3 w-3">
                                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                                       <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500 border border-white"></span>
@@ -148,26 +144,19 @@ unset($__defined_vars, $__key, $__value); ?>
                         <div class="relative">
                         <select name="user_id" onchange="this.form.submit()" class="appearance-none bg-white border border-gray-300 text-gray-700 text-xs rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 block w-40 py-1.5 pl-3 pr-8 cursor-pointer hover:border-gray-400 transition-colors">
                                 <option value="">-- Sorumlu Seç --</option>
-                                
-                                
                                 <?php $__currentLoopData = $iaa->projeEkibi; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $ekipUyesi): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                    
-                                    
                                     <?php if($ekipUyesi->pivot->durum == 'onaylandi'): ?>
                                         <option value="<?php echo e($ekipUyesi->id); ?>" <?php echo e(($sorumluUser && $sorumluUser->id == $ekipUyesi->id) ? 'selected' : ''); ?>>
                                             <?php echo e($ekipUyesi->name); ?>
 
                                         </option>
                                     <?php endif; ?>
-                                    
                                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-
-                                 
                                  <?php if(!$iaa->projeEkibi->contains($takim->lider_user_id)): ?>
                                     <option value="<?php echo e($takim->lider_user_id); ?>" <?php echo e(($sorumluUser && $sorumluUser->id == $takim->lider_user_id) ? 'selected' : ''); ?>>
                                         <?php echo e($takim->lider->name); ?> (Lider)
                                     </option>
-                                 <?php endif; ?>
+                               <?php endif; ?>
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
                                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -187,7 +176,7 @@ unset($__defined_vars, $__key, $__value); ?>
             <?php echo $__env->make('proje-calisma-alani.partials._step-content-completed', [
                 'progressUpdate' => $progressUpdate,
                 'step' => $step,
-                'iaa' => $iaa // <--- BU SATIRI EKLEDİM
+                'iaa' => $iaa 
             ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
         <?php endif; ?>
 
@@ -196,7 +185,7 @@ unset($__defined_vars, $__key, $__value); ?>
              <?php echo $__env->make('proje-calisma-alani.partials._step-content-active', [
                 'iaa' => $iaa,
                 'assignment' => $assignment,
-                'currentStep' => $step, // $currentStep yerine $step kullanmak daha doğru
+                'currentStep' => $step, 
                 'progressUpdate' => $progressUpdate,
                 'isTeamMember' => $isTeamMember,
                 'takim' => $takim
@@ -226,7 +215,6 @@ unset($__split);
 if (isset($__slots)) unset($__slots);
 ?>
         </div>
-        
         <?php endif; ?>
     </div>
 </div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/proje-calisma-alani/partials/_step-item.blade.php ENDPATH**/ ?>

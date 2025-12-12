@@ -131,6 +131,27 @@ class MusteriSikayetRaporu extends Component
             ->orderBy('ay', 'asc')
             ->pluck('total', 'ay');
 
+        // ==========================================================
+        // === 6. MÜŞTERİ GERİ BİLDİRİM VE MEMNUNİYET ANALİZİ ===
+        // ==========================================================
+        
+        // A) Genel Geri Bildirim Dağılımı (Pasta Grafik)
+        $feedbackCounts = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->selectRaw('musteri_feedback, count(*) as total')
+            ->groupBy('musteri_feedback')
+            ->pluck('total', 'musteri_feedback');
+
+        // B) Bölüm Bazlı Memnuniyet (Sütun Grafik)
+        // Şikayet -> Proje (IAA) -> Bölüm ilişkisi üzerinden
+        $bolumMemnuniyeti = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->join('iaas', 'musteri_sikayetleri.iaa_id', '=', 'iaas.id')
+            ->join('bolumler', 'iaas.bolum_id', '=', 'bolumler.id')
+            ->selectRaw('bolumler.ad as bolum_adi, 
+                         SUM(CASE WHEN musteri_feedback = "Onaylandı" THEN 1 ELSE 0 END) as onay_sayisi,
+                         SUM(CASE WHEN musteri_feedback = "Reddedildi" THEN 1 ELSE 0 END) as red_sayisi,
+                         SUM(CASE WHEN musteri_feedback = "Revizyon İstendi" THEN 1 ELSE 0 END) as revizyon_sayisi')
+            ->groupBy('bolumler.ad')
+            ->get();
         // === SON 10 ŞİKAYET TABLOSU İÇİN ===
         $sonSikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
             ->withCount(['projeYorumlari', 'musteriProjeYorumlari'])
@@ -187,26 +208,29 @@ class MusteriSikayetRaporu extends Component
             });
 
 
-        return compact(
-            'kpi', 
-            'durumData', 'kategoriData', 'takimData', 'aylikTrend', 
-            'cozulenListesi', 'islemdeListesi', 'yeniListesi', 'projeyeDonusenListesi', 
-            'cozulenChartData', 'islemdeChartData', 'yeniChartData', 'projeyeDonusenChartData', 
-            'aylikCozulenTrend', 
-            'sonSikayetler',
-            'bolumKategoriSeries', 'takimlar', 'altKategoriData' // Yeni grafik verileri
-        );
+            return compact(
+                'kpi', 
+                'durumData', 'kategoriData', 'takimData', 'aylikTrend', 
+                'cozulenListesi', 'islemdeListesi', 'yeniListesi', 'projeyeDonusenListesi', 
+                'cozulenChartData', 'islemdeChartData', 'yeniChartData', 'projeyeDonusenChartData', 
+                'aylikCozulenTrend', 
+                'sonSikayetler',
+                'bolumKategoriSeries', 'takimlar', 'altKategoriData',
+                // --- YENİ EKLENENLER ---
+                'feedbackCounts', 'bolumMemnuniyeti'
+            );
     }
 
     public function render()
     {
         $data = $this->calculateStats();
         
-        // Tek bir olay (event) ile TÜM verileri JavaScript'e gönder
-        // Veri yapısını JS tarafındaki beklentiye göre düzenliyoruz
         $dispatchData = array_merge($data, [
             'bolumKategoriXaxis' => $data['takimlar'],
-            'altKategoriSeries' => [['data' => $data['altKategoriData']]]
+            'altKategoriSeries' => [['data' => $data['altKategoriData']]],
+            // Yeni grafik verileri
+            'feedbackCounts' => $data['feedbackCounts'],
+            'bolumMemnuniyeti' => $data['bolumMemnuniyeti']
         ]);
 
         $this->dispatch('updateSikayetRaporlari', $dispatchData);

@@ -955,7 +955,7 @@ class ProfileController extends Controller
         $currentUser = auth()->user();
 
         // GÃ¼venlik: Normal kullanÄ±cÄ± Admin profilini gÃ¶remez
-        if ($user->hasRole('Superadmin') && !$currentUser->hasRole('Superadmin')) {
+        if ($user->hasRole('Superadmin', 'Yonetim') && !$currentUser->hasRole('Superadmin')) {
             abort(404);
         }
 
@@ -1227,6 +1227,12 @@ use App\Models\IaaLog;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\ProjeAdimiGuncellendi;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SikayetTakipBilgilendirmeMail;
+use App\Models\MusteriSikayetiLog;
+
 
 class ProjectWorkspaceController extends Controller
 {
@@ -1522,8 +1528,9 @@ class ProjectWorkspaceController extends Controller
     {
         $user = Auth::user();
         
-        // 1. Superadmin Joker
-        if ($user->hasRole('Superadmin')) {
+        // 1. Superadmin veya YÃ¶netim Joker
+        // YÃ¶netim rolÃ¼ de Superadmin gibi her yere girebilsin (izleme amaÃ§lÄ±)
+        if ($user->hasRole(['Superadmin', 'Yonetim'])) {
             return true;
         }
 
@@ -1615,6 +1622,97 @@ class ProjectWorkspaceController extends Controller
 
         return back()->with('success', $mesaj);
     }
+
+    /**
+     * MÃ¼ÅŸteriye manuel bildirim gÃ¶nderir, token ve ÅŸifre oluÅŸturur.
+     */
+    public function notifyCustomer(Request $request, $id)
+    {
+        // 1. Yetki KontrolÃ¼
+        if (!Auth::user()->hasRole(['Superadmin', 'MÃ¼ÅŸteri Åikayeti Kurulu', 'MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri', 'BÃ¶lÃ¼m Kalite YÃ¶neticisi'])) {
+            abort(403, 'Bu iÅŸlemi yapma yetkiniz yok.');
+        }
+
+        $iaa = Iaa::findOrFail($id);
+        $sikayet = $iaa->musteriSikayeti;
+
+        if (!$sikayet) {
+            return back()->with('error', 'Bu projeye baÄŸlÄ± bir mÃ¼ÅŸteri ÅŸikayeti bulunamadÄ±.');
+        }
+        
+        if (empty($sikayet->musteri_iletisim)) {
+            return back()->with('error', 'MÃ¼ÅŸteri e-posta adresi kayÄ±tlÄ± deÄŸil.');
+        }
+
+        // 2. Token ve Åifre Ãœretimi
+        if (!$sikayet->takip_token) {
+            $sikayet->takip_token = Str::random(12);
+        }
+
+        // Åifreyi Ã¼ret
+        $plainPassword = Str::random(8); 
+        // Hashleyerek kaydet
+        $sikayet->guest_password_hash = Hash::make($plainPassword);
+
+        // 3. Bildirim Bilgilerini Kaydet
+        $sikayet->musteri_bildirim_yapan_id = Auth::id();
+        $sikayet->musteri_bildirim_tarihi = now();
+        $sikayet->save();
+
+        // 4. Log Tut
+        MusteriSikayetiLog::create([
+            'musteri_sikayeti_id' => $sikayet->id,
+            'user_id' => Auth::id(),
+            'eylem' => 'MÃ¼ÅŸteri Bilgilendirildi',
+            'aciklama' => Auth::user()->name . " tarafÄ±ndan mÃ¼ÅŸteriye takip linki gÃ¶nderildi."
+        ]);
+
+        // 5. Mail GÃ¶nder
+        try {
+            Mail::to($sikayet->musteri_iletisim)->send(new SikayetTakipBilgilendirmeMail($sikayet, $plainPassword, false));
+        } catch (\Exception $e) {
+            // Mail gitmese bile iÅŸlem baÅŸarÄ±lÄ± sayÄ±lsÄ±n ama uyarÄ± verelim
+            return back()->with('success', 'MÃ¼ÅŸteri bilgileri oluÅŸturuldu ancak mail gÃ¶nderilemedi. Åifre: ' . $plainPassword)->with('generated_password', $plainPassword);
+        }
+
+        // 6. BaÅŸarÄ± ve Åifreyi Ekranda GÃ¶ster
+        return back()->with('success', 'MÃ¼ÅŸteriye bildirim gÃ¶nderildi.')->with('generated_password', $plainPassword);
+    }
+
+    /**
+     * Åifreyi sÄ±fÄ±rlar ve tekrar gÃ¶nderir.
+     */
+    public function resetCustomerPassword($id)
+    {
+        if (!Auth::user()->hasRole(['Superadmin', 'MÃ¼ÅŸteri Åikayeti Kurulu', 'MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri', 'BÃ¶lÃ¼m Kalite YÃ¶neticisi'])) {
+            abort(403);
+        }
+
+        $iaa = Iaa::findOrFail($id);
+        $sikayet = $iaa->musteriSikayeti;
+
+        if (!$sikayet) return back()->with('error', 'Åikayet bulunamadÄ±.');
+
+        // Yeni Åifre
+        $newPlainPassword = Str::random(8);
+        $sikayet->guest_password_hash = Hash::make($newPlainPassword);
+        $sikayet->save();
+
+        // Log
+        MusteriSikayetiLog::create([
+            'musteri_sikayeti_id' => $sikayet->id,
+            'user_id' => Auth::id(),
+            'eylem' => 'MÃ¼ÅŸteri Åifresi SÄ±fÄ±rlandÄ±',
+            'aciklama' => Auth::user()->name . " tarafÄ±ndan mÃ¼ÅŸteri ÅŸifresi yenilendi."
+        ]);
+
+        // Mail
+        try {
+            Mail::to($sikayet->musteri_iletisim)->send(new SikayetTakipBilgilendirmeMail($sikayet, $newPlainPassword, true));
+        } catch (\Exception $e) {}
+
+        return back()->with('success', 'Åifre sÄ±fÄ±rlandÄ±.')->with('generated_password', $newPlainPassword);
+    }
 }
 
 
@@ -1648,6 +1746,8 @@ namespace App\Http\Controllers;
     use App\Models\Iaa; // <-- EKLEYÄ°N
     use App\Models\IaaWorkflow; // <-- EKLEYÄ°N
     use App\Models\IaaProgressUpdate; // <-- EKLEYÄ°N
+    use Illuminate\Support\Facades\Notification; // Bildirim gÃ¶ndermek iÃ§in
+    use App\Notifications\MusteriGeriBildirimBildirimi; // OluÅŸturduÄŸumuz bildirim sÄ±nÄ±fÄ±
 
 
     // === YENÄ° EKLENENLER ===
@@ -2131,8 +2231,97 @@ namespace App\Http\Controllers;
             // TODO: 6. BaÅŸarÄ± mesajÄ±yla 'sikayet.show' rotasÄ±na yÃ¶nlendir.
 
             // Åimdilik boÅŸ bÄ±rakalÄ±m
-            return redirect()->route('public.sikayet.show', ['token' => $token])->with('success', 'Geri bildiriminiz (geÃ§ici olarak) alÄ±ndÄ±!');
+
+    
+        // 1. Token ile ÅŸikayeti bul
+        $sikayet = MusteriSikayeti::where('takip_token', $token)->firstOrFail();
+        
+        // 2. Projenin tamamlanÄ±p tamamlanmadÄ±ÄŸÄ±nÄ± kontrol et (Ekstra gÃ¼venlik)
+        $proje = \App\Models\Iaa::find($sikayet->iaa_id);
+        if (!$proje || $proje->durum != 'TamamlandÄ±') {
+             return back()->with('error', 'Bu iÅŸlem iÃ§in proje sÃ¼recinin tamamlanmasÄ± gerekmektedir.');
         }
+
+        // 3. Gelen veriyi doÄŸrula
+        $validated = $request->validate([
+            'feedback' => 'required|in:OnaylandÄ±,Reddedildi,Revizyon Ä°stendi',
+            'feedback_note' => 'nullable|string|max:1000',
+        ]);
+
+        // 4. VeritabanÄ±nÄ± gÃ¼ncelle
+        $sikayet->update([
+            'musteri_feedback' => $validated['feedback'],
+            'musteri_feedback_note' => $validated['feedback_note'],
+            'feedback_ip' => $request->ip(), // IP Adresi
+            'feedback_user_agent' => $request->userAgent(), // TarayÄ±cÄ± Bilgisi
+        ]);
+
+        // GÃœVENLÄ°K KONTROLÃœ: EÄŸer tarayÄ±cÄ±da personel oturumu aÃ§Ä±ksa, ID'sini kaydet!
+        if (Auth::check()) {
+            $updateData['feedback_by_user_id'] = Auth::id();
+        }
+
+
+        // 6. Log MesajÄ±nÄ± OluÅŸtur
+        $logMesaji = "MÃ¼ÅŸteri Ã§Ã¶zÃ¼mÃ¼ deÄŸerlendirdi: " . $validated['feedback'];
+        if (Auth::check()) {
+            $logMesaji .= " (DÄ°KKAT: Bu iÅŸlem " . Auth::user()->name . " oturumu aÃ§Ä±kken yapÄ±ldÄ±!)";
+        }
+        $logMesaji .= " [IP: " . $request->ip() . "]";
+
+        \App\Models\MusteriSikayetiLog::create([
+            'musteri_sikayeti_id' => $sikayet->id,
+            'eylem' => 'MÃ¼ÅŸteri Geri Bildirimi',
+            'aciklama' => $logMesaji
+        ]);
+
+        // =================================================================
+        // 6. BÄ°LDÄ°RÄ°M GÃ–NDERME (YENÄ° EKLENEN KISIM)
+        // =================================================================
+        try {
+            // A. AlÄ±cÄ± Listesini OluÅŸtur
+            $recipients = collect();
+
+            // 1. Superadminler
+            $recipients = $recipients->merge(User::role('Superadmin')->get());
+
+            // 2. BÃ¶lÃ¼m Kalite YÃ¶neticileri
+            $recipients = $recipients->merge(User::role('BÃ¶lÃ¼m Kalite YÃ¶neticisi')->get());
+            
+            // 3. MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Liderleri
+            $recipients = $recipients->merge(User::role('MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri')->get());
+
+            // 4. Ã‡Ã¶zÃ¼m TakÄ±mÄ± Lideri (Varsa)
+            if ($sikayet->cozumTakimi && $sikayet->cozumTakimi->lider) {
+                $recipients->push($sikayet->cozumTakimi->lider);
+            }
+
+            // 5. Proje (Ä°AA) TakÄ±m Lideri (Varsa)
+            if ($proje && $proje->atananTakim && $proje->atananTakim->lider) {
+                $recipients->push($proje->atananTakim->lider);
+            }
+
+            // TekilleÅŸtir (AynÄ± kiÅŸiye 2 kere gitmesin)
+            $recipients = $recipients->unique('id');
+
+            // Bildirimi GÃ¶nder
+            // Not: MusteriGeriBildirimBildirimi sÄ±nÄ±fÄ±nÄ± oluÅŸturduÄŸunuzdan emin olun.
+            Notification::send($recipients, new MusteriGeriBildirimBildirimi(
+                $sikayet, 
+                $validated['feedback'], 
+                $validated['feedback_note']
+            ));
+
+        } catch (\Exception $e) {
+            // Bildirim hatasÄ± kullanÄ±cÄ± deneyimini bozmasÄ±n, sadece loglayalÄ±m.
+            \Log::error('MÃ¼ÅŸteri geri bildirim bildirimi gÃ¶nderilemedi: ' . $e->getMessage());
+        }
+        // =================================================================
+
+        // 7. BaÅŸarÄ± mesajÄ± ile yÃ¶nlendir
+        return redirect()->route('public.sikayet.show', ['token' => $token])
+                         ->with('success', 'Geri bildiriminiz baÅŸarÄ±yla kaydedildi. TeÅŸekkÃ¼r ederiz!');
+    }
 
         // ======================================================================
         // === YENÄ° EKLENEN YARDIMCI METOT (YÃ–NETÄ°CÄ° BÄ°LDÄ°RÄ°MÄ° Ä°Ã‡Ä°N) ===
@@ -2555,11 +2744,12 @@ class UserDirectoryController extends Controller
         // Sorguyu BaÅŸlat
         $query = User::query();
 
-        // === KRÄ°TÄ°K KURAL: GÄ°ZLÄ°LÄ°K ===
-        // EÄŸer bakan kiÅŸi Superadmin DEÄÄ°LSE, Superadminleri listeden gizle.
+        // === KRÄ°TÄ°K KURAL: GÄ°ZLÄ°LÄ°K (GÃœNCELLENDÄ°) ===
+        // EÄŸer bakan kiÅŸi Superadmin DEÄÄ°LSE:
+        // Hem 'Superadmin' hem de 'Yonetim' rolÃ¼ne sahip kullanÄ±cÄ±larÄ± listeden gizle.
         if (!$currentUser->hasRole('Superadmin')) {
             $query->whereDoesntHave('roles', function ($q) {
-                $q->where('name', 'Superadmin');
+                $q->whereIn('name', ['Superadmin', 'Yonetim']);
             });
         }
 
@@ -2576,9 +2766,9 @@ class UserDirectoryController extends Controller
 
         // SÄ±ralama ve Sayfalama
         $users = $query->with('bolum', 'roles')
-                       ->orderBy('name')
-                       ->paginate(12) // Sayfada 12 kiÅŸi
-                       ->withQueryString();
+                        ->orderBy('name')
+                        ->paginate(12) // Sayfada 12 kiÅŸi
+                        ->withQueryString();
 
         return view('user-directory.index', compact('users', 'search'));
     }
@@ -2988,6 +3178,1158 @@ class CozumTakimiController extends Controller
 
 
 ==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Http\Controllers\Admin\DisciplinaryController.php
+==========================================
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\User;
+use App\Models\DisciplinaryCategory;
+use App\Models\DisciplinaryImpact;
+use App\Models\DisciplinaryScope;
+use App\Models\DisciplinaryCase;
+use App\Models\DisciplinaryMultiplier;
+use App\Models\DisciplinaryPenaltyScale;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Notifications\DisiplinTutanagiOlusturuldu;
+use App\Notifications\PersonelSavunmaVerdi;
+use App\Models\DisciplinaryVote; 
+
+class DisciplinaryController extends Controller
+{
+    public function index(Request $request)
+    {
+        $user = Auth::user();
+
+        // 1. ERÄ°ÅÄ°M KONTROLÃœ
+        $hasAccess = $user->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±', 'Disiplin Kurulu Ãœyesi', 'BÃ¶lÃ¼m Lideri']) 
+                     || $user->can_issue_disciplinary;
+
+        if (!$hasAccess) {
+            abort(403, 'Yetkiniz yok.');
+        }
+
+        // 2. TEMEL SORGU
+        $query = DisciplinaryCase::with(['user.bolum', 'behavior.category', 'reporter', 'impact', 'scope'])
+            ->latest('created_at');
+
+        $filterMessage = '';
+        $filterType = 'info';
+
+        // --- YETKÄ° FÄ°LTRELEME MANTIÄI (GÃœNCELLENDÄ°) ---
+
+        // A. SÃœPER YETKÄ°LÄ°LER (Admin, Hukuk, Kurul) -> HER ÅEYÄ° GÃ–RÃœR
+        if ($user->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±', 'Disiplin Kurulu Ãœyesi'])) {
+            $filterMessage = 'Tam yetkili gÃ¶rÃ¼nÃ¼mÃ¼: TÃ¼m dosyalar listeleniyor.';
+            $filterType = 'success';
+        } 
+        
+        // B. BÃ–LÃœM YETKÄ°LÄ°LERÄ° (Ä°SG, GÃ¼venlik, Kapak Lideri vb.)
+        else {
+            // KURAL: Sadece "RaporlayanÄ± (Tutanak TutanÄ±)" benim bÃ¶lÃ¼mÃ¼mden olan dosyalarÄ± getir.
+            // Yani: BarÄ±ÅŸ YalÃ§Ä±n (Ä°SG) veya Serkan (Ä°SG) tutanak tuttuysa, Ä°SG ekibi bunu gÃ¶rebilir.
+            // Ama Ä°K (Ä°nsan KaynaklarÄ±) birine tutanak tuttuysa, Ä°SG bunu GÃ–REMEZ (Ä°lgili deÄŸilse).
+            
+            $query->whereHas('reporter', function($q) use ($user) {
+                $q->where('bolum_id', $user->bolum_id);
+            });
+
+            // EKSTRA: Dosya sahibi (suÃ§lanan) benim bÃ¶lÃ¼mÃ¼mden ise onu da gÃ¶reyim (Lidersem)
+            if ($user->hasRole('BÃ¶lÃ¼m Lideri')) {
+                $query->orWhereHas('user', function($q) use ($user) {
+                    $q->where('bolum_id', $user->bolum_id);
+                });
+            }
+
+            // Global Yetkili ise mesajÄ± farklÄ± verelim ama filtre aynÄ± kalsÄ±n (GÃ¼venlik iÃ§in)
+            if ($user->bolum && $user->bolum->is_disciplinary_global) {
+                $filterMessage = 'BÃ¶lÃ¼mÃ¼nÃ¼z ('. $user->bolum->ad .') genel tutanak yetkisine sahiptir. Sadece bÃ¶lÃ¼mÃ¼nÃ¼z tarafÄ±ndan oluÅŸturulan tutanaklarÄ± gÃ¶rÃ¼yorsunuz.';
+            } else {
+                $filterMessage = 'Sadece kendi bÃ¶lÃ¼mÃ¼nÃ¼zle ilgili kayÄ±tlarÄ± gÃ¶rÃ¼yorsunuz.';
+                $filterType = 'warning';
+            }
+        }
+
+        // 4. MEVCUT FÄ°LTRELERÄ° UYGULA (Search ve Durum - KORUNDU)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('user', function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('durum')) {
+            $query->where('durum', $request->durum);
+        }
+
+        // 5. SAYFALAMA (KORUNDU)
+        $cases = $query->paginate(20)->withQueryString();
+
+        return view('admin.disiplin.index', compact('cases', 'filterMessage', 'filterType'));
+    }
+
+    public function show($id)
+    {
+        // 1. VERÄ° YÃœKLEME (Senin mevcut kodun: Yorum mantÄ±ÄŸÄ± ve iliÅŸkiler korunuyor)
+        $case = DisciplinaryCase::with([
+            'user.bolum', 
+            'behavior.category', 
+            'reporter', 
+            'impact', 
+            'scope',
+            // YorumlarÄ± Ã¶zel bir koÅŸulla Ã§ekiyoruz:
+            'comments' => function($q) {
+                // EÄŸer giren kiÅŸi Superadmin veya Hukuk Admini ise SÄ°LÄ°NENLERÄ° DE GETÄ°R
+                if (Auth::user()->hasRole(['Superadmin', 'Hukuk Admini'])) {
+                    $q->withTrashed(); 
+                }
+                $q->orderBy('created_at', 'desc'); // En yeni en Ã¼stte
+            },
+            'comments.user',      // Yorum sahibi bilgisi
+            'comments.histories'  // DÃ¼zenleme geÃ§miÅŸi
+        ])->findOrFail($id);
+
+        $user = Auth::user();
+
+        // 2. GÃœVENLÄ°K DUVARI (Hibrit YapÄ±)
+
+        // A. SÃ¼per YÃ¶neticiler ve Kurul (Her ÅŸeyi gÃ¶rÃ¼r)
+        if ($user->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±', 'Disiplin Kurulu Ãœyesi'])) {
+            return view('admin.disiplin.show', compact('case'));
+        }
+
+        // B. Dosya Sahibi (Kendisi)
+        if ($case->user_id == $user->id) {
+            return view('admin.disiplin.show', compact('case'));
+        }
+
+        // C. Raporlayan (Tutanak Tutan)
+        // (Serkan tutanaÄŸÄ± tuttuysa, yetkisi alÄ±nsa bile kendi tuttuÄŸu tutanaÄŸÄ± gÃ¶rmeye devam etmeli)
+        if ($case->reporter_id == $user->id) {
+            return view('admin.disiplin.show', compact('case'));
+        }
+
+        // D. BÃ¶lÃ¼m Liderleri ve Yetkili Sorumlular (Yeni Eklenen KÄ±sÄ±m)
+        // Hem Liderleri hem de Delegasyon yetkisi olanlarÄ± kapsar.
+        $hasAuthority = $user->hasRole('BÃ¶lÃ¼m Lideri') || $user->can_issue_disciplinary;
+
+        if ($hasAuthority) {
+            // D1. Global Yetkili BÃ¶lÃ¼m mÃ¼? (Ä°SG/GÃ¼venlik -> Herkesi GÃ¶rÃ¼r)
+            if ($user->bolum && $user->bolum->is_disciplinary_global) {
+                return view('admin.disiplin.show', compact('case'));
+            }
+
+            // D2. Yerel Yetkili (Kapak BÃ¶lÃ¼mÃ¼ -> Sadece Kendi BÃ¶lÃ¼mÃ¼nÃ¼ GÃ¶rÃ¼r)
+            // Dosyadaki suÃ§lu kiÅŸi, benim bÃ¶lÃ¼mÃ¼mden mi?
+            if ($case->user->bolum_id == $user->bolum_id) {
+                return view('admin.disiplin.show', compact('case'));
+            }
+        }
+
+        // HiÃ§bir kurala uymuyorsa yasakla
+        abort(403, 'Bu dosyayÄ± gÃ¶rÃ¼ntÃ¼leme yetkiniz yok.');
+    }
+
+    /**
+     * DÃœZENLEME SAYFASI
+     */
+    public function edit($id)
+    {
+        $case = DisciplinaryCase::findOrFail($id);
+        
+        // Sadece belirli durumlarda dÃ¼zenlemeye izin verelim (Ã–rn: Karar verilmiÅŸse dÃ¼zenlenemesin)
+        if ($case->durum == 'Karar Verildi' || $case->durum == 'Ä°ptal Edildi') {
+            return back()->with('error', 'Bu dosya kapatÄ±ldÄ±ÄŸÄ± iÃ§in dÃ¼zenlenemez.');
+        }
+
+        $users = User::where('id', '!=', Auth::id())->orderBy('name')->get();
+        $categories = DisciplinaryCategory::with('behaviors')->orderBy('ad')->get();
+        $impacts = DisciplinaryImpact::orderBy('puan')->get();
+        $scopes = DisciplinaryScope::orderBy('puan')->get();
+
+        return view('admin.disiplin.edit', compact('case', 'users', 'categories', 'impacts', 'scopes'));
+    }
+
+    /**
+     * GÃœNCELLEME Ä°ÅLEMÄ°
+     */
+    public function update(Request $request, $id)
+    {
+        $case = DisciplinaryCase::findOrFail($id);
+        
+        // Validasyon (Dosya zorunlu deÄŸil bu sefer)
+        $request->validate([
+            'behavior_id' => 'required',
+            'impact_id' => 'required',
+            'scope_id' => 'required',
+            'olay_aciklamasi' => 'required|min:10',
+        ]);
+
+        // 1. ESKÄ° DOSYALARI SÄ°LME Ä°ÅLEMÄ°
+        $mevcutDosyalar = $case->kanit_dosyalari ?? [];
+        
+        if ($request->has('silinecek_dosyalar')) {
+            foreach ($request->silinecek_dosyalar as $silinecek) {
+                // Array'den Ã§Ä±kar
+                if (($key = array_search($silinecek, $mevcutDosyalar)) !== false) {
+                    unset($mevcutDosyalar[$key]);
+                    // Fiziksel dosyayÄ± da silebiliriz (Opsiyonel)
+                    // Storage::disk('public')->delete($silinecek); 
+                }
+            }
+            // Indexleri dÃ¼zelt (0,1,2 diye gitsin)
+            $mevcutDosyalar = array_values($mevcutDosyalar);
+        }
+
+        // 2. YENÄ° DOSYALARI EKLEME
+        if ($request->hasFile('kanit_dosyalari')) {
+            foreach ($request->file('kanit_dosyalari') as $file) {
+                $path = $file->store('disiplin_kanitlar', 'public');
+                $mevcutDosyalar[] = $path; // Listeye ekle
+            }
+        }
+
+        // Matris Yeniden HesaplanmalÄ±
+        $calc = $this->calculateMatrixScore($case->user_id, $request->behavior_id, $request->impact_id, $request->scope_id);
+
+        $case->update([
+            'behavior_id' => $request->behavior_id,
+            'impact_id' => $request->impact_id,
+            'scope_id' => $request->scope_id,
+            'olay_aciklamasi' => $request->olay_aciklamasi,
+            'hesaplanan_puan' => $calc['toplam_puan'],
+            'sistem_oneri_ceza' => $calc['oneri_ceza'],
+            'kanit_dosyalari' => $mevcutDosyalar, // GÃ¼ncellenmiÅŸ dosya listesi
+        ]);
+
+        return redirect()->route('admin.disiplin.show', $case->id)->with('success', 'Tutanak gÃ¼ncellendi.');
+    }
+
+    /**
+     * SÄ°LME YETKÄ°SÄ° (HiyerarÅŸik Matris)
+     */
+    public function destroy($id)
+    {
+        $case = DisciplinaryCase::findOrFail($id);
+        $user = Auth::user();
+
+        // 1. SUPERADMIN: Her an, her ÅŸeyi silebilir.
+        if ($user->hasRole('Superadmin')) {
+            $this->performDelete($case);
+            return redirect()->route('admin.disiplin.index')->with('success', 'KayÄ±t (Superadmin yetkisiyle) silindi.');
+        }
+
+        // 2. HUKUK ADMÄ°NÄ°: Savunma girilmiÅŸ olsa bile silebilir.
+        if ($user->hasRole('Hukuk Admini')) {
+            $this->performDelete($case);
+            return redirect()->route('admin.disiplin.index')->with('success', 'KayÄ±t silindi.');
+        }
+
+        // 3. HUKUK YÃ–NETÄ°CÄ°SÄ°: Savunma GÄ°RÄ°LMEDÄ°YSE silebilir.
+        if ($user->hasRole('Hukuk YÃ¶neticisi')) {
+            if ($case->durum == 'Savunma Bekleniyor' || $case->durum == 'Taslak') {
+                $this->performDelete($case);
+                return redirect()->route('admin.disiplin.index')->with('success', 'KayÄ±t silindi.');
+            }
+            return back()->with('error', 'Personel savunma verdiÄŸi iÃ§in bu dosyayÄ± silemezsiniz.');
+        }
+
+        // 4. BÃ–LÃœM LÄ°DERÄ°: Sadece kendi oluÅŸturduÄŸu ve Savunma girilmemiÅŸse silebilir.
+        if ($user->hasRole('BÃ¶lÃ¼m Lideri') && $case->reporter_id == $user->id) {
+            if ($case->durum == 'Savunma Bekleniyor' || $case->durum == 'Taslak') {
+                $this->performDelete($case);
+                return redirect()->route('admin.disiplin.index')->with('success', 'Tutanak silindi.');
+            }
+            return back()->with('error', 'Personel savunma verdiÄŸi iÃ§in silemezsiniz.');
+        }
+
+        // 5. TUTANAK SAHÄ°BÄ° (PERSONEL): Asla silemez (SavunmasÄ±nÄ± silebilir ama tutanaÄŸÄ± deÄŸil).
+        
+        // 6. DÄ°SÄ°PLÄ°N KURULU (BAÅKAN/ÃœYE): Asla silemez.
+
+        abort(403, 'Bu kaydÄ± silme yetkiniz yok.');
+    }
+
+    // Ortak Silme ve Puan Ä°ade Fonksiyonu
+    private function performDelete($case)
+    {
+        // EÄŸer ceza verildiyse ve puan dÃ¼ÅŸÃ¼ldÃ¼yse, puanÄ± iade et.
+        if ($case->durum == 'Karar Verildi' && $case->final_karar != 'Savunma Kabul Edildi (Ceza Yok)') {
+            $personel = User::find($case->user_id);
+            if ($personel) {
+                $personel->increment('toplam_puan', $case->hesaplanan_puan);
+            }
+        }
+        $case->delete();
+    }
+
+   
+    /**
+     * YENÄ°: Tutanak OluÅŸturma Formu (AkÄ±llÄ± Filtreleme ile)
+     */
+    public function create()
+    {
+        $currentUser = Auth::user();
+
+        // 1. SAYFAYA ERÄ°ÅÄ°M YETKÄ°SÄ° KONTROLÃœ
+        // Kimler girebilir?
+        // a) Superadmin, Hukuk YÃ¶neticileri
+        // b) BÃ¶lÃ¼m Liderleri
+        // c) Lider tarafÄ±ndan yetki verilmiÅŸ "Disiplin Sorumlusu" personeller (can_issue_disciplinary = 1)
+        
+        $hasAccess = $currentUser->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'BÃ¶lÃ¼m Lideri']) 
+                     || $currentUser->can_issue_disciplinary;
+
+        if (!$hasAccess) {
+            abort(403, 'Tutanak oluÅŸturma yetkiniz bulunmamaktadÄ±r.');
+        }
+
+        // 2. KULLANICI LÄ°STESÄ° SORGUSU (Filtreleme BaÅŸlÄ±yor)
+        $usersQuery = User::where('id', '!=', $currentUser->id) // Kendini seÃ§emesin
+            ->orderBy('name');
+
+        // A. DOKUNULMAZLAR (HiyerarÅŸik Koruma)
+        // Bu rollere sahip kiÅŸiler ASLA listede Ã§Ä±kmaz (Tutanak tutulamaz).
+        $protectedRoles = ['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±', 'Disiplin Kurulu Ãœyesi'];
+        
+        $usersQuery->whereDoesntHave('roles', function ($q) use ($protectedRoles) {
+            $q->whereIn('name', $protectedRoles);
+        });
+
+        // B. YETKÄ° KAPSAMI (GLOBAL MÄ°, YEREL MÄ°?)
+        
+        // --- DURUM 1: SÃœPER YETKÄ°LÄ°LER ---
+        // Superadmin ve HukukÃ§ular fabrikadaki HERKESÄ° gÃ¶rÃ¼r.
+        if ($currentUser->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini'])) {
+            // Ekstra bir filtre uygulanmaz, herkes gelir.
+        } 
+        
+        // --- DURUM 2: BÃ–LÃœM LÄ°DERLERÄ° VE SORUMLULAR ---
+        else {
+            // KullanÄ±cÄ±nÄ±n bÃ¶lÃ¼mÃ¼ "Global Disiplin Yetkisine" sahip mi? (Ã–rn: Ä°SG, GÃ¼venlik)
+            // Bu ayarÄ± 'bolumler' tablosundaki 'is_disciplinary_global' sÃ¼tunundan alÄ±yoruz.
+            $isGlobalDept = $currentUser->bolum && $currentUser->bolum->is_disciplinary_global;
+
+            if ($isGlobalDept) {
+                // >> GLOBAL YETKÄ° <<
+                // TÃ¼m fabrikayÄ± gÃ¶rebilirler.
+                // Ä°steÄŸe BaÄŸlÄ± Kural: Kendi bÃ¶lÃ¼mlerindeki "Lideri" raporlayamasÄ±nlar.
+                if (!$currentUser->hasRole('BÃ¶lÃ¼m Lideri')) {
+                     $usersQuery->whereDoesntHave('roles', function($q){ 
+                        $q->where('name', 'BÃ¶lÃ¼m Lideri'); 
+                    });
+                }
+            } 
+            else {
+                // >> YEREL YETKÄ° (STANDART) <<
+                // Sadece kendi bÃ¶lÃ¼mÃ¼ndeki personeli gÃ¶rebilirler.
+                if ($currentUser->bolum_id) {
+                    $usersQuery->where('bolum_id', $currentUser->bolum_id);
+                    
+                    // HiyerarÅŸi KuralÄ±: EÄŸer kullanÄ±cÄ± "Lider" deÄŸilse (yani yetkili personelse),
+                    // kendi bÃ¶lÃ¼m liderini ÅŸikayet edemez.
+                    if (!$currentUser->hasRole('BÃ¶lÃ¼m Lideri')) {
+                        $usersQuery->whereDoesntHave('roles', function($q){ 
+                            $q->where('name', 'BÃ¶lÃ¼m Lideri'); 
+                        });
+                    }
+                }
+            }
+        }
+
+        // SonuÃ§larÄ± Getir
+        $users = $usersQuery->get();
+        
+        // DiÄŸer verileri Ã§ek
+        $categories = DisciplinaryCategory::with('behaviors')->orderBy('ad')->get();
+        $impacts = DisciplinaryImpact::orderBy('puan')->get();
+        $scopes = DisciplinaryScope::orderBy('puan')->get();
+
+        return view('admin.disiplin.create', compact('users', 'categories', 'impacts', 'scopes'));
+    }
+
+    /**
+     * YENÄ°: Kaydetme ve Matris HesabÄ±
+     */
+    public function store(Request $request)
+    {
+        // dd() satÄ±rÄ±nÄ± sildik, artÄ±k iÅŸlem devam edebilir.
+        
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'behavior_id' => 'required|exists:disciplinary_behaviors,id',
+            'impact_id' => 'required|exists:disciplinary_impacts,id',
+            'scope_id' => 'required|exists:disciplinary_scopes,id',
+            'olay_tarihi' => 'required|date',
+            'olay_aciklamasi' => 'required|string|min:10',
+            'kanit_dosyalari.*' => 'nullable|file|mimes:jpg,png,pdf,mp4,mov|max:20480'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // 1. MATRÄ°S HESAPLAMA (GÃœNCELLENDÄ°)
+            $calc = $this->calculateMatrixScore(
+                $request->user_id, 
+                $request->behavior_id, 
+                $request->impact_id, 
+                $request->scope_id
+            );
+
+            // 2. Dosya YÃ¼kleme
+            $kanitYollari = [];
+            if ($request->hasFile('kanit_dosyalari')) {
+                foreach ($request->file('kanit_dosyalari') as $file) {
+                    $path = $file->store('disiplin_kanitlar', 'public');
+                    $kanitYollari[] = $path;
+                }
+            }
+
+            // 3. KayÄ±t (DeÄŸiÅŸkene atayarak yapÄ±yoruz)
+            $case = DisciplinaryCase::create([ // BaÅŸÄ±na $case = ekledik
+                'user_id' => $request->user_id,
+                'reporter_id' => Auth::id(),
+                'behavior_id' => $request->behavior_id,
+                'impact_id' => $request->impact_id,
+                'scope_id' => $request->scope_id,
+                'olay_tarihi' => $request->olay_tarihi,
+                'olay_aciklamasi' => $request->olay_aciklamasi,
+                'kanit_dosyalari' => $kanitYollari, 
+                
+                'tekrar_sayisi' => $calc['tekrar'],
+                'hesaplanan_puan' => $calc['toplam_puan'],
+                'sistem_oneri_ceza' => $calc['oneri_ceza'],
+                'final_karar' => $calc['oneri_ceza'],
+                
+                'durum' => 'Savunma Bekleniyor'
+            ]);
+
+            // --- BÄ°LDÄ°RÄ°M GÃ–NDERÄ°MÄ° ---
+            
+            // A. Tutanak Yiyen Personele GÃ¶nder
+            try {
+                $case->user->notify(new DisiplinTutanagiOlusturuldu($case));
+            } catch (\Exception $e) {
+                \Log::error('Personel bildirimi hatasÄ±: ' . $e->getMessage());
+            }
+
+            // B. YÃ¶neticilere GÃ¶nder
+            // Rolleri tek tek array iÃ§inde belirttik.
+            try {
+                $yoneticiRolleri = ['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±'];
+                $yoneticiler = User::role($yoneticiRolleri)->get();
+                
+                // EÄŸer yÃ¶netici bulunamadÄ±ysa loga yazalÄ±m ki anlayalÄ±m
+                if ($yoneticiler->isEmpty()) {
+                    \Log::warning('Bildirim gÃ¶nderilecek Hukuk/Admin yetkili bulunamadÄ±!');
+                }
+
+                foreach ($yoneticiler as $yonetici) {
+                    // 1. Kendine bildirim atmasÄ±n (DosyayÄ± oluÅŸturan kiÅŸi)
+                    // 2. Tutanak yiyen kiÅŸi yÃ¶neticiyse ona zaten yukarÄ±da (A ÅŸÄ±kkÄ±nda) attÄ±k, tekrar atma.
+                    if ($yonetici->id != Auth::id() && $yonetici->id != $case->user_id) {
+                        $yonetici->notify(new DisiplinTutanagiOlusturuldu($case));
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('YÃ¶netici bildirimi hatasÄ±: ' . $e->getMessage());
+            }
+            // --------------------------
+
+            // 3. [GÃœNCELLENDÄ°] EÄER TUTANAÄI TUTAN KÄ°ÅÄ° (SERKAN), BÃ–LÃœM LÄ°DERÄ° DEÄÄ°LSE
+            // O BÃ–LÃœMÃœN LÄ°DERÄ°NE (BARIÅ) Ã–ZEL BÄ°LDÄ°RÄ°M GÄ°TSÄ°N
+            if (!Auth::user()->hasRole('BÃ¶lÃ¼m Lideri')) {
+                // Tutanak tutan kiÅŸinin (Serkan'Ä±n) bÃ¶lÃ¼m liderini bul
+                $reporterLeader = User::where('bolum_id', Auth::user()->bolum_id)
+                    ->role('BÃ¶lÃ¼m Lideri')
+                    ->first();
+
+                if ($reporterLeader) {
+                    // DEÄÄ°ÅÄ°KLÄ°K BURADA: Standart bildirim yerine Ã–ZEL bildirim gÃ¶nderiyoruz.
+                    $reporterLeader->notify(new \App\Notifications\PersonelTutanakOlusturduBildirimi($case));
+                }
+            }
+
+            // TODO: KiÅŸiye savunma talebi maili atÄ±lacak...
+
+            DB::commit();
+            return redirect()->route('admin.disiplin.index')
+                ->with('success', 'Tutanak oluÅŸturuldu. Hesaplanan Puan: ' . $calc['toplam_puan'] . ' - Ã–neri: ' . $calc['oneri_ceza']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Hata oluÅŸtu: ' . $e->getMessage())->withInput();
+        }
+    }
+
+    /**
+     * === YENÄ° MATRÄ°S HESAPLAMA MOTORU ===
+     * FormÃ¼l: (Etki PuanÄ± x Kapsam PuanÄ±) x Tekrar KatsayÄ±sÄ±
+     */
+    private function calculateMatrixScore($userId, $behaviorId, $impactId, $scopeId)
+    {
+        // A. PuanlarÄ± Ã‡ek
+        $impact = DisciplinaryImpact::find($impactId)->puan; // Ã–rn: 5
+        $scope = DisciplinaryScope::find($scopeId)->puan;   // Ã–rn: 3
+
+        // B. Tekrar SayÄ±sÄ±nÄ± Bul (AynÄ± suÃ§tan kaÃ§ tane kesinleÅŸmiÅŸ ceza var?)
+        $gecmisSayisi = DisciplinaryCase::where('user_id', $userId)
+            ->where('behavior_id', $behaviorId)
+            ->where('durum', 'Karar Verildi')
+            ->count();
+        
+        $tekrar = $gecmisSayisi + 1; // Mevcut olay dahil
+
+        // C. KatsayÄ±yÄ± Bul
+        $katsayiKaydi = DisciplinaryMultiplier::where('tekrar_sayisi', $tekrar)->first();
+        if (!$katsayiKaydi) {
+            // Tabloda yoksa (Ã¶rn: 5. tekrar) en sonuncuyu al
+            $katsayiKaydi = DisciplinaryMultiplier::orderBy('tekrar_sayisi', 'desc')->first();
+        }
+        $katsayi = $katsayiKaydi ? $katsayiKaydi->katsayi : 1.0;
+
+        // D. MATRÄ°S FORMÃœLÃœ
+        // (Etki x Kapsam) * KatsayÄ±
+        $baseScore = $impact * $scope; 
+        $totalScore = $baseScore * $katsayi;
+
+        // E. Ceza SkalasÄ±ndan Ã–neriyi Bul
+        $skala = DisciplinaryPenaltyScale::where('min_puan', '<=', $totalScore)
+            ->where('max_puan', '>=', $totalScore)
+            ->first();
+        
+        $oneri = $skala ? $skala->ceza_adi : 'Kurul DeÄŸerlendirmesi';
+
+        return [
+            'tekrar' => $tekrar,
+            'katsayi' => $katsayi,
+            'toplam_puan' => $totalScore,
+            'oneri_ceza' => $oneri
+        ];
+    }
+
+    /**
+     * SAVUNMA KAYDETME Ä°ÅLEMÄ°
+     */
+    public function saveDefense(Request $request, $id)
+    {
+        $case = DisciplinaryCase::findOrFail($id);
+        $user = Auth::user();
+
+        // 1. YETKÄ° KONTROLÃœ (GeniÅŸletildi)
+        // Kimler savunma girebilir?
+        // a) Dosya sahibi (Personel)
+        // b) DosyayÄ± Raporlayan (BÃ¶lÃ¼m Lideri) -> Personel adÄ±na
+        // c) Hukuk Admini / Superadmin (Acil durumlar iÃ§in)
+        
+        $isOwner = $case->user_id == $user->id;
+        $isReporter = $case->reporter_id == $user->id;
+        $isAdmin = $user->hasRole(['Superadmin', 'Hukuk Admini']);
+
+        if (!$isOwner && !$isReporter && !$isAdmin) {
+            abort(403, 'Bu dosyaya savunma girme yetkiniz yok.');
+        }
+
+        $request->validate([
+            'savunma_aciklamasi' => 'required|min:5',
+            'savunma_dosyalari.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx|max:20480' 
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $savunmaDosyalari = $case->savunma_dosyalari ?? [];
+            
+            // Dosya YÃ¼kleme (Ä°simlendirme korundu)
+            if ($request->hasFile('savunma_dosyalari')) {
+                foreach ($request->file('savunma_dosyalari') as $file) {
+                    $userName = \Illuminate\Support\Str::slug($user->name); // Ä°ÅŸlemi yapanÄ±n adÄ±
+                    $dateTime = now()->format('Ymd_Hi');
+                    $rawName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                    $slugName = \Illuminate\Support\Str::slug($rawName);
+                    $shortName = \Illuminate\Support\Str::limit($slugName, 25, ''); 
+                    if (empty($shortName)) $shortName = 'dosya_' . \Illuminate\Support\Str::random(3);
+                    $extension = $file->getClientOriginalExtension();
+                    
+                    $fileName = "{$userName}_{$dateTime}_{$shortName}.{$extension}";
+                    $path = $file->storeAs('disiplin_savunmalar', $fileName, 'public');
+                    $savunmaDosyalari[] = $path;
+                }
+            }
+
+            // SAVUNMA METNÄ° Ä°ÅLEME
+            $finalText = $request->savunma_aciklamasi;
+            
+            // EÄŸer savunmayÄ± giren kiÅŸi dosya sahibi DEÄÄ°LSE, altÄ±na not dÃ¼ÅŸ.
+            if (!$isOwner) {
+                $finalText .= "\n\n(Not: Bu savunma " . now()->format('d.m.Y H:i') . " tarihinde BÃ¶lÃ¼m YÃ¶neticisi " . $user->name . " tarafÄ±ndan personel adÄ±na sisteme girilmiÅŸtir.)";
+            }
+
+            $case->update([
+                'savunma_aciklamasi' => $finalText,
+                'savunma_dosyalari' => $savunmaDosyalari,
+                'savunma_tarihi' => now(),
+                'durum' => 'YÃ¶netici DeÄŸerlendirmesi' 
+            ]);
+
+            // BÄ°LDÄ°RÄ°M: Hukuk ve YÃ¶netime haber ver
+            try {
+                $yoneticiler = User::role(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini'])->get();
+                foreach($yoneticiler as $yonetici) {
+                    // Ä°ÅŸlemi yapan kiÅŸi yÃ¶neticiyse kendine bildirim atmasÄ±n
+                    if($yonetici->id != $user->id) {
+                        $yonetici->notify(new \App\Notifications\PersonelSavunmaVerdi($case));
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Bildirim hatasÄ±: ' . $e->getMessage());
+            }
+
+            DB::commit();
+            return back()->with('success', 'Savunma baÅŸarÄ±yla kaydedildi.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Hata: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * KARAR 1: CEZAYI ONAYLA (Puan DÃ¼ÅŸer + Not + Dosya)
+     */
+    public function approvePenalty(Request $request, $id)
+    {
+        $case = DisciplinaryCase::findOrFail($id);
+
+        // 1. TEK VE NET YETKÄ° KONTROLÃœ
+        // Buraya "Disiplin Kurulu BaÅŸkanÄ±"nÄ± EKLEDÄ°K. ArtÄ±k 403 hatasÄ± almayacak.
+        if (!Auth::user()->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±'])) {
+            abort(403, 'Bu iÅŸlemi yapmaya yetkiniz yok.');
+        }
+
+        $request->validate(['karar_dosyasi' => 'nullable|file|max:10240']); // 10MB limit
+       
+        // Karar DosyasÄ± YÃ¼kleme
+        $dosyaYolu = null;
+        if ($request->hasFile('karar_dosyasi')) {
+            // YENÄ° DOSYA Ä°SÄ°MLENDÄ°RME FORMATI: YYYYMMDD_RN.ext
+            // Ã–rn: 20251204_99.pdf
+            $file = $request->file('karar_dosyasi');
+            $extension = $file->getClientOriginalExtension();
+            $filename = date('Ymd') . '_' . rand(10, 99) . '.' . $extension;
+            
+            // storeAs kullanarak Ã¶zel isimle kaydet
+            $dosyaYolu = $file->storeAs('disiplin_kararlar', $filename, 'public');
+        }
+
+        $imzaliNot = $request->yonetici_notu . ' (Ä°ÅŸlemi Yapan: ' . Auth::user()->name . ')';
+
+        $case->update([
+            'durum' => 'Karar Verildi',
+            'final_karar' => $case->sistem_oneri_ceza, // Ã–rn: "SÃ¶zlÃ¼ UyarÄ±"
+            'yonetici_notu' => $imzaliNot, // GÃ¼ncellendi
+            'karar_dosyasi' => $dosyaYolu,
+            'karar_tarihi' => now(),
+        ]);
+
+        // Puan DÃ¼ÅŸme Ä°ÅŸlemi
+        $user = User::find($case->user_id);
+        if ($user) {
+            $user->decrement('toplam_puan', $case->hesaplanan_puan);
+        }
+
+        return back()->with('success', 'Ceza onaylandÄ±, puan dÃ¼ÅŸÃ¼ldÃ¼ ve karar dosyaya iÅŸlendi.');
+    }
+
+    /**
+     * KARAR 2: SAVUNMAYI KABUL ET (Puan DÃ¼ÅŸmez, Dosya KapanÄ±r)
+     */
+    public function acceptDefense(Request $request, $id)
+    {
+        $case = DisciplinaryCase::findOrFail($id);
+
+        // TEK VE NET YETKÄ° KONTROLÃœ
+        if (!Auth::user()->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±'])) {
+            abort(403, 'Bu iÅŸlem iÃ§in yetkiniz yok.');
+        }
+
+        
+        // Karar DosyasÄ± YÃ¼kleme
+        $dosyaYolu = null;
+        if ($request->hasFile('karar_dosyasi')) {
+            // YENÄ° DOSYA Ä°SÄ°MLENDÄ°RME FORMATI
+            $file = $request->file('karar_dosyasi');
+            $extension = $file->getClientOriginalExtension();
+            $filename = date('Ymd') . '_' . rand(10, 99) . '.' . $extension;
+            
+            $dosyaYolu = $file->storeAs('disiplin_kararlar', $filename, 'public');
+        }
+
+        $imzaliNot = $request->yonetici_notu . ' (Ä°ÅŸlemi Yapan: ' . Auth::user()->name . ')';
+
+        $case->update([
+            'durum' => 'Karar Verildi',
+            'final_karar' => 'Savunma Kabul Edildi (Ceza Yok)', // Karar metni
+            'yonetici_notu' => $imzaliNot, // GÃ¼ncellendi
+            'karar_dosyasi' => $dosyaYolu,
+            'karar_tarihi' => now(),
+        ]);
+
+        // DÄ°KKAT: Puan dÃ¼ÅŸme iÅŸlemi YAPMIYORUZ.
+        
+        return back()->with('success', 'Savunma haklÄ± bulundu ve kabul edildi. Personelden puan dÃ¼ÅŸÃ¼lmedi.');
+    }
+
+    /**
+     * KARAR 3: KURULA SEVK ET
+     */
+    public function sendToBoard(Request $request, $id)
+    {
+        if (!Auth::user()->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini'])) abort(403);
+
+        $case = DisciplinaryCase::findOrFail($id);
+
+        // TARÄ°H VE NOT
+        $tarih = $request->toplanti_tarihi; // Formdan gelecek
+        $not = $request->yonetici_notu;
+
+        // Ä°MZA EKLEME (Kurul sevki iÃ§in not zorunlu deÄŸilse kontrol koyabilirsin)
+        $not = $request->yonetici_notu ?? 'Kurula sevk edildi.';
+        $imzaliNot = $not . ' (Ä°ÅŸlemi Yapan: ' . Auth::user()->name . ')';
+        
+        // Notu kaydet, durumu gÃ¼ncelle
+        $case->update([
+            'durum' => 'Kurulda',
+            'yonetici_notu' => $imzaliNot, // GÃ¼ncellendi
+            'toplanti_tarihi' => $tarih, // Kaydet
+            'karar_tarihi' => now() // Ä°ÅŸlem tarihini tutalÄ±m
+        ]);
+
+        return back()->with('success', 'Dosya, yÃ¶netici notuyla birlikte Disiplin Kuruluna sevk edildi.');
+    }
+
+    /**
+     * KARARI GERÄ° AL (Revize Edildi)
+     */
+    public function revokeDecision($id)
+    {
+        // 1. GENEL YETKÄ°
+        if (!Auth::user()->hasRole(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±'])) {
+            abort(403, 'Yetkiniz yok.');
+        }
+
+        $case = DisciplinaryCase::findOrFail($id);
+
+        // Ä°zin verilen durumlar: Karar Verildi VEYA Kurulda
+        if (!in_array($case->durum, ['Karar Verildi', 'Kurulda'])) {
+            return back()->with('error', 'Bu aÅŸamadaki dosya geri alÄ±namaz.');
+        }
+
+        DB::beginTransaction();
+        try {
+            // EÄŸer Ceza verildiyse ve Puan dÃ¼ÅŸÃ¼ldÃ¼yse -> PuanÄ± Ä°ade Et
+            // "Savunma Kabul Edildi" durumunda puan dÃ¼ÅŸmediÄŸi iÃ§in iadeye gerek yok.
+            // "Kurulda" durumunda puan dÃ¼ÅŸmediÄŸi iÃ§in iadeye gerek yok.
+            if ($case->durum == 'Karar Verildi' && $case->final_karar != 'Savunma Kabul Edildi (Ceza Yok)') {
+                $user = User::find($case->user_id);
+                if ($user) {
+                    $user->increment('toplam_puan', $case->hesaplanan_puan);
+                }
+            }
+
+            // DosyayÄ± Eski Haline ("YÃ¶netici DeÄŸerlendirmesi") DÃ¶ndÃ¼r
+            $case->update([
+                'durum' => 'YÃ¶netici DeÄŸerlendirmesi',
+                'final_karar' => null,
+                'karar_tarihi' => null,
+                // yonetici_notu silinmesin, tarihÃ§e olarak kalsÄ±n mÄ±? 
+                // Genelde geri alÄ±nÄ±nca temizlenmesi istenir ki yeni karar verilsin.
+                'yonetici_notu' => null, 
+                'karar_dosyasi' => null
+            ]);
+
+            DB::commit();
+            return back()->with('success', 'Ä°ÅŸlem geri alÄ±ndÄ±. Dosya tekrar yÃ¶netici ekranÄ±na dÃ¼ÅŸtÃ¼.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Hata: ' . $e->getMessage());
+        }
+    }
+
+   
+    /**
+     * KURUL ÃœYESÄ° OY KULLANMA Ä°ÅLEMÄ°
+     */
+    public function saveVote(Request $request, $id)
+    {
+        // Sadece yetkili roller oy kullanabilir
+        if (!Auth::user()->hasRole(['Disiplin Kurulu Ãœyesi', 'Disiplin Kurulu BaÅŸkanÄ±', 'Superadmin', 'Hukuk YÃ¶neticisi'])) {
+            abort(403, 'Oy kullanma yetkiniz yok.');
+        }
+
+        $case = DisciplinaryCase::findOrFail($id);
+
+        if ($case->durum != 'Kurulda') {
+            return back()->with('error', 'Sadece kurul aÅŸamasÄ±ndaki dosyalara oy verilebilir.');
+        }
+
+        $request->validate([
+            'oy_yonu' => 'required|in:Ceza Verilsin,Ceza Verilmesin,Ek SoruÅŸturma,Ã‡ekimser',
+            'yorum' => 'nullable|string|max:1000'
+        ]);
+
+        // UpdateOrCreate: EÄŸer daha Ã¶nce oy kullandÄ±ysa gÃ¼nceller, yoksa yeni oluÅŸturur.
+        DisciplinaryVote::updateOrCreate(
+            [
+                'case_id' => $case->id,
+                'user_id' => Auth::id()
+            ],
+            [
+                'oy_yonu' => $request->oy_yonu,
+                'yorum' => $request->yorum
+            ]
+        );
+
+        return back()->with('success', 'Oyunuz ve gÃ¶rÃ¼ÅŸÃ¼nÃ¼z baÅŸarÄ±yla kaydedildi.');
+    }
+
+    /**
+     * KURUL OYUNU SÄ°LME (GERÄ° Ã‡EKME)
+     */
+    public function deleteVote($id)
+    {
+        $case = DisciplinaryCase::findOrFail($id);
+        
+        // Sadece kendi oyunu silebilir
+        $vote = DisciplinaryVote::where('case_id', $case->id)
+            ->where('user_id', Auth::id())
+            ->first();
+
+        if ($vote) {
+            $vote->delete();
+            return back()->with('success', 'Oyunuz geri Ã§ekildi.');
+        }
+
+        return back()->with('error', 'HenÃ¼z oy kullanmamÄ±ÅŸsÄ±nÄ±z.');
+    }
+
+    /**
+     * YORUM EKLEME (Bildirimli + Ã–zel Dosya Ä°simlendirmeli)
+     */
+    /**
+     * YORUM EKLEME (Orijinal Ä°sim KorumalÄ±)
+     */
+    public function storeComment(Request $request, $id)
+    {
+        $case = DisciplinaryCase::findOrFail($id);
+        
+        $request->validate([
+            'yorum' => 'required|string|max:1000',
+            'dosyalar.*' => 'nullable|file|max:20480' // .msg ve diÄŸerleri iÃ§in esnek kontrol
+        ]);
+
+        $dosyaYollari = [];
+        if ($request->hasFile('dosyalar')) {
+            foreach ($request->file('dosyalar') as $file) {
+                
+                // 1. KULLANICI ADI (Slug: serkan-atak)
+                $userName = \Illuminate\Support\Str::slug(Auth::user()->name);
+                
+                // 2. TARÄ°H SAAT (20251205_1146)
+                $dateTime = now()->format('Ymd_Hi');
+                
+                // 3. ORÄ°JÄ°NAL DOSYA Ä°SMÄ° (KÄ±saltÄ±lmÄ±ÅŸ ve GÃ¼venli)
+                // UzantÄ±sÄ±z ismi al
+                $rawName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                // TÃ¼rkÃ§e karakterleri temizle ve tirele (sahadan-cekilen-fotograflar)
+                $slugName = \Illuminate\Support\Str::slug($rawName);
+                // Ä°lk 25 karakteri al, devamÄ±nÄ± kes (sahadan-cekilen-fotog)
+                $shortName = \Illuminate\Support\Str::limit($slugName, 25, ''); 
+                
+                // EÄŸer isim tamamen sembolse ve boÅŸ kaldÄ±ysa rastgele bir ÅŸey ata
+                if (empty($shortName)) {
+                    $shortName = 'dosya_' . \Illuminate\Support\Str::random(3);
+                }
+
+                // 4. UZANTI
+                $extension = $file->getClientOriginalExtension();
+
+                // 5. BÄ°RLEÅTÄ°R: serkan-atak_20251205_1146_sahadan-cekilen.png
+                $fileName = "{$userName}_{$dateTime}_{$shortName}.{$extension}";
+
+                // 6. KAYDET
+                $path = $file->storeAs('disiplin_yorumlar', $fileName, 'public');
+                
+                $dosyaYollari[] = $path;
+            }
+        }
+
+        // Yorumu Kaydet
+        $comment = \App\Models\DisciplinaryComment::create([
+            'case_id' => $case->id,
+            'user_id' => Auth::id(),
+            'yorum' => $request->yorum,
+            'dosyalar' => $dosyaYollari
+        ]);
+
+        // --- BÄ°LDÄ°RÄ°M GÃ–NDER ---
+        $recipients = collect();
+        $recipients->push($case->user); // Cihangir
+        $recipients->push($case->reporter); // Serkan
+        $managers = User::role(['Superadmin', 'Hukuk YÃ¶neticisi', 'Hukuk Admini', 'Disiplin Kurulu BaÅŸkanÄ±'])->get();
+        $recipients = $recipients->merge($managers);
+
+        // Kendini Ã§Ä±kar
+        $recipients = $recipients->unique('id')->reject(function ($user) {
+            return $user->id === Auth::id();
+        });
+
+        foreach ($recipients as $recipient) {
+            $recipient->notify(new \App\Notifications\YeniDisiplinYorumu($case, Auth::user()->name));
+        }
+        
+        return back()->with('success', 'Yorumunuz eklendi.');
+    }
+
+    /**
+     * YORUM GÃœNCELLEME (Loglu)
+     */
+    public function updateComment(Request $request, $id)
+    {
+        $comment = \App\Models\DisciplinaryComment::findOrFail($id);
+
+        // Yetki: Sadece yorum sahibi dÃ¼zenleyebilir (Superadmin bile olsa baÅŸkasÄ±nÄ±n yorumunu deÄŸiÅŸtirmemeli, silebilir ama deÄŸiÅŸtirmemeli etik olarak)
+        if ($comment->user_id != Auth::id()) {
+            abort(403, 'Sadece kendi yorumunuzu dÃ¼zenleyebilirsiniz.');
+        }
+
+        $request->validate(['yorum' => 'required|string|max:1000']);
+
+        // LOGLAMA (DeÄŸiÅŸiklik varsa)
+        if ($comment->yorum !== $request->yorum) {
+            \App\Models\DisciplinaryCommentHistory::create([
+                'comment_id' => $comment->id,
+                'user_id' => Auth::id(),
+                'eski_yorum' => $comment->yorum // Eski metni sakla
+            ]);
+
+            // GÃ¼ncelle
+            $comment->update(['yorum' => $request->yorum]);
+            return back()->with('success', 'Yorum dÃ¼zenlendi (Eski kayÄ±t loglandÄ±).');
+        }
+
+        return back();
+    }
+
+    /**
+     * YORUM SÄ°LME (Soft Delete - Zaten Logludur)
+     */
+    public function destroyComment($id)
+    {
+        $comment = \App\Models\DisciplinaryComment::findOrFail($id);
+        $user = Auth::user();
+
+        // 1. Superadmin ve Hukuk Admini silebilir.
+        // 2. Yorum sahibi silebilir.
+        if ($user->hasRole(['Superadmin', 'Hukuk Admini']) || $comment->user_id == $user->id) {
+            $comment->delete(); // Soft Delete olduÄŸu iÃ§in veritabanÄ±ndan silinmez, deleted_at iÅŸlenir.
+            return back()->with('success', 'Yorum kaldÄ±rÄ±ldÄ±.');
+        }
+
+        abort(403, 'Yetkiniz yok.');
+    }
+
+    
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Http\Controllers\Admin\DisciplinarySettingsController.php
+==========================================
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\DisciplinaryBehavior;
+use App\Models\DisciplinaryCategory;
+use App\Models\DisciplinaryImpact;
+use App\Models\DisciplinaryScope;
+use App\Models\DisciplinaryMultiplier;
+use App\Models\DisciplinaryPenaltyScale;
+use Illuminate\Support\Facades\Auth;
+
+class DisciplinarySettingsController extends Controller
+{
+    public function index()
+    {
+        if (!Auth::user()->hasRole(['Superadmin', 'Hukuk Admini'])) abort(403);
+
+        $categories = DisciplinaryCategory::orderBy('ad')->get();
+        $impacts = DisciplinaryImpact::orderBy('puan')->get();
+        $scopes = DisciplinaryScope::orderBy('puan')->get();
+        $behaviors = DisciplinaryBehavior::with('category')->latest()->get();
+        $multipliers = DisciplinaryMultiplier::orderBy('tekrar_sayisi')->get();
+        $scales = DisciplinaryPenaltyScale::orderBy('min_puan')->get();
+
+        return view('admin.disiplin.settings', compact('categories', 'impacts', 'scopes', 'behaviors', 'multipliers', 'scales'));
+    }
+
+    // --- 1. KATEGORÄ° ---
+    public function storeCategory(Request $request) {
+        DisciplinaryCategory::create($request->validate(['ad' => 'required|string']));
+        return back()->with('success', 'Kategori eklendi.');
+    }
+    public function updateCategory(Request $request, DisciplinaryCategory $category) {
+        $category->update($request->validate(['ad' => 'required|string']));
+        return back()->with('success', 'Kategori gÃ¼ncellendi.');
+    }
+    public function deleteCategory(DisciplinaryCategory $category) {
+        $category->delete();
+        return back()->with('success', 'Silindi.');
+    }
+
+    // --- 2. ETKÄ° ---
+    public function storeImpact(Request $request) {
+        DisciplinaryImpact::create($request->validate(['tanim' => 'required', 'puan' => 'required|integer']));
+        return back()->with('success', 'Etki eklendi.');
+    }
+    public function updateImpact(Request $request, DisciplinaryImpact $impact) {
+        $impact->update($request->validate(['tanim' => 'required', 'puan' => 'required|integer']));
+        return back()->with('success', 'Etki gÃ¼ncellendi.');
+    }
+    public function deleteImpact(DisciplinaryImpact $impact) {
+        $impact->delete();
+        return back()->with('success', 'Silindi.');
+    }
+
+    // --- 3. KAPSAM ---
+    public function storeScope(Request $request) {
+        DisciplinaryScope::create($request->validate(['tanim' => 'required', 'puan' => 'required|integer']));
+        return back()->with('success', 'Kapsam eklendi.');
+    }
+    public function updateScope(Request $request, DisciplinaryScope $scope) {
+        $scope->update($request->validate(['tanim' => 'required', 'puan' => 'required|integer']));
+        return back()->with('success', 'Kapsam gÃ¼ncellendi.');
+    }
+    public function deleteScope(DisciplinaryScope $scope) {
+        $scope->delete();
+        return back()->with('success', 'Silindi.');
+    }
+
+    // --- 4. SUÃ‡LAR ---
+    public function storeBehavior(Request $request) {
+        DisciplinaryBehavior::create($request->validate([
+            'category_id' => 'required|exists:disciplinary_categories,id',
+            'tanim' => 'required|string',
+            'etki_puani' => 'nullable', // ArtÄ±k matristen geliyor ama veritabanÄ± hatasÄ± vermesin diye
+            'kapsam_puani' => 'nullable',
+            'yasal_dayanak' => 'nullable|string'
+        ]));
+        return back()->with('success', 'SuÃ§ eklendi.');
+    }
+    public function updateBehavior(Request $request, DisciplinaryBehavior $behavior) {
+        $behavior->update($request->validate([
+            'category_id' => 'required|exists:disciplinary_categories,id',
+            'tanim' => 'required|string',
+            'yasal_dayanak' => 'nullable|string'
+        ]));
+        return back()->with('success', 'SuÃ§ gÃ¼ncellendi.');
+    }
+    public function deleteBehavior(DisciplinaryBehavior $behavior) {
+        $behavior->delete();
+        return back()->with('success', 'Silindi.');
+    }
+
+    // --- 5. DÄ°ÄERLERÄ° (KatsayÄ±/Skala) ---
+    public function storeMultiplier(Request $request) {
+        DisciplinaryMultiplier::updateOrCreate(['tekrar_sayisi' => $request->tekrar_sayisi], ['katsayi' => $request->katsayi]);
+        return back()->with('success', 'KatsayÄ± gÃ¼ncellendi.');
+    }
+    public function storeScale(Request $request) {
+        DisciplinaryPenaltyScale::create($request->all());
+        return back()->with('success', 'Skala eklendi.');
+    }
+    public function deleteScale(DisciplinaryPenaltyScale $scale) {
+        $scale->delete();
+        return back()->with('success', 'Silindi.');
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Http\Controllers\Admin\DisiplinSorumlusuController.php
+==========================================
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+
+class DisiplinSorumlusuController extends Controller
+{
+    /**
+     * Tutanak Sorumlusu Atama EkranÄ±
+     */
+    public function index()
+    {
+        $user = Auth::user();
+
+        // Sadece BÃ¶lÃ¼m Lideri girebilir
+        if (!$user->hasRole('BÃ¶lÃ¼m Lideri')) {
+            abort(403, 'Sadece BÃ¶lÃ¼m Liderleri yetki daÄŸÄ±tabilir.');
+        }
+
+        // Liderin bÃ¶lÃ¼mÃ¼ndeki personelleri getir (Kendisi hariÃ§)
+        $personeller = User::where('bolum_id', $user->bolum_id)
+            ->where('id', '!=', $user->id)
+            ->orderBy('name')
+            ->get();
+
+        return view('admin.disiplin.sorumlular.index', compact('personeller'));
+    }
+
+    /**
+     * Yetki Durumunu DeÄŸiÅŸtir (Ver/Al)
+     */
+    public function update(Request $request, $id)
+    {
+        $targetUser = User::findOrFail($id);
+        $currentUser = Auth::user();
+
+        // GÃ¼venlik: Sadece kendi bÃ¶lÃ¼mÃ¼ndeki personele iÅŸlem yapabilir
+        if ($targetUser->bolum_id != $currentUser->bolum_id) {
+            abort(403, 'Sadece kendi bÃ¶lÃ¼mÃ¼nÃ¼zdeki personele iÅŸlem yapabilirsiniz.');
+        }
+
+        // Durumu tersine Ã§evir (Varsa al, yoksa ver)
+        $targetUser->can_issue_disciplinary = !$targetUser->can_issue_disciplinary;
+        $targetUser->save();
+
+        // === BÄ°LDÄ°RÄ°M GÃ–NDER (YENÄ° EKLENDÄ°) ===
+        if ($targetUser->can_issue_disciplinary) {
+            $targetUser->notify(new \App\Notifications\SorumluAtandiBildirimi(Auth::user()->name));
+        }
+        // ======================================
+
+        $durum = $targetUser->can_issue_disciplinary ? 'VERÄ°LDÄ°' : 'GERÄ° ALINDI';
+        return back()->with('success', "{$targetUser->name} kullanÄ±cÄ±sÄ±nÄ±n tutanak sorumluluÄŸu {$durum}.");
+    }
+}
+
+
+
+==========================================
 FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Http\Controllers\Admin\ExecutiveReportController.php
 ==========================================
 <?php
@@ -3011,103 +4353,215 @@ class ExecutiveReportController extends Controller
             ->take(10)
             ->get();
 
-        // 2. KPI SAYILARI
+        // ======================================================
+        // === 2. KPI SAYILARI (TÃœM ZAMANLAR)
+        // ======================================================
         $toplamSikayet = MusteriSikayeti::count();
-        $acikSikayet = MusteriSikayeti::whereIn('musteri_durum', ['Yeni', 'Ä°ÅŸlemde', 'Yeniden AÃ§Ä±ldÄ±', 'Revize Ediliyor'])->count();
-        $cozulenSikayet = MusteriSikayeti::whereIn('musteri_durum', ['KapatÄ±ldÄ±', 'Ã‡Ã¶zÃ¼mlendi'])->count();
-        
-        $gecikenSikayet = MusteriSikayeti::whereNotIn('musteri_durum', ['KapatÄ±ldÄ±', 'Ã‡Ã¶zÃ¼mlendi'])
+
+        $acikSikayet = MusteriSikayeti::whereIn('musteri_durum', [
+            'Yeni', 'Ä°ÅŸlemde', 'Yeniden AÃ§Ä±ldÄ±', 'Revize Ediliyor'
+        ])->count();
+
+        $cozulenSikayet = MusteriSikayeti::whereIn('musteri_durum', [
+            'KapatÄ±ldÄ±', 'Ã‡Ã¶zÃ¼mlendi'
+        ])->count();
+
+        $gecikenSikayet = MusteriSikayeti::whereNotIn('musteri_durum', [
+                'KapatÄ±ldÄ±', 'Ã‡Ã¶zÃ¼mlendi'
+            ])
             ->where('musteri_cozum_son_tarihi', '<', now())
             ->count();
 
-        // Genel Ortalama HÄ±z (KPI KartÄ± Ä°Ã§in)
-        $bitenSikayetler = MusteriSikayeti::where('musteri_durum', 'KapatÄ±ldÄ±')->whereNotNull('kurul_onay_tarihi')->get();
+        // Ortalama SÃ¼re (TÃ¼m Zamanlar)
+        $bitenSikayetler = MusteriSikayeti::where('musteri_durum', 'KapatÄ±ldÄ±')
+            ->whereNotNull('kurul_onay_tarihi')
+            ->get();
+
         $genelToplamGun = 0;
         foreach ($bitenSikayetler as $item) {
             $s = Carbon::parse($item->musteri_sikayet_tarihi);
             $e = Carbon::parse($item->kurul_onay_tarihi);
             $genelToplamGun += $s->diffInDays($e);
         }
-        $genelOrtalamaSure = $bitenSikayetler->count() > 0 ? round($genelToplamGun / $bitenSikayetler->count(), 1) : 0;
 
-        // 3. BÃ–LÃœM PERFORMANS KARNESÄ°
-        $kategoriler = SikayetKategori::all();
-        $bolumPerformansi = [];
+        $genelOrtalamaSure = $bitenSikayetler->count() > 0
+            ? round($genelToplamGun / $bitenSikayetler->count(), 1)
+            : 0;
 
-        foreach ($kategoriler as $kat) {
-            $katSikayetler = MusteriSikayeti::where('sikayet_kategorisi_id', $kat->id)->get();
-            $katToplam = $katSikayetler->count();
-            
-            if ($katToplam > 0) {
-                $katCozulen = $katSikayetler->where('musteri_durum', 'KapatÄ±ldÄ±')->count();
-                $katAcik = $katSikayetler->whereIn('musteri_durum', ['Yeni', 'Ä°ÅŸlemde'])->count();
-                
-                // BÃ¶lÃ¼m HÄ±zÄ±
-                $katBitenler = $katSikayetler->where('musteri_durum', 'KapatÄ±ldÄ±')->whereNotNull('kurul_onay_tarihi');
-                $katGunToplami = 0;
-                foreach ($katBitenler as $item) {
-                    $s = Carbon::parse($item->musteri_sikayet_tarihi);
-                    $e = Carbon::parse($item->kurul_onay_tarihi);
-                    $katGunToplami += $s->diffInDays($e);
-                }
-                $katOrtSure = $katBitenler->count() > 0 ? round($katGunToplami / $katBitenler->count(), 1) : 0;
+        // ======================================================
+        // === 2.1 KPI SAYILARI â€” AYLIK (Bu Ay)
+        // ======================================================
+        $kpiMonthly = [
+            'toplam' => MusteriSikayeti::whereYear('musteri_sikayet_tarihi', now()->year)
+                ->whereMonth('musteri_sikayet_tarihi', now()->month)
+                ->count(),
 
-                // YÄ±llÄ±k DaÄŸÄ±lÄ±m
-                $yillikDagilim = $katSikayetler->groupBy(fn($val) => Carbon::parse($val->musteri_sikayet_tarihi)->format('Y'))
-                    ->map(fn($group) => $group->count())->sortKeysDesc();
+            'acik' => MusteriSikayeti::whereYear('musteri_sikayet_tarihi', now()->year)
+                ->whereMonth('musteri_sikayet_tarihi', now()->month)
+                ->whereIn('musteri_durum', [
+                    'Yeni','Ä°ÅŸlemde','Revize Ediliyor','Yeniden AÃ§Ä±ldÄ±'
+                ])
+                ->count(),
 
-                $bolumPerformansi[] = [
-                    'ad' => $kat->ad,
-                    'toplam' => $katToplam,
-                    'cozulen' => $katCozulen,
-                    'acik' => $katAcik,
-                    'basari_orani' => round(($katCozulen / $katToplam) * 100),
-                    'ort_sure' => $katOrtSure,
-                    'yillik' => $yillikDagilim
-                ];
-            }
+            'cozulen' => MusteriSikayeti::whereYear('kurul_onay_tarihi', now()->year)
+                ->whereMonth('kurul_onay_tarihi', now()->month)
+                ->count(),
+
+            'geciken' => MusteriSikayeti::whereYear('musteri_cozum_son_tarihi', now()->year)
+                ->whereMonth('musteri_cozum_son_tarihi', now()->month)
+                ->where('musteri_cozum_son_tarihi', '<', now())
+                ->count(),
+
+            'ortalama_sure' => $this->aylikOrtSure()
+        ];
+
+        // ======================================================
+        // === 3. MÃœÅTERÄ° MEMNUNÄ°YET ANALÄ°ZÄ° (YENÄ° EKLENEN) ===
+        // ======================================================
+        $feedbackCounts = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->selectRaw('musteri_feedback, count(*) as total')
+            ->groupBy('musteri_feedback')
+            ->pluck('total', 'musteri_feedback');
+
+        $bolumMemnuniyeti = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->join('iaas', 'musteri_sikayetleri.iaa_id', '=', 'iaas.id')
+            ->join('bolumler', 'iaas.bolum_id', '=', 'bolumler.id')
+            ->selectRaw('bolumler.ad as bolum_adi, 
+                         SUM(CASE WHEN musteri_feedback = "OnaylandÄ±" THEN 1 ELSE 0 END) as onay_sayisi,
+                         SUM(CASE WHEN musteri_feedback = "Reddedildi" THEN 1 ELSE 0 END) as red_sayisi,
+                         SUM(CASE WHEN musteri_feedback = "Revizyon Ä°stendi" THEN 1 ELSE 0 END) as revizyon_sayisi')
+            ->groupBy('bolumler.ad')
+            ->get();
+
+        // ======================================================
+// === 3. BÃ–LÃœM PERFORMANS KARNESÄ° (Ã‡OK YILLIK DAÄILIM)
+// ======================================================
+$kategoriler = SikayetKategori::all();
+$bolumPerformansi = [];
+
+$yillar = range(now()->year, now()->year - 4); // Ã–rn: 2025 - 2024 - 2023 - 2022 - 2021
+
+foreach ($kategoriler as $kat) {
+
+    // TÃ¼m ÅŸikayetler (kategori bazlÄ±)
+    $katSikayetler = MusteriSikayeti::where('sikayet_kategorisi_id', $kat->id)->get();
+    $katToplam = $katSikayetler->count();
+
+    if ($katToplam > 0) {
+
+        // GENEL VERÄ°LER
+        $katCozulen = $katSikayetler->where('musteri_durum', 'KapatÄ±ldÄ±')->count();
+        $katAcik = $katSikayetler->whereIn('musteri_durum', ['Yeni','Ä°ÅŸlemde'])->count();
+
+        // ORTALAMA SÃœRE
+        $biten = $katSikayetler
+            ->where('musteri_durum', 'KapatÄ±ldÄ±')
+            ->whereNotNull('kurul_onay_tarihi');
+
+        $gunToplam = 0;
+        foreach ($biten as $b) {
+            $gunToplam += Carbon::parse($b->musteri_sikayet_tarihi)
+                ->diffInDays(Carbon::parse($b->kurul_onay_tarihi));
         }
-        $bolumPerformansi = collect($bolumPerformansi)->sortByDesc('toplam')->values();
 
-        // 4. GRAFÄ°K VERÄ°LERÄ° (Son 12 Ay)
+        $katOrtSure = $biten->count() > 0
+            ? round($gunToplam / $biten->count(), 1)
+            : 0;
+
+        // âœ” YILLIK AYRI AYRI DAÄILIM
+        $yillikDetay = [];
+
+        foreach ($yillar as $y) {
+            $yearItems = $katSikayetler->filter(function($x) use ($y) {
+                return Carbon::parse($x->musteri_sikayet_tarihi)->year == $y;
+            });
+
+            $yillikDetay[$y] = [
+                'toplam' => $yearItems->count(),
+                'cozulen' => $yearItems->where('musteri_durum', 'KapatÄ±ldÄ±')->count(),
+                'acik' => $yearItems->whereIn('musteri_durum', ['Yeni','Ä°ÅŸlemde'])->count(),
+                'geciken' => $yearItems->filter(function($a){
+                    return ($a->musteri_durum !== 'KapatÄ±ldÄ±') &&
+                           Carbon::parse($a->musteri_cozum_son_tarihi) < now();
+                })->count(),
+            ];
+        }
+
+        // GENEL DÃ–NÃœÅ
+        $bolumPerformansi[] = [
+            'ad' => $kat->ad,
+            'toplam' => $katToplam,
+            'cozulen' => $katCozulen,
+            'acik' => $katAcik,
+            'basari_orani' => round(($katCozulen / $katToplam) * 100),
+            'ort_sure' => $katOrtSure,
+            'yillik_detay' => $yillikDetay // â† ğŸ”¥ asÄ±l yeni eklenen
+        ];
+    }
+}
+
+$bolumPerformansi = collect($bolumPerformansi)
+    ->sortByDesc('toplam')
+    ->values();
+
+
+        // ======================================================
+        // === 4. GRAFÄ°K VERÄ°LERÄ° â€” SON 12 AY
+        // ======================================================
         $labels = [];
-        $trendData = []; // AylÄ±k Åikayet SayÄ±sÄ±
-        $speedData = []; // AylÄ±k Ortalama Ã‡Ã¶zÃ¼m SÃ¼resi
+        $trendData = [];
+        $speedData = [];
 
         for ($i = 11; $i >= 0; $i--) {
             $date = now()->subMonths($i);
-            $labels[] = $date->locale('tr')->isoFormat('MMMM'); // Ocak, Åubat...
+            $labels[] = $date->locale('tr')->isoFormat('MMMM');
 
-            // A) Åikayet SayÄ±sÄ±
-            $count = MusteriSikayeti::whereYear('musteri_sikayet_tarihi', $date->year)
-                                    ->whereMonth('musteri_sikayet_tarihi', $date->month)
-                                    ->count();
-            $trendData[] = $count;
+            // A) AylÄ±k Åikayet SayÄ±sÄ±
+            $trendData[] = MusteriSikayeti::whereYear('musteri_sikayet_tarihi', $date->year)
+                ->whereMonth('musteri_sikayet_tarihi', $date->month)
+                ->count();
 
-            // B) Ortalama HÄ±z (SQL ile hesaplama)
-            // "DATEDIFF(kurul_onay_tarihi, musteri_sikayet_tarihi)" gÃ¼n farkÄ±nÄ± verir
+            // B) Ortalama hÄ±z
             $avgSpeed = MusteriSikayeti::whereYear('kurul_onay_tarihi', $date->year)
                 ->whereMonth('kurul_onay_tarihi', $date->month)
                 ->where('musteri_durum', 'KapatÄ±ldÄ±')
                 ->selectRaw('AVG(DATEDIFF(kurul_onay_tarihi, musteri_sikayet_tarihi)) as avg_days')
                 ->value('avg_days');
-            
+
             $speedData[] = $avgSpeed ? round($avgSpeed, 1) : 0;
         }
 
-        // 5. PASTA GRAFÄ°K VERÄ°LERÄ° (Kategori DaÄŸÄ±lÄ±mÄ±)
+        // ======================================================
+        // === 5. PASTA GRAFÄ°KLERÄ°
+        // ======================================================
         $catLabels = $kategoriler->pluck('ad');
         $catData = [];
-        foreach($kategoriler as $k) {
+
+        foreach ($kategoriler as $k) {
             $catData[] = MusteriSikayeti::where('sikayet_kategorisi_id', $k->id)->count();
         }
 
-        // 6. DURUM GRAFÄ°ÄÄ° (Status Chart)
-        $statusData = [$acikSikayet, $cozulenSikayet, $gecikenSikayet]; // AÃ§Ä±k, Ã‡Ã¶zÃ¼len, Geciken
+        // ======================================================
+        // === 6. DURUM GRAFÄ°ÄÄ°
+        // ======================================================
+        $statusData = [$acikSikayet, $cozulenSikayet, $gecikenSikayet];
 
-        $data = [
+        // ======================================================
+        // === VIEW'E GÃ–NDERÄ°LEN VERÄ°LER
+        // ======================================================
+        // === YENÄ°: MÃœÅTERÄ° MEMNUNÄ°YET Ä°STATÄ°STÄ°KLERÄ° ===
+        $musteriKararIstatistikleri = [
+            'onay_orani' => MusteriSikayeti::where('musteri_feedback', 'OnaylandÄ±')->count(),
+            'red_orani'  => MusteriSikayeti::where('musteri_feedback', 'Reddedildi')->count(),
+            'revizyon'   => MusteriSikayeti::where('musteri_feedback', 'Revizyon Ä°stendi')->count(),
+        ];
+        return view('admin.raporlar.executive', [
             'sonSikayetler' => $sonSikayetler,
             'bolumPerformansi' => $bolumPerformansi,
+            'feedbackCounts' => $feedbackCounts,
+            'bolumMemnuniyeti' => $bolumMemnuniyeti,
+            'musteriKararIstatistikleri' => $musteriKararIstatistikleri,
+
             'kpi' => [
                 'toplam' => $toplamSikayet,
                 'acik' => $acikSikayet,
@@ -3115,6 +4569,9 @@ class ExecutiveReportController extends Controller
                 'geciken' => $gecikenSikayet,
                 'ortalama_sure' => $genelOrtalamaSure
             ],
+
+            'kpiMonthly' => $kpiMonthly,
+
             'charts' => [
                 'labels' => $labels,
                 'trend_data' => $trendData,
@@ -3123,9 +4580,31 @@ class ExecutiveReportController extends Controller
                 'cat_data' => $catData,
                 'status_data' => $statusData
             ]
-        ];
+        ]);
+    }
 
-        return view('admin.raporlar.executive', $data);
+    // ======================================================
+    // === AylÄ±k Ortalama SÃ¼re HESABI
+    // ======================================================
+    private function aylikOrtSure()
+    {
+        $biten = MusteriSikayeti::where('musteri_durum', 'KapatÄ±ldÄ±')
+            ->whereYear('kurul_onay_tarihi', now()->year)
+            ->whereMonth('kurul_onay_tarihi', now()->month)
+            ->get();
+
+        if ($biten->count() === 0) {
+            return 0;
+        }
+
+        $gun = 0;
+        foreach ($biten as $item) {
+            $s = Carbon::parse($item->musteri_sikayet_tarihi);
+            $e = Carbon::parse($item->kurul_onay_tarihi);
+            $gun += $s->diffInDays($e);
+        }
+
+        return round($gun / $biten->count(), 1);
     }
 }
 
@@ -4382,68 +5861,91 @@ class RaporController extends Controller
      * KPI kartlarÄ± ve YENÄ° GRAFÄ°KLER iÃ§in gerekli tÃ¼m istatistikleri hesaplar.
      */
     public function index()
-{
-    // === KPI KARTLARI Ä°Ã‡Ä°N VERÄ°LER (Mevcut Kodunuz) ===
-    $stats = [
-        'toplam_oneri'          => Iaa::count(),
-        'onay_bekleyen_oneri'   => Iaa::where('durum', 'Onay Bekliyor')->count(),
-        'havuzdaki_oneri'       => Iaa::where('durum', 'Havuzda')->count(),
-        'reddedilen_oneri'      => Iaa::whereIn('durum', ['Reddedildi', 'TamamlanmasÄ± Reddedildi'])->count(),
-        'atanmis_proje'         => Iaa::whereIn('durum', ['AtandÄ±', 'Revize Ediliyor', 'YÃ¶netici OnayÄ± Bekliyor'])->count(),
-        'tamamlanan_proje'      => Iaa::where('durum', 'TamamlandÄ±')->count(),
-        'misafir_onerileri'     => Iaa::whereNull('gonderen_user_id')->count(),
-        'kullanici_onerileri'   => Iaa::whereNotNull('gonderen_user_id')->count(),
-        'toplam_kullanici'      => User::count(),
-        'toplam_takim'          => Takim::count(),
-    ];
+    {
 
-    // ==========================================================
-    // === YENÄ° APEXCHARTS GRAFÄ°KLERÄ° Ä°Ã‡Ä°N TÃœM VERÄ°LER ===========
-    // ==========================================================
-    
-    // 1. BaÅŸarÄ± OranÄ± GrafiÄŸi
-    $oranChartData = [$stats['tamamlanan_proje'], $stats['toplam_oneri'] - $stats['tamamlanan_proje']];
+        // === DÃœZELTME BURADA: YETKÄ° KONTROLÃœNE 'Yonetim' EKLENDÄ° ===
+        // ArtÄ±k YÃ¶netim rolÃ¼ de bu sayfayÄ± gÃ¶rebilecek.
+        if (!auth()->user()->hasRole(['Superadmin', 'Yonetim'])) {
+            abort(403, 'Bu sayfaya eriÅŸim yetkiniz yok.');
+        }
+        // ========================================================
+        // === KPI KARTLARI Ä°Ã‡Ä°N VERÄ°LER (Mevcut Kodunuz) ===
+        $stats = [
+            'toplam_oneri'          => Iaa::count(),
+            'onay_bekleyen_oneri'   => Iaa::where('durum', 'Onay Bekliyor')->count(),
+            'havuzdaki_oneri'       => Iaa::where('durum', 'Havuzda')->count(),
+            'reddedilen_oneri'      => Iaa::whereIn('durum', ['Reddedildi', 'TamamlanmasÄ± Reddedildi'])->count(),
+            'atanmis_proje'         => Iaa::whereIn('durum', ['AtandÄ±', 'Revize Ediliyor', 'YÃ¶netici OnayÄ± Bekliyor'])->count(),
+            'tamamlanan_proje'      => Iaa::where('durum', 'TamamlandÄ±')->count(),
+            'misafir_onerileri'     => Iaa::whereNull('gonderen_user_id')->count(),
+            'kullanici_onerileri'   => Iaa::whereNotNull('gonderen_user_id')->count(),
+            'toplam_kullanici'      => User::count(),
+            'toplam_takim'          => Takim::count(),
+        ];
 
-    // 2. Puan Liderlik Tablosu
-    $topKullanicilar = User::where('toplam_puan', '>', 0)->select('users.*')->addSelect(DB::raw('(SELECT count(*) FROM iaas WHERE iaas.durum = "TamamlandÄ±" AND iaas.atanan_takim_id IN (SELECT takim_id FROM takim_user WHERE takim_user.user_id = users.id)) as proje_sayisi'))->orderBy('toplam_puan', 'desc')->take(5)->get();
-    $puanChartLabels = $topKullanicilar->pluck('name');
-    $puanChartData = $topKullanicilar->pluck('toplam_puan');
-    $projeChartData = $topKullanicilar->pluck('proje_sayisi');
-
-    // 3. AylÄ±k Trend GrafiÄŸi (BaÅŸlangÄ±Ã§ verisi)
-    $chartLabels = []; $chartData = [];
-    for ($i = 11; $i >= 0; $i--) { $ay = now()->subMonths($i); $chartLabels[] = $ay->translatedFormat('F Y'); $chartData[] = Iaa::whereYear('created_at', $ay->year)->whereMonth('created_at', $ay->month)->count(); }
-
-    // 4. En Ã‡ok TakÄ±ma Ãœye Olanlar
-    $cokluUyelik = DB::table('takim_user')->join('users', 'takim_user.user_id', '=', 'users.id')->select('users.name', DB::raw('COUNT(takim_user.takim_id) as takim_sayisi'))->groupBy('users.name')->orderBy('takim_sayisi', 'desc')->limit(5)->pluck('takim_sayisi', 'name');
-    $cokluUyelikData = ['labels' => $cokluUyelik->keys(), 'series' => $cokluUyelik->values()];
-
-    // 5. En YÃ¼ksek PuanlÄ± 5 Proje (Havuzda)
-    $havuzPuan = Iaa::where('durum', 'Havuzda')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
-    $havuzPuanData = ['labels' => $havuzPuan->keys(), 'series' => $havuzPuan->values()];
-
-    // 6. En YÃ¼ksek PuanlÄ± 5 Proje (Tamamlanan)
-    $tamamlananPuan = Iaa::where('durum', 'TamamlandÄ±')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
-    $tamamlananPuanData = ['labels' => $tamamlananPuan->keys(), 'series' => $tamamlananPuan->values()];
+        // ==========================================================
+        // === YENÄ° APEXCHARTS GRAFÄ°KLERÄ° Ä°Ã‡Ä°N TÃœM VERÄ°LER ===========
+        // ==========================================================
         
-    // 7. En KÄ±sa SÃ¼rede Biten 5 Proje (Tamamlanan)
-    $hizliProjeler = Iaa::where('durum', 'TamamlandÄ±')->whereNotNull('onaylanma_tarihi')->select('baslik', DB::raw('DATEDIFF(updated_at, onaylanma_tarihi) as sure_gun'))->orderBy('sure_gun', 'asc')->limit(5)->pluck('sure_gun', 'baslik');
-    $hizliProjeData = ['labels' => $hizliProjeler->keys(), 'series' => $hizliProjeler->values()];
+        // 1. BaÅŸarÄ± OranÄ± GrafiÄŸi
+        $oranChartData = [$stats['tamamlanan_proje'], $stats['toplam_oneri'] - $stats['tamamlanan_proje']];
 
-    // --- TÃœM VERÄ°LERÄ° ANA VIEW'E GÃ–NDER ---
-    return view('admin.raporlar.index', compact(
-        'stats', 'oranChartData', 'puanChartLabels', 'puanChartData', 'projeChartData', 'chartLabels', 'chartData',
-        'cokluUyelikData', 'havuzPuanData', 'tamamlananPuanData', 'hizliProjeData'
-    ));
-}
+        // 2. Puan Liderlik Tablosu
+        $topKullanicilar = User::where('toplam_puan', '>', 0)->select('users.*')->addSelect(DB::raw('(SELECT count(*) FROM iaas WHERE iaas.durum = "TamamlandÄ±" AND iaas.atanan_takim_id IN (SELECT takim_id FROM takim_user WHERE takim_user.user_id = users.id)) as proje_sayisi'))->orderBy('toplam_puan', 'desc')->take(5)->get();
+        $puanChartLabels = $topKullanicilar->pluck('name');
+        $puanChartData = $topKullanicilar->pluck('toplam_puan');
+        $projeChartData = $topKullanicilar->pluck('proje_sayisi');
+
+        // 3. AylÄ±k Trend GrafiÄŸi (BaÅŸlangÄ±Ã§ verisi)
+        $chartLabels = []; $chartData = [];
+        for ($i = 11; $i >= 0; $i--) { $ay = now()->subMonths($i); $chartLabels[] = $ay->translatedFormat('F Y'); $chartData[] = Iaa::whereYear('created_at', $ay->year)->whereMonth('created_at', $ay->month)->count(); }
+
+        // 4. En Ã‡ok TakÄ±ma Ãœye Olanlar
+        $cokluUyelik = DB::table('takim_user')->join('users', 'takim_user.user_id', '=', 'users.id')->select('users.name', DB::raw('COUNT(takim_user.takim_id) as takim_sayisi'))->groupBy('users.name')->orderBy('takim_sayisi', 'desc')->limit(5)->pluck('takim_sayisi', 'name');
+        $cokluUyelikData = ['labels' => $cokluUyelik->keys(), 'series' => $cokluUyelik->values()];
+
+        // 5. En YÃ¼ksek PuanlÄ± 5 Proje (Havuzda)
+        $havuzPuan = Iaa::where('durum', 'Havuzda')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
+        $havuzPuanData = ['labels' => $havuzPuan->keys(), 'series' => $havuzPuan->values()];
+
+        // 6. En YÃ¼ksek PuanlÄ± 5 Proje (Tamamlanan)
+        $tamamlananPuan = Iaa::where('durum', 'TamamlandÄ±')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
+        $tamamlananPuanData = ['labels' => $tamamlananPuan->keys(), 'series' => $tamamlananPuan->values()];
+            
+        // 7. En KÄ±sa SÃ¼rede Biten 5 Proje (Tamamlanan)
+        $hizliProjeler = Iaa::where('durum', 'TamamlandÄ±')->whereNotNull('onaylanma_tarihi')->select('baslik', DB::raw('DATEDIFF(updated_at, onaylanma_tarihi) as sure_gun'))->orderBy('sure_gun', 'asc')->limit(5)->pluck('sure_gun', 'baslik');
+        $hizliProjeData = ['labels' => $hizliProjeler->keys(), 'series' => $hizliProjeler->values()];
+
+        // --- TÃœM VERÄ°LERÄ° ANA VIEW'E GÃ–NDER ---
+        return view('admin.raporlar.index', compact(
+            'stats', 'oranChartData', 'puanChartLabels', 'puanChartData', 'projeChartData', 'chartLabels', 'chartData',
+            'cokluUyelikData', 'havuzPuanData', 'tamamlananPuanData', 'hizliProjeData'
+        ));
+    }
 
 /**
      * MÃ¼ÅŸteri Åikayetleri iÃ§in canlÄ± raporlama sayfasÄ±nÄ± gÃ¶sterir.
      */
     public function sikayetRaporlari()
     {
-        // Bu view, iÃ§inde Livewire bileÅŸenini Ã§aÄŸÄ±racak
-        return view('admin.raporlar.sikayet-raporlari');
+        // 1. MÃ¼ÅŸteri Geri Bildirim OranlarÄ± (Pasta Grafik)
+        $feedbackCounts = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->selectRaw('musteri_feedback, count(*) as total')
+            ->groupBy('musteri_feedback')
+            ->pluck('total', 'musteri_feedback');
+
+        // 2. BÃ¶lÃ¼m BazlÄ± Memnuniyet (SÃ¼tun Grafik)
+        $bolumMemnuniyeti = MusteriSikayeti::whereNotNull('musteri_feedback')
+            ->join('iaas', 'musteri_sikayetleri.iaa_id', '=', 'iaas.id')
+            ->join('bolumler', 'iaas.bolum_id', '=', 'bolumler.id')
+            ->selectRaw('bolumler.ad as bolum_adi, 
+                         SUM(CASE WHEN musteri_feedback = "OnaylandÄ±" THEN 1 ELSE 0 END) as onay_sayisi,
+                         SUM(CASE WHEN musteri_feedback = "Reddedildi" THEN 1 ELSE 0 END) as red_sayisi,
+                         SUM(CASE WHEN musteri_feedback = "Revizyon Ä°stendi" THEN 1 ELSE 0 END) as revizyon_sayisi')
+            ->groupBy('bolumler.ad')
+            ->get();
+
+        return view('admin.raporlar.sikayet-raporlari', compact('feedbackCounts', 'bolumMemnuniyeti'));
     }
 
     /**
@@ -4742,7 +6244,7 @@ class SikayetController extends Controller
         $yetkiVar = false;
 
         // 1. Admin veya Kurul ise girer
-        if ($user->hasRole(['Superadmin', 'MÃ¼ÅŸteri Åikayeti Kurulu', 'BÃ¶lÃ¼m Kalite YÃ¶neticisi'])) {
+        if ($user->hasRole(['Superadmin', 'MÃ¼ÅŸteri Åikayeti Kurulu', 'BÃ¶lÃ¼m Kalite YÃ¶neticisi', 'Yonetim'])) {
             $yetkiVar = true;
         }
         // 2. Atanan TakÄ±mÄ±n Ãœyesi ise girer
@@ -5115,6 +6617,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use Spatie\Permission\Models\Role; // <-- ROL MODELÄ°NÄ° EKLE
 use Illuminate\Validation\Rule;
+use App\Models\Bolum;
 
 class SistemAyarController extends Controller
 {
@@ -5123,6 +6626,7 @@ class SistemAyarController extends Controller
         $settings = Setting::all()->keyBy('key');
         $users = User::orderBy('name')->get();
         $roles = Role::orderBy('name')->get(); // <-- ROLLERÄ° Ã‡EK
+        $bolumler = Bolum::orderBy('ad')->get(); // <--- EKLENDÄ°: BÃ¶lÃ¼mleri Ã‡ek
 
         // AyarlarÄ± daha dinamik alalÄ±m
         $logo = $settings->get('site_logo');
@@ -5137,6 +6641,7 @@ class SistemAyarController extends Controller
             'settings',
             'users',
             'roles', // <-- ROLLERÄ° VIEW'A GÃ–NDER
+            'bolumler', // <--- EKLENDÄ°: View'a gÃ¶nder
             'logo',
             'kayitOnay',
             'paraBirimleri',
@@ -5172,6 +6677,10 @@ class SistemAyarController extends Controller
             'sikayet_notify_role_ids.*' => 'integer|exists:roles,id', // <-- YENÄ° (Roller)
             'sikayet_notify_manual_emails' => 'nullable|string',
             'sikayet_atama_notify_manual_emails' => 'nullable|string', // <-- YENÄ° (Atama Bildirimi)
+
+            // <--- EKLENDÄ°: BÃ¶lÃ¼m Yetkisi Validasyonu
+            'global_disciplinary_departments' => 'nullable|array',
+            'global_disciplinary_departments.*' => 'exists:bolumler,id',
         ]);
 
         // 1-7 arasÄ± (Mevcut ayarlarÄ±nÄ±z) ...
@@ -5309,9 +6818,37 @@ class SistemAyarController extends Controller
 
         // ================== KAYDETME SONU ==================
 
-        return back()->with('success', 'Ayarlar baÅŸarÄ±yla gÃ¼ncellendi.');
-    }
+       // ================== GÃœNCELLENMÄ°Å: DÄ°SÄ°PLÄ°N YETKÄ° AYARLARI ==================
+        
+        // 1. Ã–nce temizlik (Reset)
+        Bolum::query()->update([
+            'is_disciplinary_global' => 0,
+            'disciplinary_target_depts' => null
+        ]);
 
+        // 2. Formdan gelen verileri iÅŸle
+        if ($request->has('disciplinary_auth')) {
+            foreach ($request->input('disciplinary_auth') as $bolumId => $data) {
+                $bolum = Bolum::find($bolumId);
+                if ($bolum) {
+                    // Global Yetki (TÃ¼m Fabrika) Ä°ÅŸaretli mi?
+                    $isGlobal = isset($data['global']) && $data['global'] == '1';
+                    
+                    $bolum->is_disciplinary_global = $isGlobal;
+                    
+                    // EÄŸer Global deÄŸilse ama spesifik bÃ¶lÃ¼mler seÃ§ildiyse onlarÄ± kaydet
+                    // (Åimdilik global ise 'all' yapalÄ±m, deÄŸilse null bÄ±rakalÄ±m, mantÄ±ÄŸÄ± basitleÅŸtirelim)
+                    // Ä°leride buraya "Sadece Ãœretim ve Depo'ya tutabilsin" gibi detay ekleyebiliriz.
+                    
+                    $bolum->save();
+                }
+            }
+        }
+        
+        // ================== KAYDETME SONU ==================
+
+        return back()->with('success', 'Ayarlar ve BÃ¶lÃ¼m Yetkileri baÅŸarÄ±yla gÃ¼ncellendi.');
+    }
     /**
      * E-posta adreslerini temizler ve virgÃ¼lle ayrÄ±lmÄ±ÅŸ string'e dÃ¶nÃ¼ÅŸtÃ¼rÃ¼r.
      *
@@ -6320,6 +7857,333 @@ class Bolum extends Model
 
 
 ==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryBehavior.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class DisciplinaryBehavior extends Model
+{
+    use HasFactory;
+
+    // BU SATIRI EKLE
+    protected $fillable = ['category_id', 'tanim', 'yasal_dayanak', 'aktif_mi'];
+
+    public function category()
+    {
+        return $this->belongsTo(DisciplinaryCategory::class, 'category_id');
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryCase.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class DisciplinaryCase extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    // $guarded = []; yerine $fillable kullanÄ±yoruz. Bu daha gÃ¼venli ve nettir.
+    protected $fillable = [
+        'user_id',
+        'reporter_id',
+        'behavior_id',
+        'impact_id',
+        'scope_id',
+        'olay_tarihi',
+        'olay_aciklamasi',
+        'kanit_dosyalari',
+        'tekrar_sayisi',
+        'hesaplanan_puan',
+        'sistem_oneri_ceza',
+        'final_karar',
+        'karar_tarihi',
+        'durum',
+        // --- SONRADAN EKLENEN SÃœTUNLAR ---
+        'savunma_aciklamasi',
+        'savunma_dosyalari',
+        'savunma_tarihi',
+        'yonetici_notu',
+        'karar_dosyasi',
+        'toplanti_tarihi',
+    ];
+
+    protected $casts = [
+        'olay_tarihi' => 'datetime',
+        'savunma_tarihi' => 'datetime',
+        'karar_tarihi' => 'datetime',
+        'kanit_dosyalari' => 'array', 
+        'savunma_dosyalari' => 'array', 
+        'toplanti_tarihi' => 'datetime',
+    ];
+
+    // --- Ä°LÄ°ÅKÄ°LER ---
+
+    // SuÃ§u Ä°ÅŸleyen Personel
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    // Bildiren Amir
+    public function reporter()
+    {
+        return $this->belongsTo(User::class, 'reporter_id');
+    }
+
+    // Ä°hlal Edilen Madde (SuÃ§)
+    public function behavior()
+    {
+        return $this->belongsTo(DisciplinaryBehavior::class, 'behavior_id');
+    }
+
+    // Etki / Åiddet
+    public function impact()
+    {
+        return $this->belongsTo(DisciplinaryImpact::class, 'impact_id');
+    }
+
+    // Kapsam
+    public function scope()
+    {
+        return $this->belongsTo(DisciplinaryScope::class, 'scope_id');
+    }
+
+    // Kategoriye EriÅŸim (Behavior Ã¼zerinden)
+    public function category() 
+    { 
+        return $this->hasOneThrough(
+            DisciplinaryCategory::class, 
+            DisciplinaryBehavior::class, 
+            'id', // Behavior tablosundaki primary key
+            'id', // Category tablosundaki primary key
+            'behavior_id', // Case tablosundaki foreign key
+            'category_id' // Behavior tablosundaki foreign key
+        ); 
+    }
+
+    // Kurul OylarÄ±
+    public function oylar()
+    {
+        return $this->hasMany(DisciplinaryVote::class, 'case_id');
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(DisciplinaryComment::class, 'case_id')->orderBy('created_at', 'desc');
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryCategory.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class DisciplinaryCategory extends Model
+{
+    use HasFactory;
+    
+    // BU SATIRI EKLE
+    protected $fillable = ['ad']; 
+
+    public function behaviors()
+    {
+        return $this->hasMany(DisciplinaryBehavior::class, 'category_id');
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryComment.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class DisciplinaryComment extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $guarded = [];
+
+    protected $casts = [
+        'dosyalar' => 'array',
+    ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function case()
+    {
+        return $this->belongsTo(DisciplinaryCase::class, 'case_id');
+    }
+
+    public function histories()
+    {
+        return $this->hasMany(DisciplinaryCommentHistory::class, 'comment_id')->orderBy('created_at', 'desc');
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryCommentHistory.php
+==========================================
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+
+class DisciplinaryCommentHistory extends Model
+{
+    protected $guarded = [];
+    
+    // Ä°liÅŸki: Bu geÃ§miÅŸ kaydÄ± hangi kullanÄ±cÄ±ya ait
+    public function user() {
+        return $this->belongsTo(User::class);
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryImpact.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class DisciplinaryImpact extends Model
+{
+    use HasFactory;
+
+    // BU SATIRI EKLE
+    protected $fillable = ['tanim', 'puan'];
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryMultiplier.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class DisciplinaryMultiplier extends Model
+{
+    //
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryPenaltyScale.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class DisciplinaryPenaltyScale extends Model
+{
+    //
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryScope.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class DisciplinaryScope extends Model
+{
+    use HasFactory;
+
+    // BU SATIRI EKLE
+    protected $fillable = ['tanim', 'puan'];
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryVote.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class DisciplinaryVote extends Model
+{
+    use HasFactory;
+
+    // VeritabanÄ±na yazÄ±lmasÄ±na izin verilen sÃ¼tunlar
+    protected $fillable = [
+        'case_id',
+        'user_id',
+        'oy_yonu',
+        'yorum',
+    ];
+
+    // --- Ä°LÄ°ÅKÄ°LER ---
+
+    // Oy veren kullanÄ±cÄ±
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    // Hangi dava dosyasÄ±na oy verildiÄŸi
+    public function disciplinaryCase()
+    {
+        return $this->belongsTo(DisciplinaryCase::class, 'case_id');
+    }
+}
+
+
+
+==========================================
 FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\Iaa.php
 ==========================================
 <?php
@@ -6849,7 +8713,10 @@ class MusteriSikayeti extends Model
         'guest_password_hash',
         'musteri_feedback',
         'musteri_feedback_note',
-        'edit_locked_at'
+        'edit_locked_at',
+        // === YENÄ° EKLENENLER ===
+        'musteri_bildirim_yapan_id',
+        'musteri_bildirim_tarihi'
         // ===============================
     ];
 
@@ -6865,6 +8732,8 @@ class MusteriSikayeti extends Model
         'kurul_onay_tarihi' => 'datetime',
         'musteri_cozum_son_tarihi' => 'datetime',
         'edit_locked_at' => 'datetime',
+        // === YENÄ° EKLENEN ===
+        'musteri_bildirim_tarihi' => 'datetime',
     ];
     // === EKLEME SONU ===
 
@@ -7503,6 +9372,24 @@ class User extends Authenticatable
         return $this->belongsToMany(Iaa::class, 'iaa_user', 'user_id', 'iaa_id')
                     ->withPivot('rol', 'kazanilan_puan', 'durum')
                     ->withTimestamps();
+    }
+
+    // --- DÄ°SÄ°PLÄ°N Ä°LÄ°ÅKÄ°LERÄ° ---
+
+    /**
+     * KullanÄ±cÄ±nÄ±n sanÄ±k olduÄŸu (kendisine aÃ§Ä±lan) disiplin dosyalarÄ±.
+     */
+    public function disiplinDosyalari()
+    {
+        return $this->hasMany(\App\Models\DisciplinaryCase::class, 'user_id');
+    }
+
+    /**
+     * KullanÄ±cÄ±nÄ±n ÅŸikayet ettiÄŸi/raporladÄ±ÄŸÄ± dosyalar (Amir ise).
+     */
+    public function raporladigiDisiplinDosyalari()
+    {
+        return $this->hasMany(\App\Models\DisciplinaryCase::class, 'reporter_id');
     }
 }
 

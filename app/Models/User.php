@@ -119,4 +119,22 @@ class User extends Authenticatable
                     ->withPivot('rol', 'kazanilan_puan', 'durum')
                     ->withTimestamps();
     }
+
+    // --- DİSİPLİN İLİŞKİLERİ ---
+
+    /**
+     * Kullanıcının sanık olduğu (kendisine açılan) disiplin dosyaları.
+     */
+    public function disiplinDosyalari()
+    {
+        return $this->hasMany(\App\Models\DisciplinaryCase::class, 'user_id');
+    }
+
+    /**
+     * Kullanıcının şikayet ettiği/raporladığı dosyalar (Amir ise).
+     */
+    public function raporladigiDisiplinDosyalari()
+    {
+        return $this->hasMany(\App\Models\DisciplinaryCase::class, 'reporter_id');
+    }
 }

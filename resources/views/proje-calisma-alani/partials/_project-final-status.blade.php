@@ -241,4 +241,68 @@
             </div>
         </div>
     </div>
+    {{-- ====================================================================== --}}
+        {{-- 3. KART: Müşteri Geri Bildirimi (SAĞ) --}}
+        {{-- ====================================================================== --}}
+        @if($sikayet->musteri_feedback)
+        @php
+            // Duruma göre renk ve ikon belirleme mantığı
+            $feedbackColor = match($sikayet->musteri_feedback) {
+                'Onaylandı' => 'green',
+                'Reddedildi' => 'red',
+                'Revizyon İstendi' => 'yellow',
+                default => 'gray'
+            };
+            
+            // Tarih formatı (Veritabanındaki güncellenme tarihini kullanıyoruz)
+            $islemTarihi = $sikayet->updated_at->format('d.m.Y H:i');
+        @endphp
+
+        <div class="mt-5 p-5 rounded-xl shadow-sm border-l-4 bg-{{ $feedbackColor }}-50 border-{{ $feedbackColor }}-500 transition-all hover:shadow-md">
+            <div class="flex items-start gap-4">
+                
+                {{-- 1. İKON ALANI --}}
+                <div class="flex-shrink-0">
+                    <div class="w-10 h-10 flex justify-center items-center rounded-full bg-white shadow-sm text-{{ $feedbackColor }}-600">
+                        @if($sikayet->musteri_feedback == 'Onaylandı')
+                            {{-- Onay İkonu --}}
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        @elseif($sikayet->musteri_feedback == 'Reddedildi')
+                            {{-- Red İkonu --}}
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        @elseif($sikayet->musteri_feedback == 'Revizyon İstendi')
+                            {{-- Revizyon İkonu --}}
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- 2. İÇERİK ALANI --}}
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="text-lg font-bold text-{{ $feedbackColor }}-800">
+                                Müşteri Kararı: {{ $sikayet->musteri_feedback }}
+                            </h4>
+                            @if($sikayet->musteri_feedback_note)
+                                <p class="text-sm text-{{ $feedbackColor }}-700 mt-1 italic">
+                                    "{{ $sikayet->musteri_feedback_note }}"
+                                </p>
+                            @else
+                                <p class="text-sm text-{{ $feedbackColor }}-600/70 mt-1 italic">
+                                    (Ek açıklama girilmedi)
+                                </p>
+                            @endif
+                        </div>
+                        
+                        {{-- Tarih ve Saat Rozeti --}}
+                        <div class="flex items-center gap-1.5 text-xs font-medium text-{{ $feedbackColor }}-700 bg-white px-3 py-1 rounded-full shadow-sm border border-{{ $feedbackColor }}-100">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            {{ $islemTarihi }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

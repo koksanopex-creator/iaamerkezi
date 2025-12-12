@@ -415,124 +415,183 @@
                             </p>
 
                             <div class="sm:ml-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3 text-sm bg-gray-50/70 rounded-lg p-3 border border-gray-200/60">
-                            <div class="flex flex-col gap-1">
-                                
-                                <div class="flex items-center gap-1.5 text-gray-600">
-                                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
-                                    <span class="font-medium">Kategori:</span>
-                                    <span class="font-semibold text-gray-800">
-                                        <?php echo e($sikayet->sikayetKategori->ad ?? 'N/A'); ?>
-
-                                    </span>
-                                </div>
-
-                                
-                                <div class="flex items-center gap-1.5 text-gray-500 text-xs ml-5">
-                                    <span class="text-gray-400">↳</span>
-                                    <!--[if BLOCK]><![endif]--><?php if($sikayet->sikayetAltKategori): ?>
-                                        <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-700 border border-gray-200">
-                                            <?php echo e($sikayet->sikayetAltKategori->ad); ?>
-
-                                        </span>
-                                    <?php elseif($sikayet->sikayet_alt_kategori_diger): ?>
-                                        <span class="bg-yellow-50 px-2 py-0.5 rounded text-yellow-800 border border-yellow-200" title="<?php echo e($sikayet->sikayet_alt_kategori_diger); ?>">
-                                            Diğer: <?php echo e(Str::limit($sikayet->sikayet_alt_kategori_diger, 15)); ?>
-
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="text-gray-400 italic">Alt Kategori Yok</span>
-                                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-                                </div>
-                            </div>
-                                <div class="flex items-center gap-1.5 text-gray-600">
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                                    <span class="font-medium">Takım:</span>
-                                    <span class="font-semibold text-gray-800"><?php echo e($sikayet->cozumTakimi->ad ?? 'Atanmadı'); ?></span>
-                                </div>
-                                <div class="flex items-center gap-1.5 text-gray-600">
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z"></path></svg>
-                                    <span class="font-medium">Öncelik:</span>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold <?php echo e($sikayet->oncelik_badge_class); ?>">
-                                        <?php echo e($sikayet->musteri_oncelik ?? 'Normal'); ?>
-
-                                    </span>
-                                </div>
-                                <div class="flex items-center gap-1.5 text-gray-600">
-                                    <svg class="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503-6.998l-6 .75m-.75-7.5l6 .75m6-.75l-6 .75M3 12h18M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
-                                    </svg>
-                                    <span class="font-medium">Konum:</span>
-                                    <span class="font-semibold text-gray-800">
-                                        <?php echo e($sikayet->konum_tipi ?? 'N/A'); ?>
-
-                                    </span>
-                                </div>
-                                <div class="flex items-center gap-1.5 text-gray-600">
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                    <span class="font-medium">Ekleyen:</span>
+                                <div class="flex flex-col gap-1">
                                     
-                                    <!--[if BLOCK]><![endif]--><?php if($sikayet->olusturanKurulUyesi): ?>
-                                        <a href="<?php echo e(route('profile.show', $sikayet->olusturanKurulUyesi->id)); ?>" target="_blank" class="font-semibold text-indigo-600 hover:underline">
-                                            <?php echo e($sikayet->olusturanKurulUyesi->name); ?>
-
-                                        </a>
-                                    <?php else: ?>
-                                        <span class="font-semibold text-gray-800">Sistem</span>
-                                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-                                    
-                                </div>
-                                <div class="flex items-center gap-1.5 text-gray-600">
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                    <span class="font-medium">Kayıt Tarihi:</span>
-                                    <span class="font-semibold text-gray-800"><?php echo e($sikayet->created_at->format('d.m.Y')); ?></span>
-                                </div>
-                                
-                                <!--[if BLOCK]><![endif]--><?php if($sikayet->iaaProjesi): ?>
-                                    <?php
-                                        $pDurum = $sikayet->iaaProjesi->durum;
-                                        $pRenk = match($pDurum) {
-                                            'Bölüm Onayı Bekliyor' => 'purple',
-                                            'Yönetici Onayı Bekliyor' => 'blue',
-                                            'Revize Ediliyor' => 'orange',
-                                            'Tamamlandı' => 'green',
-                                            'Atandı' => 'blue',
-                                            'Reddedildi', 'Tamamlanması Reddedildi' => 'red',
-                                            default => 'gray'
-                                        };
-                                    ?>
                                     <div class="flex items-center gap-1.5 text-gray-600">
-                                        
-                                        <svg class="w-4 h-4 text-<?php echo e($pRenk); ?>-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <span class="font-medium">Proje Durumu:</span>
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-<?php echo e($pRenk); ?>-50 text-<?php echo e($pRenk); ?>-700 border border-<?php echo e($pRenk); ?>-200">
-                                            <?php echo e($pDurum); ?>
+                                        <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"></path></svg>
+                                        <span class="font-medium">Kategori:</span>
+                                        <span class="font-semibold text-gray-800">
+                                            <?php echo e($sikayet->sikayetKategori->ad ?? 'N/A'); ?>
 
                                         </span>
                                     </div>
-                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
-                                
-                                <div class="flex items-center gap-1.5 text-gray-600 lg:col-span-1">
-                                    <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    <span class="font-medium text-red-600">Son Tarih:</span>
-                                    <span class="font-semibold text-red-700">
-                                        <?php echo e($sikayet->musteri_cozum_son_tarihi ? \Carbon\Carbon::parse($sikayet->musteri_cozum_son_tarihi)->format('d.m.Y H:i') : 'N/A'); ?>
 
-                                    </span>
+                                    
+                                    <div class="flex items-center gap-1.5 text-gray-500 text-xs ml-5">
+                                        <span class="text-gray-400">↳</span>
+                                        <!--[if BLOCK]><![endif]--><?php if($sikayet->sikayetAltKategori): ?>
+                                            <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-700 border border-gray-200">
+                                                <?php echo e($sikayet->sikayetAltKategori->ad); ?>
+
+                                            </span>
+                                        <?php elseif($sikayet->sikayet_alt_kategori_diger): ?>
+                                            <span class="bg-yellow-50 px-2 py-0.5 rounded text-yellow-800 border border-yellow-200" title="<?php echo e($sikayet->sikayet_alt_kategori_diger); ?>">
+                                                Diğer: <?php echo e(Str::limit($sikayet->sikayet_alt_kategori_diger, 15)); ?>
+
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-gray-400 italic">Alt Kategori Yok</span>
+                                        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                    </div>
                                 </div>
-                                 <div class="flex items-center gap-1.5 text-gray-600">
-                                    <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                    </svg>
-                                     <span class="font-medium">Puan:</span>
-                                     <span class="font-bold text-yellow-700">
-                                          <?php echo e($sikayet->musteri_puan ? number_format($sikayet->musteri_puan, 0) : 'N/A'); ?>
+                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                        <span class="font-medium">Takım:</span>
+                                        <span class="font-semibold text-gray-800"><?php echo e($sikayet->cozumTakimi->ad ?? 'Atanmadı'); ?></span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z"></path></svg>
+                                        <span class="font-medium">Öncelik:</span>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold <?php echo e($sikayet->oncelik_badge_class); ?>">
+                                            <?php echo e($sikayet->musteri_oncelik ?? 'Normal'); ?>
 
-                                     </span>
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                        <svg class="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503-6.998l-6 .75m-.75-7.5l6 .75m6-.75l-6 .75M3 12h18M3 12a9 9 0 1118 0 9 9 0 01-18 0z" />
+                                        </svg>
+                                        <span class="font-medium">Konum:</span>
+                                        <span class="font-semibold text-gray-800">
+                                            <?php echo e($sikayet->konum_tipi ?? 'N/A'); ?>
+
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                        <span class="font-medium">Ekleyen:</span>
+                                        
+                                        <!--[if BLOCK]><![endif]--><?php if($sikayet->olusturanKurulUyesi): ?>
+                                            <a href="<?php echo e(route('profile.show', $sikayet->olusturanKurulUyesi->id)); ?>" target="_blank" class="font-semibold text-indigo-600 hover:underline">
+                                                <?php echo e($sikayet->olusturanKurulUyesi->name); ?>
+
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="font-semibold text-gray-800">Sistem</span>
+                                        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                        
+                                    </div>
+                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                        <span class="font-medium">Kayıt Tarihi:</span>
+                                        <span class="font-semibold text-gray-800"><?php echo e($sikayet->created_at->format('d.m.Y')); ?></span>
+                                    </div>
+                                    
+
+                                    
+                                    <!--[if BLOCK]><![endif]--><?php if($sikayet->iaaProjesi): ?>
+                                        <?php
+                                            $pDurum = $sikayet->iaaProjesi->durum;
+                                            $pRenk = match($pDurum) {
+                                                'Bölüm Onayı Bekliyor' => 'purple',
+                                                'Yönetici Onayı Bekliyor' => 'blue',
+                                                'Revize Ediliyor' => 'orange',
+                                                'Tamamlandı' => 'green',
+                                                'Atandı' => 'blue',
+                                                'Reddedildi', 'Tamamlanması Reddedildi' => 'red',
+                                                default => 'gray'
+                                            };
+                                        ?>
+                                        <div class="flex items-center gap-1.5 text-gray-600">
+                                            
+                                            <svg class="w-4 h-4 text-<?php echo e($pRenk); ?>-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span class="font-medium">Proje Durumu:</span>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-<?php echo e($pRenk); ?>-50 text-<?php echo e($pRenk); ?>-700 border border-<?php echo e($pRenk); ?>-200">
+                                                <?php echo e($pDurum); ?>
+
+                                            </span>
+                                        </div>
+                                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                    
+                                    <div class="flex items-center gap-1.5 text-gray-600 lg:col-span-1">
+                                        <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        <span class="font-medium text-red-600">Son Tarih:</span>
+                                        <span class="font-semibold text-red-700">
+                                            <?php echo e($sikayet->musteri_cozum_son_tarihi ? \Carbon\Carbon::parse($sikayet->musteri_cozum_son_tarihi)->format('d.m.Y H:i') : 'N/A'); ?>
+
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 text-gray-600">
+                                        <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                        </svg>
+                                        <span class="font-medium">Puan:</span>
+                                        <span class="font-bold text-yellow-700">
+                                            <?php echo e($sikayet->musteri_puan ? number_format($sikayet->musteri_puan, 0) : 'N/A'); ?>
+
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
 
+                                <div class="sm:ml-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-x-4 gap-y-3 text-sm bg-gray-50/70 rounded-lg p-3 border border-gray-200/60">
+                                    
+                                    <!--[if BLOCK]><![endif]--><?php if($sikayet->musteri_feedback): ?>
+                                        <?php
+                                            // Renk Ayarı
+                                            $fbRenk = match($sikayet->musteri_feedback) {
+                                                'Onaylandı' => 'text-green-600 bg-green-50 border-green-100',
+                                                'Reddedildi' => 'text-red-600 bg-red-50 border-red-100',
+                                                'Revizyon İstendi' => 'text-amber-600 bg-amber-50 border-amber-100',
+                                                default => 'text-gray-600 bg-gray-50 border-gray-100'
+                                            };
+                                            
+                                            // Tarih Hesaplama (Logdan çekiyoruz)
+                                            $fbLog = $sikayet->loglar->where('eylem', 'Müşteri Geri Bildirimi')->sortByDesc('created_at')->first();
+                                            $fbTarih = $fbLog ? $fbLog->created_at->format('d.m.Y H:i') : $sikayet->updated_at->format('d.m.Y H:i');
+                                        ?>
+                                        
+                                        <div class="mt-2 flex items-start gap-2 p-2 rounded-lg border <?php echo e($fbRenk); ?>">
+                                            <div class="mt-0.5 flex-shrink-0">
+                                                <!--[if BLOCK]><![endif]--><?php if($sikayet->musteri_feedback == 'Onaylandı'): ?>
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                <?php elseif($sikayet->musteri_feedback == 'Reddedildi'): ?>
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                <?php else: ?>
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex justify-between items-center w-full">
+                                                    <span class="text-xs font-bold uppercase">Müşteri: <?php echo e($sikayet->musteri_feedback); ?></span>
+                                                    
+                                                    
+                                                    <span class="text-[10px] opacity-60 font-medium ml-2 whitespace-nowrap">
+                                                        <?php echo e($fbTarih); ?>
+
+                                                    </span>
+                                                </div>
+
+                                                <!--[if BLOCK]><![endif]--><?php if($sikayet->musteri_feedback_note): ?>
+                                                    <p class="text-xs mt-0.5 italic opacity-90 truncate" title="<?php echo e($sikayet->musteri_feedback_note); ?>">
+                                                        "<?php echo e($sikayet->musteri_feedback_note); ?>"
+                                                    </p>
+                                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                                
+                                                
+                                                <!--[if BLOCK]><![endif]--><?php if($sikayet->feedback_by_user_id): ?>
+                                                    <div class="mt-1 pt-1 border-t border-red-200 text-[9px] text-red-700 font-bold flex items-center gap-1">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                                        Dikkat: Personel (<?php echo e(\App\Models\User::find($sikayet->feedback_by_user_id)->name ?? '?'); ?>)
+                                                    </div>
+                                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                            </div>
+                                        </div>
+                                    <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                </div>
+
+                            
                             
                             <div class="mt-5 flex flex-wrap justify-end gap-2 pt-4 border-t border-gray-200/70">
                                 

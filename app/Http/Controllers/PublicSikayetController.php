@@ -24,6 +24,8 @@ namespace App\Http\Controllers;
     use App\Models\Iaa; // <-- EKLEYİN
     use App\Models\IaaWorkflow; // <-- EKLEYİN
     use App\Models\IaaProgressUpdate; // <-- EKLEYİN
+    use Illuminate\Support\Facades\Notification; // Bildirim göndermek için
+    use App\Notifications\MusteriGeriBildirimBildirimi; // Oluşturduğumuz bildirim sınıfı
 
 
     // === YENİ EKLENENLER ===
@@ -507,8 +509,97 @@ namespace App\Http\Controllers;
             // TODO: 6. Başarı mesajıyla 'sikayet.show' rotasına yönlendir.
 
             // Şimdilik boş bırakalım
-            return redirect()->route('public.sikayet.show', ['token' => $token])->with('success', 'Geri bildiriminiz (geçici olarak) alındı!');
+
+    
+        // 1. Token ile şikayeti bul
+        $sikayet = MusteriSikayeti::where('takip_token', $token)->firstOrFail();
+        
+        // 2. Projenin tamamlanıp tamamlanmadığını kontrol et (Ekstra güvenlik)
+        $proje = \App\Models\Iaa::find($sikayet->iaa_id);
+        if (!$proje || $proje->durum != 'Tamamlandı') {
+             return back()->with('error', 'Bu işlem için proje sürecinin tamamlanması gerekmektedir.');
         }
+
+        // 3. Gelen veriyi doğrula
+        $validated = $request->validate([
+            'feedback' => 'required|in:Onaylandı,Reddedildi,Revizyon İstendi',
+            'feedback_note' => 'nullable|string|max:1000',
+        ]);
+
+        // 4. Veritabanını güncelle
+        $sikayet->update([
+            'musteri_feedback' => $validated['feedback'],
+            'musteri_feedback_note' => $validated['feedback_note'],
+            'feedback_ip' => $request->ip(), // IP Adresi
+            'feedback_user_agent' => $request->userAgent(), // Tarayıcı Bilgisi
+        ]);
+
+        // GÜVENLİK KONTROLÜ: Eğer tarayıcıda personel oturumu açıksa, ID'sini kaydet!
+        if (Auth::check()) {
+            $updateData['feedback_by_user_id'] = Auth::id();
+        }
+
+
+        // 6. Log Mesajını Oluştur
+        $logMesaji = "Müşteri çözümü değerlendirdi: " . $validated['feedback'];
+        if (Auth::check()) {
+            $logMesaji .= " (DİKKAT: Bu işlem " . Auth::user()->name . " oturumu açıkken yapıldı!)";
+        }
+        $logMesaji .= " [IP: " . $request->ip() . "]";
+
+        \App\Models\MusteriSikayetiLog::create([
+            'musteri_sikayeti_id' => $sikayet->id,
+            'eylem' => 'Müşteri Geri Bildirimi',
+            'aciklama' => $logMesaji
+        ]);
+
+        // =================================================================
+        // 6. BİLDİRİM GÖNDERME (YENİ EKLENEN KISIM)
+        // =================================================================
+        try {
+            // A. Alıcı Listesini Oluştur
+            $recipients = collect();
+
+            // 1. Superadminler
+            $recipients = $recipients->merge(User::role('Superadmin')->get());
+
+            // 2. Bölüm Kalite Yöneticileri
+            $recipients = $recipients->merge(User::role('Bölüm Kalite Yöneticisi')->get());
+            
+            // 3. Müşteri Şikayeti Çözüm Liderleri
+            $recipients = $recipients->merge(User::role('Müşteri Şikayeti Çözüm Lideri')->get());
+
+            // 4. Çözüm Takımı Lideri (Varsa)
+            if ($sikayet->cozumTakimi && $sikayet->cozumTakimi->lider) {
+                $recipients->push($sikayet->cozumTakimi->lider);
+            }
+
+            // 5. Proje (İAA) Takım Lideri (Varsa)
+            if ($proje && $proje->atananTakim && $proje->atananTakim->lider) {
+                $recipients->push($proje->atananTakim->lider);
+            }
+
+            // Tekilleştir (Aynı kişiye 2 kere gitmesin)
+            $recipients = $recipients->unique('id');
+
+            // Bildirimi Gönder
+            // Not: MusteriGeriBildirimBildirimi sınıfını oluşturduğunuzdan emin olun.
+            Notification::send($recipients, new MusteriGeriBildirimBildirimi(
+                $sikayet, 
+                $validated['feedback'], 
+                $validated['feedback_note']
+            ));
+
+        } catch (\Exception $e) {
+            // Bildirim hatası kullanıcı deneyimini bozmasın, sadece loglayalım.
+            \Log::error('Müşteri geri bildirim bildirimi gönderilemedi: ' . $e->getMessage());
+        }
+        // =================================================================
+
+        // 7. Başarı mesajı ile yönlendir
+        return redirect()->route('public.sikayet.show', ['token' => $token])
+                         ->with('success', 'Geri bildiriminiz başarıyla kaydedildi. Teşekkür ederiz!');
+    }
 
         // ======================================================================
         // === YENİ EKLENEN YARDIMCI METOT (YÖNETİCİ BİLDİRİMİ İÇİN) ===

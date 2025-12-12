@@ -1,8 +1,22 @@
 @php
     // === GÜVENLİ KONTROL BLOKU ===
     $kullaniciSikayetTakimindaMi = false;
+    $disiplinYetkisi = false; // Varsayılan kapalı
+
     if(Auth::check()) {
+        // Şikayet Takımı Kontrolü
         $kullaniciSikayetTakimindaMi = Auth::user()->takimlar()->where('tur', 'sikayet')->exists();
+
+        // Disiplin Menüsü Görme Yetkisi (Kimler Görebilir?)
+        // Superadmin, Hukuk Ekibi, Kurul Üyeleri ve Bölüm Liderleri
+        $disiplinYetkisi = Auth::user()->hasRole([
+            'Superadmin', 
+            'Hukuk Yöneticisi', 
+            'Hukuk Admini', 
+            'Disiplin Kurulu Başkanı', 
+            'Disiplin Kurulu Üyesi', 
+            'Bölüm Lideri'
+        ]) || Auth::user()->can_issue_disciplinary;
     }
 @endphp
 
@@ -44,11 +58,10 @@
                         </a>
                     @endif
 
-                    {{-- 3. YÖNETİM'E ÖZEL İZLEME LİNKLERİ (İAA YÖNETİM & RAPORLAR & ŞİKAYETLER) --}}
-                    {{-- 3. YÖNETİM İÇİN GRUPLANMIŞ MENÜLER --}}
+                    {{-- 3. YÖNETİM'E ÖZEL İZLEME LİNKLERİ --}}
                     @if(Auth::user()->hasRole('Yonetim'))
                         
-                        {{-- GRUP A: İAA (Yönetim ve Raporlar) --}}
+                        {{-- GRUP A: İAA --}}
                         <div x-data="{ open: false }" @click.away="open = false" class="relative">
                             <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.iaa-yonetim.*') || request()->routeIs('admin.raporlar.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                                 <span class="font-semibold text-sm">İAA</span>
@@ -60,7 +73,7 @@
                             </div>
                         </div>
 
-                        {{-- GRUP B: MÜŞTERİ ŞİKAYETLERİ (Liste ve Raporlar) --}}
+                        {{-- GRUP B: MÜŞTERİ ŞİKAYETLERİ --}}
                         <div x-data="{ open: false }" @click.away="open = false" class="relative">
                             <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-raporlari.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                                 <span class="font-semibold text-sm">Müşteri Şikayetleri</span>
@@ -73,6 +86,39 @@
                         </div>
 
                     @endif
+
+                    {{-- ======================================================= --}}
+                    {{-- [YENİ EKLENEN] DİSİPLİN MODÜLÜ (Yetkili Kişiler İçin) --}}
+                    {{-- ======================================================= --}}
+                    @if($disiplinYetkisi)
+                        <div x-data="{ open: false }" @click.away="open = false" class="relative">
+                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.disiplin.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                                <span class="font-semibold text-sm">Disiplin</span>
+                                <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            </button>
+                            <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
+                                {{-- 1. Disiplin Dosyaları (Ana Sayfa) --}}
+                                <x-dropdown-link :href="route('admin.disiplin.index')">{{ __('Disiplin Dosyaları') }}</x-dropdown-link>
+                                
+                                {{-- 2. Yeni Tutanak (Bölüm Lideri ve Üstü) --}}
+                                <x-dropdown-link :href="route('admin.disiplin.create')">{{ __('Yeni Tutanak Oluştur') }}</x-dropdown-link>
+                                {{-- === BURAYA EKLE: Sorumlu Atama (Sadece Bölüm Liderleri) === --}}
+                                @if(Auth::user()->hasRole('Bölüm Lideri'))
+                                    <x-dropdown-link :href="route('admin.disiplin.sorumlular.index')">
+                                        {{ __('Sorumlu Yönetimi') }}
+                                    </x-dropdown-link>
+                                @endif
+                                {{-- ======================================================= --}}
+                                {{-- 3. Ayarlar (Sadece Superadmin ve Hukuk Admini) --}}
+                                @if(Auth::user()->hasRole(['Superadmin', 'Hukuk Admini']))
+                                    <div class="border-t border-gray-100 my-1"></div>
+                                    <x-dropdown-link :href="route('admin.disiplin.settings.index')">{{ __('Disiplin Ayarları') }}</x-dropdown-link>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                    {{-- ======================================================= --}}
+
 
                     {{-- 4. KULLANICI REHBERİ (HERKES) --}}
                     <a href="{{ route('user-directory.index') }}" class="group relative px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('user-directory.index') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
@@ -110,7 +156,7 @@
                             </div>
                         </div>
 
-                        {{-- Şikayet Dropdown (Yönetim Hariç Diğer Yetkililer İçin) --}}
+                        {{-- Şikayet Dropdown --}}
                         @if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi']) || $kullaniciSikayetTakimindaMi)
                         <div x-data="{ open: false }" @click.away="open = false" class="relative">
                             <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-raporlari.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
@@ -134,7 +180,7 @@
                     {{-- 6. SUPERADMIN ÖZEL MENÜSÜ --}}
                     @if(Auth::user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi']))
                         <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ (request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.raporlar.*')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ (request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.raporlar.*') && !request()->routeIs('admin.disiplin.*')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                                 <span class="font-semibold text-sm">Yönetim Paneli</span>
                                 <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                             </button>
@@ -277,6 +323,42 @@
                 </div>
             </div>
 
+        @endif
+
+        {{-- [YENİ] MOBİL DİSİPLİN MENÜSÜ --}}
+        {{-- [YENİ] MOBİL DİSİPLİN MENÜSÜ --}}
+        @if($disiplinYetkisi)
+            <div class="pt-4 pb-1 border-t border-gray-700">
+                <div class="px-4"><div class="font-medium text-base text-gray-400">Disiplin Modülü</div></div>
+                <div class="mt-3 space-y-1">
+                    
+                    {{-- 1. Dosyalar (Herkes) --}}
+                    <x-responsive-nav-link :href="route('admin.disiplin.index')" :active="request()->routeIs('admin.disiplin.index')">
+                        {{ __('Disiplin Dosyaları') }}
+                    </x-responsive-nav-link>
+                    
+                    {{-- 2. Yeni Tutanak (Yetkili Olanlar) --}}
+                    {{-- Serkan burayı görecek çünkü $disiplinYetkisi true --}}
+                    <x-responsive-nav-link :href="route('admin.disiplin.create')" :active="request()->routeIs('admin.disiplin.create')">
+                        {{ __('Yeni Tutanak Oluştur') }}
+                    </x-responsive-nav-link>
+                    
+                    {{-- 3. Sorumlu Atama (Sadece Liderler) --}}
+                    @if(Auth::user()->hasRole('Bölüm Lideri'))
+                        <x-responsive-nav-link :href="route('admin.disiplin.sorumlular.index')" :active="request()->routeIs('admin.disiplin.sorumlular.*')">
+                            {{ __('Sorumlu Yönetimi') }}
+                        </x-responsive-nav-link>
+                    @endif
+
+                    {{-- 4. Ayarlar (Sadece Adminler) --}}
+                    @if(Auth::user()->hasRole(['Superadmin', 'Hukuk Admini']))
+                        <x-responsive-nav-link :href="route('admin.sistem-ayarlari.index')" :active="request()->routeIs('admin.sistem-ayarlari.*')">
+                            {{ __('Sistem Ayarları') }}
+                        </x-responsive-nav-link>
+                    @endif
+
+                </div>
+            </div>
         @endif
 
         {{-- STANDART KULLANICI LİNKLERİ (Yönetim GİZLİ) --}}

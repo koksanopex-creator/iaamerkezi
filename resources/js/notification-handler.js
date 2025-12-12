@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const li = document.createElement('li');
                         const a = document.createElement('a');
                         // Hem action_url'e hem de link'e bak, hangisi varsa onu kullan.
-                        a.href = notification.data.action_url || notification.data.link || '#';
+                        a.href = notification.data.url || notification.data.action_url || notification.data.link || '#';
 
                         // --- YENİ EKLENEN KISIM: Tarih/Saat ---
                         const dateStr = notification.created_at || new Date().toISOString();

@@ -12,6 +12,12 @@ use App\Models\IaaLog;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\ProjeAdimiGuncellendi;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\SikayetTakipBilgilendirmeMail;
+use App\Models\MusteriSikayetiLog;
+
 
 class ProjectWorkspaceController extends Controller
 {
@@ -400,5 +406,96 @@ class ProjectWorkspaceController extends Controller
         }
 
         return back()->with('success', $mesaj);
+    }
+
+    /**
+     * Müşteriye manuel bildirim gönderir, token ve şifre oluşturur.
+     */
+    public function notifyCustomer(Request $request, $id)
+    {
+        // 1. Yetki Kontrolü
+        if (!Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi'])) {
+            abort(403, 'Bu işlemi yapma yetkiniz yok.');
+        }
+
+        $iaa = Iaa::findOrFail($id);
+        $sikayet = $iaa->musteriSikayeti;
+
+        if (!$sikayet) {
+            return back()->with('error', 'Bu projeye bağlı bir müşteri şikayeti bulunamadı.');
+        }
+        
+        if (empty($sikayet->musteri_iletisim)) {
+            return back()->with('error', 'Müşteri e-posta adresi kayıtlı değil.');
+        }
+
+        // 2. Token ve Şifre Üretimi
+        if (!$sikayet->takip_token) {
+            $sikayet->takip_token = Str::random(12);
+        }
+
+        // Şifreyi üret
+        $plainPassword = Str::random(8); 
+        // Hashleyerek kaydet
+        $sikayet->guest_password_hash = Hash::make($plainPassword);
+
+        // 3. Bildirim Bilgilerini Kaydet
+        $sikayet->musteri_bildirim_yapan_id = Auth::id();
+        $sikayet->musteri_bildirim_tarihi = now();
+        $sikayet->save();
+
+        // 4. Log Tut
+        MusteriSikayetiLog::create([
+            'musteri_sikayeti_id' => $sikayet->id,
+            'user_id' => Auth::id(),
+            'eylem' => 'Müşteri Bilgilendirildi',
+            'aciklama' => Auth::user()->name . " tarafından müşteriye takip linki gönderildi."
+        ]);
+
+        // 5. Mail Gönder
+        try {
+            Mail::to($sikayet->musteri_iletisim)->send(new SikayetTakipBilgilendirmeMail($sikayet, $plainPassword, false));
+        } catch (\Exception $e) {
+            // Mail gitmese bile işlem başarılı sayılsın ama uyarı verelim
+            return back()->with('success', 'Müşteri bilgileri oluşturuldu ancak mail gönderilemedi. Şifre: ' . $plainPassword)->with('generated_password', $plainPassword);
+        }
+
+        // 6. Başarı ve Şifreyi Ekranda Göster
+        return back()->with('success', 'Müşteriye bildirim gönderildi.')->with('generated_password', $plainPassword);
+    }
+
+    /**
+     * Şifreyi sıfırlar ve tekrar gönderir.
+     */
+    public function resetCustomerPassword($id)
+    {
+        if (!Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi'])) {
+            abort(403);
+        }
+
+        $iaa = Iaa::findOrFail($id);
+        $sikayet = $iaa->musteriSikayeti;
+
+        if (!$sikayet) return back()->with('error', 'Şikayet bulunamadı.');
+
+        // Yeni Şifre
+        $newPlainPassword = Str::random(8);
+        $sikayet->guest_password_hash = Hash::make($newPlainPassword);
+        $sikayet->save();
+
+        // Log
+        MusteriSikayetiLog::create([
+            'musteri_sikayeti_id' => $sikayet->id,
+            'user_id' => Auth::id(),
+            'eylem' => 'Müşteri Şifresi Sıfırlandı',
+            'aciklama' => Auth::user()->name . " tarafından müşteri şifresi yenilendi."
+        ]);
+
+        // Mail
+        try {
+            Mail::to($sikayet->musteri_iletisim)->send(new SikayetTakipBilgilendirmeMail($sikayet, $newPlainPassword, true));
+        } catch (\Exception $e) {}
+
+        return back()->with('success', 'Şifre sıfırlandı.')->with('generated_password', $newPlainPassword);
     }
 }

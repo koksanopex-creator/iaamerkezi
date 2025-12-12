@@ -36,6 +36,8 @@
     </div>
 
     
+
+    
     <div class="space-y-6" x-data="{ open: true }"> 
         <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
             
@@ -74,6 +76,7 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Müşteri İsmi</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 20%;">Şikayet Başlığı</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">Durum</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Müşteri Kararı</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">Son Tarih</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 8%;">Resim</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">Yorumlar</th> 
@@ -132,6 +135,29 @@
                                             <?php echo e($sikayet->musteri_durum); ?>
 
                                         </span>
+                                    </td>
+                                    <td class="px-4 py-4 text-sm">
+                                        <!--[if BLOCK]><![endif]--><?php if($sikayet->musteri_feedback): ?>
+                                            <?php
+                                                $renk = match($sikayet->musteri_feedback) {
+                                                    'Onaylandı' => 'text-green-700 bg-green-50 border-green-200',
+                                                    'Reddedildi' => 'text-red-700 bg-red-50 border-red-200',
+                                                    default => 'text-yellow-700 bg-yellow-50 border-yellow-200'
+                                                };
+                                            ?>
+                                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border <?php echo e($renk); ?>">
+                                                <!--[if BLOCK]><![endif]--><?php if($sikayet->musteri_feedback == 'Onaylandı'): ?>
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                <?php elseif($sikayet->musteri_feedback == 'Reddedildi'): ?>
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                <?php else: ?>
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+                                                <span class="text-xs font-bold uppercase"><?php echo e($sikayet->musteri_feedback); ?></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <span class="text-gray-400 text-xs">-</span>
+                                        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                                     </td>
                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
                                         <?php echo e($sikayet->musteri_cozum_son_tarihi ? \Carbon\Carbon::parse($sikayet->musteri_cozum_son_tarihi)->format('d.m.Y') : 'N/A'); ?>
@@ -353,6 +379,18 @@
             <div id="altKategoriChart" wire:ignore></div>
         </div>
     </div>
+
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" wire:ignore>
+        <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Müşteri Geri Bildirim Dağılımı</h3>
+            <div id="customerFeedbackChart"></div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">Bölüm Bazlı Müşteri Memnuniyeti</h3>
+            <div id="deptSatisfactionChart"></div>
+        </div>
+    </div>
     
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -521,4 +559,49 @@
         <h3 class="text-lg font-semibold text-gray-900 mb-4">Aylık Çözülen Şikayet Trendi (Son 12 Ay)</h3>
         <div id="aylikCozulenChart"></div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    document.addEventListener('livewire:initialized', () => {
+        // 1. Pasta Grafik
+        var feedbackOptions = {
+            series: [
+                <?php echo e($feedbackCounts['Onaylandı'] ?? 0); ?>, 
+                <?php echo e($feedbackCounts['Reddedildi'] ?? 0); ?>, 
+                <?php echo e($feedbackCounts['Revizyon İstendi'] ?? 0); ?>
+
+            ],
+            chart: { type: 'donut', height: 300, fontFamily: 'inherit' },
+            labels: ['Onaylandı', 'Reddedildi', 'Revizyon'],
+            colors: ['#10B981', '#EF4444', '#F59E0B'],
+            legend: { position: 'bottom' },
+            dataLabels: { enabled: true },
+            plotOptions: { pie: { donut: { size: '60%' } } }
+        };
+        new ApexCharts(document.querySelector("#customerFeedbackChart"), feedbackOptions).render();
+
+        // 2. Sütun Grafik
+        var deptOptions = {
+            series: [{
+                name: 'Onaylandı',
+                data: <?php echo json_encode($bolumMemnuniyeti->pluck('onay_sayisi'), 15, 512) ?>
+            }, {
+                name: 'Reddedildi',
+                data: <?php echo json_encode($bolumMemnuniyeti->pluck('red_sayisi'), 15, 512) ?>
+            }, {
+                name: 'Revizyon',
+                data: <?php echo json_encode($bolumMemnuniyeti->pluck('revizyon_sayisi'), 15, 512) ?>
+            }],
+            chart: { type: 'bar', height: 300, stacked: true, fontFamily: 'inherit', toolbar: {show: false} },
+            plotOptions: { bar: { horizontal: false, borderRadius: 4, columnWidth: '50%' } },
+            dataLabels: { enabled: false },
+            xaxis: {
+                categories: <?php echo json_encode($bolumMemnuniyeti->pluck('bolum_adi'), 15, 512) ?>,
+            },
+            colors: ['#10B981', '#EF4444', '#F59E0B'],
+            legend: { position: 'top' },
+            fill: { opacity: 1 }
+        };
+        new ApexCharts(document.querySelector("#deptSatisfactionChart"), deptOptions).render();
+    });
+</script>
 </div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/livewire/admin/musteri-sikayet-raporu.blade.php ENDPATH**/ ?>

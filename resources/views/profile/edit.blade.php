@@ -91,6 +91,17 @@
                     <button @click="activeTab = 'settings'" :class="activeTab === 'settings' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50'" class="group px-4 py-3 flex items-center text-sm font-bold w-full transition-all duration-200 rounded-lg">
                         Hesap Ayarları
                     </button>
+                    {{-- DİSİPLİN SEKMESİ (SAYAÇLI) --}}
+                    @php
+                        $disiplinSayisi = \App\Models\DisciplinaryCase::where('user_id', Auth::id())->count();
+                    @endphp
+                    
+                    <button @click="activeTab = 'disciplinary'" :class="activeTab === 'disciplinary' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50'" class="group px-4 py-3 flex items-center justify-between text-sm font-bold w-full transition-all duration-200 rounded-lg">
+                        <div class="flex items-center">
+                             <svg class="w-5 h-5 mr-3 text-gray-400 group-hover:text-indigo-500" :class="activeTab === 'disciplinary' ? 'text-indigo-500' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                            Disiplin Dosyalarım ({{ $disiplinSayisi }})
+                        </div>
+                    </button>
                 </nav>
             </div>
 
@@ -166,6 +177,40 @@
                         <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
                             @include('profile.partials.update-password-form')
                         </div>
+                    </div>
+                </div>
+
+                {{-- TAB İÇERİĞİ: DİSİPLİN --}}
+                <div x-show="activeTab === 'disciplinary'" x-transition style="display: none;">
+                    
+                    <div class="bg-white shadow-sm rounded-xl p-6 border border-gray-100">
+                        <h3 class="text-lg font-bold text-gray-900 mb-6">Disiplin Geçmişim</h3>
+
+                        @php
+                            // Kullanıcının hiç disiplin kaydı var mı kontrol edelim
+                            $hasDisciplinaryRecord = \App\Models\DisciplinaryCase::where('user_id', Auth::id())->exists();
+                        @endphp
+
+                        @if($hasDisciplinaryRecord)
+                            {{-- KAYIT VARSA: Dashboard parçalarını çağır --}}
+                            @include('dashboard.partials.disciplinary-waiting')
+                            @include('dashboard.partials.disciplinary-active')
+                        @else
+                            {{-- KAYIT YOKSA: Tertemiz Sicil Kartı Göster --}}
+                            <div class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4 animate-bounce">
+                                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                                <h3 class="text-xl font-bold text-gray-900">Siciliniz Tertemiz!</h3>
+                                <p class="mt-2 text-gray-500 max-w-sm mx-auto">
+                                    Adınıza kayıtlı herhangi bir disiplin süreci veya tutanak bulunmamaktadır. Örnek çalışmalarınız için teşekkür ederiz.
+                                </p>
+                                <div class="mt-6 inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg font-bold text-sm shadow-lg shadow-green-200">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"></path></svg>
+                                    Performansa Devam
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 </div>
 

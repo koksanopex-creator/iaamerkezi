@@ -8,10 +8,10 @@
     'isTeamMember',
     'iaa',
     'assignment',
-    'takim'
+    'takim',
+    'stepAssignments' => []
 ])
 
-{{-- === KRİTİK DEĞİŞİKLİK BURADA: ID EKLENDİ === --}}
 <div id="step-card-{{ $step->id }}" class="mb-10 ml-6" x-data="{ open: {{ $isCompleted ? 'false' : ($isCurrent ? 'true' : 'false') }} }">
     
     {{-- Zaman Çizgisi İkonu --}}
@@ -27,7 +27,7 @@
     {{-- Adım Kartı --}}
     <div class="bg-white border-2 {{ $isCurrent ? 'border-blue-300 shadow-lg' : 'border-gray-200' }} rounded-xl p-5 hover:shadow-md transition-shadow duration-300">
         
-        {{-- Adım Başlığı (Açılır/Kapanır Tetikleyici) --}}
+        {{-- Adım Başlığı --}}
         <div @if($isCompleted || $isCurrent) @click="open = !open" class="cursor-pointer" @else class="cursor-default" @endif>
             <h4 class="flex items-center justify-between text-base font-semibold {{ $isCurrent ? 'text-blue-700' : 'text-gray-900' }}">
                 <span>{{ $step->order }}. {{ $step->name }}</span>
@@ -43,24 +43,21 @@
           
             {{-- === GÖREV ATAMA VE BİLGİ ALANI === --}}
             @php
-                // Bu verileri show.blade.php'den (Controller'dan) gönderdiğimiz stepAssignments değişkeninden çekiyoruz
-                // Eğer stepAssignments yoksa (hata olmasın diye) boş dizi kabul ediyoruz
                 $assignmentData = $stepAssignments[$step->id] ?? null;
                 
-                // Lider mi?
-                $isLeader = (Auth::id() == $takim->lider_user_id) || Auth::user()->hasRole('Superadmin');
+                // === HATA DÜZELTMESİ BURADA YAPILDI ===
+                // Önce giriş yapılmış mı (Auth::check()) bakıyoruz.
+                // Giriş yapılmadıysa (Misafir ise) sağ taraftaki Auth::user() çalışmaz, hata vermez.
+                $isLeader = Auth::check() && ((Auth::id() == $takim->lider_user_id) || Auth::user()->hasRole('Superadmin'));
                 
-                // Sorumlu Var mı?
                 $sorumluUser = $assignmentData ? \App\Models\User::find($assignmentData->user_id) : null;
                 
-                // Ben miyim?
+                // Ben miyim? (Misafirde Auth::id null döner, eşitlik false olur, sorun çıkmaz)
                 $isMe = $assignmentData && $assignmentData->user_id == Auth::id();
                 
-                // Bekleme Süresi
                 $waitingSince = $assignmentData ? \Carbon\Carbon::parse($assignmentData->updated_at)->diffForHumans() : '';
             @endphp
 
-            {{-- Sadece aktif veya tamamlanmamış adımlarda göster (Opsiyonel) --}}
             <div class="mt-3 mb-3 flex items-center justify-between bg-gray-50 p-2.5 rounded-lg border border-gray-200 shadow-sm">
                 
                 {{-- SOL: Durum Bilgisi --}}
@@ -72,7 +69,6 @@
                                 <span class="font-medium text-gray-900">{{ $sorumluUser->name }}</span> tarafından tamamlandı.
                             </span>
                         @else
-                            {{-- Henüz tamamlanmamış --}}
                             <div class="flex items-center gap-3">
                                 <div class="relative">
                                     @if($sorumluUser->profile_photo_path)
@@ -80,7 +76,6 @@
                                     @else
                                         <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 shadow-sm">{{ substr($sorumluUser->name, 0, 1) }}</div>
                                     @endif
-                                    {{-- Animasyonlu Bekleme İkonu --}}
                                     <span class="absolute -bottom-1 -right-1 flex h-3 w-3">
                                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                                       <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500 border border-white"></span>
@@ -104,32 +99,25 @@
                     @endif
                 </div>
 
-                {{-- SAĞ: Atama Formu (Sadece Lider Görür ve Adım Tamamlanmamışsa) --}}
+                {{-- SAĞ: Atama Formu (Sadece Lider ve Giriş Yapmış Kişiler Görür) --}}
                 @if($isLeader && !$isCompleted)
                     <form action="{{ route('proje.workspace.assignUserToStep', ['iaa' => $iaa->id, 'step' => $step->id]) }}" method="POST">
                         @csrf
                         <div class="relative">
                         <select name="user_id" onchange="this.form.submit()" class="appearance-none bg-white border border-gray-300 text-gray-700 text-xs rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 block w-40 py-1.5 pl-3 pr-8 cursor-pointer hover:border-gray-400 transition-colors">
                                 <option value="">-- Sorumlu Seç --</option>
-                                
-                                {{-- Squad Üyeleri (SADECE ONAYLAYANLAR) --}}
                                 @foreach($iaa->projeEkibi as $ekipUyesi)
-                                    
-                                    {{-- DÜZELTME BURADA: Sadece durumu 'onaylandi' olanları göster --}}
                                     @if($ekipUyesi->pivot->durum == 'onaylandi')
                                         <option value="{{ $ekipUyesi->id }}" {{ ($sorumluUser && $sorumluUser->id == $ekipUyesi->id) ? 'selected' : '' }}>
                                             {{ $ekipUyesi->name }}
                                         </option>
                                     @endif
-                                    
                                 @endforeach
-
-                                 {{-- Lideri de ekle (Lider her zaman atanabilir) --}}
                                  @if(!$iaa->projeEkibi->contains($takim->lider_user_id))
                                     <option value="{{ $takim->lider_user_id }}" {{ ($sorumluUser && $sorumluUser->id == $takim->lider_user_id) ? 'selected' : '' }}>
                                         {{ $takim->lider->name }} (Lider)
                                     </option>
-                                 @endif
+                               @endif
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
                                 <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -149,7 +137,7 @@
             @include('proje-calisma-alani.partials._step-content-completed', [
                 'progressUpdate' => $progressUpdate,
                 'step' => $step,
-                'iaa' => $iaa // <--- BU SATIRI EKLEDİM
+                'iaa' => $iaa 
             ])
         @endif
 
@@ -158,14 +146,14 @@
              @include('proje-calisma-alani.partials._step-content-active', [
                 'iaa' => $iaa,
                 'assignment' => $assignment,
-                'currentStep' => $step, // $currentStep yerine $step kullanmak daha doğru
+                'currentStep' => $step, 
                 'progressUpdate' => $progressUpdate,
                 'isTeamMember' => $isTeamMember,
                 'takim' => $takim
              ])
         @endif
 
-        {{-- === YORUM/LOG BİLEŞENİNİ BURAYA EKLEYİN === --}}
+        {{-- Yorum/Log Bileşeni --}}
         @if($isCompleted || $isCurrent)
         <div class="mt-8 mb-4 px-6 md:px-10">
             @livewire('admin.proje-adim-yorumlari', [
@@ -173,7 +161,6 @@
                 'step' => $step
             ], key($step->id))
         </div>
-        {{-- === YORUM BİLEŞENİ SONU === --}}
         @endif
     </div>
 </div>

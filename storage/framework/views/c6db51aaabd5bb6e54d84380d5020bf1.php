@@ -22,7 +22,10 @@
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('musteri-sikayet-raporu');
+[$__name, $__params] = $__split('musteri-sikayet-raporu', [
+                'feedbackCounts' => $feedbackCounts, 
+                'bolumMemnuniyeti' => $bolumMemnuniyeti
+            ]);
 
 $__html = app('livewire')->mount($__name, $__params, 'lw-1928213012-0', $__slots ?? [], get_defined_vars());
 

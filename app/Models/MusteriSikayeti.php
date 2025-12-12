@@ -50,7 +50,10 @@ class MusteriSikayeti extends Model
         'guest_password_hash',
         'musteri_feedback',
         'musteri_feedback_note',
-        'edit_locked_at'
+        'edit_locked_at',
+        // === YENİ EKLENENLER ===
+        'musteri_bildirim_yapan_id',
+        'musteri_bildirim_tarihi'
         // ===============================
     ];
 
@@ -66,6 +69,8 @@ class MusteriSikayeti extends Model
         'kurul_onay_tarihi' => 'datetime',
         'musteri_cozum_son_tarihi' => 'datetime',
         'edit_locked_at' => 'datetime',
+        // === YENİ EKLENEN ===
+        'musteri_bildirim_tarihi' => 'datetime',
     ];
     // === EKLEME SONU ===
 

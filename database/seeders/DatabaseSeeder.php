@@ -3,12 +3,11 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-// === YENİ ===
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents; // Eklendi
+    use WithoutModelEvents;
 
     /**
      * Uygulamanın veritabanını tohumlar.
@@ -17,10 +16,17 @@ class DatabaseSeeder extends Seeder
     {
         // Seeder'ları doğru sırayla çağır
         $this->call([
-            RolesSeeder::class,          // Önce Roller (yeni rolü içeriyor)
-            BolumSeeder::class,          // Sonra Bölümler
-            SikayetYetkiSeeder::class,   // === YENİ: Şikayet izinlerini ata ===
-            UserSeeder::class,           // En son Kullanıcılar (rolleri atayacak)
+            // 1. ROLLER VE İZİNLER (En başta olmalı)
+            RolesSeeder::class,            // Mevcut Roller
+            DisciplinaryRoleSeeder::class, // YENİ: Disiplin Rolleri ve İzinleri
+
+            // 2. TEMEL VERİLER
+            BolumSeeder::class,            // Bölümler
+            DisciplinarySeeder::class,     // YENİ: Disiplin Kategorileri, Cezalar vb.
+
+            // 3. YETKİLENDİRME VE KULLANICILAR
+            SikayetYetkiSeeder::class,     // Şikayet izinleri
+            UserSeeder::class,             // Kullanıcılar (Roller artık var olduğu için hata vermez)
         ]);
     }
 }

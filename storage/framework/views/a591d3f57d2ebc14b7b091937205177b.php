@@ -22,4 +22,35 @@
         Güvenlik Logları (Admin)
     </button>
     <?php endif; ?>
+
+    
+    <?php
+        // Yetki: Dosya sahibi, Bölüm Lideri, Üst Yönetim
+        $canViewDiscipline = Auth::id() == $user->id || 
+                             Auth::user()->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi']) ||
+                             (Auth::user()->hasRole('Bölüm Lideri') && Auth::user()->bolum_id == $user->bolum_id);
+                             
+        // Sayaç: Yetkisi varsa sayıyı çek, yoksa 0
+        $disiplinCount = 0;
+        if($canViewDiscipline) {
+            $disiplinCount = \App\Models\DisciplinaryCase::where('user_id', $user->id)->count();
+        }
+    ?>
+
+    <?php if($canViewDiscipline): ?>
+        <button @click="activeTab = 'disiplin'" 
+                :class="activeTab === 'disiplin' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'" 
+                class="whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm flex items-center transition-all duration-200">
+            
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            
+            Disiplin Geçmişi
+            
+            
+            <span class="ml-2 py-0.5 px-2.5 rounded-full text-xs font-bold <?php echo e($disiplinCount > 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'); ?>">
+                <?php echo e($disiplinCount); ?>
+
+            </span>
+        </button>
+    <?php endif; ?>
 </div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/profile/partials/show/tabs-nav.blade.php ENDPATH**/ ?>

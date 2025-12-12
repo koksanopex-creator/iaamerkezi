@@ -275,4 +275,70 @@ unset($__defined_vars, $__key, $__value); ?>
             </div>
         </div>
     </div>
+    
+        
+        
+        <?php if($sikayet->musteri_feedback): ?>
+        <?php
+            // Duruma göre renk ve ikon belirleme mantığı
+            $feedbackColor = match($sikayet->musteri_feedback) {
+                'Onaylandı' => 'green',
+                'Reddedildi' => 'red',
+                'Revizyon İstendi' => 'yellow',
+                default => 'gray'
+            };
+            
+            // Tarih formatı (Veritabanındaki güncellenme tarihini kullanıyoruz)
+            $islemTarihi = $sikayet->updated_at->format('d.m.Y H:i');
+        ?>
+
+        <div class="mt-5 p-5 rounded-xl shadow-sm border-l-4 bg-<?php echo e($feedbackColor); ?>-50 border-<?php echo e($feedbackColor); ?>-500 transition-all hover:shadow-md">
+            <div class="flex items-start gap-4">
+                
+                
+                <div class="flex-shrink-0">
+                    <div class="w-10 h-10 flex justify-center items-center rounded-full bg-white shadow-sm text-<?php echo e($feedbackColor); ?>-600">
+                        <?php if($sikayet->musteri_feedback == 'Onaylandı'): ?>
+                            
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <?php elseif($sikayet->musteri_feedback == 'Reddedildi'): ?>
+                            
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <?php elseif($sikayet->musteri_feedback == 'Revizyon İstendi'): ?>
+                            
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                
+                <div class="flex-1">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="text-lg font-bold text-<?php echo e($feedbackColor); ?>-800">
+                                Müşteri Kararı: <?php echo e($sikayet->musteri_feedback); ?>
+
+                            </h4>
+                            <?php if($sikayet->musteri_feedback_note): ?>
+                                <p class="text-sm text-<?php echo e($feedbackColor); ?>-700 mt-1 italic">
+                                    "<?php echo e($sikayet->musteri_feedback_note); ?>"
+                                </p>
+                            <?php else: ?>
+                                <p class="text-sm text-<?php echo e($feedbackColor); ?>-600/70 mt-1 italic">
+                                    (Ek açıklama girilmedi)
+                                </p>
+                            <?php endif; ?>
+                        </div>
+                        
+                        
+                        <div class="flex items-center gap-1.5 text-xs font-medium text-<?php echo e($feedbackColor); ?>-700 bg-white px-3 py-1 rounded-full shadow-sm border border-<?php echo e($feedbackColor); ?>-100">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <?php echo e($islemTarihi); ?>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 </div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/proje-calisma-alani/partials/_project-final-status.blade.php ENDPATH**/ ?>

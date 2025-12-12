@@ -9,7 +9,10 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             {{-- Livewire bileşenini çağır (TÜM HTML'yi bu dosya çizecek) --}}
-            @livewire('musteri-sikayet-raporu')
+            @livewire('musteri-sikayet-raporu', [
+                'feedbackCounts' => $feedbackCounts, 
+                'bolumMemnuniyeti' => $bolumMemnuniyeti
+            ])
             
            
         </div>

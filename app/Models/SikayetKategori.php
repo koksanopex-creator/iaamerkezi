@@ -15,9 +15,16 @@ class SikayetKategori extends Model
         'ad',
         'varsayilan_takim_id',
         // === YENİ EKLENENLER ===
+        'bolum_id', // <-- BU EKLENDİ
         'diger_secenegi_goster', 
         'diger_aciklama_basligi',
     ];
+
+    // === YENİ EKLENEN İLİŞKİ ===
+    public function bolum()
+    {
+        return $this->belongsTo(Bolum::class, 'bolum_id');
+    }
 
     // Bir kategorinin varsayılan takımıyla olan ilişkisi
     public function varsayilanTakim()

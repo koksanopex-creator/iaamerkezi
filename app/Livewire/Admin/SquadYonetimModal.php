@@ -7,6 +7,7 @@ use App\Models\Iaa;
 use App\Models\User;
 use App\Models\Takim;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Notification; // <-- Bu satır çok önemli!
 
 class SquadYonetimModal extends Component
 {
@@ -15,9 +16,9 @@ class SquadYonetimModal extends Component
     public $projeBasligi;
     
     public $aramaMetni = ''; 
-    public $bulunanKullanicilar = []; // Sadece User objeleri (pivot yok)
+    public $bulunanKullanicilar = [];
     
-    public $mevcutUyeListesi = []; // User objeleri + pivot verisi
+    public $mevcutUyeListesi = [];
     public $liderId; 
 
     protected $listeners = ['openSquadModal' => 'open'];
@@ -33,11 +34,10 @@ class SquadYonetimModal extends Component
 
     public function loadProjectData()
     {
-        // with('projeEkibi') sayesinde pivot verileri de gelir
         $iaa = Iaa::with(['projeEkibi', 'atananTakim'])->findOrFail($this->iaaId);
         
         $this->projeBasligi = $iaa->baslik;
-        $this->mevcutUyeListesi = $iaa->projeEkibi; // Collection olarak alıyoruz
+        $this->mevcutUyeListesi = $iaa->projeEkibi;
         $this->liderId = $iaa->atananTakim->lider_user_id;
     }
 
@@ -48,13 +48,10 @@ class SquadYonetimModal extends Component
             return;
         }
 
-        // Mevcut ekipteki ID'leri al ki tekrar listeleme
-        // $this->mevcutUyeListesi bir Eloquent Collection olduğu için pluck çalışır
         $ekipIds = $this->mevcutUyeListesi->pluck('id')->toArray();
 
-        // TÜM kullanıcılar tablosunda ara (Onaylı olanlar)
         $this->bulunanKullanicilar = User::where('name', 'like', '%' . $this->aramaMetni . '%')
-            ->where('onaylandi_mi', true) // Sadece onaylı kullanıcılar
+            ->where('onaylandi_mi', true)
             ->whereNotIn('id', $ekipIds)
             ->take(5)
             ->get();
@@ -64,34 +61,31 @@ class SquadYonetimModal extends Component
     {
         $iaa = Iaa::find($this->iaaId);
         
-        // Yetki Kontrolü
         if (Auth::id() != $this->liderId && !Auth::user()->hasRole('Superadmin')) {
             return; 
         }
 
-        // --- GÜNCELLEME: DURUM 'bekliyor' OLARAK EKLENİYOR ---
-        // syncWithoutDetaching kullanıyoruz ki zaten varsa bozmasın.
-        // Ancak updateExistingPivot ile var olanı güncellemeyi de deneyebiliriz.
-        // En temizi: attach veya sync, status ile.
-        
-        // Önce var mı kontrol et
         $exists = $iaa->projeEkibi()->where('user_id', $userId)->exists();
 
         if (!$exists) {
             $iaa->projeEkibi()->attach($userId, [
                 'rol' => 'Üye',
-                'durum' => 'bekliyor' // <--- ÖNEMLİ: Bekliyor olarak ekle
+                'durum' => 'bekliyor'
             ]);
 
-            // --- BİLDİRİM GÖNDER ---
+            // --- BİLDİRİMLER ---
             $davetEdilenUser = User::find($userId);
-            $lider = Auth::user(); // İşlemi yapan kişi liderdir
+            $lider = Auth::user(); 
             
             if ($davetEdilenUser) {
-                \Illuminate\Support\Facades\Notification::send(
+                // 1. Personele Bildirim (Seni Davet Ettim)
+                Notification::send(
                     $davetEdilenUser, 
                     new \App\Notifications\ProjeEkipDaveti($iaa, $lider)
                 );
+
+                // 2. Müdüre Bildirim (Personelin Davet Edildi)
+                $this->notifyManager($davetEdilenUser, $iaa, 'davet');
             }
             
             session()->flash('success', 'Kullanıcıya davet gönderildi.');
@@ -106,40 +100,40 @@ class SquadYonetimModal extends Component
 
     public function uyeCikar($userId)
     {
-        // 1. Lider kendini çıkaramaz
         if ($userId == $this->liderId) {
             return;
         }
 
         $iaa = Iaa::find($this->iaaId);
         
-        // 2. Yetki Kontrolü
         if (Auth::id() != $this->liderId && !Auth::user()->hasRole('Superadmin')) {
             return;
         }
 
-        // 3. Çıkarılacak kullanıcıyı bul ve BİLDİRİM GÖNDER
         $cikarilacakUye = User::find($userId);
         $lider = Auth::user();
 
         if ($cikarilacakUye) {
+            // 1. Personele Bildirim (Çıkarıldın)
             try {
-                \Illuminate\Support\Facades\Notification::send(
+                Notification::send(
                     $cikarilacakUye, 
                     new \App\Notifications\ProjeEkibindenCikarildi($iaa, $lider)
                 );
             } catch (\Exception $e) {
-                // Bildirim hatası işlemi durdurmasın
+                // Hata olursa logla ama işlemi durdurma
                 \Illuminate\Support\Facades\Log::error('Üye çıkarma bildirimi hatası: ' . $e->getMessage());
             }
+
+            // 2. Müdüre Bildirim (Personelin Çıkarıldı)
+            // === KRİTİK NOKTA BURASI ===
+            $this->notifyManager($cikarilacakUye, $iaa, 'cikarildi');
         }
 
-        // 4. Silme İşlemi (Pivot tablodan kaldır)
         $iaa->projeEkibi()->detach($userId);
 
-        // 5. Listeyi Yenile ve Mesaj Ver
         $this->loadProjectData();
-        session()->flash('success', 'Üye proje ekibinden çıkarıldı ve kendisine bildirim gönderildi.');
+        session()->flash('success', 'Üye proje ekibinden çıkarıldı.');
     }
 
     public function close()
@@ -151,5 +145,28 @@ class SquadYonetimModal extends Component
     public function render()
     {
         return view('livewire.admin.squad-yonetim-modal');
+    }
+
+    // === MÜDÜRÜ BULMA VE BİLDİRİM GÖNDERME FONKSİYONU ===
+    private function notifyManager($personel, $iaa, $islemTipi)
+    {
+        // 1. Personelin bölümü var mı?
+        if ($personel->bolum_id) {
+            
+            // 2. O bölümün liderlerini bul (Kendisi hariç)
+            $mudurler = User::role('Bölüm Lideri')
+                            ->where('bolum_id', $personel->bolum_id)
+                            ->where('id', '!=', $personel->id)
+                            ->get();
+
+            // 3. Müdür varsa bildirimi gönder
+            if ($mudurler->isNotEmpty()) {
+                // Parametre olarak 'davet' veya 'cikarildi' gönderiyoruz
+                Notification::send(
+                    $mudurler, 
+                    new \App\Notifications\PersonelProjeyeDavetEdildi($iaa, $personel, $islemTipi)
+                );
+            }
+        }
     }
 }

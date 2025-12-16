@@ -54,23 +54,43 @@ class ProjeAdimYorumlari extends Component
 
     private function checkYetki()
     {
-        // ... (Bu fonksiyon aynı kalıyor, değişiklik yok) ...
+        // 1. SENARYO: SİSTEME GİRİŞ YAPMIŞ KULLANICILAR
         if (Auth::check()) {
             $user = Auth::user();
-            if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri'])) {
-                $this->kullaniciYetkiliMi = true; return;
+
+            // A) GENEL ROL YETKİSİ OLANLAR
+            // Bu rollere sahip herhangi biri, hangi proje olursa olsun yorum yapabilir.
+            if ($user->hasRole([
+                'Superadmin',
+                'Yonetim',
+                'Müşteri Şikayeti Kurulu',
+                'Müşteri Şikayeti Çözüm Lideri',
+                'Bölüm Kalite Yöneticisi',
+                'Bölüm Lideri'
+            ])) {
+                $this->kullaniciYetkiliMi = true;
+                return;
             }
-            // === DÜZELTME: 'uyeler' kullandığınızdan emin olalım (önceki hatadan ders alarak) ===
-            if ($this->iaa->atananTakim && $this->iaa->atananTakim->uyeler->contains($user)) {
-                $this->kullaniciYetkiliMi = true; return;
+
+            // B) PROJE EKİP ÜYESİ KONTROLÜ (Sadece ilgili projede yetkili)
+            // Kullanıcı yukarıdaki rollerden değilse bile, bu projenin takımında mı?
+            if ($this->iaa->atananTakim && $this->iaa->atananTakim->uyeler->contains('id', $user->id)) {
+                $this->kullaniciYetkiliMi = true;
+                return;
             }
         }
+
+        // 2. SENARYO: DIŞ MÜŞTERİ (Giriş yapmamış, Token ile gelmiş)
+        // Sadece o şikayetin sahibi olan müşteri mi?
         if ($this->iaa->musteriSikayeti) {
             $sessionKey = 'sikayet_logged_in_' . $this->iaa->musteriSikayeti->takip_token;
             if (Session::has($sessionKey)) {
-                $this->kullaniciYetkiliMi = true; return;
+                $this->kullaniciYetkiliMi = true;
+                return;
             }
         }
+
+        // HİÇBİR ŞARTA UYMUYORSA
         $this->kullaniciYetkiliMi = false;
     }
 

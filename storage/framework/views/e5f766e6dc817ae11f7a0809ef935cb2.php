@@ -59,54 +59,100 @@
                         </div>
 
                         <div class="space-y-3">
-                            <?php $__currentLoopData = $bekleyenProjeDavetleri; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $davet): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:bg-white/15">
+                        <?php $__currentLoopData = $bekleyenProjeDavetleri; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $davet): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:bg-white/15">
+                                
+                                
+                                <div class="flex items-start gap-4">
                                     
-                                    
-                                    <div class="flex items-start gap-4">
-                                        <div class="hidden md:flex flex-shrink-0 w-12 h-12 bg-white rounded-full items-center justify-center text-indigo-600 font-bold text-lg shadow-sm">
-                                            <?php echo e(substr($davet->baslik, 0, 1)); ?>
+                                    <div class="hidden md:flex flex-shrink-0 w-12 h-12 bg-white rounded-full items-center justify-center text-indigo-600 font-bold text-lg shadow-sm">
+                                        <?php echo e(substr($davet->baslik, 0, 1)); ?>
 
-                                        </div>
-                                        <div>
-                                            <h4 class="text-white font-bold text-lg"><?php echo e($davet->baslik); ?></h4>
-                                            <p class="text-indigo-100 text-sm mt-1 flex items-center gap-2">
-                                                <span>Davet Eden:</span>
-                                                <span class="font-semibold bg-indigo-800/50 px-2 py-0.5 rounded text-xs">
-                                                    <?php echo e($davet->atananTakim->lider->name ?? 'Takım Lideri'); ?>
+                                    </div>
+
+                                    <div class="flex flex-col gap-1">
+                                        
+                                        <h4 class="text-white font-bold text-lg leading-tight">
+                                            <a href="<?php echo e(route('proje.workspace.show', $davet->id)); ?>" target="_blank" class="hover:text-indigo-200 hover:underline transition-colors flex items-center gap-2 group">
+                                                <?php echo e($davet->baslik); ?>
+
+                                                <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                            </a>
+                                        </h4>
+
+                                        
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            
+                                            <?php if($davet->musteriSikayeti && $davet->musteriSikayeti->sikayetKategori): ?>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-white/90 text-indigo-700 shadow-sm">
+                                                    <?php echo e($davet->musteriSikayeti->sikayetKategori->ad); ?>
 
                                                 </span>
-                                                <span class="text-indigo-300">•</span>
-                                                <span><?php echo e($davet->created_at->diffForHumans()); ?></span>
-                                            </p>
+                                            <?php endif; ?>
+
+                                            
+                                            <?php if($davet->puan > 0): ?>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-400 text-amber-900 shadow-sm">
+                                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                                    <?php echo e(number_format($davet->puan, 0)); ?> Puan
+                                                </span>
+                                            <?php endif; ?>
                                         </div>
+                                        
+                                        
+                                        <p class="text-indigo-100 text-sm mt-1 flex items-center gap-2">
+                                            <span>Davet Eden:</span>
+                                            
+                                            <?php if($davet->atananTakim && $davet->atananTakim->lider): ?>
+                                                
+                                                <a href="<?php echo e(route('profile.show', $davet->atananTakim->lider->id)); ?>" target="_blank" class="font-semibold bg-indigo-800/50 px-2 py-0.5 rounded text-xs hover:bg-white hover:text-indigo-700 transition-all cursor-pointer">
+                                                    <?php echo e($davet->atananTakim->lider->name); ?>
+
+                                                </a>
+                                            <?php else: ?>
+                                                <span class="font-semibold bg-indigo-800/50 px-2 py-0.5 rounded text-xs">
+                                                    Takım Lideri
+                                                </span>
+                                            <?php endif; ?>
+
+                                            <span class="text-indigo-300">•</span>
+                                            <span class="text-xs opacity-80"><?php echo e($davet->created_at->diffForHumans()); ?></span>
+                                        </p>
                                     </div>
+                                </div>
+
+                                
+                                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                                    
+                                    
+                                    <a href="<?php echo e(route('proje.workspace.show', $davet->id)); ?>" target="_blank" class="w-full md:w-auto px-4 py-2.5 bg-indigo-800/40 border border-indigo-400/30 text-white font-semibold rounded-lg hover:bg-indigo-800/60 transition-all duration-200 flex items-center justify-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                        İncele
+                                    </a>
 
                                     
-                                    <div class="flex items-center gap-3 w-full md:w-auto">
-                                        
-                                        <form action="<?php echo e(route('iaa.davetYanitla', $davet->id)); ?>" method="POST" class="w-full md:w-auto">
-                                            <?php echo csrf_field(); ?>
-                                            <input type="hidden" name="yanit" value="kabul">
-                                            <button type="submit" class="w-full md:w-auto px-6 py-2.5 bg-white text-indigo-700 font-bold rounded-lg shadow-lg hover:bg-indigo-50 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                                Kabul Et
-                                            </button>
-                                        </form>
+                                    <form action="<?php echo e(route('iaa.davetYanitla', $davet->id)); ?>" method="POST" class="w-full md:w-auto">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="yanit" value="kabul">
+                                        <button type="submit" class="w-full md:w-auto px-6 py-2.5 bg-white text-indigo-700 font-bold rounded-lg shadow-lg hover:bg-indigo-50 hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                            Kabul Et
+                                        </button>
+                                    </form>
 
-                                        
-                                        <form action="<?php echo e(route('iaa.davetYanitla', $davet->id)); ?>" method="POST" class="w-full md:w-auto">
-                                            <?php echo csrf_field(); ?>
-                                            <input type="hidden" name="yanit" value="red">
-                                            <button type="submit" onclick="return confirm('Bu proje davetini reddetmek istediğinize emin misiniz?')" class="w-full md:w-auto px-6 py-2.5 bg-red-500/20 border border-red-400/30 text-white font-semibold rounded-lg hover:bg-red-500/40 transition-all duration-200 flex items-center justify-center gap-2">
-                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                                Reddet
-                                            </button>
-                                        </form>
-                                    </div>
-
+                                    
+                                    <form action="<?php echo e(route('iaa.davetYanitla', $davet->id)); ?>" method="POST" class="w-full md:w-auto">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="yanit" value="red">
+                                        <button type="submit" onclick="return confirm('Bu proje davetini reddetmek istediğinize emin misiniz?')" class="w-full md:w-auto px-4 py-2.5 bg-red-500/20 border border-red-400/30 text-white font-semibold rounded-lg hover:bg-red-500/40 transition-all duration-200 flex items-center justify-center gap-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            Reddet
+                                        </button>
+                                    </form>
                                 </div>
-                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+
+                            </div>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </div>
                     </div>
                 </div>

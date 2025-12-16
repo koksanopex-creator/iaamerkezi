@@ -12,7 +12,8 @@ $__propNames = \Illuminate\View\ComponentAttributeBag::extractPropNames(([
     'iaa',
     'assignment',
     'takim',
-    'stepAssignments' => []
+    'stepAssignments' => [],
+    'canEdit' => false // <--- 1. DEĞİŞİKLİK: Bu değişkeni varsayılan false olarak ekledik
 ]));
 
 foreach ($attributes->all() as $__key => $__value) {
@@ -37,7 +38,8 @@ foreach (array_filter(([
     'iaa',
     'assignment',
     'takim',
-    'stepAssignments' => []
+    'stepAssignments' => [],
+    'canEdit' => false // <--- 1. DEĞİŞİKLİK: Bu değişkeni varsayılan false olarak ekledik
 ]), 'is_string', ARRAY_FILTER_USE_KEY) as $__key => $__value) {
     $$__key = $$__key ?? $__value;
 }
@@ -83,16 +85,10 @@ unset($__defined_vars, $__key, $__value); ?>
             <?php
                 $assignmentData = $stepAssignments[$step->id] ?? null;
                 
-                // === HATA DÜZELTMESİ BURADA YAPILDI ===
-                // Önce giriş yapılmış mı (Auth::check()) bakıyoruz.
-                // Giriş yapılmadıysa (Misafir ise) sağ taraftaki Auth::user() çalışmaz, hata vermez.
+                // Lider Kontrolü (Sadece Liderler atama yapabilir)
                 $isLeader = Auth::check() && ((Auth::id() == $takim->lider_user_id) || Auth::user()->hasRole('Superadmin'));
                 
                 $sorumluUser = $assignmentData ? \App\Models\User::find($assignmentData->user_id) : null;
-                
-                // Ben miyim? (Misafirde Auth::id null döner, eşitlik false olur, sorun çıkmaz)
-                $isMe = $assignmentData && $assignmentData->user_id == Auth::id();
-                
                 $waitingSince = $assignmentData ? \Carbon\Carbon::parse($assignmentData->updated_at)->diffForHumans() : '';
             ?>
 
@@ -138,7 +134,8 @@ unset($__defined_vars, $__key, $__value); ?>
                 </div>
 
                 
-                <?php if($isLeader && !$isCompleted): ?>
+                
+                <?php if($isLeader && !$isCompleted && $canEdit): ?>
                     <form action="<?php echo e(route('proje.workspace.assignUserToStep', ['iaa' => $iaa->id, 'step' => $step->id])); ?>" method="POST">
                         <?php echo csrf_field(); ?>
                         <div class="relative">
@@ -181,15 +178,38 @@ unset($__defined_vars, $__key, $__value); ?>
         <?php endif; ?>
 
         
+        
+        
+        
         <?php if($isCurrent): ?>
-             <?php echo $__env->make('proje-calisma-alani.partials._step-content-active', [
-                'iaa' => $iaa,
-                'assignment' => $assignment,
-                'currentStep' => $step, 
-                'progressUpdate' => $progressUpdate,
-                'isTeamMember' => $isTeamMember,
-                'takim' => $takim
-             ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            <?php if($canEdit): ?>
+                
+                 <?php echo $__env->make('proje-calisma-alani.partials._step-content-active', [
+                    'iaa' => $iaa,
+                    'assignment' => $assignment,
+                    'currentStep' => $step, 
+                    'progressUpdate' => $progressUpdate,
+                    'isTeamMember' => $isTeamMember,
+                    'takim' => $takim,
+                    'canEdit' => true // Alt bileşene de gönderiyoruz
+                 ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            <?php else: ?>
+                
+                <div class="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-blue-700">
+                                <span class="font-bold">İzleyici Modu:</span> Bu proje adımını görüntüleme yetkiniz var ancak müdahale edemezsiniz. İşlemleri proje ekibi gerçekleştirecektir.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
 
         

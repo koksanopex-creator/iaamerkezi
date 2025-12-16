@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\MusteriSikayeti; //
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class YeniMusteriSikayetiBildirimi extends Notification
@@ -26,7 +27,18 @@ class YeniMusteriSikayetiBildirimi extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database']; // Sadece veritabanına kaydet
+        return ['database', 'mail']; // Sadece veritabanına kaydet
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage)
+                    ->subject('Yeni Şikayet Bildirimi: #' . $this->sikayet->id)
+                    ->greeting("Merhaba {$notifiable->name},")
+                    ->line("Bölümünüzü veya sorumluluk alanınızı ilgilendiren yeni bir şikayet sisteme girildi.")
+                    ->line("Müşteri: " . $this->sikayet->musteri_adi)
+                    ->line("Konu: " . $this->sikayet->musteri_sikayet_konusu)
+                    ->action('Şikayeti İncele', route('admin.sikayetler.show', $this->sikayet->id));
     }
 
     /**

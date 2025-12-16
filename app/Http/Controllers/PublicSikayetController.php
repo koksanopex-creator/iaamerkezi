@@ -26,6 +26,8 @@ namespace App\Http\Controllers;
     use App\Models\IaaProgressUpdate; // <-- EKLEYİN
     use Illuminate\Support\Facades\Notification; // Bildirim göndermek için
     use App\Notifications\MusteriGeriBildirimBildirimi; // Oluşturduğumuz bildirim sınıfı
+    use App\Notifications\YeniMusteriSikayetiBildirimi;
+    
 
 
     // === YENİ EKLENENLER ===
@@ -608,55 +610,70 @@ namespace App\Http\Controllers;
         /**
          * Ayarlara göre ilgili kişilere yeni şikayet bildirimini gönderir.
          */
-        private function notifyAdminsAboutNewComplaint(MusteriSikayeti $sikayet)
-        {
-            // Ayarları veritabanından çek (performans için cache'lenebilir)
-            $settings = Setting::all()->keyBy('key');
-            $recipientEmails = collect();
+        /**
+     * Ayarlara göre ilgili kişilere yeni şikayet bildirimini gönderir.
+     */
+    private function notifyAdminsAboutNewComplaint(MusteriSikayeti $sikayet)
+    {
+        $settings = Setting::all()->keyBy('key');
+        $recipients = collect(); // Bildirim gidecek KULLANICILAR (User Objesi)
 
-            // 1. Rollerden gelen kullanıcı e-postaları
-            $roleIdsValue = $settings->get('sikayet_notify_role_ids')?->value;
-            if (!empty($roleIdsValue)) {
-                $roleIds = explode(',', $roleIdsValue);
-                $usersFromRoles = User::whereHas('roles', function ($query) use ($roleIds) {
-                    $query->whereIn('id', $roleIds);
-                })->pluck('email');
-                $recipientEmails = $recipientEmails->merge($usersFromRoles);
-            }
+        // 1. Ayarlardaki Rollerden Gelen Kullanıcılar (Superadmin vb.)
+        $roleIdsValue = $settings->get('sikayet_notify_role_ids')?->value;
+        if (!empty($roleIdsValue)) {
+            $roleIds = explode(',', $roleIdsValue);
+            // DİKKAT: pluck('email') DEĞİL -> get() kullanıyoruz (User nesnesi lazım)
+            $usersFromRoles = User::whereHas('roles', function ($query) use ($roleIds) {
+                $query->whereIn('id', $roleIds);
+            })->get(); 
+            $recipients = $recipients->merge($usersFromRoles);
+        }
 
-            // 2. Kullanıcılardan gelen e-postalar
-            $userIdsValue = $settings->get('sikayet_notify_user_ids')?->value;
-            if (!empty($userIdsValue)) {
-                $userIds = explode(',', $userIdsValue);
-                $usersFromIds = User::whereIn('id', $userIds)->pluck('email');
-                $recipientEmails = $recipientEmails->merge($usersFromIds);
-            }
+        // 2. Ayarlardaki Özel Kullanıcı ID'leri
+        $userIdsValue = $settings->get('sikayet_notify_user_ids')?->value;
+        if (!empty($userIdsValue)) {
+            $userIds = explode(',', $userIdsValue);
+            $usersFromIds = User::whereIn('id', $userIds)->get();
+            $recipients = $recipients->merge($usersFromIds);
+        }
 
-            // 3. Manuel e-postalar
-            $manualEmailsValue = $settings->get('sikayet_notify_manual_emails')?->value;
-            if (!empty($manualEmailsValue)) {
-                $manualEmails = explode(',', $manualEmailsValue);
-                $recipientEmails = $recipientEmails->merge($manualEmails);
-            }
+        // ==========================================================
+        // 3. KRİTİK KISIM: KATEGORİ -> BÖLÜM -> BÖLÜM LİDERİ
+        // ==========================================================
+        if ($sikayet->sikayet_kategorisi_id) {
+            $kategori = SikayetKategori::find($sikayet->sikayet_kategorisi_id);
             
-            // 4. (Eski sistemden kalan) sikayet_admin_notification_email
-            //    Bu ayarı da listeye ekleyelim, belki hala kullanılıyordur.
-            $legacyAdminEmail = $settings->get('sikayet_admin_notification_email')?->value;
-            if (!empty($legacyAdminEmail)) {
-                $recipientEmails->push($legacyAdminEmail);
+            // Kategori bir bölüme bağlıysa
+            if ($kategori && $kategori->bolum_id) {
+                // O bölümün liderlerini bul (User nesnesi olarak)
+                $bolumLiderleri = \App\Models\User::role('Bölüm Lideri')
+                                      ->where('bolum_id', $kategori->bolum_id)
+                                      ->get();
+                
+                $recipients = $recipients->merge($bolumLiderleri);
             }
+        }
+        // ==========================================================
 
+        // Tekilleştir (Aynı kişiye 2 kere gitmesin)
+        $finalRecipients = $recipients->unique('id');
 
-            // Tekilleştir (aynı kişiye 5 mail gitmesin) ve boş olanları filtrele
-            $finalRecipients = $recipientEmails->filter()->unique();
+        // BİLDİRİMİ GÖNDER (Hem Zil Hem Mail - Notification sınıfı halledecek)
+        if ($finalRecipients->isNotEmpty()) {
+            \Illuminate\Support\Facades\Notification::send($finalRecipients, new YeniMusteriSikayetiBildirimi($sikayet));
+        }
 
-            if ($finalRecipients->isNotEmpty()) {
-                foreach ($finalRecipients as $recipient) {
-                    if(filter_var(trim($recipient), FILTER_VALIDATE_EMAIL)) {
-                        Mail::to(trim($recipient))->queue(new YeniSikayetBildirimi($sikayet)); // <-- DÜZELTİLDİ
-                    }
+        // 4. Manuel E-postalar (Sadece Mail gider, sistemde kullanıcısı yoksa zili yanmaz)
+        $manualEmailsValue = $settings->get('sikayet_notify_manual_emails')?->value;
+        if (!empty($manualEmailsValue)) {
+            $manualEmails = explode(',', $manualEmailsValue);
+            foreach ($manualEmails as $email) {
+                if(filter_var(trim($email), FILTER_VALIDATE_EMAIL)) {
+                    \Illuminate\Support\Facades\Notification::route('mail', trim($email))
+                        ->notify(new YeniMusteriSikayetiBildirimi($sikayet));
                 }
             }
         }
+    }
 
     }

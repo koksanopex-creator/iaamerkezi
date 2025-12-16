@@ -9,7 +9,8 @@
     'iaa',
     'assignment',
     'takim',
-    'stepAssignments' => []
+    'stepAssignments' => [],
+    'canEdit' => false // <--- 1. DEĞİŞİKLİK: Bu değişkeni varsayılan false olarak ekledik
 ])
 
 <div id="step-card-{{ $step->id }}" class="mb-10 ml-6" x-data="{ open: {{ $isCompleted ? 'false' : ($isCurrent ? 'true' : 'false') }} }">
@@ -45,16 +46,10 @@
             @php
                 $assignmentData = $stepAssignments[$step->id] ?? null;
                 
-                // === HATA DÜZELTMESİ BURADA YAPILDI ===
-                // Önce giriş yapılmış mı (Auth::check()) bakıyoruz.
-                // Giriş yapılmadıysa (Misafir ise) sağ taraftaki Auth::user() çalışmaz, hata vermez.
+                // Lider Kontrolü (Sadece Liderler atama yapabilir)
                 $isLeader = Auth::check() && ((Auth::id() == $takim->lider_user_id) || Auth::user()->hasRole('Superadmin'));
                 
                 $sorumluUser = $assignmentData ? \App\Models\User::find($assignmentData->user_id) : null;
-                
-                // Ben miyim? (Misafirde Auth::id null döner, eşitlik false olur, sorun çıkmaz)
-                $isMe = $assignmentData && $assignmentData->user_id == Auth::id();
-                
                 $waitingSince = $assignmentData ? \Carbon\Carbon::parse($assignmentData->updated_at)->diffForHumans() : '';
             @endphp
 
@@ -99,8 +94,9 @@
                     @endif
                 </div>
 
-                {{-- SAĞ: Atama Formu (Sadece Lider ve Giriş Yapmış Kişiler Görür) --}}
-                @if($isLeader && !$isCompleted)
+                {{-- SAĞ: Atama Formu --}}
+                {{-- Sadece Lider ve Yetkili Kişi ($canEdit) ise görür --}}
+                @if($isLeader && !$isCompleted && $canEdit)
                     <form action="{{ route('proje.workspace.assignUserToStep', ['iaa' => $iaa->id, 'step' => $step->id]) }}" method="POST">
                         @csrf
                         <div class="relative">
@@ -141,16 +137,39 @@
             ])
         @endif
 
-        {{-- Aktif Adım İçeriği (Form) --}}
+        {{-- ========================================================= --}}
+        {{-- === 2. DEĞİŞİKLİK: AKTİF ADIM İÇİN YETKİ KONTROLÜ === --}}
+        {{-- ========================================================= --}}
+        
         @if($isCurrent)
-             @include('proje-calisma-alani.partials._step-content-active', [
-                'iaa' => $iaa,
-                'assignment' => $assignment,
-                'currentStep' => $step, 
-                'progressUpdate' => $progressUpdate,
-                'isTeamMember' => $isTeamMember,
-                'takim' => $takim
-             ])
+            @if($canEdit)
+                {{-- YETKİLİ KULLANICI: Formu Göster --}}
+                 @include('proje-calisma-alani.partials._step-content-active', [
+                    'iaa' => $iaa,
+                    'assignment' => $assignment,
+                    'currentStep' => $step, 
+                    'progressUpdate' => $progressUpdate,
+                    'isTeamMember' => $isTeamMember,
+                    'takim' => $takim,
+                    'canEdit' => true // Alt bileşene de gönderiyoruz
+                 ])
+            @else
+                {{-- İZLEYİCİ (Yetkisiz): Uyarı Mesajı Göster --}}
+                <div class="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-blue-700">
+                                <span class="font-bold">İzleyici Modu:</span> Bu proje adımını görüntüleme yetkiniz var ancak müdahale edemezsiniz. İşlemleri proje ekibi gerçekleştirecektir.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            @endif
         @endif
 
         {{-- Yorum/Log Bileşeni --}}

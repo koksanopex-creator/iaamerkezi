@@ -15,10 +15,12 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Models\Setting;
 use App\Models\IaaLog;
 use App\Models\User; 
+use App\Traits\NotifiesManager;
 
 class IaaController extends Controller
 {
     use AuthorizesRequests;
+    use NotifiesManager;
 
     /**
      * ====================================================================
@@ -405,23 +407,43 @@ class IaaController extends Controller
         // 1. Veritabanını Güncelle (Pivot Tablo)
         $iaa->projeEkibi()->updateExistingPivot($user->id, ['durum' => $yeniDurum]);
 
-        // 2. Lidere Bildirim Gönder
+        // 2. BİLDİRİM GÖNDERME KISMI ===
         try {
-            $liderId = $iaa->atananTakim->lider_user_id;
-            if ($liderId) {
-                $lider = User::find($liderId);
+            $bildirim = new \App\Notifications\ProjeDavetYaniti($iaa, $user, $yanit);
+            $alicilar = collect();
+
+            // A) Proje Liderini Ekle (Erhan Cesur)
+            if ($iaa->atananTakim && $iaa->atananTakim->lider_user_id) {
+                $lider = User::find($iaa->atananTakim->lider_user_id);
                 if ($lider) {
-                    // Yanıt bildirimini gönder
-                    \Illuminate\Support\Facades\Notification::send(
-                        $lider, 
-                        new \App\Notifications\ProjeDavetYaniti($iaa, $user, $yanit)
-                    );
+                    $alicilar->push($lider);
                 }
             }
+
+            // B) [YENİ] Personelin Bölüm Liderini Ekle (Emrah Al)
+            // Eğer personel bir bölüme bağlıysa, o bölümün liderlerini bul
+            if ($user->bolum_id) {
+                $mudurler = User::role('Bölüm Lideri')
+                                ->where('bolum_id', $user->bolum_id)
+                                ->where('id', '!=', $user->id) // Eğer personel zaten müdürse kendine atmasın
+                                ->get();
+                
+                if ($mudurler->isNotEmpty()) {
+                    $alicilar = $alicilar->merge($mudurler);
+                }
+            }
+
+            // C) Tekilleştir ve Gönder
+            $alicilar = $alicilar->unique('id');
+            
+            if ($alicilar->isNotEmpty()) {
+                \Illuminate\Support\Facades\Notification::send($alicilar, $bildirim);
+            }
+
         } catch (\Exception $e) {
-            // Mail/Bildirim hatası işlemi durdurmasın
             \Illuminate\Support\Facades\Log::error('Davet yanıtı bildirimi hatası: ' . $e->getMessage());
         }
+        // ===================================
 
         // 3. Yönlendirme
         if ($yanit === 'kabul') {

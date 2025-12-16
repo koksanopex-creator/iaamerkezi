@@ -30,27 +30,42 @@
                 <div class="flex space-x-3">
                     <div class="flex-shrink-0">
                         <!--[if BLOCK]><![endif]--><?php if($yorum->user): ?>
-                            <div class="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold" title="<?php echo e($yorum->yapan_kisi_adi); ?>">
-                                <?php echo e(substr($yorum->yapan_kisi_adi, 0, 1)); ?>
+                            
+                            <a href="<?php echo e(route('profile.show', $yorum->user->id)); ?>">
+                                <div class="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold hover:ring-2 hover:ring-offset-2 hover:ring-indigo-500 transition-all" title="<?php echo e($yorum->yapan_kisi_adi); ?>">
+                                    <?php echo e(substr($yorum->yapan_kisi_adi, 0, 1)); ?>
 
-                            </div>
+                                </div>
+                            </a>
                         <?php else: ?>
-                             <div class="h-10 w-10 rounded-full bg-yellow-500 text-white flex items-center justify-center font-bold" title="<?php echo e($yorum->yapan_kisi_adi); ?>">
+                            <div class="h-10 w-10 rounded-full bg-yellow-500 text-white flex items-center justify-center font-bold" title="<?php echo e($yorum->yapan_kisi_adi); ?>">
                                 M
                             </div>
                         <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
                     </div>
+                    
                     <div class="min-w-0 flex-1">
                         <div class="flex justify-between items-center">
                             <div>
-                                <p class="text-sm font-semibold text-gray-900">
-                                    <?php echo e($yorum->yapan_kisi_adi); ?>
+                                
+                                <!--[if BLOCK]><![endif]--><?php if($yorum->user_id): ?>
+                                    <a href="<?php echo e(route('profile.show', $yorum->user_id)); ?>" class="text-sm font-bold text-gray-900 hover:text-indigo-600 hover:underline transition-colors">
+                                        <?php echo e($yorum->yapan_kisi_adi); ?>
 
-                                </p>
+                                    </a>
+                                <?php else: ?>
+                                    <span class="text-sm font-bold text-gray-900">
+                                        <?php echo e($yorum->yapan_kisi_adi); ?>
+
+                                    </span>
+                                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
+
                                 <p class="text-sm text-gray-500">
                                     <?php echo e($yorum->created_at->diffForHumans()); ?> (<?php echo e($yorum->created_at->format('d.m.Y H:i')); ?>)
                                 </p>
                             </div>
+                            
+                    
                             
                             
                             <!--[if BLOCK]><![endif]--><?php if(Auth::id() == $yorum->user_id || (Auth::check() && Auth::user()->hasRole('Superadmin'))): ?>

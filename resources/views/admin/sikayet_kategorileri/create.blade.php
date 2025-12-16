@@ -80,6 +80,29 @@
                                 <x-input-error :messages="$errors->get('varsayilan_takim_id')" class="mt-2" />
                             </div>
 
+                            {{-- === YENİ EKLENEN: BÖLÜM SEÇİMİ === --}}
+                            <div class="group mt-6">
+                                <label for="bolum_id" class="flex items-center font-semibold text-sm text-gray-700 mb-2">
+                                    <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                    İlgili Bölüm
+                                    <span class="ml-2 text-xs text-gray-500 font-normal">(Opsiyonel)</span>
+                                </label>
+                                <div class="relative">
+                                    <select name="bolum_id" id="bolum_id" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition duration-150 ease-in-out pl-4 pr-10 py-3 text-gray-900 appearance-none bg-white">
+                                        <option value="">Bölüm Seçilmedi</option>
+                                        @foreach($bolumler as $bolum)
+                                            <option value="{{ $bolum->id }}" {{ old('bolum_id', $sikayetKategori->bolum_id ?? '') == $bolum->id ? 'selected' : '' }}>
+                                                {{ $bolum->ad }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <svg class="h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                                    </div>
+                                </div>
+                                <p class="mt-2 text-xs text-gray-500">Bu kategoride şikayet gelirse, seçilen bölümün liderine de bildirim gider.</p>
+                            </div>
+
                             {{-- Diğer Seçeneği Ayarları --}}
                             <div class="mt-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl shadow-sm">
                                 <div class="flex items-center gap-3 mb-4">

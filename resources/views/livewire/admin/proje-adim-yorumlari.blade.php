@@ -32,25 +32,39 @@
                 <div class="flex space-x-3">
                     <div class="flex-shrink-0">
                         @if ($yorum->user)
-                            <div class="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold" title="{{ $yorum->yapan_kisi_adi }}">
-                                {{ substr($yorum->yapan_kisi_adi, 0, 1) }}
-                            </div>
+                            {{-- AVATAR TIKLANABİLİR OLSUN --}}
+                            <a href="{{ route('profile.show', $yorum->user->id) }}">
+                                <div class="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold hover:ring-2 hover:ring-offset-2 hover:ring-indigo-500 transition-all" title="{{ $yorum->yapan_kisi_adi }}">
+                                    {{ substr($yorum->yapan_kisi_adi, 0, 1) }}
+                                </div>
+                            </a>
                         @else
-                             <div class="h-10 w-10 rounded-full bg-yellow-500 text-white flex items-center justify-center font-bold" title="{{ $yorum->yapan_kisi_adi }}">
+                            <div class="h-10 w-10 rounded-full bg-yellow-500 text-white flex items-center justify-center font-bold" title="{{ $yorum->yapan_kisi_adi }}">
                                 M
                             </div>
                         @endif
                     </div>
+                    
                     <div class="min-w-0 flex-1">
                         <div class="flex justify-between items-center">
                             <div>
-                                <p class="text-sm font-semibold text-gray-900">
-                                    {{ $yorum->yapan_kisi_adi }}
-                                </p>
+                                {{-- İSİM TIKLANABİLİR OLSUN --}}
+                                @if ($yorum->user_id)
+                                    <a href="{{ route('profile.show', $yorum->user_id) }}" class="text-sm font-bold text-gray-900 hover:text-indigo-600 hover:underline transition-colors">
+                                        {{ $yorum->yapan_kisi_adi }}
+                                    </a>
+                                @else
+                                    <span class="text-sm font-bold text-gray-900">
+                                        {{ $yorum->yapan_kisi_adi }}
+                                    </span>
+                                @endif
+
                                 <p class="text-sm text-gray-500">
                                     {{ $yorum->created_at->diffForHumans() }} ({{ $yorum->created_at->format('d.m.Y H:i') }})
                                 </p>
                             </div>
+                            
+                    
                             
                             {{-- === DÜZELTME 2: DÜZENLEME BUTONU === --}}
                             @if (Auth::id() == $yorum->user_id || (Auth::check() && Auth::user()->hasRole('Superadmin')))

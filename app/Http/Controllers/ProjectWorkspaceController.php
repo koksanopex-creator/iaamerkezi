@@ -17,29 +17,41 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SikayetTakipBilgilendirmeMail;
 use App\Models\MusteriSikayetiLog;
+use App\Traits\NotifiesManager; // <-- Ekle
 
 
 class ProjectWorkspaceController extends Controller
 {
+    use NotifiesManager; // <-- Ekle
     /**
      * Proje çalışma alanını gösterir.
      */
-    public function show($id) // ID olarak alıyoruz, model binding yerine manuel çekeceğiz ki ilişkileri yönetelim
+    public function show($id)
     {
-        // İlişkileri yüklüyoruz (Squad için projeEkibi şart)
+        // İlişkileri yüklüyoruz
         $iaa = Iaa::with(['musteriSikayeti', 'atananTakim', 'projeEkibi', 'talepEdenTakimlar.lider', 'talepEdenTakimlar.uyeler'])->findOrFail($id);
         
         $isYetkiliKullanici = false;
         $isYetkiliMisafir = false;
 
-        // 1. GİRİŞ YAPMIŞ KULLANICI KONTROLÜ (HİBRİT YAPI)
+        // 1. GİRİŞ YAPMIŞ KULLANICI KONTROLÜ
         if (Auth::check()) {
             $isYetkiliKullanici = $this->checkAuthorization($iaa);
+
+            // =================================================================
+            // === YENİ EKLENEN KISIM: KURUL ÜYESİNE GÖRÜNTÜLEME İZNİ VER ===
+            // =================================================================
+            // checkAuthorization normalde false döner, burada manuel olarak true yapıyoruz.
+            // Bu sayede sayfayı görebilirler, ancak 'storeStep' metodunda checkAuthorization
+            // tekrar çağrıldığı için veritabanına yazma işlemi yapamazlar.
+            if (!$isYetkiliKullanici && Auth::user()->hasRole('Müşteri Şikayeti Kurulu')) {
+                $isYetkiliKullanici = true;
+            }
+            // =================================================================
         }
 
-        // 2. MİSAFİR (MÜŞTERİ) KONTROLÜ (Token ve Session ile)
+        // 2. MİSAFİR (MÜŞTERİ) KONTROLÜ
         $sikayet = $iaa->musteriSikayeti;
-        
         if ($sikayet) {
             $sessionKey = 'sikayet_logged_in_' . $sikayet->takip_token;
             if (Session::has($sessionKey)) {
@@ -49,35 +61,44 @@ class ProjectWorkspaceController extends Controller
 
         // 3. NİHAİ GÜVENLİK DUVARI
         if (!$isYetkiliKullanici && !$isYetkiliMisafir) {
-            
-            // Eğer müşteri ise ve token varsa giriş sayfasına yönlendir
             if ($sikayet && $sikayet->takip_token) {
                 return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])
                     ->with('error', 'Proje detaylarını görmek için lütfen şifrenizle giriş yapın.');
             }
-            
-            // Eğer kullanıcı giriş yapmamışsa login'e at
             if (!Auth::check()) {
                 return redirect()->route('login');
             }
-            
-            // Giriş yapmış ama yetkisi yoksa 403 ver
             abort(403, 'Bu projeye erişim yetkiniz bulunmamaktadır. (Squad veya Takım listesinde değilsiniz.)');
         }
 
-        // --- VERİLERİN HAZIRLANMASI ---
-        
+        // === DÜZENLEME YETKİSİ HESAPLAMA ($canEdit) ===
+        // Bu değişkeni Blade tarafında butonları gizlemek için kullanacağız.
+        $canEdit = false;
+        if (Auth::check()) {
+            $user = Auth::user();
+            // A) Superadmin
+            if ($user->hasRole('Superadmin')) {
+                $canEdit = true;
+            }
+            // B) Proje Lideri
+            elseif ($iaa->atananTakim && $iaa->atananTakim->lider_user_id == $user->id) {
+                $canEdit = true;
+            }
+            // C) SADECE "ONAYLI" Squad Üyesi (Bekleyenler ve Müdürler buraya giremez -> False olur)
+            elseif ($iaa->projeEkibi()->where('user_id', $user->id)->wherePivot('durum', 'onaylandi')->exists()) {
+                $canEdit = true;
+            }
+        }
+        // ==============================================
+
+        // --- VERİLERİN HAZIRLANMASI (Mevcut kodun aynısı) ---
         $takim = $iaa->atananTakim;
         
-        $assignment = DB::table('iaa_talepleri')
-                        ->where('iaa_id', $iaa->id)
-                        ->first(); 
+        $assignment = DB::table('iaa_talepleri')->where('iaa_id', $iaa->id)->first(); 
 
-        // Atama yoksa hata ver
         if (!$assignment) {
             if($sikayet) {
-                 return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])
-                    ->with('error', 'Proje ataması bulunamadı.');
+                 return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])->with('error', 'Proje ataması bulunamadı.');
             }
             return redirect()->route('dashboard')->with('error', 'Proje ataması bulunamadı.');
         }
@@ -87,21 +108,28 @@ class ProjectWorkspaceController extends Controller
 
         $allProgressUpdates = IaaProgressUpdate::where('iaa_talep_id', $assignment->id)->get();
 
-        $completedStepIds = $allProgressUpdates->whereNotNull('completed_at')
-                                                ->pluck('iaa_workflow_step_id') 
-                                                ->toArray();
+        $completedStepIds = $allProgressUpdates->whereNotNull('completed_at')->pluck('iaa_workflow_step_id')->toArray();
 
-        // Adım atamalarını çek
-        $stepAssignments = DB::table('iaa_step_assignments')
-            ->where('iaa_id', $iaa->id)
-            ->get()
-            ->keyBy('iaa_workflow_step_id'); // Step ID'ye göre erişmek için
+        $stepAssignments = DB::table('iaa_step_assignments')->where('iaa_id', $iaa->id)->get()->keyBy('iaa_workflow_step_id');
 
         $progressUpdates = $allProgressUpdates->keyBy('iaa_workflow_step_id');
         
-        // Takım üyesi mi? (Görselde 'Düzenle' butonlarını göstermek için)
-        // Misafirler üye değildir. Yetkili kullanıcı ise kontrol edilir.
-        $isTeamMember = $isYetkiliKullanici; 
+        // Bu değişkeni artık $canEdit ile yönetiyoruz ama eski kodlarında kullanıyorsan kalsın.
+        // 1. Gerçekten Takım Üyesi mi? (Veritabanı kontrolü)
+        // Sadece Lider, Squad Üyeleri veya Çözüm Takımı üyeleri "Üye" sayılır.
+
+        $isTeamMember = false;
+        if (Auth::check()) {
+            $user = Auth::user();
+            // 1. Proje Squad ekibinde var mı?
+            $squadUyesi = $iaa->projeEkibi->contains($user->id);
+            
+            // 2. Atanan Takımın üyesi mi? (Kullanıcının takımları üzerinden kontrol)
+            // Bu yöntem ilişki ismi hatasına takılmaz.
+            $takimUyesi = $iaa->atanan_takim_id && $user->takimlar->contains('id', $iaa->atanan_takim_id);
+            
+            $isTeamMember = $squadUyesi || $takimUyesi;
+        }
 
         $totalStepsCount = $steps->count();
         $completedStepsCount = count($completedStepIds);
@@ -111,41 +139,32 @@ class ProjectWorkspaceController extends Controller
         $logAction = null;
 
         switch ($iaa->durum) {
-            case 'Revize Ediliyor':
-                $logAction = 'Revizyon Talep Edildi';
-                break;
-            case 'Tamamlanması Reddedildi':
-                $logAction = 'Tamamlanmış Projenin Reddi';
-                break;
+            case 'Revize Ediliyor': $logAction = 'Revizyon Talep Edildi'; break;
+            case 'Tamamlanması Reddedildi': $logAction = 'Tamamlanmış Projenin Reddi'; break;
         }
 
         if ($logAction) {
             $latestLog = IaaLog::where('iaa_id', $iaa->id)->where('eylem', $logAction)->latest('created_at')->first();
-            if ($latestLog) {
-                $statusDate = $latestLog->created_at;
-            }
+            if ($latestLog) $statusDate = $latestLog->created_at;
         } elseif ($iaa->durum === 'Tamamlandı') {
             $statusDate = $iaa->onaylanma_tarihi;
         }
 
         $tumProjeLoglari = IaaLog::where('iaa_id', $iaa->id)
             ->whereIn('eylem', [
-                'Proje Adımı Tamamlandı', 
-                'Proje Adımı Yeniden Açıldı',
-                'Revizyon Talep Edildi', 
-                'Proje Onaylandı',
-                'Onay Geri Alındı',
+                'Proje Adımı Tamamlandı', 'Proje Adımı Yeniden Açıldı',
+                'Revizyon Talep Edildi', 'Proje Onaylandı', 'Onay Geri Alındı',
             ])
-            ->with('user') 
-            ->latest()    
-            ->get();
+            ->with('user')->latest()->get();
                             
         $sonOnLoglar = $tumProjeLoglari->take(5);
 
+        // View'e $canEdit değişkenini de gönderiyoruz
         return view('proje-calisma-alani.show', compact(
             'iaa', 'takim', 'assignment', 'workflow', 'steps',
             'completedStepIds', 'progressUpdates', 'totalStepsCount', 'completedStepsCount',
-            'progressPercentage', 'isTeamMember', 'statusDate', 'tumProjeLoglari', 'sonOnLoglar', 'stepAssignments'
+            'progressPercentage', 'isTeamMember', 'statusDate', 'tumProjeLoglari', 'sonOnLoglar', 'stepAssignments',
+            'canEdit' // <--- YENİ DEĞİŞKEN
         ));
     }
 
@@ -309,33 +328,34 @@ class ProjectWorkspaceController extends Controller
      * MERKEZİ YETKİ KONTROLÜ (HİBRİT MANTIK)
      * ============================================================
      */
+    /**
+     * MERKEZİ YETKİ KONTROLÜ
+     * Kimler bu projeyi görebilir?
+     */
     private function checkAuthorization(Iaa $iaa)
     {
         $user = Auth::user();
         
-        // 1. Superadmin veya Yönetim Joker
-        // Yönetim rolü de Superadmin gibi her yere girebilsin (izleme amaçlı)
+        // 1. Superadmin veya Yönetim (Her Yeri Görür)
         if ($user->hasRole(['Superadmin', 'Yonetim'])) {
             return true;
         }
 
-        // 2. Müşteri Şikayeti Kaynaklı Proje (SQUAD MANTIĞI)
+        // 2. Müşteri Şikayeti Kaynaklı Proje
         if ($iaa->musteriSikayeti) {
             
-            // A) Takım Lideri mi? (Ana lider her zaman yetkilidir)
+            // A) Takım Lideri mi?
             if ($iaa->atananTakim && $iaa->atananTakim->lider_user_id == $user->id) {
                 return true;
             }
 
-            // === DEĞİŞEN KISIM BURASI ===
-            // B) Squad Üyesi mi? (Lider eklemiş VE Kullanıcı KABUL ETMİŞ mi?)
-            // contains() yerine veritabanı sorgusu ile pivot tablodaki 'durum'u kontrol ediyoruz.
-            if ($iaa->projeEkibi()->where('user_id', $user->id)->wherePivot('durum', 'onaylandi')->exists()) {
+            // B) Squad Üyesi mi? (Onaylı VEYA Bekliyor)
+            // === KRİTİK: 'bekliyor' olanlar da artık girebilir (İnceleme için) ===
+            if ($iaa->projeEkibi()->where('user_id', $user->id)->whereIn('iaa_user.durum', ['onaylandi', 'bekliyor'])->exists()) {
                 return true;
             }
-            // ============================
 
-            // C) Bölüm Kalite Yöneticisi mi? (Kategori Sorumlusu)
+            // C) Bölüm Kalite Yöneticisi mi?
             if ($user->hasRole('Bölüm Kalite Yöneticisi')) {
                 $sikayetKategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
                 if ($sikayetKategoriId && $user->yonettigiSikayetKategorileri->contains($sikayetKategoriId)) {
@@ -343,12 +363,31 @@ class ProjectWorkspaceController extends Controller
                 }
             }
 
-            return false; // Hiçbiri değilse giremez
+            // D) Bölüm Lideri mi? (Emrah Al)
+            if ($user->hasRole('Bölüm Lideri') && $user->bolum_id) {
+                
+                // Kendi Bölümü mü?
+                if ($iaa->musteriSikayeti->sikayetKategori && 
+                    $iaa->musteriSikayeti->sikayetKategori->bolum_id == $user->bolum_id) {
+                    return true;
+                }
+
+                // Personeli Görevli mi? (Bekleyen veya Onaylı fark etmez, müdür görür)
+                $bolumPersonelIdleri = \App\Models\User::where('bolum_id', $user->bolum_id)->pluck('id');
+                $personeliGorevliMi = $iaa->projeEkibi()
+                                          ->whereIn('users.id', $bolumPersonelIdleri)
+                                          ->exists();
+
+                if ($personeliGorevliMi) {
+                    return true;
+                }
+            }
+
+            return false; 
         }
 
-        // 3. Standart İAA Projesi (TAKIM HAVUZU MANTIĞI)
+        // 3. Standart İAA Projesi (Şikayet Dışı)
         else {
-            // Takımın herhangi bir üyesi girebilir
             if ($user->takimlar->contains($iaa->atanan_takim_id)) {
                 return true;
             }
@@ -386,7 +425,12 @@ class ProjectWorkspaceController extends Controller
             
             $sorumlu = \App\Models\User::find($targetUserId);
             $mesaj = "Adım sorumlusu '{$sorumlu->name}' olarak güncellendi.";
-
+            // 1. Sorumluya ve Müdürüne Bildirim (Trait Kullanarak)
+            // Bu satır, hem $sorumlu kullanıcısına hem de onun bölüm müdürüne bildirim gönderir.
+            $this->notifyUserAndManager(
+                $sorumlu, 
+                new \App\Notifications\AdimSorumlusuAtandi($iaa, $step, $sorumlu, $currentUser)
+            );
             // BİLDİRİM GÖNDER (Tüm Ekibe)
             // Lider hariç herkese gitsin
             $ekip = $iaa->projeEkibi->merge([$iaa->atananTakim->lider]); // Lideri de listeye al (eğer admin atadıysa)

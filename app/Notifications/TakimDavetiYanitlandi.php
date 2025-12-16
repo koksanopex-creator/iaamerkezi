@@ -6,6 +6,7 @@ use App\Models\TakimDavetiyesi; //
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage; // <-- EKLENDİ
 use Illuminate\Notifications\Notification;
 
 class TakimDavetiYanitlandi extends Notification
@@ -29,7 +30,19 @@ class TakimDavetiYanitlandi extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'mail']; // <-- 'mail' EKLENDİ
+    }
+
+    // === MAİL METODU EKLENDİ ===
+    public function toMail(object $notifiable): MailMessage
+    {
+        $durum = $this->davetiye->durum === 'kabul edildi' ? 'kabul etti' : 'reddetti';
+        
+        return (new MailMessage)
+                    ->subject('Takım Davet Yanıtı: ' . $this->yanitlayanUser->name)
+                    ->greeting("Merhaba {$notifiable->name},")
+                    ->line("Personeliniz {$this->yanitlayanUser->name}, '{$this->davetiye->takim->ad}' takımı için gelen daveti {$durum}.")
+                    ->action('Takımı Görüntüle', route('takimlar.show', $this->davetiye->takim_id));
     }
 
     /**

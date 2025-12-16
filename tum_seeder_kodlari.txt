@@ -1,0 +1,345 @@
+﻿==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\seeders\BolumSeeder.php
+==========================================
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use App\Models\Bolum; // Bolum modelini kullanacaÄŸÄ±mÄ±zÄ± belirtiyoruz
+
+class BolumSeeder extends Seeder
+{
+    use WithoutModelEvents; // Eklendi
+
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        // VarsayÄ±lan bÃ¶lÃ¼mlerin listesi
+        $bolumler = [
+            'DiÄŸer', 'MÃ¼ÅŸteri', 'Ä°ÅŸ SaÄŸlÄ±ÄŸÄ± ve YangÄ±n', 'Ä°nsan KaynaklarÄ±',
+            'Geri DÃ¶nÃ¼ÅŸÃ¼m', 'Levha', 'Preform', 'Kapak'
+        ];
+
+        // Her bir bÃ¶lÃ¼m adÄ±nÄ± veritabanÄ±na kaydet (varsa gÃ¼ncelle, yoksa oluÅŸtur)
+        foreach ($bolumler as $bolumAdi) {
+            // === DEÄÄ°ÅTÄ°: create yerine firstOrCreate kullanÄ±ldÄ± ===
+            Bolum::firstOrCreate(['ad' => $bolumAdi]);
+        }
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\seeders\DatabaseSeeder.php
+==========================================
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+
+class DatabaseSeeder extends Seeder
+{
+    use WithoutModelEvents;
+
+    /**
+     * UygulamanÄ±n veritabanÄ±nÄ± tohumlar.
+     */
+    public function run(): void
+    {
+        // Seeder'larÄ± doÄŸru sÄ±rayla Ã§aÄŸÄ±r
+        $this->call([
+            // 1. ROLLER VE Ä°ZÄ°NLER (En baÅŸta olmalÄ±)
+            RolesSeeder::class,            // Mevcut Roller
+            DisciplinaryRoleSeeder::class, // YENÄ°: Disiplin Rolleri ve Ä°zinleri
+
+            // 2. TEMEL VERÄ°LER
+            BolumSeeder::class,            // BÃ¶lÃ¼mler
+            DisciplinarySeeder::class,     // YENÄ°: Disiplin Kategorileri, Cezalar vb.
+
+            // 3. YETKÄ°LENDÄ°RME VE KULLANICILAR
+            SikayetYetkiSeeder::class,     // Åikayet izinleri
+            UserSeeder::class,             // KullanÄ±cÄ±lar (Roller artÄ±k var olduÄŸu iÃ§in hata vermez)
+        ]);
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\seeders\DisciplinaryRoleSeeder.php
+==========================================
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+
+class DisciplinaryRoleSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // 1. Ä°zinleri OluÅŸtur
+        $permissions = [
+            'disiplin.goruntule',       // DosyalarÄ± gÃ¶rme
+            'disiplin.yonet',           // SÃ¼reci ilerletme
+            'disiplin.ayarlar',         // Ayar sayfasÄ±na giriÅŸ
+            'disiplin.raporla',         // Yeni disiplin suÃ§u bildirme
+            'disiplin.oy_ver',          // Kurul Ã¼yesi oy kullanma
+            'disiplin.son_karar',       // Kurul baÅŸkanÄ± karar verme
+        ];
+
+        foreach ($permissions as $perm) {
+            Permission::firstOrCreate(['name' => $perm]);
+        }
+
+        // 2. Rolleri OluÅŸtur ve Ä°zinleri Ata
+
+        // A. HUKUK ADMÄ°NÄ° (Sistemi Kuran)
+        $roleAdmin = Role::firstOrCreate(['name' => 'Hukuk Admini']);
+        $roleAdmin->syncPermissions([
+            'disiplin.goruntule',
+            'disiplin.yonet',
+            'disiplin.ayarlar', 
+            'disiplin.raporla'
+        ]);
+
+        // B. HUKUK YÃ–NETÄ°CÄ°SÄ° (SÃ¼reci Ä°ÅŸleten)
+        $roleManager = Role::firstOrCreate(['name' => 'Hukuk YÃ¶neticisi']);
+        $roleManager->syncPermissions([
+            'disiplin.goruntule',
+            'disiplin.yonet',
+            'disiplin.raporla'
+        ]);
+
+        // C. DÄ°SÄ°PLÄ°N KURULU BAÅKANI
+        $roleHead = Role::firstOrCreate(['name' => 'Disiplin Kurulu BaÅŸkanÄ±']);
+        $roleHead->syncPermissions(['disiplin.goruntule', 'disiplin.oy_ver', 'disiplin.son_karar']);
+
+        // D. DÄ°SÄ°PLÄ°N KURULU ÃœYESÄ°
+        $roleMember = Role::firstOrCreate(['name' => 'Disiplin Kurulu Ãœyesi']);
+        $roleMember->syncPermissions(['disiplin.goruntule', 'disiplin.oy_ver']);
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\seeders\DisciplinarySeeder.php
+==========================================
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class DisciplinarySeeder extends Seeder
+{
+    public function run(): void
+    {
+        // 1. KATEGORÄ°LER
+        $categories = [
+            ['ad' => 'Ä°ÅŸ GÃ¼venliÄŸi (Ä°SG)'],
+            ['ad' => 'Genel Disiplin'],
+            ['ad' => 'Etik ve DavranÄ±ÅŸ'],
+            ['ad' => 'Verimlilik ve Performans'],
+        ];
+        DB::table('disciplinary_categories')->insertOrIgnore($categories);
+
+        // 2. ETKÄ° / ÅÄ°DDET TANIMLARI
+        $impacts = [
+            ['tanim' => 'KiÅŸiye KarÅŸÄ± (Hafif)', 'puan' => 2],
+            ['tanim' => 'KiÅŸiye KarÅŸÄ± (AÄŸÄ±r)', 'puan' => 5],
+            ['tanim' => 'Gruba / Ekibe KarÅŸÄ±', 'puan' => 8],
+            ['tanim' => 'Topluma / Kuruma KarÅŸÄ±', 'puan' => 10],
+        ];
+        DB::table('disciplinary_impacts')->insertOrIgnore($impacts);
+
+        // 3. KAPSAM TANIMLARI
+        $scopes = [
+            ['tanim' => 'Sadece Kendi Ä°ÅŸini Etkiler', 'puan' => 2],
+            ['tanim' => 'Bir Grubun Ä°ÅŸini Bozar', 'puan' => 5],
+            ['tanim' => 'TÃ¼m Sistemi / Ãœretimi Bozar', 'puan' => 10],
+        ];
+        DB::table('disciplinary_scopes')->insertOrIgnore($scopes);
+
+        // 4. KATSAYILAR
+        $multipliers = [
+            ['tekrar_sayisi' => 1, 'katsayi' => 1.00],
+            ['tekrar_sayisi' => 2, 'katsayi' => 2.00],
+            ['tekrar_sayisi' => 3, 'katsayi' => 3.00],
+            ['tekrar_sayisi' => 4, 'katsayi' => 5.00],
+        ];
+        DB::table('disciplinary_multipliers')->insertOrIgnore($multipliers);
+
+        // 5. CEZA SKALASI
+        $scales = [
+            ['min_puan' => 0,   'max_puan' => 40,  'ceza_adi' => 'SÃ¶zlÃ¼ UyarÄ±'],
+            ['min_puan' => 41,  'max_puan' => 80,  'ceza_adi' => 'YazÄ±lÄ± UyarÄ±'],
+            ['min_puan' => 81,  'max_puan' => 150, 'ceza_adi' => 'KÄ±nama'],
+            ['min_puan' => 151, 'max_puan' => 250, 'ceza_adi' => '1-3 GÃ¼n UzaklaÅŸtÄ±rma'],
+            ['min_puan' => 251, 'max_puan' => 9999,'ceza_adi' => 'Fesih DeÄŸerlendirme'],
+        ];
+        DB::table('disciplinary_penalty_scales')->insertOrIgnore($scales);
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\seeders\RolesSeeder.php
+==========================================
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission; // Gerekirse Permission da ekleyebilirsiniz
+// === YENÄ° ===
+use Illuminate\Database\Console\Seeds\WithoutModelEvents; // Bu satÄ±r eklendi
+
+class RolesSeeder extends Seeder // Class adÄ± RolesSeeder olarak deÄŸiÅŸtirildi
+{
+    use WithoutModelEvents; // Bu satÄ±r eklendi
+
+    /**
+     * VeritabanÄ±nÄ± temel rollerle tohumlar.
+     */
+    public function run(): void
+    {
+        // Temiz baÅŸlangÄ±Ã§ iÃ§in mevcut rolleri silmek isterseniz yorumu kaldÄ±rÄ±n:
+        // Role::query()->delete(); 
+        // Dikkat: Bu, mevcut tÃ¼m rolleri ve iliÅŸkili izinleri siler!
+
+        // === DEÄÄ°ÅTÄ°: TÃ¼mÃ¼ firstOrCreate ile deÄŸiÅŸtirildi ===
+        Role::firstOrCreate(['name' => 'Superadmin']);
+        Role::firstOrCreate(['name' => 'BÃ¶lÃ¼m Lideri']);
+        Role::firstOrCreate(['name' => 'KullanÄ±cÄ±']);
+        Role::firstOrCreate(['name' => 'MÃ¼ÅŸteri Åikayeti Kurulu']);
+        Role::firstOrCreate(['name' => 'MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri']);
+        Role::firstOrCreate(['name' => 'BÃ¶lÃ¼m Kalite YÃ¶neticisi']);
+        // ===============================================
+
+        // Ä°zinler eklemek isterseniz Ã¶rnek:
+        // Permission::firstOrCreate(['name' => 'ÅŸikayetleri Ã§Ã¶z']);
+        // $cozumLideriRole = Role::findByName('MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri');
+        // $cozumLideriRole?->givePermissionTo('ÅŸikayetleri Ã§Ã¶z'); // ?-> null kontrolÃ¼ ekler
+    }
+}
+
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\seeders\SikayetYetkiSeeder.php
+==========================================
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+
+class SikayetYetkiSeeder extends Seeder
+{
+    public function run(): void
+    {
+        // 1. "Kurul" rolÃ¼nÃ¼ oluÅŸtur (eÄŸer zaten yoksa)
+        $kurulRole = Role::firstOrCreate(['name' => 'MÃ¼ÅŸteri Åikayeti Kurulu']);
+        
+        // 2. "ÅŸikayet olustur" iznini oluÅŸtur
+        $permission = Permission::firstOrCreate(['name' => 'sikayet olustur']);
+
+        // 3. Bu izni hem Superadmin hem de Kurul rollerine ata
+        $superadminRole = Role::findByName('Superadmin');
+        $superadminRole->givePermissionTo($permission);
+        $kurulRole->givePermissionTo($permission);
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\seeders\UserSeeder.php
+==========================================
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use App\Models\User;
+use App\Models\Bolum;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role; // Role modelini import et
+
+class UserSeeder extends Seeder
+{
+    use WithoutModelEvents; // Eklendi
+
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        // VarsayÄ±lan kullanÄ±cÄ±larÄ±n listesi
+        $kullanicilar = [
+            [ 'name' => 'Super Admin', 'email' => 'admin@iaa.com', 'bolum' => 'DiÄŸer', 'roller' => ['Superadmin'] ], // Roller array oldu
+            [ 'name' => 'Serkan Akardeniz', 'email' => 'serkan.akardeniz@koksan.com', 'bolum' => 'Ä°ÅŸ SaÄŸlÄ±ÄŸÄ± ve YangÄ±n', 'roller' => ['KullanÄ±cÄ±'] ],
+            [ 'name' => 'BarÄ±ÅŸ YALÃ‡IN', 'email' => 'baris.yalcin@koksan.com', 'bolum' => 'Ä°ÅŸ SaÄŸlÄ±ÄŸÄ± ve YangÄ±n', 'roller' => ['BÃ¶lÃ¼m Lideri'] ],
+            [ 'name' => 'Ãœzeyir Demir', 'email' => 'uzeyir.demir@koksan.com', 'bolum' => 'Geri DÃ¶nÃ¼ÅŸÃ¼m', 'roller' => ['KullanÄ±cÄ±'] ],
+            [ 'name' => 'Yusuf AydÄ±n ZEHÄ°R', 'email' => 'yusuf.zehir@koksan.com', 'bolum' => 'Geri DÃ¶nÃ¼ÅŸÃ¼m', 'roller' => ['BÃ¶lÃ¼m Lideri'] ],
+            [ 'name' => 'Serkan GÃ¼zelÃ§iftÃ§i', 'email' => 'serkan.guzelciftci@koksan.com', 'bolum' => 'Preform', 'roller' => ['KullanÄ±cÄ±'] ],
+            [ 'name' => 'Furkan Ã–zbiÃ§er', 'email' => 'furkan.ozbicer@koksan.com', 'bolum' => 'Preform', 'roller' => [] ], // BoÅŸ array
+            [ 'name' => 'Cihangir Kaplan', 'email' => 'cihangir.kaplan@koksan.com', 'bolum' => 'Kapak', 'roller' => [] ],
+            [ 'name' => 'Serkan ATAK', 'email' => 'serkan.atak@koksan.com', 'bolum' => 'Kapak', 'roller' => ['BÃ¶lÃ¼m Lideri'] ],
+            [ 'name' => 'Mehmet TÃ¼rkaslan', 'email' => 'mehmet.turkaslan@koksan.com', 'bolum' => 'Kapak', 'roller' => [] ],
+            [ 'name' => 'Sinan Poyraz', 'email' => 'sinan.poyraz@koksan.com', 'bolum' => 'Kapak', 'roller' => ['KullanÄ±cÄ±'] ],
+             // Ã–rnek: Yeni rolÃ¼ olan bir kullanÄ±cÄ± ekleyelim
+            [ 'name' => 'Ã‡Ã¶zÃ¼m Lideri Ã–rnek', 'email' => 'cozum.lideri@iaa.com', 'bolum' => 'DiÄŸer', 'roller' => ['MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri'] ],
+        ];
+
+        foreach ($kullanicilar as $kullaniciData) {
+            // BÃ¶lÃ¼m adÄ±ndan bÃ¶lÃ¼m ID'sini bul
+            $bolum = Bolum::where('ad', $kullaniciData['bolum'])->first();
+
+            // === DEÄÄ°ÅTÄ°: create yerine updateOrCreate kullanÄ±ldÄ± ===
+            // E-postaya gÃ¶re kullanÄ±cÄ±yÄ± bul veya oluÅŸtur/gÃ¼ncelle
+            $user = User::updateOrCreate(
+                ['email' => $kullaniciData['email']], // EÅŸleÅŸme koÅŸulu
+                [                                     // GÃ¼ncellenecek veya oluÅŸturulacak veriler
+                    'name' => $kullaniciData['name'],
+                    'password' => Hash::make($kullaniciData['email']), // Åifre, e-posta ile aynÄ± (her Ã§alÄ±ÅŸtÄ±ÄŸÄ±nda gÃ¼ncellenir)
+                    'bolum_id' => $bolum ? $bolum->id : null,
+                    'onaylandi_mi' => true,
+                ]
+            );
+            // =======================================================
+
+            // === DEÄÄ°ÅTÄ°: Rol atamasÄ± syncRoles ile yapÄ±ldÄ± ===
+            // KullanÄ±cÄ±nÄ±n rollerini gÃ¼ncelle (Ã¶ncekileri silip yenilerini ekler)
+             // Rollerin veritabanÄ±nda var olduÄŸundan emin olalÄ±m (Seeder sÄ±rasÄ± Ã¶nemli)
+            $mevcutRoller = Role::whereIn('name', $kullaniciData['roller'])->pluck('name')->toArray();
+            if(!empty($mevcutRoller)){
+                 $user->syncRoles($mevcutRoller);
+            } else {
+                 $user->syncRoles([]); // Rol yoksa temizle
+            }
+            // ==================================================
+        }
+    }
+}
+
+
+

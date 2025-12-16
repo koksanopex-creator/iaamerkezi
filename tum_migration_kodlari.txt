@@ -1,0 +1,2996 @@
+﻿==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\0001_01_01_000000_create_users_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::create('password_reset_tokens', function (Blueprint $table) {
+            $table->string('email')->primary();
+            $table->string('token');
+            $table->timestamp('created_at')->nullable();
+        });
+
+        Schema::create('sessions', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->foreignId('user_id')->nullable()->index();
+            $table->string('ip_address', 45)->nullable();
+            $table->text('user_agent')->nullable();
+            $table->longText('payload');
+            $table->integer('last_activity')->index();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('sessions');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\0001_01_01_000001_create_cache_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('cache', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->mediumText('value');
+            $table->integer('expiration');
+        });
+
+        Schema::create('cache_locks', function (Blueprint $table) {
+            $table->string('key')->primary();
+            $table->string('owner');
+            $table->integer('expiration');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('cache');
+        Schema::dropIfExists('cache_locks');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\0001_01_01_000002_create_jobs_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('jobs', function (Blueprint $table) {
+            $table->id();
+            $table->string('queue')->index();
+            $table->longText('payload');
+            $table->unsignedTinyInteger('attempts');
+            $table->unsignedInteger('reserved_at')->nullable();
+            $table->unsignedInteger('available_at');
+            $table->unsignedInteger('created_at');
+        });
+
+        Schema::create('job_batches', function (Blueprint $table) {
+            $table->string('id')->primary();
+            $table->string('name');
+            $table->integer('total_jobs');
+            $table->integer('pending_jobs');
+            $table->integer('failed_jobs');
+            $table->longText('failed_job_ids');
+            $table->mediumText('options')->nullable();
+            $table->integer('cancelled_at')->nullable();
+            $table->integer('created_at');
+            $table->integer('finished_at')->nullable();
+        });
+
+        Schema::create('failed_jobs', function (Blueprint $table) {
+            $table->id();
+            $table->string('uuid')->unique();
+            $table->text('connection');
+            $table->text('queue');
+            $table->longText('payload');
+            $table->longText('exception');
+            $table->timestamp('failed_at')->useCurrent();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('jobs');
+        Schema::dropIfExists('job_batches');
+        Schema::dropIfExists('failed_jobs');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_09_130138_create_bolumler_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // =================================================================
+        // BÃ–LÃœMLER TABLOSU
+        // Uygulamadaki departmanlarÄ± (GÃ¼venlik, Ä°SG vb.) tutar.
+        // =================================================================
+        Schema::create('bolumler', function (Blueprint $table) {
+            $table->id();
+            $table->string('ad', 150)->unique(); // BÃ¶lÃ¼m AdÄ±
+            $table->boolean('is_active')->default(true); // Aktif/Pasif durumu
+            $table->timestamps();
+            $table->softDeletes(); // BÃ¶lÃ¼m silindiÄŸinde verileri korumak iÃ§in
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('bolumler');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_09_130149_create_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // =================================================================
+        // Ä°YÄ°LEÅTÄ°RMEYE AÃ‡IK ALANLAR (Ä°AA) TABLOSU
+        // KullanÄ±cÄ±lar tarafÄ±ndan gÃ¶nderilen tÃ¼m iyileÅŸtirme Ã¶nerilerini tutar.
+        // =================================================================
+        Schema::create('iaas', function (Blueprint $table) {
+            $table->id();
+            $table->string('baslik'); // Ä°AA Konusu / BaÅŸlÄ±ÄŸÄ±
+            $table->text('mevcut_durum'); // Problemin veya mevcut durumun tanÄ±mÄ±
+            $table->text('oneri'); // Ä°yileÅŸtirme Ã¶nerisi
+            
+            // --- Durum ve Atama Bilgileri ---
+            $table->string('durum')->default('Onay Bekliyor'); // Ã–rn: Onay Bekliyor, Havuzda, AtandÄ±, TamamlandÄ±
+            $table->integer('oncelik')->default(3); // Ã–ncelik seviyesi (1: YÃ¼ksek, 5: DÃ¼ÅŸÃ¼k gibi)
+
+            // --- Ä°liÅŸkisel Anahtarlar (Foreign Keys) ---
+            $table->foreignId('gonderen_user_id')->constrained('users'); // Ã–neriyi kimin gÃ¶nderdiÄŸi
+            $table->foreignId('bolum_id')->constrained('bolumler'); // Ã–nerinin ilgili olduÄŸu bÃ¶lÃ¼m
+            
+            // Bu alanlar iÅŸlem yapÄ±ldÄ±kÃ§a dolacak
+            $table->foreignId('onaylayan_user_id')->nullable()->constrained('users'); // Havuza eklemeyi onaylayan yÃ¶netici
+            $table->foreignId('atandi_user_id')->nullable()->constrained('users'); // Ä°AA'nÄ±n atandÄ±ÄŸÄ± ekip lideri
+            
+            // --- YÃ¶netici NotlarÄ± ---
+            $table->text('yonetici_notu')->nullable(); // Onay/Red/Revize notu
+
+            // --- Tarih Bilgileri ---
+            $table->timestamp('onaylanma_tarihi')->nullable();
+            $table->timestamp('atanma_tarihi')->nullable();
+            $table->timestamp('tamamlanma_tarihi')->nullable();
+            $table->timestamps(); // created_at (gÃ¶nderilme tarihi), updated_at
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('iaas');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_09_130153_create_iaa_logs_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // =================================================================
+        // Ä°AA GEÃ‡MÄ°Å KAYITLARI (LOG) TABLOSU
+        // Bir Ä°AA Ã¼zerinde yapÄ±lan her iÅŸlemi (onay, ret, atama vb.) kaydeder.
+        // =================================================================
+        Schema::create('iaa_logs', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('iaa_id')->constrained('iaas')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users'); // Ä°ÅŸlemi yapan kullanÄ±cÄ±
+            $table->string('eylem'); // 'OluÅŸturuldu', 'OnaylandÄ±', 'Reddedildi', 'AtandÄ±'
+            $table->text('aciklama')->nullable(); // Ä°ÅŸlemle ilgili ek not
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('iaa_logs');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_09_134700_add_bolum_id_to_users_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            // 'email' sÃ¼tunundan sonra, 'bolumler' tablosuna baÄŸlÄ± bir sÃ¼tun ekle.
+            // nullable() -> Bir kullanÄ±cÄ±nÄ±n bÃ¶lÃ¼mÃ¼ olmak zorunda deÄŸil (Ã¶rn: Superadmin).
+            // constrained() -> VeritabanÄ± bÃ¼tÃ¼nlÃ¼ÄŸÃ¼nÃ¼ saÄŸlar.
+            // nullOnDelete() -> Ä°liÅŸkili bÃ¶lÃ¼m silinirse bu alanÄ± NULL yapar.
+            $table->foreignId('bolum_id')->nullable()->after('email')->constrained('bolumler')->nullOnDelete();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            // Geri alma iÅŸleminde bu sÃ¼tunu ve anahtarÄ± kaldÄ±r.
+            $table->dropForeign(['bolum_id']);
+            $table->dropColumn('bolum_id');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_09_134956_create_permission_tables.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        $teams = config('permission.teams');
+        $tableNames = config('permission.table_names');
+        $columnNames = config('permission.column_names');
+        $pivotRole = $columnNames['role_pivot_key'] ?? 'role_id';
+        $pivotPermission = $columnNames['permission_pivot_key'] ?? 'permission_id';
+
+        throw_if(empty($tableNames), new Exception('Error: config/permission.php not loaded. Run [php artisan config:clear] and try again.'));
+        throw_if($teams && empty($columnNames['team_foreign_key'] ?? null), new Exception('Error: team_foreign_key on config/permission.php not loaded. Run [php artisan config:clear] and try again.'));
+
+        Schema::create($tableNames['permissions'], static function (Blueprint $table) {
+            // $table->engine('InnoDB');
+            $table->bigIncrements('id'); // permission id
+            $table->string('name');       // For MyISAM use string('name', 225); // (or 166 for InnoDB with Redundant/Compact row format)
+            $table->string('guard_name'); // For MyISAM use string('guard_name', 25);
+            $table->timestamps();
+
+            $table->unique(['name', 'guard_name']);
+        });
+
+        Schema::create($tableNames['roles'], static function (Blueprint $table) use ($teams, $columnNames) {
+            // $table->engine('InnoDB');
+            $table->bigIncrements('id'); // role id
+            if ($teams || config('permission.testing')) { // permission.testing is a fix for sqlite testing
+                $table->unsignedBigInteger($columnNames['team_foreign_key'])->nullable();
+                $table->index($columnNames['team_foreign_key'], 'roles_team_foreign_key_index');
+            }
+            $table->string('name');       // For MyISAM use string('name', 225); // (or 166 for InnoDB with Redundant/Compact row format)
+            $table->string('guard_name'); // For MyISAM use string('guard_name', 25);
+            $table->timestamps();
+            if ($teams || config('permission.testing')) {
+                $table->unique([$columnNames['team_foreign_key'], 'name', 'guard_name']);
+            } else {
+                $table->unique(['name', 'guard_name']);
+            }
+        });
+
+        Schema::create($tableNames['model_has_permissions'], static function (Blueprint $table) use ($tableNames, $columnNames, $pivotPermission, $teams) {
+            $table->unsignedBigInteger($pivotPermission);
+
+            $table->string('model_type');
+            $table->unsignedBigInteger($columnNames['model_morph_key']);
+            $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_permissions_model_id_model_type_index');
+
+            $table->foreign($pivotPermission)
+                ->references('id') // permission id
+                ->on($tableNames['permissions'])
+                ->onDelete('cascade');
+            if ($teams) {
+                $table->unsignedBigInteger($columnNames['team_foreign_key']);
+                $table->index($columnNames['team_foreign_key'], 'model_has_permissions_team_foreign_key_index');
+
+                $table->primary([$columnNames['team_foreign_key'], $pivotPermission, $columnNames['model_morph_key'], 'model_type'],
+                    'model_has_permissions_permission_model_type_primary');
+            } else {
+                $table->primary([$pivotPermission, $columnNames['model_morph_key'], 'model_type'],
+                    'model_has_permissions_permission_model_type_primary');
+            }
+
+        });
+
+        Schema::create($tableNames['model_has_roles'], static function (Blueprint $table) use ($tableNames, $columnNames, $pivotRole, $teams) {
+            $table->unsignedBigInteger($pivotRole);
+
+            $table->string('model_type');
+            $table->unsignedBigInteger($columnNames['model_morph_key']);
+            $table->index([$columnNames['model_morph_key'], 'model_type'], 'model_has_roles_model_id_model_type_index');
+
+            $table->foreign($pivotRole)
+                ->references('id') // role id
+                ->on($tableNames['roles'])
+                ->onDelete('cascade');
+            if ($teams) {
+                $table->unsignedBigInteger($columnNames['team_foreign_key']);
+                $table->index($columnNames['team_foreign_key'], 'model_has_roles_team_foreign_key_index');
+
+                $table->primary([$columnNames['team_foreign_key'], $pivotRole, $columnNames['model_morph_key'], 'model_type'],
+                    'model_has_roles_role_model_type_primary');
+            } else {
+                $table->primary([$pivotRole, $columnNames['model_morph_key'], 'model_type'],
+                    'model_has_roles_role_model_type_primary');
+            }
+        });
+
+        Schema::create($tableNames['role_has_permissions'], static function (Blueprint $table) use ($tableNames, $pivotRole, $pivotPermission) {
+            $table->unsignedBigInteger($pivotPermission);
+            $table->unsignedBigInteger($pivotRole);
+
+            $table->foreign($pivotPermission)
+                ->references('id') // permission id
+                ->on($tableNames['permissions'])
+                ->onDelete('cascade');
+
+            $table->foreign($pivotRole)
+                ->references('id') // role id
+                ->on($tableNames['roles'])
+                ->onDelete('cascade');
+
+            $table->primary([$pivotPermission, $pivotRole], 'role_has_permissions_permission_id_role_id_primary');
+        });
+
+        app('cache')
+            ->store(config('permission.cache.store') != 'default' ? config('permission.cache.store') : null)
+            ->forget(config('permission.cache.key'));
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        $tableNames = config('permission.table_names');
+
+        if (empty($tableNames)) {
+            throw new \Exception('Error: config/permission.php not found and defaults could not be merged. Please publish the package configuration before proceeding, or drop the tables manually.');
+        }
+
+        Schema::drop($tableNames['role_has_permissions']);
+        Schema::drop($tableNames['model_has_roles']);
+        Schema::drop($tableNames['model_has_permissions']);
+        Schema::drop($tableNames['roles']);
+        Schema::drop($tableNames['permissions']);
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_09_143337_create_iaa_resimler_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('iaa_resimler', function (Blueprint $table) {
+            $table->id();
+            // Hangi Ä°AA'ya ait olduÄŸunu belirtmek iÃ§in foreign key
+            $table->foreignId('iaa_id')->constrained('iaas')->onDelete('cascade');
+            $table->string('dosya_yolu'); // Resmin sunucudaki yolunu tutacak
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('iaa_resimler');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_09_144354_add_soft_deletes_to_iaa_resimler_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+{
+    Schema::table('iaa_resimler', function (Blueprint $table) {
+        $table->softDeletes(); // deleted_at sÃ¼tununu ekler
+    });
+}
+
+public function down(): void
+{
+    Schema::table('iaa_resimler', function (Blueprint $table) {
+        $table->dropSoftDeletes(); // deleted_at sÃ¼tununu kaldÄ±rÄ±r
+    });
+}
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_11_120832_add_soft_deletes_to_users_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->softDeletes();
+        });
+    }
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropSoftDeletes();
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_11_132812_create_takimlar_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('takimlar', function (Blueprint $table) {
+            $table->id();
+            $table->string('ad');
+            $table->foreignId('lider_user_id')->constrained('users');
+            $table->text('amac')->nullable();
+            $table->text('vizyon')->nullable();
+            $table->text('misyon')->nullable();
+            $table->text('kurallar')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('takimlar');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_11_132822_create_takim_user_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('takim_user', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('takim_id')->constrained('takimlar')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->text('gorev_tanimi')->nullable(); // TakÄ±m liderinin Ã¼ye iÃ§in yazdÄ±ÄŸÄ± gÃ¶rev tanÄ±mÄ±
+            $table->timestamps();
+
+            // Bir kullanÄ±cÄ±nÄ±n bir takÄ±ma sadece bir kez Ã¼ye olabilmesini saÄŸla
+            $table->unique(['takim_id', 'user_id']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('takim_user');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_11_151602_create_takim_davetiyeleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('takim_davetiyeleri', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('takim_id')->constrained('takimlar')->onDelete('cascade');
+            $table->foreignId('davet_eden_user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('davet_edilen_user_id')->constrained('users')->onDelete('cascade');
+            $table->enum('durum', ['bekliyor', 'kabul edildi', 'reddedildi'])->default('bekliyor');
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('takim_davetiyeleri');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_12_073458_add_type_to_takim_davetiyeleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('takim_davetiyeleri', function (Blueprint $table) {
+            // 'davet' -> Lider tarafÄ±ndan gÃ¶nderildi.
+            // 'istek' -> KullanÄ±cÄ± tarafÄ±ndan gÃ¶nderildi.
+            $table->enum('type', ['davet', 'istek'])->default('davet')->after('id');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('takim_davetiyeleri', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_15_065336_add_katilma_sekli_to_takim_user_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('takim_user', function (Blueprint $table) {
+            // Lider -> TakÄ±mÄ± kuran kiÅŸi
+            // Davet -> Liderin davetini kabul etti
+            // Ä°stek -> KullanÄ±cÄ±nÄ±n isteÄŸi lider tarafÄ±ndan kabul edildi
+            $table->string('katilma_sekli')->default('Bilinmiyor')->after('user_id');
+        });
+    }
+    
+    public function down(): void
+    {
+        Schema::table('takim_user', function (Blueprint $table) {
+            $table->dropColumn('katilma_sekli');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_15_072547_create_settings_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('settings', function (Blueprint $table) {
+            $table->id();
+            $table->string('key')->unique();
+            $table->text('value')->nullable();
+            $table->timestamps(); // <-- EKSÄ°K OLAN VE EKLENMESÄ° GEREKEN SATIR
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('settings');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_15_080014_add_onay_durumu_to_users_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            // boolean -> true/false (1/0)
+            // default(false) -> Yeni kaydolan herkes varsayÄ±lan olarak "onaylanmamÄ±ÅŸ" olur.
+            $table->boolean('onaylandi_mi')->default(false)->after('bolum_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('onaylandi_mi');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_16_143344_add_scoring_fields_to_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            $table->tinyInteger('risk')->nullable()->after('durum');
+            $table->decimal('kazanc_miktar', 15, 2)->nullable()->after('risk');
+            $table->string('kazanc_birim', 10)->nullable()->after('kazanc_miktar');
+            $table->decimal('butce_miktar', 15, 2)->nullable()->after('kazanc_birim');
+            $table->string('butce_birim', 10)->nullable()->after('butce_miktar');
+            $table->decimal('puan', 8, 2)->nullable()->after('butce_birim');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_16_145756_add_proposer_estimates_to_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            $table->decimal('oneren_kazanc_miktar', 15, 2)->nullable()->after('puan');
+            $table->string('oneren_kazanc_birim', 10)->nullable()->after('oneren_kazanc_miktar');
+            $table->decimal('oneren_butce_miktar', 15, 2)->nullable()->after('oneren_kazanc_birim');
+            $table->string('oneren_butce_birim', 10)->nullable()->after('oneren_butce_miktar');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_18_150353_add_guest_fields_to_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            // Misafir Ã¶nerenlerin adÄ±nÄ± saklamak iÃ§in.
+            $table->string('guest_name')->nullable()->after('gonderen_user_id');
+            // Misafir Ã¶nerenlerin e-postasÄ±nÄ± saklamak iÃ§in.
+            $table->string('guest_email')->nullable()->after('guest_name');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_19_063225_add_ilgili_alan_to_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            $table->string('ilgili_alan')->nullable()->after('bolum_id');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_19_070910_make_gonderen_user_id_nullable_in_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            // gonderen_user_id sÃ¼tununu boÅŸ bÄ±rakÄ±labilir (nullable) olarak deÄŸiÅŸtiriyoruz.
+            $table->unsignedBigInteger('gonderen_user_id')->nullable()->change();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_19_082913_make_bolum_id_nullable_in_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            // bolum_id sÃ¼tununu boÅŸ bÄ±rakÄ±labilir (nullable) olarak deÄŸiÅŸtiriyoruz.
+            $table->unsignedBigInteger('bolum_id')->nullable()->change();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_19_151133_create_iaa_talepleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('iaa_talepleri', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('iaa_id')->constrained('iaas')->onDelete('cascade');
+            $table->foreignId('takim_id')->constrained('takimlar')->onDelete('cascade');
+            $table->foreignId('talep_eden_user_id')->constrained('users')->onDelete('cascade'); // Talebi yapan liderin ID'si
+            $table->string('durum')->default('beklemede'); // beklemede, onaylandi, reddedildi
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('iaa_talepleri');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_19_151157_modify_iaas_for_team_assignment.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            // Yeni `atanan_takim_id` sÃ¼tununu ekliyoruz.
+            $table->foreignId('atanan_takim_id')->nullable()->constrained('takimlar')->onDelete('set null');
+
+            // Eski `atandi_user_id` ve `atanma_tarihi` sÃ¼tunlarÄ±nÄ± kaldÄ±rÄ±yoruz.
+            // Not: EÄŸer bu sÃ¼tunlarda Ã¶nemli verileriniz varsa, bu adÄ±mÄ± dikkatli atÄ±n. Ama yedek aldÄ±ÄŸÄ±nÄ±z iÃ§in gÃ¼vendeyiz.
+            $table->dropForeign(['atandi_user_id']);
+            $table->dropColumn('atandi_user_id');
+            $table->dropColumn('atanma_tarihi');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            // Geri alma iÅŸlemi iÃ§in eski sÃ¼tunlarÄ± tekrar ekliyoruz.
+            $table->foreignId('atandi_user_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamp('atanma_tarihi')->nullable();
+
+            // Yeni `atanan_takim_id` sÃ¼tununu kaldÄ±rÄ±yoruz.
+            $table->dropForeign(['atanan_takim_id']);
+            $table->dropColumn('atanan_takim_id');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_22_064714_add_membership_details_to_takim_user_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('takim_user', function (Blueprint $table) {
+
+            // Sadece 'katilma_sekli' sÃ¼tunu yoksa ekle.
+            if (!Schema::hasColumn('takim_user', 'katilma_sekli')) {
+                $table->string('katilma_sekli')->nullable();
+            }
+
+            // Sadece 'onay_durumu' sÃ¼tunu yoksa ekle.
+            if (!Schema::hasColumn('takim_user', 'onay_durumu')) {
+                $table->string('onay_durumu')->default('onaylandi');
+            }
+
+            // Sadece 'onaylayan_user_id' sÃ¼tunu yoksa ekle.
+            if (!Schema::hasColumn('takim_user', 'onaylayan_user_id')) {
+                $table->foreignId('onaylayan_user_id')->nullable()->constrained('users')->onDelete('set null');
+            }
+
+            // Sadece 'onay_tarihi' sÃ¼tunu yoksa ekle.
+            if (!Schema::hasColumn('takim_user', 'onay_tarihi')) {
+                $table->timestamp('onay_tarihi')->nullable();
+            }
+
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('takim_user', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_26_132423_create_iaa_workflows_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('iaa_workflows', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // Åablon AdÄ±, Ã¶rn: "Standart 5 AdÄ±mlÄ± Ä°yileÅŸtirme"
+            $table->text('description')->nullable(); // Åablon iÃ§in aÃ§Ä±klama
+            $table->boolean('is_default')->default(false); // VarsayÄ±lan ÅŸablon mu?
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('iaa_workflows');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_26_132449_create_iaa_workflow_steps_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('iaa_workflow_steps', function (Blueprint $table) {
+            $table->id();
+            // Bir ÅŸablon silinirse, ona ait adÄ±mlar da silinsin (onDelete('cascade'))
+            $table->foreignId('iaa_workflow_id')->constrained('iaa_workflows')->onDelete('cascade');
+            $table->string('name'); // AdÄ±m AdÄ±, Ã¶rn: "KÃ¶k Neden Analizi"
+            $table->text('description')->nullable(); // AdÄ±m iÃ§in rehber metin
+            $table->unsignedInteger('order'); // AdÄ±mlarÄ± sÄ±ralamak iÃ§in (1, 2, 3...)
+            $table->unsignedInteger('default_duration_days')->default(7); // AdÄ±m iÃ§in varsayÄ±lan gÃ¼n sÃ¼resi
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('iaa_workflow_steps');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_26_132450_add_workflow_details_to_iaa_talepleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('iaa_talepleri', function (Blueprint $table) {
+            // YUKARIDAKÄ° id() SATIRINI SÄ°LDÄ°K. GERÄ°SÄ° AYNI KALIYOR.
+            $table->foreignId('iaa_workflow_id')->nullable()->constrained('iaa_workflows')->onDelete('set null');
+            $table->date('start_date')->nullable();
+            $table->date('due_date')->nullable();
+            $table->string('status')->default('Talep Edildi');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('iaa_talepleri', function (Blueprint $table) {
+            $table->dropForeign(['iaa_workflow_id']);
+            // 'id' kelimesini buradan da sildik.
+            $table->dropColumn(['iaa_workflow_id', 'start_date', 'due_date', 'status']);
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_26_132451_create_iaa_progress_updates_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('iaa_progress_updates', function (Blueprint $table) {
+            $table->id();
+            // ArtÄ±k doÄŸru tablo olan 'iaa_talepleri' tablosuna baÄŸlanÄ±yoruz
+            $table->foreignId('iaa_talep_id')->constrained('iaa_talepleri')->onDelete('cascade');
+            $table->foreignId('iaa_workflow_step_id')->constrained('iaa_workflow_steps')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->longText('content')->nullable();
+            $table->timestamp('completed_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('iaa_progress_updates');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_09_29_082552_make_oneri_column_nullable_in_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            // 'oneri' kolonunun yapÄ±sÄ±nÄ± 'nullable' (boÅŸ bÄ±rakÄ±labilir) olarak deÄŸiÅŸtiriyoruz.
+            $table->text('oneri')->nullable()->change();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            // Geri alma iÅŸlemi iÃ§in, kolonu tekrar 'nullable' olmayan hale getiriyoruz.
+            $table->text('oneri')->nullable(false)->change();
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_08_112158_add_toplam_puan_to_takimlar_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('takimlar', function (Blueprint $table) {
+            // "kurallar" kolonundan sonra, varsayÄ±lan deÄŸeri 0 olan yeni bir ondalÄ±klÄ± sayÄ± kolonu ekliyoruz.
+            // 15 karakter toplam, 2'si ondalÄ±k hane iÃ§in (Ã–rn: 9999999999999.99)
+            $table->decimal('toplam_puan', 15, 2)->default(0)->after('kurallar');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('takimlar', function (Blueprint $table) {
+            // EÄŸer bu deÄŸiÅŸikliÄŸi geri alÄ±rsak, eklediÄŸimiz kolonu sil.
+            $table->dropColumn('toplam_puan');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_13_110219_add_status_details_to_iaas_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+        {
+        Schema::table('iaas', function (Blueprint $table) {
+            // YÃ¶netici tarafÄ±ndan girilen not
+            $table->text('son_durum_notu')->nullable()->after('durum');
+            // Durumun ne zaman deÄŸiÅŸtiÄŸi
+            $table->timestamp('durum_degistirme_tarihi')->nullable()->after('son_durum_notu');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('iaas', function (Blueprint $table) {
+            $table->dropColumn(['son_durum_notu', 'durum_degistirme_tarihi']);
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_14_163825_add_toplam_puan_to_users_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            // 'onaylandi_mi' sÃ¼tunundan sonra, varsayÄ±lan deÄŸeri 0 olan bir puan sÃ¼tunu ekliyoruz.
+            $table->integer('toplam_puan')->default(0)->after('onaylandi_mi');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_17_143010_create_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('musteri_sikayetleri', function (Blueprint $table) {
+            $table->id();
+
+            // MÃ¼ÅŸteri ve Åikayet Bilgileri
+            $table->string('musteri_adi');
+            $table->string('musteri_iletisim')->nullable();
+            $table->string('musteri_sikayet_konusu'); 
+            $table->text('musteri_sikayet_detayi'); 
+            $table->string('musteri_urun_veya_hizmet')->nullable(); 
+            $table->string('musteri_barkod_resim_yolu')->nullable(); 
+            $table->date('musteri_sikayet_tarihi'); 
+
+            // SÃ¼reÃ§ ve Durum Bilgileri
+            $table->string('musteri_durum')->default('Yeni'); 
+            $table->string('musteri_oncelik')->default('Normal'); 
+
+            // Atama Bilgileri
+            $table->foreignId('atanan_cozum_takimi_id')->nullable()->constrained('takimlar')->onDelete('set null');
+
+            // Onay ve KapanÄ±ÅŸ
+            $table->text('musteri_cozum_notlari')->nullable(); 
+            $table->timestamp('musteri_onay_tarihi')->nullable(); 
+            $table->timestamp('kurul_onay_tarihi')->nullable();
+            $table->foreignId('olusturan_kurul_uyesi_id')->nullable()->constrained('users')->onDelete('set null');
+
+            // SayaÃ§ ve SÃ¼re YÃ¶netimi
+            $table->timestamp('musteri_cozum_son_tarihi')->nullable(); 
+            $table->string('musteri_ek_sure_talep_durumu')->nullable(); 
+
+            // Puanlama
+            $table->decimal('musteri_puan', 8, 2)->nullable(); 
+
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('musteri_sikayetleri');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_17_181951_create_sikayet_kategorileri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('sikayet_kategorileri', function (Blueprint $table) {
+            $table->id();
+            $table->string('ad');
+            // Bu kategoriye ait bir ÅŸikayet geldiÄŸinde, varsayÄ±lan olarak hangi takÄ±ma atanmalÄ±?
+            $table->foreignId('varsayilan_takim_id')->nullable()->constrained('takimlar')->onDelete('set null');
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('sikayet_kategorileri');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_20_094511_add_tur_to_takimlar_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('takimlar', function (Blueprint $table) {
+            // 'iaa' veya 'sikayet' gibi deÄŸerler alacak bir sÃ¼tun ekliyoruz.
+            // VarsayÄ±lan olarak 'iaa' atÄ±yoruz ki mevcut takÄ±mlarÄ±nÄ±z doÄŸru kategoride kalsÄ±n.
+            $table->string('tur')->default('iaa')->after('kurallar');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('takimlar', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_21_134351_add_kazanilan_puan_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // 'musteri_puan' sÃ¼tunundan sonra 'kazanilan_puan' adÄ±nda yeni bir sÃ¼tun ekle.
+            // VarsayÄ±lan deÄŸeri 0 olsun.
+            $table->integer('kazanilan_puan')->default(0)->after('musteri_puan');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // EÄŸer migration geri alÄ±nÄ±rsa bu sÃ¼tunu kaldÄ±r.
+            $table->dropColumn('kazanilan_puan');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_21_171123_create_musteri_sikayeti_dosyalari_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('musteri_sikayeti_dosyalari', function (Blueprint $table) {
+            $table->id();
+            
+            // Hangi ÅŸikayete ait olduÄŸunu belirtir. Ana ÅŸikayet silinirse, dosyalar da silinir.
+            $table->foreignId('musteri_sikayeti_id')->constrained('musteri_sikayetleri')->onDelete('cascade');
+            
+            // DosyanÄ±n sunucudaki yolu (Ã¶rn: sikayet_dosyalari/dosya_adi.pdf)
+            $table->string('dosya_yolu');
+            
+            // KullanÄ±cÄ±nÄ±n yÃ¼klediÄŸi dosyanÄ±n orijinal adÄ± (Ã¶rn: kanit.pdf)
+            $table->string('orijinal_adi');
+
+            // DosyanÄ±n MIME tipi (Ã¶rn: image/jpeg, application/pdf)
+            $table->string('mime_tipi');
+
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('musteri_sikayeti_dosyalari');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_22_093100_add_puan_formula_fields_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // Ek sÃ¼re talebi iÃ§in aÃ§Ä±klama
+            $table->text('ek_sure_talep_aciklamasi')->nullable()->after('musteri_ek_sure_talep_durumu');
+            
+            // Puanlama formÃ¼lÃ¼ iÃ§in alanlar (kazanilan_puan'dan sonraya ekleyelim)
+            $table->integer('etki_puani')->nullable()->after('kazanilan_puan');
+            $table->integer('karmasiklik_puani')->nullable()->after('etki_puani');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            $table->dropColumn(['ek_sure_talep_aciklamasi', 'etki_puani', 'karmasiklik_puani']);
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_22_093106_create_musteri_sikayeti_loglari_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('musteri_sikayeti_loglari', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('musteri_sikayeti_id')->constrained('musteri_sikayetleri')->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null'); // Ä°ÅŸlemi yapan kullanÄ±cÄ±
+            $table->string('eylem'); // Ã–rn: "TakÄ±m AtandÄ±", "Ek SÃ¼re Talep Edildi"
+            $table->text('aciklama')->nullable(); // Ã–rn: "Super Admin, 'Kapak Ã‡Ã¶zÃ¼m TakÄ±mÄ±'nÄ± atadÄ±."
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('musteri_sikayeti_loglari');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_22_182121_add_sikayet_kategorisi_id_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // Yeni sÃ¼tunu ekle (olusturan_kurul_uyesi_id'den sonra ekleyelim)
+            $table->foreignId('sikayet_kategorisi_id')
+                  ->nullable() // BaÅŸlangÄ±Ã§ta boÅŸ olabilir veya eski kayÄ±tlar iÃ§in
+                  ->after('olusturan_kurul_uyesi_id') // Bu sÃ¼tundan sonra ekle
+                  ->constrained('sikayet_kategorileri') // sikayet_kategorileri tablosuna baÄŸla
+                  ->onDelete('set null'); // Kategori silinirse bu alanÄ± null yap
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // Ä°liÅŸkiyi ve sÃ¼tunu kaldÄ±r
+            $table->dropForeign(['sikayet_kategorisi_id']);
+            $table->dropColumn('sikayet_kategorisi_id');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_23_103650_add_konum_tipi_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // Yeni sÃ¼tunu ekle (Ã¶rneÄŸin musteri_iletisim'den sonra)
+            $table->string('konum_tipi')->nullable()->after('musteri_iletisim'); // 'Yurt Ä°Ã§i' veya 'Yurt DÄ±ÅŸÄ±' gibi deÄŸerler iÃ§in
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            $table->dropColumn('konum_tipi');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_23_133044_add_widgets_to_iaa_workflow_steps_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('iaa_workflow_steps', function (Blueprint $table) {
+            // Yeni JSON sÃ¼tununu ekle (Ã¶rneÄŸin default_duration_days'den sonra)
+            $table->json('widgets')->nullable()->after('default_duration_days');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('iaa_workflow_steps', function (Blueprint $table) {
+            $table->dropColumn('widgets');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_27_150734_add_guest_tracking_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // KayÄ±tsÄ±z mÃ¼ÅŸteri takibi iÃ§in benzersiz token (nullable, Ã§Ã¼nkÃ¼ kayÄ±tlÄ±lar iÃ§in boÅŸ olacak)
+            $table->string('takip_token', 16)->unique()->nullable()->after('kazanilan_puan')->index(); // 16 karakterlik token varsaydÄ±m, index ekledim
+
+            // KayÄ±tsÄ±z mÃ¼ÅŸteri iÃ§in hashlenmiÅŸ ÅŸifre (nullable)
+            $table->string('guest_password_hash')->nullable()->after('takip_token');
+
+            // MÃ¼ÅŸterinin Ã§Ã¶zÃ¼me verdiÄŸi geri bildirim (nullable)
+            $table->string('musteri_feedback')->nullable()->after('guest_password_hash'); // Veya enum kullanabilirsin: ->enum('musteri_feedback', ['OnaylandÄ±', 'Reddedildi', 'Revizyon Ä°stendi'])->nullable()
+
+            // MÃ¼ÅŸterinin geri bildirim notu (nullable)
+            $table->text('musteri_feedback_note')->nullable()->after('musteri_feedback');
+
+            // Åikayet dÃ¼zenlemesinin kilitlendiÄŸi tarih (nullable)
+            $table->timestamp('edit_locked_at')->nullable()->after('musteri_feedback_note');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    /**public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // SÃ¼tunlarÄ± kaldÄ±rÄ±rken index'i de belirtmek iyi bir pratiktir
+            $table->dropIndex(['takip_token']); // Index'i kaldÄ±r
+            $table->dropColumn([
+                'takip_token',
+                'guest_password_hash',
+                'musteri_feedback',
+                'musteri_feedback_note',
+                'edit_locked_at'
+            ]);
+        });
+    }*/
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_10_30_102716_add_iaa_id_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // Proje kÃ¶prÃ¼sÃ¼ iÃ§in iaa_id sÃ¼tununu ekliyoruz
+            // 'id' sÃ¼tunundan sonra (veya 'atanan_cozum_takimi_id' gibi bir yerden sonra) ekleyebiliriz
+            $table->unsignedBigInteger('iaa_id')->nullable()->after('id');
+            
+            // Foreign key (iliÅŸki) tanÄ±mlamasÄ±
+            $table->foreign('iaa_id')
+                  ->references('id')
+                  ->on('iaas') // iaa_db (12).sql dosyasÄ±ndaki 'iaas' tablosuna baÄŸlanÄ±r
+                  ->onDelete('set null'); // EÄŸer IAA projesi silinirse, ÅŸikayetteki bu alanÄ± null yap
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // Ã–nce foreign key'i kaldÄ±r
+            $table->dropForeign(['iaa_id']);
+            // Sonra sÃ¼tunu kaldÄ±r
+            $table->dropColumn('iaa_id');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_10_170158_create_proje_yorumlari_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // Proje/Åikayet adÄ±mlarÄ± iÃ§in yorumlar, loglar ve dosyalar
+        Schema::create('proje_yorumlari', function (Blueprint $table) {
+            $table->id();
+            
+            // Hangi Projeye ait?
+            $table->foreignId('iaa_id')->constrained('iaas')->onDelete('cascade');
+            
+            // Hangi AdÄ±ma ait?
+            $table->foreignId('iaa_workflow_step_id')->constrained('iaa_workflow_steps')->onDelete('cascade');
+            
+            // Yorumu kim yaptÄ±? (GiriÅŸ yapmÄ±ÅŸ bir kullanÄ±cÄ± ise)
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
+            
+            // Yorumu kim yaptÄ±? (Misafir mÃ¼ÅŸteri ise, bu ID'yi takip token'Ä± ile eÅŸleÅŸtireceÄŸiz)
+            $table->foreignId('musteri_sikayeti_id')->nullable()->constrained('musteri_sikayetleri')->onDelete('set null');
+
+            // Yorumu yapanÄ±n adÄ±nÄ± (User veya Misafir) buraya kopyala (Raporlama iÃ§in kolaylÄ±k)
+            $table->string('yapan_kisi_adi');
+
+            // Yorum mu, yoksa otomatik Log mu?
+            $table->enum('yorum_tipi', ['yorum', 'log', 'dosya'])->default('yorum');
+
+            // Yorumun iÃ§eriÄŸi
+            $table->text('yorum');
+
+            // Eklenen dosya (Ä°steÄŸe baÄŸlÄ±, 1 adet)
+            $table->string('dosya_yolu')->nullable();
+            $table->string('dosya_adi')->nullable();
+            
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('proje_yorumlari');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_11_160819_create_notifications_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('type');
+            $table->morphs('notifiable');
+            $table->text('data');
+            $table->timestamp('read_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('notifications');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_18_092425_create_sikayet_alt_kategoris_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('sikayet_alt_kategorileri', function (Blueprint $table) {
+            $table->id();
+            // Ana kategoriye baÄŸlanÄ±r (Ã–rn: "Kapak")
+            $table->foreignId('sikayet_kategori_id')->constrained('sikayet_kategorileri')->onDelete('cascade');
+            $table->string('ad'); // Ã–rn: "Leke", "Bombe"
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('sikayet_alt_kategoris');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_18_092431_add_diger_secenegi_to_sikayet_kategorileri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('sikayet_kategorileri', function (Blueprint $table) {
+            // Bu kategori "DiÄŸer" seÃ§eneÄŸini gÃ¶sterecek mi?
+            $table->boolean('diger_secenegi_goster')->default(false)->after('ad');
+            // "DiÄŸer" seÃ§ildiÄŸinde gÃ¶sterilecek aÃ§Ä±klama (placeholder)
+            $table->string('diger_aciklama_basligi')->nullable()->after('diger_secenegi_goster');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('sikayet_kategorileri', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_18_092441_add_alt_kategori_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // SeÃ§ilen alt kategoriye (Ã¶rn: "Leke") baÄŸlanÄ±r
+            $table->foreignId('sikayet_alt_kategori_id')->nullable()->constrained('sikayet_alt_kategorileri')->nullOnDelete()->after('sikayet_kategorisi_id');
+            // "DiÄŸer" seÃ§eneÄŸi iÃ§in girilen metin
+            $table->text('sikayet_alt_kategori_diger')->nullable()->after('sikayet_alt_kategori_id');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_19_150400_create_bolum_kalite_yoneticileri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        // Bu tablo, hangi kullanÄ±cÄ±nÄ±n hangi kategoriden sorumlu olduÄŸunu tutacak
+        Schema::create('bolum_kalite_yoneticileri', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('sikayet_kategori_id'); // 'bolum_id' yerine kategori ID kullanÄ±yoruz
+            
+            // Ä°liÅŸkiler
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('sikayet_kategori_id')->references('id')->on('sikayet_kategorileri')->onDelete('cascade');
+
+            // Bir kullanÄ±cÄ± bir kategorinin yÃ¶neticisi olarak sadece bir kez eklenebilir
+            $table->unique(['user_id', 'sikayet_kategori_id'], 'user_kategori_unique');
+            
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('bolum_kalite_yoneticileri');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_24_132513_create_profile_comments_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('profile_comments', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Yorum yapÄ±lan profil sahibi
+            $table->foreignId('yazan_user_id')->constrained('users')->onDelete('cascade'); // Yorumu yazan kiÅŸi
+            $table->text('yorum');
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('profile_comments');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_24_144316_add_phone_and_photo_to_users_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('telefon')->nullable()->after('email');
+            $table->string('profile_photo_path', 2048)->nullable()->after('telefon');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_24_155514_create_login_activities_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('login_activities', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('ip_address')->nullable();
+            $table->string('user_agent')->nullable(); // TarayÄ±cÄ± bilgisi
+            $table->timestamp('created_at'); // Sadece giriÅŸ zamanÄ± yeterli
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('login_activities');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_24_163608_add_parent_id_to_profile_comments_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('profile_comments', function (Blueprint $table) {
+            // Bir yorumun Ã¼st yorumu olabilir (Cevap ise). Yoksa ana yorumdur.
+            // Yorum silinirse cevaplarÄ± da silinsin (cascade).
+            $table->foreignId('parent_id')->nullable()->after('id')->constrained('profile_comments')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('profile_comments', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_25_145748_add_last_seen_at_to_users_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->timestamp('last_seen_at')->nullable();
+        });
+    }
+
+    public function down()
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('last_seen_at');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_25_175023_create_iaa_user_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('iaa_user', function (Blueprint $table) {
+            $table->id();
+            // Hangi Proje?
+            $table->foreignId('iaa_id')->constrained('iaas')->onDelete('cascade');
+            // Kim GÃ¶revli?
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            // RolÃ¼ (Lider, Ãœye vb.)
+            $table->string('rol')->default('Ãœye'); 
+            // Projeden kazanÄ±lan puan
+            $table->decimal('kazanilan_puan', 8, 2)->default(0);
+            
+            $table->timestamps();
+            
+            // AynÄ± kiÅŸiyi aynÄ± projeye 2 kere ekleyemesin
+            $table->unique(['iaa_id', 'user_id']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('iaa_user');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_25_182006_add_durum_to_iaa_user_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+{
+    Schema::table('iaa_user', function (Blueprint $table) {
+        // VarsayÄ±lan 'onaylandi' yapÄ±yoruz ki mevcut kayÄ±tlar bozulmasÄ±n
+        $table->string('durum')->default('onaylandi')->after('rol'); 
+    });
+}
+
+public function down()
+{
+    Schema::table('iaa_user', function (Blueprint $table) {
+        $table->dropColumn('durum');
+    });
+}
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_11_27_160810_create_iaa_step_assignments_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('iaa_step_assignments', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('iaa_id')->constrained('iaas')->onDelete('cascade');
+            $table->foreignId('iaa_workflow_step_id')->constrained('iaa_workflow_steps')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade'); // Sorumlu KiÅŸi
+            $table->foreignId('assigned_by')->constrained('users'); // Atayan (Lider)
+            $table->timestamps();
+
+            // Bir adÄ±mÄ±n aynÄ± projede sadece tek bir sorumlusu olabilir
+            $table->unique(['iaa_id', 'iaa_workflow_step_id']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('iaa_step_assignments');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_02_165754_add_disciplinary_module_tables.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        // 1. DÄ°SÄ°PLÄ°N KATEGORÄ°LERÄ° (Ä°ÅŸ GÃ¼venliÄŸi, Etik vb.)
+        if (!Schema::hasTable('disciplinary_categories')) {
+            Schema::create('disciplinary_categories', function (Blueprint $table) {
+                $table->id();
+                $table->string('ad');
+                $table->timestamps();
+            });
+        }
+
+        // 2. ETKÄ° / ÅÄ°DDET (KiÅŸiye KarÅŸÄ± - 5 Puan)
+        if (!Schema::hasTable('disciplinary_impacts')) {
+            Schema::create('disciplinary_impacts', function (Blueprint $table) {
+                $table->id();
+                $table->string('tanim');
+                $table->integer('puan'); 
+                $table->timestamps();
+            });
+        }
+
+        // 3. KAPSAM (Sistemi Bozar - 3 Puan)
+        if (!Schema::hasTable('disciplinary_scopes')) {
+            Schema::create('disciplinary_scopes', function (Blueprint $table) {
+                $table->id();
+                $table->string('tanim');
+                $table->integer('puan');
+                $table->timestamps();
+            });
+        }
+
+        // 4. SUÃ‡ TANIMLARI (DAVRANIÅLAR)
+        if (!Schema::hasTable('disciplinary_behaviors')) {
+            Schema::create('disciplinary_behaviors', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('category_id');
+                $table->text('tanim');
+                $table->string('yasal_dayanak')->nullable();
+                $table->boolean('aktif_mi')->default(true);
+                $table->timestamps();
+
+                $table->foreign('category_id')->references('id')->on('disciplinary_categories')->onDelete('cascade');
+            });
+        }
+
+        // 5. TEKRAR KATSAYILARI
+        if (!Schema::hasTable('disciplinary_multipliers')) {
+            Schema::create('disciplinary_multipliers', function (Blueprint $table) {
+                $table->id();
+                $table->integer('tekrar_sayisi');
+                $table->decimal('katsayi', 5, 2);
+                $table->timestamps();
+            });
+        }
+
+        // 6. CEZA SKALASI
+        if (!Schema::hasTable('disciplinary_penalty_scales')) {
+            Schema::create('disciplinary_penalty_scales', function (Blueprint $table) {
+                $table->id();
+                $table->integer('min_puan');
+                $table->integer('max_puan');
+                $table->string('ceza_adi');
+                $table->timestamps();
+            });
+        }
+
+        // 7. DÄ°SÄ°PLÄ°N DOSYALARI (CASES)
+        if (!Schema::hasTable('disciplinary_cases')) {
+            Schema::create('disciplinary_cases', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('user_id');      // SuÃ§u iÅŸleyen
+                $table->unsignedBigInteger('reporter_id');  // Bildiren
+                $table->unsignedBigInteger('behavior_id');  // SuÃ§ TanÄ±mÄ±
+                
+                // SeÃ§ilen Etki ve Kapsam
+                $table->unsignedBigInteger('impact_id')->nullable();
+                $table->unsignedBigInteger('scope_id')->nullable();
+
+                $table->enum('durum', ['Taslak', 'Savunma Bekleniyor', 'Kurulda', 'Karar Verildi', 'Ä°ptal'])->default('Taslak');
+                $table->dateTime('olay_tarihi');
+                $table->text('olay_aciklamasi');
+                $table->json('kanit_dosyalari')->nullable();
+
+                // Savunma
+                $table->text('savunma_metni')->nullable();
+                $table->dateTime('savunma_tarihi')->nullable();
+
+                // Hesaplama
+                $table->integer('tekrar_sayisi')->default(1);
+                $table->integer('hesaplanan_puan')->default(0);
+                $table->string('final_karar')->nullable();
+
+                $table->timestamps();
+                $table->softDeletes();
+                
+                // Ä°liÅŸkiler
+                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+                $table->foreign('behavior_id')->references('id')->on('disciplinary_behaviors')->onDelete('cascade');
+           
+                // === EKLENECEK KISIM (ETKÄ° VE KAPSAM Ä°LÄ°ÅKÄ°LERÄ°) ===
+                $table->foreign('impact_id')->references('id')->on('disciplinary_impacts')->onDelete('set null');
+                $table->foreign('scope_id')->references('id')->on('disciplinary_scopes')->onDelete('set null');
+            });
+        }
+
+        // 8. KURUL OYLARI
+        if (!Schema::hasTable('disciplinary_votes')) {
+            Schema::create('disciplinary_votes', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('case_id');
+                $table->unsignedBigInteger('user_id'); // Oyu veren
+                $table->enum('oy_yonu', ['Ceza Verilsin', 'Ceza Verilmesin', 'Ek SoruÅŸturma', 'Ã‡ekimser']);
+                $table->text('yorum')->nullable();
+                $table->timestamps();
+
+                $table->foreign('case_id')->references('id')->on('disciplinary_cases')->onDelete('cascade');
+                $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        // Sadece yeni tablolarÄ± siler, eskilere dokunmaz
+        Schema::dropIfExists('disciplinary_votes');
+        Schema::dropIfExists('disciplinary_cases');
+        Schema::dropIfExists('disciplinary_penalty_scales');
+        Schema::dropIfExists('disciplinary_multipliers');
+        Schema::dropIfExists('disciplinary_behaviors');
+        Schema::dropIfExists('disciplinary_scopes');
+        Schema::dropIfExists('disciplinary_impacts');
+        Schema::dropIfExists('disciplinary_categories');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_03_085252_add_sistem_oneri_ceza_to_disciplinary_cases_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('disciplinary_cases', function (Blueprint $table) {
+            // Hesaplanan puandan hemen sonraya ekleyelim
+            $table->string('sistem_oneri_ceza')->nullable()->after('hesaplanan_puan');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('disciplinary_cases', function (Blueprint $table) {
+            $table->dropColumn('sistem_oneri_ceza');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_03_105409_add_defense_columns_to_disciplinary_cases.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('disciplinary_cases', function (Blueprint $table) {
+            
+            // 1. Savunma AÃ§Ä±klamasÄ± yoksa ekle
+            if (!Schema::hasColumn('disciplinary_cases', 'savunma_aciklamasi')) {
+                $table->text('savunma_aciklamasi')->nullable()->after('kanit_dosyalari');
+            }
+
+            // 2. Savunma DosyalarÄ± yoksa ekle
+            if (!Schema::hasColumn('disciplinary_cases', 'savunma_dosyalari')) {
+                $table->json('savunma_dosyalari')->nullable()->after('savunma_aciklamasi');
+            }
+
+            // 3. Savunma Tarihi yoksa ekle (Hata veren yer burasÄ±ydÄ±, kontrol ekledik)
+            if (!Schema::hasColumn('disciplinary_cases', 'savunma_tarihi')) {
+                $table->dateTime('savunma_tarihi')->nullable()->after('savunma_dosyalari');
+            }
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('disciplinary_cases', function (Blueprint $table) {
+            // SÃ¼tunlarÄ± silerken de kontrol edelim
+            if (Schema::hasColumn('disciplinary_cases', 'savunma_aciklamasi')) {
+                $table->dropColumn('savunma_aciklamasi');
+            }
+            if (Schema::hasColumn('disciplinary_cases', 'savunma_dosyalari')) {
+                $table->dropColumn('savunma_dosyalari');
+            }
+            if (Schema::hasColumn('disciplinary_cases', 'savunma_tarihi')) {
+                $table->dropColumn('savunma_tarihi');
+            }
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_05_104100_create_disciplinary_comments_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('disciplinary_comments', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('case_id')->constrained('disciplinary_cases')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->text('yorum');
+            $table->json('dosyalar')->nullable(); // Dosya ekleri (Opsiyonel)
+            $table->timestamps();
+            $table->softDeletes(); // Silinen yorumlarÄ± loglamak iÃ§in
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('disciplinary_comments');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_05_110442_create_disciplinary_comment_histories_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('disciplinary_comment_histories', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('comment_id')->constrained('disciplinary_comments')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users'); // DeÄŸiÅŸikliÄŸi yapan kiÅŸi
+            $table->text('eski_yorum'); // DeÄŸiÅŸmeden Ã¶nceki hali
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('disciplinary_comment_histories');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_08_104327_add_disciplinary_global_to_bolumler_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('bolumler', function (Blueprint $table) {
+            // EÄŸer sÃ¼tun yoksa ekle
+            if (!Schema::hasColumn('bolumler', 'is_disciplinary_global')) {
+                $table->boolean('is_disciplinary_global')->default(false)->after('ad');
+            }
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('bolumler', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_08_111543_add_disciplinary_columns_to_tables.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // 1. BÃ¶lÃ¼mlere: "Bu bÃ¶lÃ¼m fabrikanÄ±n tamamÄ±na tutanak tutabilir mi?" (Ã–rn: Ä°SG, GÃ¼venlik)
+        if (!Schema::hasColumn('bolumler', 'is_disciplinary_global')) {
+            Schema::table('bolumler', function (Blueprint $table) {
+                $table->boolean('is_disciplinary_global')->default(false)->after('ad'); 
+            });
+        }
+
+        // 2. KullanÄ±cÄ±lara: "Bu kiÅŸi tutanak tutma yetkisine sahip mi?" (Lider tarafÄ±ndan verilir)
+        if (!Schema::hasColumn('users', 'can_issue_disciplinary')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->boolean('can_issue_disciplinary')->default(false)->after('bolum_id');
+            });
+        }
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('tables', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_08_142524_add_disciplinary_scope_to_bolumler.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('bolumler', function (Blueprint $table) {
+            // Hangi bÃ¶lÃ¼mlere tutanak tutabilir? (BoÅŸsa sadece kendi bÃ¶lÃ¼mÃ¼, '*' ise hepsi)
+            $table->json('disciplinary_target_depts')->nullable()->after('is_disciplinary_global'); 
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('bolumler', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_09_152045_add_notification_fields_to_musteri_sikayetleri.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // EÄŸer sÃ¼tunlar yoksa ekle (Hata almamak iÃ§in kontrol ediyoruz)
+            if (!Schema::hasColumn('musteri_sikayetleri', 'musteri_bildirim_yapan_id')) {
+                $table->unsignedBigInteger('musteri_bildirim_yapan_id')->nullable()->after('guest_password_hash');
+            }
+            if (!Schema::hasColumn('musteri_sikayetleri', 'musteri_bildirim_tarihi')) {
+                $table->timestamp('musteri_bildirim_tarihi')->nullable()->after('musteri_bildirim_yapan_id');
+            }
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            //
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_09_180426_add_feedback_meta_to_musteri_sikayetleri.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up()
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            $table->string('feedback_ip', 45)->nullable(); // IP Adresi
+            $table->text('feedback_user_agent')->nullable(); // TarayÄ±cÄ± Bilgisi
+            $table->unsignedBigInteger('feedback_by_user_id')->nullable()->comment('EÄŸer personel oturumuyla yapÄ±ldÄ±ysa ID');
+        });
+    }
+
+    public function down()
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            $table->dropColumn(['feedback_ip', 'feedback_user_agent', 'feedback_by_user_id']);
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_12_112914_add_bolum_id_to_sikayet_kategorileri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up()
+    {
+        Schema::table('sikayet_kategorileri', function (Blueprint $table) {
+            $table->foreignId('bolum_id')->nullable()->constrained('bolumler')->onDelete('set null');
+        });
+    }
+
+    public function down()
+    {
+        Schema::table('sikayet_kategorileri', function (Blueprint $table) {
+            $table->dropForeign(['bolum_id']);
+            $table->dropColumn('bolum_id');
+        });
+    }
+};
+
+
+

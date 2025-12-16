@@ -14,11 +14,13 @@ use Illuminate\Support\Facades\Log;
 use App\Models\MusteriSikayetiDosyasi; 
 use App\Models\SikayetKategori;
 use Illuminate\Support\Facades\Auth;
+use App\Traits\ComplaintNotificationTrait; // <-- Add this line
 
 
 class SikayetController extends Controller
 {
     use AuthorizesRequests;
+    use ComplaintNotificationTrait; // <-- Add this line
 
     public function index()
     {
@@ -107,6 +109,12 @@ class SikayetController extends Controller
             }
 
             DB::commit();
+
+            // === BURAYI EKLE: BİLDİRİM GÖNDER ===
+            // Bu kod kategoriye bakacak, bölümü bulacak ve Emrah Al'a bildirimi çakacak.
+            $this->sendNewComplaintNotification($sikayet);
+            // ====================================
+
             return redirect()->route('admin.sikayetler.index')->with('success', 'Şikayet başarıyla oluşturuldu.');
 
         } catch (\Exception $e) {
@@ -130,11 +138,22 @@ class SikayetController extends Controller
         if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi', 'Yonetim'])) {
             $yetkiVar = true;
         }
-        // 2. Atanan Takımın Üyesi ise girer
+        // 2. [YENİ] BÖLÜM LİDERİ KONTROLÜ (Emrah Al buraya takılacak)
+        elseif ($user->hasRole('Bölüm Lideri')) {
+            // Şikayetin kategorisi var mı ve bu kategori kullanıcının bölümüne mi ait?
+            if ($sikayet->sikayetKategori && $sikayet->sikayetKategori->bolum_id == $user->bolum_id) {
+                $yetkiVar = true;
+            }
+            // VEYA: Kullanıcı "Bölüm Kalite Yöneticisi" ise ve kategorisi uyuyorsa
+            elseif ($user->hasRole('Bölüm Kalite Yöneticisi') && $user->yonettigiSikayetKategorileri->contains($sikayet->sikayet_kategorisi_id)) {
+                $yetkiVar = true;
+            }
+        }
+        // 3. Atanan Takımın Üyesi ise girer
         elseif ($sikayet->atanan_cozum_takimi_id && $user->takimlar->contains($sikayet->atanan_cozum_takimi_id)) {
             $yetkiVar = true;
         }
-        // 3. İAA Projesi Varsa ve Squad Üyesi ise girer (CİHANGİR BURADAN GİRECEK)
+        // 4. İAA Projesi Varsa ve Squad Üyesi ise girer (CİHANGİR BURADAN GİRECEK)
         elseif ($sikayet->iaa_id) {
              $iaa = \App\Models\Iaa::find($sikayet->iaa_id);
              if ($iaa && $iaa->projeEkibi()->where('user_id', $user->id)->wherePivot('durum', 'onaylandi')->exists()) {
@@ -143,7 +162,7 @@ class SikayetController extends Controller
         }
 
         if (!$yetkiVar) {
-            abort(403, 'Bu şikayeti görüntüleme yetkiniz yok.');
+            abort(403, 'Bu şikayeti görüntüleme yetkiniz yok. (Bölüm eşleşmesi veya yetki bulunamadı)');
         }
         // === KONTROL SONU ===
 

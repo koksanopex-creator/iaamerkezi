@@ -7,6 +7,7 @@ use App\Models\SikayetKategori;
 use App\Models\Takim; // Takımları çekmek için ekliyoruz
 use Illuminate\Http\Request;
 use App\Models\SikayetAltKategori;
+use App\Models\Bolum;
 
 class SikayetKategoriController extends Controller
 {
@@ -18,9 +19,9 @@ class SikayetKategoriController extends Controller
 
     public function create()
     {
-        // Sadece şikayet takımlarını al
         $takimlar = Takim::where('tur', 'sikayet')->get();
-        return view('admin.sikayet_kategorileri.create', compact('takimlar'));
+        $bolumler = Bolum::all(); // <-- EKLENDİ
+        return view('admin.sikayet_kategorileri.create', compact('takimlar', 'bolumler')); // compact güncellendi
     }
 
     public function store(Request $request)
@@ -28,6 +29,7 @@ class SikayetKategoriController extends Controller
         $request->validate([
             'ad' => 'required|string|max:255|unique:sikayet_kategorileri,ad',
             'varsayilan_takim_id' => 'nullable|exists:takimlar,id',
+            'bolum_id' => 'nullable|exists:bolumler,id', // <-- EKLENDİ
         ]);
 
         // Kategoriyi oluşturup bir değişkene atıyoruz
@@ -48,8 +50,9 @@ class SikayetKategoriController extends Controller
 
     public function edit(SikayetKategori $sikayetKategori)
     {
-        $takimlar = Takim::where('tur', 'sikayet')->get(); // Sadece çözüm takımlarını al
-        return view('admin.sikayet_kategorileri.edit', compact('sikayetKategori', 'takimlar'));
+        $takimlar = Takim::where('tur', 'sikayet')->get();
+        $bolumler = Bolum::all(); // <-- EKLENDİ
+        return view('admin.sikayet_kategorileri.edit', compact('sikayetKategori', 'takimlar', 'bolumler'));
     }
 
     public function update(Request $request, SikayetKategori $sikayetKategori)
@@ -58,6 +61,7 @@ class SikayetKategoriController extends Controller
             // Kategori adını güncellerken, KENDİSİ HARİÇ bu ismin unique olmasını kontrol et
             'ad' => 'required|string|max:255|unique:sikayet_kategorileri,ad,' . $sikayetKategori->id,
             'varsayilan_takim_id' => 'nullable|exists:takimlar,id',
+            'bolum_id' => 'nullable|exists:bolumler,id', // <-- EKLENDİ
         ]);
 
         $sikayetKategori->update($request->all());

@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use App\Models\MusteriSikayeti;
 use App\Models\Takim;
 use App\Models\User;
+use App\Models\Iaa; // Bunu ekledik (Squad kontrolü için)
 use Livewire\Component;
 use Livewire\WithPagination;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +33,6 @@ class SikayetlerTablosu extends Component
 
     protected $listeners = ['sikayetGuncellendi' => '$refresh'];
 
-    // ... (updated ve resetFilters metodları aynı) ...
     public function updated($propertyName)
     {
         if (in_array($propertyName, [
@@ -57,7 +57,7 @@ class SikayetlerTablosu extends Component
         ]);
         $this->resetPage();
     }
-     
+      
 
     public function render()
     {
@@ -68,34 +68,57 @@ class SikayetlerTablosu extends Component
             'cozumTakimi',
             'sikayetKategori',
             'iaaProjesi',
-            // === YENİ EKLENDİ (Faz 2) ===
-            // Her şikayetin "Yönet" modalı loglarını ve logu atan kullanıcıyı da çek
             'loglar' => function ($query) {
                 $query->whereIn('eylem', ['Atama Yapıldı (Triyaj)', 'Şikayet Güncellendi (Triyaj)', 'Atama Kaldırıldı'])
-                      ->with('user') // Logu yapan kullanıcıyı da al
-                      ->latest(); // En yeniler üste
+                      ->with('user') 
+                      ->latest(); 
             }
-            // === YENİ EKLENDİ SONU ===
         ]);
 
-        // === YENİ YETKİ VE FİLTRELEME MANTIĞI ===
+        // === YETKİ VE FİLTRELEME MANTIĞI ===
+
+        // 1. SÜPER YETKİLİLER
         if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Yonetim'])) {
-            // Admin ve Kurul tüm şikayetleri görür.
+            // Hepsini görür
         } 
+        
+        // 2. BÖLÜM KALİTE YÖNETİCİSİ
         elseif ($user->hasRole('Bölüm Kalite Yöneticisi')) {
-            // Yönettiği kategorilerin ID'lerini al (User modelindeki ilişki)
             $yonettigiKategoriIds = $user->yonettigiSikayetKategorileri->pluck('id');
-            
             if ($yonettigiKategoriIds->isEmpty()) {
-                // Hiçbir kategoriye atanmamışsa boş dönsün
                 $query->whereRaw('1 = 0');
             } else {
-                // Sadece bu kategorilere ait şikayetleri getir
                 $query->whereIn('sikayet_kategorisi_id', $yonettigiKategoriIds);
             }
         }
+
+        // 3. [YENİ] BÖLÜM LİDERİ (EMRAH AL İÇİN ÖZEL MANTIK)
+        elseif ($user->hasRole('Bölüm Lideri') && $user->bolum_id) {
+            
+            $bolumId = $user->bolum_id;
+            
+            // Emrah'ın bölümündeki personellerin ID'leri
+            $personelIds = User::where('bolum_id', $bolumId)->pluck('id');
+
+            $query->where(function($q) use ($bolumId, $personelIds) {
+                
+                // Kural A: Kendi Bölümünün Şikayetleri
+                $q->whereHas('sikayetKategori', function($subQ) use ($bolumId) {
+                    $subQ->where('bolum_id', $bolumId);
+                })
+                
+                // Kural B: Kendi Personelinin Görev Aldığı Şikayetler (Squad)
+                ->orWhereHas('iaaProjesi', function($subQ) use ($personelIds) {
+                    $subQ->whereHas('projeEkibi', function($squadQ) use ($personelIds) {
+                        $squadQ->whereIn('users.id', $personelIds)
+                               ->where('iaa_user.durum', 'onaylandi');
+                    });
+                });
+            });
+        }
+
+        // 4. ÇÖZÜM LİDERİ
         elseif ($user->hasRole('Müşteri Şikayeti Çözüm Lideri')) {
-            // Çözüm Lideri, SADECE lideri olduğu 'sikayet' takımlarının şikayetlerini görür.
             $lideriOlduguTakimIds = $user->lideriOlduguTakimlar()->where('tur', 'sikayet')->pluck('takimlar.id');
             if ($lideriOlduguTakimIds->isEmpty()) {
                 $query->whereRaw('1 = 0');
@@ -103,24 +126,20 @@ class SikayetlerTablosu extends Component
                 $query->whereIn('atanan_cozum_takimi_id', $lideriOlduguTakimIds);
             }
         } 
+        
+        // 5. STANDART KULLANICI / TAKIM ÜYESİ
         else {
-            // Normal Kullanıcı, SADECE üyesi olduğu 'sikayet' takımlarının şikayetlerini görür.
-            
-            // === HATA DÜZELTMESİ (Ambiguous ID) ===
-            // pluck('id') -> pluck('takimlar.id') olarak değiştirildi.
             $uyesiOlduguTakimIds = $user->takimlar()->where('tur', 'sikayet')->pluck('takimlar.id');
-            // === HATA DÜZELTMESİ SONU ===
-
             if ($uyesiOlduguTakimIds->isEmpty()) {
                 $query->whereRaw('1 = 0');
             } else {
                 $query->whereIn('atanan_cozum_takimi_id', $uyesiOlduguTakimIds);
             }
         }
-        // === YETKİ VE FİLTRELEME SONU ===
+        // === YETKİ SONU ===
 
 
-        // İstatistikler (Filtrelenmiş sorgu üzerinden hesaplanır)
+        // İstatistikler
         $statsQuery = clone $query;
         $stats = [
             'toplam' => $statsQuery->count(),
@@ -129,16 +148,14 @@ class SikayetlerTablosu extends Component
             'cozulmus' => (clone $statsQuery)->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])->count(),
         ];
 
-        // Dropdown'lar için veriler
+        // Dropdown Verileri
         $cozumTakimlari = Takim::where('tur', 'sikayet')->orderBy('ad')->get();
-        $ekleyenUserIds = MusteriSikayeti::whereNotNull('olusturan_kurul_uyesi_id')
-                                          ->distinct()
-                                          ->pluck('olusturan_kurul_uyesi_id');
+        $ekleyenUserIds = MusteriSikayeti::whereNotNull('olusturan_kurul_uyesi_id')->distinct()->pluck('olusturan_kurul_uyesi_id');
         $ekleyenKullanicilar = User::whereIn('id', $ekleyenUserIds)->orderBy('name')->get();
         $kategoriler = SikayetKategori::orderBy('ad')->get();
         
 
-        // --- KULLANICI FİLTRELERİNİ UYGULA ---
+        // Filtreleri Uygula
         $query->when($this->filtreDurum, fn ($q) => $q->where('musteri_durum', $this->filtreDurum));
         $query->when($this->filtreOncelik, fn ($q) => $q->where('musteri_oncelik', $this->filtreOncelik));
         $query->when($this->filtreTakim, fn ($q) => $q->where('atanan_cozum_takimi_id', $this->filtreTakim));
@@ -158,9 +175,7 @@ class SikayetlerTablosu extends Component
              if ($maxPuan !== false) { $q->where('musteri_puan', '<=', $maxPuan); }
         });
         $query->when($this->filtreKonumTipi, fn ($q) => $q->where('konum_tipi', $this->filtreKonumTipi));
-        // --- FİLTRELEME SONU ---
 
-        // Sorguyu tamamla
         $sikayetler = $query->latest()->paginate(10);
 
         return view('livewire.admin.sikayetler-tablosu', [

@@ -8,9 +8,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\IaaLog;
+use App\Traits\NotifiesManager;
 
 class TakimController extends Controller
 {
+    use NotifiesManager; // Add this line here
     public function index()
     {
         $user = Auth::user();
@@ -151,11 +153,20 @@ class TakimController extends Controller
         if (TakimDavetiyesi::where('takim_id', $takim->id)->where('davet_edilen_user_id', $request->user_id)->where('durum', 'bekliyor')->exists()) {
             return back()->with('error', 'Bu kullanıcıya zaten bir davet gönderilmiş.');
         }
+        
+        // Create the invitation record
         TakimDavetiyesi::create([
             'takim_id' => $takim->id,
             'davet_eden_user_id' => Auth::id(),
             'davet_edilen_user_id' => $request->user_id,
         ]);
+
+        // --- NEW NOTIFICATION LOGIC ---
+        $user = User::findOrFail($request->user_id);
+        // Use the trait method to notify user AND their manager
+        $this->notifyUserAndManager($user, new \App\Notifications\TakimDavetiAldin($takim, Auth::user()));
+        // ------------------------------
+
         return back()->with('success', 'Davet başarıyla gönderildi.');
     }
 
@@ -200,6 +211,18 @@ class TakimController extends Controller
             $davetiye->update(['durum' => 'kabul edildi']);
             // Üyeyi eklerken katılma şeklini belirtiyoruz
             $davetiye->takim->uyeler()->attach($davetiye->davet_edilen_user_id, ['katilma_sekli' => 'Davet ile Katıldı']);
+
+            // === YENİ EKLENEN KISIM: MÜDÜRE BİLDİRİM ===
+            // Daveti kabul eden kişi (Şu anki kullanıcı)
+            $kabulEdenUser = Auth::user();
+
+            // Trait fonksiyonunu kullanarak hem kişiye hem müdürüne bildir
+            // Not: notifyUserAndManager fonksiyonunu TakimController'a dahil ettiğimizden (use NotifiesManager) emin olun.
+            $this->notifyUserAndManager(
+                $kabulEdenUser, 
+                new \App\Notifications\TakimDavetiYanitlandi($davetiye->takim, $kabulEdenUser)
+            );
+            // ===========================================
         });
         return redirect()->route('takimlar.davetlerim')->with('success', $davetiye->takim->ad . ' takımına katıldınız!');
     }

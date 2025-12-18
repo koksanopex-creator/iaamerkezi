@@ -16,13 +16,19 @@
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white/90 backdrop-blur-sm overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200/50">
                 <div class="p-6 sm:p-8">
-                    {{-- GÜNCELLEME FORMU --}}
-                    {{-- === DÜZELTİLDİ: Doğru route parametresi 'cozumTakimi' === --}}
+                    
+                    {{-- 
+                        === DÜZELTME === 
+                        Formlar ayrıldı. Update formu sadece inputları kapsıyor.
+                        Butonlar form dışına alındı ve 'form' attribute'u ile bağlandı.
+                    --}}
+
+                    {{-- 1. GÜNCELLEME FORMU (Görünür Inputlar) --}}
                     <form id="updateForm" action="{{ route('admin.cozum-takimlari.update', ['cozumTakimi' => $takim->id]) }}" method="POST">
                         @csrf
                         @method('PUT')
+                        
                         <div class="space-y-6">
-
                             {{-- Takım Adı --}}
                             <div>
                                 <label for="ad" class="flex items-center text-sm font-semibold text-gray-700 mb-2">
@@ -59,38 +65,45 @@
                                 @endif
                             </div>
 
-                             {{-- Takım Türü (Gizli Alan - Değiştirilemez) --}}
+                             {{-- Takım Türü (Gizli Alan) --}}
                             <input type="hidden" name="tur" value="{{ $takim->tur }}">
-
-
-                             {{-- Form Butonları --}}
-                            <div class="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
-                                 {{-- Silme Formu ve Butonu --}}
-                                <div>
-                                     {{-- === DÜZELTİLDİ: Doğru route parametresi 'cozumTakimi' === --}}
-                                     <form id="deleteForm" action="{{ route('admin.cozum-takimlari.destroy', ['cozumTakimi' => $takim->id]) }}" method="POST" onsubmit="return confirm('Bu takımı silmek istediğinizden emin misiniz? Bu takıma atanmış şikayetler varsa silme işlemi başarısız olacaktır.');">
-                                         @csrf
-                                         @method('DELETE')
-                                         <button type="submit" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 border border-transparent rounded-lg shadow-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                             Takımı Sil
-                                         </button>
-                                     </form>
-                                </div>
-                                 {{-- =================================== --}}
-
-                                 <div class="flex items-center space-x-4">
-                                     <a href="{{ route('admin.cozum-takimlari.index') }}" class="inline-flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2.5 px-5 border border-gray-300 rounded-lg shadow-sm transition-colors duration-150 ease-in-out">
-                                         İptal
-                                     </a>
-                                     <button type="submit" form="updateForm" class="inline-flex items-center justify-center bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:from-indigo-700 hover:to-blue-700 transform hover:-translate-y-0.5 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                        Değişiklikleri Kaydet
-                                     </button>
-                                 </div>
-                            </div>
                         </div>
-                    </form> {{-- Güncelleme Formu burada bitiyor --}}
+                    </form> 
+                    {{-- GÜNCELLEME FORMU BURADA BİTTİ --}}
+
+
+                    {{-- ALT BUTON GRUBU (FORMLARDAN BAĞIMSIZ DİV) --}}
+                    <div class="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
+                        
+                        {{-- 2. SİLME FORMU (Sol Tarafta) --}}
+                        {{-- Bu form tamamen ayrıdır, update formunu etkilemez --}}
+                        <div>
+                             <form id="deleteForm" action="{{ route('admin.cozum-takimlari.destroy', ['cozumTakimi' => $takim->id]) }}" method="POST" onsubmit="return confirm('Bu takımı silmek istediğinizden emin misiniz? Bu takıma atanmış şikayetler varsa silme işlemi başarısız olacaktır.');">
+                                 @csrf
+                                 @method('DELETE')
+                                 <button type="submit" class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 px-5 border border-transparent rounded-lg shadow-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                     Takımı Sil
+                                 </button>
+                             </form>
+                        </div>
+
+                        {{-- SAĞ TARAF BUTONLARI --}}
+                        <div class="flex items-center space-x-4">
+                            {{-- İptal Butonu --}}
+                            <a href="{{ route('admin.cozum-takimlari.index') }}" class="inline-flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2.5 px-5 border border-gray-300 rounded-lg shadow-sm transition-colors duration-150 ease-in-out">
+                                İptal
+                            </a>
+                            
+                            {{-- KAYDET BUTONU --}}
+                            {{-- form="updateForm" özelliği ile yukarıdaki formu tetikler --}}
+                            <button type="submit" form="updateForm" class="inline-flex items-center justify-center bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md hover:from-indigo-700 hover:to-blue-700 transform hover:-translate-y-0.5 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                Değişiklikleri Kaydet
+                            </button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>

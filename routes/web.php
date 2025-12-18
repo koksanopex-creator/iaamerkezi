@@ -172,6 +172,14 @@ Route::middleware('auth')->group(function () {
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
 
     // =================================================================
+    // === YENİ EKLENEN: MÜŞTERİ YÖNETİMİ (Superadmin + Yönetim + Kurul) ===
+    // =================================================================
+    Route::get('/musteriler', \App\Livewire\Admin\MusteriYonetimi::class)
+        ->name('musteriler.index') // <--- CHANGED THIS LINE
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu']); 
+    // =================================================================
+
+    // =================================================================
     // === GÜVENLİK DÜZELTMESİ: SADECE SUPERADMIN ERİŞEBİLİR ===
     // =================================================================
     // Bu grup, 'Superadmin' rolüne sahip olmayan herkesi engelleyecektir.

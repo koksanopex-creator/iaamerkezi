@@ -75,7 +75,7 @@
 
                         {{-- GRUP B: MÜŞTERİ ŞİKAYETLERİ --}}
                         <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-raporlari.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-raporlari.*') || request()->routeIs('admin.musteriler.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                                 <span class="font-semibold text-sm">Müşteri Şikayetleri</span>
                                 <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                             </button>
@@ -159,13 +159,17 @@
                         {{-- Şikayet Dropdown --}}
                         @if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi']) || $kullaniciSikayetTakimindaMi)
                         <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-raporlari.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-raporlari.*') || request()->routeIs('admin.musteriler.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                                 <span class="font-semibold text-sm">Müşteri Şikayetleri</span>
                                 <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                             </button>
                             <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
                                 <x-dropdown-link :href="route('admin.sikayetler.index')">{{ __('Şikayet Paneli') }}</x-dropdown-link>
                                 <x-dropdown-link :href="route('admin.sikayet-raporlari.index')">{{ __('Şikayet Raporları') }}</x-dropdown-link>
+                                {{-- === YENİ EKLENEN KISIM === --}}
+                                <div class="border-t border-gray-100 my-1"></div>
+                                <x-dropdown-link :href="route('admin.musteriler.index')">{{ __('Müşteri Listesi') }}</x-dropdown-link>
+                                {{-- ========================== --}}
                                 @role('Superadmin')
                                     <div class="border-t border-gray-100 my-1"></div>
                                     <x-dropdown-link :href="route('admin.sikayet-kategorileri.index')">{{ __('Şikayet Kategorileri') }}</x-dropdown-link>
@@ -180,7 +184,7 @@
                     {{-- 6. SUPERADMIN ÖZEL MENÜSÜ --}}
                     @if(Auth::user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi']))
                         <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ (request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.raporlar.*') && !request()->routeIs('admin.disiplin.*')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
+                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ (request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.raporlar.*') && !request()->routeIs('admin.disiplin.*') && !request()->routeIs('admin.musteriler.*')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
                                 <span class="font-semibold text-sm">Yönetim Paneli</span>
                                 <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                             </button>
@@ -386,6 +390,11 @@
                 <div class="mt-3 space-y-1">
                     <x-responsive-nav-link :href="route('sikayet-gorevlerim.index')">{{ __('Şikayet Görevlerim') }}</x-responsive-nav-link>
                     <x-responsive-nav-link :href="route('admin.sikayet-raporlari.index')">{{ __('Şikayet Raporları') }}</x-responsive-nav-link>
+                    {{-- === YENİ EKLENEN KISIM === --}}
+                    <x-responsive-nav-link :href="route('admin.musteriler.index')" :active="request()->routeIs('admin.musteriler.*')">
+                        {{ __('Müşteri Listesi') }}
+                    </x-responsive-nav-link>
+                    {{-- ========================== --}}
                 </div>
             </div>
             @endif

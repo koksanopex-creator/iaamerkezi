@@ -6,32 +6,33 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles; // <-- BU SATIRI EKLE
-use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Takim; // Takim modelini kullanacağımızı belirtiyoruz
-
-
-
+use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\SoftDeletes; // SoftDeletes'i import ettin ama 'use' etmeyi unutmuşsun, onu da ekledim.
+use App\Models\Takim;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles; // <-- HasRoles'u BURAYA EKLE
+    use HasFactory, Notifiable, HasRoles, SoftDeletes; // <-- SoftDeletes EKLENDİ
 
     /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
      */
-    // YENİ VE DOĞRU HALİ
     protected $fillable = [
         'name',
+        'unvan', // <--- YENİ EKLENDİ
         'email',
         'password',
         'bolum_id',
         'onaylandi_mi',
-        'telefon',             // <-- YENİ EKLENDİ
-        'profile_photo_path',  // <-- YENİ EKLENDİ
+        'telefon',
+        'profile_photo_path',
+        
+        // === YENİ EKLENENLER (CRM) ===
+        'is_personnel', // true: Personel, false: Müşteri Temsilcisi
+        'customer_id',  // Eğer müşteri temsilcisi ise bağlı olduğu firma ID
     ];
 
     /**
@@ -54,28 +55,54 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_personnel' => 'boolean', // <-- Cast eklendi
         ];
     }
 
+    // =========================================================
+    // === YENİ CRM İLİŞKİLERİ VE SCOPE'LAR (FİLTRELER) ===
+    // =========================================================
+
     /**
-     * Kullanıcının ait olduğu bölümü getirir.
+     * İlişki: Kullanıcının bağlı olduğu Müşteri Firması (Eğer müşteri temsilcisi ise)
      */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * SCOPE: Sadece şirket personelini getirir.
+     * Kullanımı: User::personel()->get();
+     */
+    public function scopePersonel($query)
+    {
+        return $query->where('is_personnel', true);
+    }
+
+    /**
+     * SCOPE: Sadece dış müşteri temsilcilerini getirir.
+     * Kullanımı: User::musteriler()->get();
+     */
+    public function scopeMusteriler($query)
+    {
+        return $query->where('is_personnel', false);
+    }
+
+    // =========================================================
+    // === MEVCUT İLİŞKİLERİN (AYNEN KORUNDU) ===
+    // =========================================================
+
     public function bolum()
     {
         return $this->belongsTo(Bolum::class);
     }
 
-    /**
-     * Kullanıcının gönderdiği tüm İAA'ları getirir.
-     */
     public function iaas()
     {
         return $this->hasMany(Iaa::class, 'gonderen_user_id');
     }
 
-    /**
-     * Kullanıcının üye olduğu tüm takımları getirir.
-     */
     public function takimlar()
     {
         return $this->belongsToMany(Takim::class, 'takim_user', 'user_id', 'takim_id')
@@ -83,36 +110,26 @@ class User extends Authenticatable
                     ->withTimestamps();
     }
 
-    /**
-     * Bu kullanıcının lideri olduğu tüm takımları döndürür.
-     * (hasMany ilişkisi: Bir kullanıcının birden çok takımı olabilir)
-     */
     public function lideriOlduguTakimlar()
     {
         return $this->hasMany(Takim::class, 'lider_user_id');
     }
 
-    /**
-     * Bu kullanıcının YÖNETİCİSİ (Bölüm Kalite Yöneticisi) olduğu Şikayet Kategorileri.
-     * (Ara Onay yetkisi için kullanılır)
-     */
     public function yonettigiSikayetKategorileri()
     {
         return $this->belongsToMany(
             SikayetKategori::class, 
-            'bolum_kalite_yoneticileri', // Ara tablo adı
+            'bolum_kalite_yoneticileri', 
             'user_id', 
             'sikayet_kategori_id'
         );
     }
 
-    // Profilime yapılan yorumlar
     public function profilYorumlari()
     {
         return $this->hasMany(ProfileComment::class)->orderBy('created_at', 'desc');
     }
 
-    // Kullanıcının dahil olduğu proje bazlı görevler
     public function gorevliOlduguProjeler()
     {
         return $this->belongsToMany(Iaa::class, 'iaa_user', 'user_id', 'iaa_id')
@@ -120,19 +137,11 @@ class User extends Authenticatable
                     ->withTimestamps();
     }
 
-    // --- DİSİPLİN İLİŞKİLERİ ---
-
-    /**
-     * Kullanıcının sanık olduğu (kendisine açılan) disiplin dosyaları.
-     */
     public function disiplinDosyalari()
     {
         return $this->hasMany(\App\Models\DisciplinaryCase::class, 'user_id');
     }
 
-    /**
-     * Kullanıcının şikayet ettiği/raporladığı dosyalar (Amir ise).
-     */
     public function raporladigiDisiplinDosyalari()
     {
         return $this->hasMany(\App\Models\DisciplinaryCase::class, 'reporter_id');

@@ -30,6 +30,9 @@ class SikayetlerTablosu extends Component
     public $filtrePuanMin = null; 
     public $filtrePuanMax = null; 
     public $filtreKonumTipi = '';
+    public $filtreProjeDurumu = ''; // Yeni
+    public $filtreBeklemeMin = '';  // Yeni
+    public $filtreBeklemeMax = '';  // Yeni
 
     protected $listeners = ['sikayetGuncellendi' => '$refresh'];
 
@@ -40,7 +43,8 @@ class SikayetlerTablosu extends Component
             'filtreMusteriAdi', 'filtreEkleyen',
             'filtreSonTarihBaslangic', 'filtreSonTarihBitis',
             'filtreKayitTarihBaslangic', 'filtreKayitTarihBitis',
-            'filtrePuanMin', 'filtrePuanMax'
+            'filtrePuanMin', 'filtrePuanMax',
+            'filtreProjeDurumu', 'filtreBeklemeMin', 'filtreBeklemeMax'
             ])) {
             $this->resetPage();
         }
@@ -53,7 +57,8 @@ class SikayetlerTablosu extends Component
             'filtreMusteriAdi', 'filtreEkleyen',
             'filtreSonTarihBaslangic', 'filtreSonTarihBitis',
             'filtreKayitTarihBaslangic', 'filtreKayitTarihBitis',
-            'filtrePuanMin', 'filtrePuanMax'
+            'filtrePuanMin', 'filtrePuanMax',
+            'filtreProjeDurumu', 'filtreBeklemeMin', 'filtreBeklemeMax'
         ]);
         $this->resetPage();
     }
@@ -175,6 +180,30 @@ class SikayetlerTablosu extends Component
              if ($maxPuan !== false) { $q->where('musteri_puan', '<=', $maxPuan); }
         });
         $query->when($this->filtreKonumTipi, fn ($q) => $q->where('konum_tipi', $this->filtreKonumTipi));
+
+        // === YENİ FİLTRE MANTIKLARI BURAYA ===
+
+        // 1. PROJE DURUMU FİLTRESİ
+        // Şikayete bağlı "iaaProjesi" tablosuna gidip "durum" kolonunu kontrol eder.
+        $query->when($this->filtreProjeDurumu, function ($q) {
+            $q->whereHas('iaaProjesi', function ($subQ) {
+                $subQ->where('durum', $this->filtreProjeDurumu);
+            });
+        });
+
+        // 2. BEKLEME SÜRESİ (MİNİMUM GÜN)
+        // Örnek: "5" yazarsan, 5 gün ve daha eskileri getirir.
+        $query->when($this->filtreBeklemeMin, function ($q) {
+            $q->where('created_at', '<=', now()->subDays($this->filtreBeklemeMin));
+        });
+
+        // 3. BEKLEME SÜRESİ (MAKSİMUM GÜN)
+        // Örnek: "30" yazarsan, son 30 gün içindekileri getirir.
+        $query->when($this->filtreBeklemeMax, function ($q) {
+            $q->where('created_at', '>=', now()->subDays($this->filtreBeklemeMax));
+        });
+
+        // ======================================
 
         $sikayetler = $query->latest()->paginate(10);
 

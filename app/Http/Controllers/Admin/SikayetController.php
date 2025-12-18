@@ -15,6 +15,7 @@ use App\Models\MusteriSikayetiDosyasi;
 use App\Models\SikayetKategori;
 use Illuminate\Support\Facades\Auth;
 use App\Traits\ComplaintNotificationTrait; // <-- Add this line
+use Illuminate\Support\Facades\Validator;
 
 
 class SikayetController extends Controller
@@ -40,14 +41,22 @@ class SikayetController extends Controller
     {
         $this->authorize('create', MusteriSikayeti::class);
 
-        // Validasyon Kuralları
+        // === 1. TEMİZLİK ===
+        // Boş stringleri NULL yapıyoruz ki veritabanı kızmasın
+        $request->merge([
+            'yetkili_user_id' => $request->yetkili_user_id ?: null,
+            'sikayet_alt_kategori_id' => ($request->sikayet_alt_kategori_id === 'other' || !$request->sikayet_alt_kategori_id) ? null : $request->sikayet_alt_kategori_id,
+        ]);
+
+        // === 2. VALIDASYON ===
         $validated = $request->validate([
-            'musteri_adi' => 'required|string|max:255',
+            'customer_id' => 'required|integer|exists:customers,id',
+            'yetkili_user_id' => 'nullable|integer|exists:users,id',
+            'musteri_adi' => 'nullable|string|max:255',
             'musteri_iletisim' => 'nullable|string|max:255',
             'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı',
             'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id',
-            // Alt Kategori: "other" metni, boş veya ID gelebilir, o yüzden 'nullable' diyoruz.
-            'sikayet_alt_kategori_id' => 'nullable', 
+            'sikayet_alt_kategori_id' => 'nullable|integer',
             'sikayet_alt_kategori_diger' => 'nullable|string|max:500',
             'musteri_oncelik' => 'required|string|in:Düşük,Normal,Yüksek,Acil',
             'musteri_sikayet_konusu' => 'required|string|max:255',
@@ -59,42 +68,43 @@ class SikayetController extends Controller
         $user = auth()->user();
         $kazanilacakPuan = 0;
 
-        // Puan hesaplama (Superadmin değilse)
         if (!$user->hasRole('Superadmin')) {
-            $kazanilacakPuan = (int)(Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0);
+            $kazanilacakPuan = (int)(\App\Models\Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0);
         }
 
         DB::beginTransaction();
         try {
-            // --- DÜZELTİLMİŞ VERİ HAZIRLAMA ---
             $sikayetData = $validated;
 
-            // Alt Kategori Mantığı
-            if ($request->sikayet_alt_kategori_id === 'other') {
-                // Kullanıcı "Diğer" seçtiyse ID null olmalı, açıklama kaydedilmeli
+            // === 3. OTOMATİK VERİ DOLDURMA ===
+            if ($request->customer_id) {
+                $customer = \App\Models\Customer::find($request->customer_id);
+                $sikayetData['musteri_adi'] = $customer->name;
+                
+                if ($request->yetkili_user_id) {
+                    $yetkili = \App\Models\User::find($request->yetkili_user_id);
+                    $sikayetData['musteri_iletisim'] = $yetkili->name . ' (' . $yetkili->email . ')';
+                } else {
+                    $sikayetData['musteri_iletisim'] = $customer->phone ?? 'Belirtilmedi';
+                }
+            }
+
+            if ($request->sikayet_alt_kategori_id === null && $request->sikayet_alt_kategori_diger) {
                 $sikayetData['sikayet_alt_kategori_id'] = null;
-                $sikayetData['sikayet_alt_kategori_diger'] = $request->sikayet_alt_kategori_diger;
             } else {
-                // Kullanıcı listeden bir şey seçtiyse (veya boşsa)
-                // Gelen değer boş string "" ise null yap, değilse ID'yi al
-                $sikayetData['sikayet_alt_kategori_id'] = $request->sikayet_alt_kategori_id ?: null;
                 $sikayetData['sikayet_alt_kategori_diger'] = null;
             }
 
-            // Diğer otomatik alanlar
             $sikayetData['olusturan_kurul_uyesi_id'] = $user->id;
             $sikayetData['musteri_durum'] = 'Yeni';
             $sikayetData['kazanilan_puan'] = $kazanilacakPuan;
 
-            // Veritabanına Kayıt
             $sikayet = MusteriSikayeti::create($sikayetData);
 
-            // Puan Ekleme
             if ($kazanilacakPuan > 0) {
                 $user->increment('toplam_puan', $kazanilacakPuan);
             }
 
-            // Dosya Yükleme
             if ($request->hasFile('dosyalar')) {
                 foreach ($request->file('dosyalar') as $dosya) {
                     $path = $dosya->store('sikayet_dosyalari', 'public');
@@ -109,18 +119,17 @@ class SikayetController extends Controller
             }
 
             DB::commit();
-
-            // === BURAYI EKLE: BİLDİRİM GÖNDER ===
-            // Bu kod kategoriye bakacak, bölümü bulacak ve Emrah Al'a bildirimi çakacak.
-            $this->sendNewComplaintNotification($sikayet);
-            // ====================================
+            
+            if (method_exists($this, 'sendNewComplaintNotification')) {
+                $this->sendNewComplaintNotification($sikayet);
+            }
 
             return redirect()->route('admin.sikayetler.index')->with('success', 'Şikayet başarıyla oluşturuldu.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Şikayet oluşturma hatası: ' . $e->getMessage());
-            return back()->with('error', 'Şikayet kaydedilirken bir hata oluştu: ' . $e->getMessage())->withInput();
+            Log::error('Şikayet hatası: ' . $e->getMessage());
+            return back()->with('error', 'Hata: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -189,9 +198,22 @@ class SikayetController extends Controller
     {
         $this->authorize('update', $sikayet);
 
+        // === KRİTİK TEMİZLİK: Boş gelen ID'leri NULL yap ===
+        // Bu sayede "seçiniz" değeri (boş string) veritabanına NULL olarak gider
+        // ve validasyondaki 'integer' kuralına takılmaz.
+        $request->merge([
+            'customer_id' => $request->customer_id ?: null,
+            'yetkili_user_id' => $request->yetkili_user_id ?: null,
+            'sikayet_alt_kategori_id' => ($request->sikayet_alt_kategori_id === 'other' || !$request->sikayet_alt_kategori_id) ? null : $request->sikayet_alt_kategori_id,
+        ]);
+
         // Validasyon Kuralları
         $validated = $request->validate([
-            'musteri_adi' => 'required|string|max:255',
+            'customer_id' => 'nullable|integer|exists:customers,id',
+            'yetkili_user_id' => 'nullable|integer|exists:users,id',
+            
+            // ESKİ KAYITLAR İÇİN: customer_id yoksa musteri_adi zorunlu
+            'musteri_adi' => 'required_without:customer_id|nullable|string|max:255',
             'musteri_iletisim' => 'nullable|string|max:255',
             'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı',
             'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id',
@@ -210,6 +232,22 @@ class SikayetController extends Controller
         try {
             // Validate edilmiş veriyi al, dosya işlemlerini (dizi oldukları için) çıkar
             $updateData = collect($validated)->except(['dosyalar', 'dosyalar_sil'])->toArray();
+
+            // ============================================================
+            // === BURAYA EKLİYORUZ: OTOMATİK İSİM DOLDURMA MANTIĞI ===
+            // ============================================================
+            if ($request->customer_id) {
+                $customer = \App\Models\Customer::find($request->customer_id);
+                
+                // Müşteri adını ve iletişim bilgisini otomatik doldur (Veritabanında boş kalmasın)
+                $updateData['musteri_adi'] = $customer->name;
+                
+                // Eğer iletişim bilgisi boş gelmişse, firmanınkini yaz
+                if(empty($updateData['musteri_iletisim'])) {
+                    $updateData['musteri_iletisim'] = $customer->phone ?? $customer->email;
+                }
+           }
+           // ============================================================
 
             // --- DÜZELTİLMİŞ VERİ HAZIRLAMA ---
             // Alt Kategori Mantığı

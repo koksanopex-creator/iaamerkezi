@@ -15,6 +15,10 @@ class MusteriSikayeti extends Model
 
     protected $fillable = [
         'iaa_id', // <-- YENİ EKLENDİ
+        // === YENİ EKLENEN (CRM) ===
+        'customer_id', // Hangi Firmadan?
+        'yetkili_user_id',
+        // ===========================
         'musteri_adi',
         'musteri_iletisim',
         'konum_tipi',
@@ -30,31 +34,23 @@ class MusteriSikayeti extends Model
         'musteri_onay_tarihi',
         'kurul_onay_tarihi',
         'olusturan_kurul_uyesi_id',
-        'sikayet_kategorisi_id', // <-- YENİ EKLENDİ
-
-// === ŞUNLARI EKLE ===
-'sikayet_alt_kategori_id',
-'sikayet_alt_kategori_diger',
-// ====================
-
+        'sikayet_kategorisi_id',
+        'sikayet_alt_kategori_id',
+        'sikayet_alt_kategori_diger',
         'musteri_cozum_son_tarihi',
         'musteri_ek_sure_talep_durumu',
         'musteri_puan',
-        'kazanilan_puan', // <-- YENİ EKLENDİ
-        'ek_sure_talep_aciklamasi', // <-- YENİ EKLENDİ
-        'etki_puani', // <-- YENİ EKLENDİ
-        'karmasiklik_puani', // <-- YENİ EKLENDİ
-
-        // === YENİ EKLENECEK ALANLAR ===
+        'kazanilan_puan',
+        'ek_sure_talep_aciklamasi',
+        'etki_puani',
+        'karmasiklik_puani',
         'takip_token',
         'guest_password_hash',
         'musteri_feedback',
         'musteri_feedback_note',
         'edit_locked_at',
-        // === YENİ EKLENENLER ===
         'musteri_bildirim_yapan_id',
         'musteri_bildirim_tarihi'
-        // ===============================
     ];
 
     // === BU BLOĞU EKLE ===
@@ -69,10 +65,21 @@ class MusteriSikayeti extends Model
         'kurul_onay_tarihi' => 'datetime',
         'musteri_cozum_son_tarihi' => 'datetime',
         'edit_locked_at' => 'datetime',
-        // === YENİ EKLENEN ===
         'musteri_bildirim_tarihi' => 'datetime',
     ];
-    // === EKLEME SONU ===
+
+    // =========================================================
+    // === YENİ İLİŞKİ (CRM) ===
+    // =========================================================
+
+    /**
+     * Şikayetin bağlı olduğu Müşteri Firması (Opsiyonel)
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
 
     // === YENİ İLİŞKİYİ EKLE ===
     /**
@@ -111,6 +118,14 @@ class MusteriSikayeti extends Model
     {
         // 'sikayet_kategorisi_id' yabancı anahtarı üzerinden ilişki kurar.
         return $this->belongsTo(SikayetKategori::class, 'sikayet_kategorisi_id');
+    }
+
+    /**
+     * Şikayetin seçilen alt kategorisi
+     */
+    public function sikayetAltKategori()
+    {
+        return $this->belongsTo(SikayetAltKategori::class, 'sikayet_alt_kategori_id');
     }
 
     /**
@@ -202,12 +217,10 @@ class MusteriSikayeti extends Model
                     ->whereNotNull('proje_yorumlari.musteri_sikayeti_id');
     } 
     
-    /**
-     * Şikayetin seçilen alt kategorisi
-     */
-    public function sikayetAltKategori()
+    public function yetkili_user()
     {
-        return $this->belongsTo(SikayetAltKategori::class, 'sikayet_alt_kategori_id');
+        // Yetkili kişi "users" tablosunda olduğu için User modeline bağlanmalı
+        return $this->belongsTo(\App\Models\User::class, 'yetkili_user_id'); 
     }
 
 }

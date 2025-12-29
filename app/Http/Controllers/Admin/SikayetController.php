@@ -14,14 +14,14 @@ use Illuminate\Support\Facades\Log;
 use App\Models\MusteriSikayetiDosyasi; 
 use App\Models\SikayetKategori;
 use Illuminate\Support\Facades\Auth;
-use App\Traits\ComplaintNotificationTrait; // <-- Add this line
+use App\Traits\ComplaintNotificationTrait; 
 use Illuminate\Support\Facades\Validator;
 
 
 class SikayetController extends Controller
 {
     use AuthorizesRequests;
-    use ComplaintNotificationTrait; // <-- Add this line
+    use ComplaintNotificationTrait; 
 
     public function index()
     {
@@ -29,26 +29,47 @@ class SikayetController extends Controller
         return view('admin.sikayetler.index');
     }
 
-    public function create()
+    /**
+     * Şikayet oluşturma formunu gösterir.
+     * URL'den 'musteri_id' parametresi gelirse, o müşteriyi otomatik seçer.
+     */
+    public function create(Request $request)
     {
         $this->authorize('create', MusteriSikayeti::class);
-        // Kategorileri çek ve view'e gönder
+        
+        // Kategorileri çek
         $kategoriler = SikayetKategori::orderBy('ad')->get();
-        return view('admin.sikayetler.create', compact('kategoriler')); 
+
+        // URL'den gelen 'musteri_id' parametresini al (Varsa)
+        $preselectedCustomerId = $request->query('musteri_id');
+
+        // View'e hem kategorileri hem de varsa müşteri ID'sini gönder
+        return view('admin.sikayetler.create', compact('kategoriler', 'preselectedCustomerId')); 
     }
 
     public function store(Request $request)
     {
         $this->authorize('create', MusteriSikayeti::class);
+        $user = auth()->user();
 
-        // === 1. TEMİZLİK ===
-        // Boş stringleri NULL yapıyoruz ki veritabanı kızmasın
+        // ============================================================
+        // === GÜVENLİK VE OTOMATİK VERİ ATAMA ===
+        // ============================================================
+        
+        // 1. Eğer Müşteri İse: Başkası adına kayıt giremez, kendi ID'sini zorla.
+        if (!$user->is_personnel && $user->customer_id) {
+            $request->merge(['customer_id' => $user->customer_id]);
+        }
+
+        // Temizlik
         $request->merge([
             'yetkili_user_id' => $request->yetkili_user_id ?: null,
             'sikayet_alt_kategori_id' => ($request->sikayet_alt_kategori_id === 'other' || !$request->sikayet_alt_kategori_id) ? null : $request->sikayet_alt_kategori_id,
         ]);
 
-        // === 2. VALIDASYON ===
+        // ============================================================
+        // === VALIDASYON ===
+        // ============================================================
         $validated = $request->validate([
             'customer_id' => 'required|integer|exists:customers,id',
             'yetkili_user_id' => 'nullable|integer|exists:users,id',
@@ -65,10 +86,13 @@ class SikayetController extends Controller
             'dosyalar.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,mp4|max:10240',
         ]);
 
-        $user = auth()->user();
+        // ============================================================
+        // === PUAN VE HAZIRLIK ===
+        // ============================================================
         $kazanilacakPuan = 0;
 
-        if (!$user->hasRole('Superadmin')) {
+        // KURAL: Sadece Kurul Üyesi/Personel ise puan ver. Müşteriye puan YOK.
+        if (!$user->hasRole('Superadmin') && $user->is_personnel) { 
             $kazanilacakPuan = (int)(\App\Models\Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0);
         }
 
@@ -76,35 +100,47 @@ class SikayetController extends Controller
         try {
             $sikayetData = $validated;
 
-            // === 3. OTOMATİK VERİ DOLDURMA ===
+            // Müşteri Adı ve İletişim Bilgisi Doldurma
             if ($request->customer_id) {
                 $customer = \App\Models\Customer::find($request->customer_id);
                 $sikayetData['musteri_adi'] = $customer->name;
                 
-                if ($request->yetkili_user_id) {
+                // Müşteri kendi ekliyorsa, iletişim bilgisi olarak kendi profilini yazsın
+                if (!$user->is_personnel) {
+                    $sikayetData['musteri_iletisim'] = $user->name . ' (' . $user->email . ')';
+                }
+                // Personel ekliyorsa ve yetkili seçtiyse onu yazsın
+                elseif ($request->yetkili_user_id) {
                     $yetkili = \App\Models\User::find($request->yetkili_user_id);
                     $sikayetData['musteri_iletisim'] = $yetkili->name . ' (' . $yetkili->email . ')';
-                } else {
+                } 
+                // Hiçbiri değilse firmanın genel telefonunu yazsın
+                else {
                     $sikayetData['musteri_iletisim'] = $customer->phone ?? 'Belirtilmedi';
                 }
             }
 
+            // Alt Kategori Temizliği
             if ($request->sikayet_alt_kategori_id === null && $request->sikayet_alt_kategori_diger) {
                 $sikayetData['sikayet_alt_kategori_id'] = null;
             } else {
                 $sikayetData['sikayet_alt_kategori_diger'] = null;
             }
 
+            // Müşteri Ekliyorsa 'olusturan_kurul_uyesi_id' yine de kendi ID'si olsun (Takip için)
+            // Ama puan kazanmayacak.
             $sikayetData['olusturan_kurul_uyesi_id'] = $user->id;
             $sikayetData['musteri_durum'] = 'Yeni';
             $sikayetData['kazanilan_puan'] = $kazanilacakPuan;
 
             $sikayet = MusteriSikayeti::create($sikayetData);
 
+            // Puan Ekleme (Sadece Personelse)
             if ($kazanilacakPuan > 0) {
                 $user->increment('toplam_puan', $kazanilacakPuan);
             }
 
+            // Dosya Kaydı
             if ($request->hasFile('dosyalar')) {
                 foreach ($request->file('dosyalar') as $dosya) {
                     $path = $dosya->store('sikayet_dosyalari', 'public');
@@ -119,9 +155,27 @@ class SikayetController extends Controller
             }
 
             DB::commit();
+
+            // LOGLAMA
+            $rol = $user->getRoleNames()->first(); 
+            if (!$rol) {
+                $rol = $user->is_personnel ? 'Personel' : 'Müşteri';
+            }
+
+            \App\Models\MusteriLog::add(
+                $sikayet->customer_id, 
+                'Şikayet Oluşturma', 
+                $user->name . " ($rol) tarafından #{$sikayet->id} nolu şikayet oluşturuldu."
+            );
             
+            // Bildirim Gönder
             if (method_exists($this, 'sendNewComplaintNotification')) {
                 $this->sendNewComplaintNotification($sikayet);
+            }
+
+            // Yönlendirme (Müşteriyse Dashboard'a, Personelse Listeye)
+            if (!$user->is_personnel) {
+                return redirect()->route('dashboard')->with('success', 'Şikayetiniz başarıyla oluşturuldu ve işleme alındı.');
             }
 
             return redirect()->route('admin.sikayetler.index')->with('success', 'Şikayet başarıyla oluşturuldu.');
@@ -133,51 +187,93 @@ class SikayetController extends Controller
         }
     }
 
-    public function show(MusteriSikayeti $sikayet)
+    public function show($id) // ID olarak alıp içeride findOrFail yapmak daha güvenli olabilir ama Model Binding de olur.
     {
-        $user = Auth::user();
+        // Model Binding kullanıyorsan parametre (MusteriSikayeti $sikayet) kalabilir.
+        // Ben garanti olsun diye ID üzerinden çekiyorum, ilişkileri de burada yüklüyorum.
+        $sikayet = \App\Models\MusteriSikayeti::with(['sikayetKategori', 'iaa'])->findOrFail($id);
         
-        // === YENİ HİBRİT YETKİ KONTROLÜ ===
-        // Standart Policy ($this->authorize) yerine manuel kontrol yapıyoruz
-        // çünkü Policy dosyası squad mantığını henüz bilmiyor olabilir.
-        
+        $user = \Illuminate\Support\Facades\Auth::user();
         $yetkiVar = false;
 
-        // 1. Admin veya Kurul ise girer
-        if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi', 'Yonetim'])) {
+        // -------------------------------------------------------------
+        // 1. SÜPER YETKİLİLER (Her yeri görenler)
+        // -------------------------------------------------------------
+        // DİKKAT: Buradan 'Bölüm Kalite Yöneticisi'ni ÇIKARDIM.
+        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
             $yetkiVar = true;
-        }
-        // 2. [YENİ] BÖLÜM LİDERİ KONTROLÜ (Emrah Al buraya takılacak)
-        elseif ($user->hasRole('Bölüm Lideri')) {
-            // Şikayetin kategorisi var mı ve bu kategori kullanıcının bölümüne mi ait?
-            if ($sikayet->sikayetKategori && $sikayet->sikayetKategori->bolum_id == $user->bolum_id) {
-                $yetkiVar = true;
-            }
-            // VEYA: Kullanıcı "Bölüm Kalite Yöneticisi" ise ve kategorisi uyuyorsa
-            elseif ($user->hasRole('Bölüm Kalite Yöneticisi') && $user->yonettigiSikayetKategorileri->contains($sikayet->sikayet_kategorisi_id)) {
-                $yetkiVar = true;
-            }
-        }
-        // 3. Atanan Takımın Üyesi ise girer
-        elseif ($sikayet->atanan_cozum_takimi_id && $user->takimlar->contains($sikayet->atanan_cozum_takimi_id)) {
-            $yetkiVar = true;
-        }
-        // 4. İAA Projesi Varsa ve Squad Üyesi ise girer (CİHANGİR BURADAN GİRECEK)
-        elseif ($sikayet->iaa_id) {
-             $iaa = \App\Models\Iaa::find($sikayet->iaa_id);
-             if ($iaa && $iaa->projeEkibi()->where('user_id', $user->id)->wherePivot('durum', 'onaylandi')->exists()) {
-                 $yetkiVar = true;
-             }
         }
 
+        // -------------------------------------------------------------
+        // 2. BÖLÜM VE KATEGORİ YETKİSİ (Serkan Tölek, Serkan Atak, Hasan Ekinci)
+        // -------------------------------------------------------------
         if (!$yetkiVar) {
-            abort(403, 'Bu şikayeti görüntüleme yetkiniz yok. (Bölüm eşleşmesi veya yetki bulunamadı)');
-        }
-        // === KONTROL SONU ===
+            // User modeline eklediğimiz o akıllı fonksiyonu kullanıyoruz.
+            $allowedBolumIds = $user->getAllowedBolumIds(); 
 
-        // İlişkileri yükle
+            // Şikayetin kategorisi var mı ve bu kategori kullanıcının yetki alanında mı?
+            if ($sikayet->sikayetKategori && in_array($sikayet->sikayetKategori->bolum_id, $allowedBolumIds)) {
+                $yetkiVar = true;
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 3. GÖREV VE TAKIM YETKİSİ (Sinan Poyraz, Cihangir vb.)
+        // -------------------------------------------------------------
+        if (!$yetkiVar) {
+            
+            // A. Atanan Çözüm Takımının Üyesi mi?
+            if ($sikayet->atanan_cozum_takimi_id && $user->takimlar->contains($sikayet->atanan_cozum_takimi_id)) {
+                $yetkiVar = true;
+            }
+
+            // B. İAA Projesi (Squad) Üyesi mi?
+            elseif ($sikayet->iaa) {
+                // Proje ekibinde var mı? (Durumu 'onaylandi' olanlar)
+                $isSquadMember = $sikayet->iaa->users()
+                    ->where('users.id', $user->id)
+                    // ->wherePivot('durum', 'onaylandi') // İstersen bu filtreyi açabilirsin
+                    ->exists();
+                
+                if ($isSquadMember) {
+                    $yetkiVar = true;
+                }
+            }
+
+            // C. Bölüm Lideri Ekstra Kontrolü (Serkan Atak)
+            // Kendi bölümünden (Kapak) bir personel (Sinan), başka bir bölümün (Preform) projesindeyse,
+            // Lider bunu görebilmeli mi? Genelde evet.
+            if ($user->hasRole('Bölüm Lideri') && $sikayet->iaa) {
+                $staffIds = \App\Models\User::where('bolum_id', $user->bolum_id)->pluck('id');
+                // Projede benim elemanlardan biri var mı?
+                if ($sikayet->iaa->users()->whereIn('users.id', $staffIds)->exists()) {
+                    $yetkiVar = true;
+                }
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 4. [YENİ] MÜŞTERİ YETKİLİSİ ERİŞİMİ
+        // -------------------------------------------------------------
+        // Eğer yetki hala yoksa ama kullanıcı bir Müşteri Yetkilisiyse
+        // ve şikayet bu müşterinin firmasına aitse -> İZİN VER
+        if (!$yetkiVar && $user->customer_id && $sikayet->customer_id == $user->customer_id) {
+            $yetkiVar = true;
+        }
+
+        // -------------------------------------------------------------
+        // SONUÇ: YETKİ YOKSA AT (Mevcut Kod)
+        // -------------------------------------------------------------
+        if (!$yetkiVar) {
+            abort(403, 'Bu şikayeti görüntüleme yetkiniz yok. (Bölüm eşleşmesi veya görev bulunamadı)');
+        }
+
+        // -------------------------------------------------------------
+        // İLİŞKİLERİ YÜKLE VE GÖNDER
+        // -------------------------------------------------------------
+        // Senin orijinal kodundaki ilişkileri yüklüyoruz
         $sikayet->load('cozumTakimi', 'olusturanKurulUyesi', 'dosyalar', 'sikayetKategori');
-        
+
         return view('admin.sikayetler.show', compact('sikayet'));
     }
 
@@ -187,7 +283,7 @@ class SikayetController extends Controller
         $sikayet->load('dosyalar');
         // Kategorileri çek ve view'e gönder
         $kategoriler = SikayetKategori::orderBy('ad')->get();
-        return view('admin.sikayetler.edit', compact('sikayet', 'kategoriler')); // <-- 'kategoriler' eklendi
+        return view('admin.sikayetler.edit', compact('sikayet', 'kategoriler')); 
     }
 
     /**
@@ -199,8 +295,6 @@ class SikayetController extends Controller
         $this->authorize('update', $sikayet);
 
         // === KRİTİK TEMİZLİK: Boş gelen ID'leri NULL yap ===
-        // Bu sayede "seçiniz" değeri (boş string) veritabanına NULL olarak gider
-        // ve validasyondaki 'integer' kuralına takılmaz.
         $request->merge([
             'customer_id' => $request->customer_id ?: null,
             'yetkili_user_id' => $request->yetkili_user_id ?: null,
@@ -317,6 +411,14 @@ class SikayetController extends Controller
             }
             $sikayet->delete();
 
+            // --- BURASI EKLENECEK ---
+            \App\Models\MusteriLog::add(
+                $sikayet->customer_id, 
+                'Şikayet Silme', 
+                auth()->user()->name . ', #' . $sikayet->id . ' nolu şikayeti sildi.'
+            );
+            // ------------------------
+
             DB::commit();
             return redirect()->route('admin.sikayetler.index')->with('success', 'Şikayet ve ilişkili dosyaları başarıyla silindi, kazanılan puan geri alındı.');
 
@@ -327,7 +429,6 @@ class SikayetController extends Controller
         }
     }
 
-    // === 2. YENİ METODU BURAYA EKLEYİN ===
     /**
      * Sadece Kurul üyelerinin girdiği şikayetleri filtreleyerek gösterir.
      */
@@ -395,13 +496,4 @@ class SikayetController extends Controller
             'stats_kisisel' 
         ));
     }
-    // === YENİ METOD SONU ===
-
-    /**
-     * === BU FONKSİYON SİLİNDİ ===
-     * Anında silme (AJAX) fonksiyonu olan 'destroyDosya'
-     * sizin istediğiniz "kaydet'e basana kadar bekle" mantığına
-     * uymadığı için TAMAMEN KALDIRILDI.
-     */
-    // public function destroyDosya(...) { ... }
 }

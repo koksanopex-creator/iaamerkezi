@@ -341,6 +341,17 @@ class ProjectWorkspaceController extends Controller
             return true;
         }
 
+        // =================================================================
+        // === YENİ EKLENEN KISIM: MÜŞTERİ YETKİLİSİ KONTROLÜ ===
+        // =================================================================
+        // Eğer kullanıcı bir müşteriye bağlıysa (customer_id varsa)
+        // VE proje bir şikayetten geliyorsa
+        // VE şikayetin sahibi bu kullanıcıyla aynı firmadansa -> İZİN VER
+        if ($user->customer_id && $iaa->musteriSikayeti && $iaa->musteriSikayeti->customer_id == $user->customer_id) {
+            return true;
+        }
+        // =================================================================
+
         // 2. Müşteri Şikayeti Kaynaklı Proje
         if ($iaa->musteriSikayeti) {
             
@@ -395,6 +406,7 @@ class ProjectWorkspaceController extends Controller
 
         return false;
     }
+    
 
     public function assignUserToStep(Request $request, $iaa_id, $step_id)
     {

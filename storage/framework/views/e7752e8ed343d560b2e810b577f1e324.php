@@ -35,12 +35,35 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
 
                             
+                            
                             <div class="md:col-span-2 mb-6">
                                 <?php
+                                    $currentUser = auth()->user();
+                                    $isMusteri = !$currentUser->is_personnel && $currentUser->customer_id;
+                                ?>
+
+                                <?php if($isMusteri): ?>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Firma</label>
+                                    <div class="flex items-center p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                        <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold mr-3">
+                                            <?php echo e(substr($currentUser->customer->name ?? 'F', 0, 1)); ?>
+
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-bold text-gray-900"><?php echo e($currentUser->customer->name ?? 'Firmanız'); ?></p>
+                                            <p class="text-xs text-gray-500">Bu şikayet firmanız adına kaydedilecektir.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <input type="hidden" name="customer_id" value="<?php echo e($currentUser->customer_id); ?>">
+                                    
+                                <?php else: ?>
+                                    
+                                    <?php
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split('admin.sikayet-musteri-secimi', []);
+[$__name, $__params] = $__split('admin.sikayet-musteri-secimi', ['preselectedCustomerId' => $preselectedCustomerId ?? null]);
 
 $__html = app('livewire')->mount($__name, $__params, 'lw-2593116572-0', $__slots ?? [], get_defined_vars());
 
@@ -52,6 +75,7 @@ unset($__params);
 unset($__split);
 if (isset($__slots)) unset($__slots);
 ?>
+                                <?php endif; ?>
                             </div>
 
                             <div class="group md:col-span-2 mb-6">

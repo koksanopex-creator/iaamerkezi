@@ -210,4 +210,14 @@ class Iaa extends Model
                     ->withTimestamps();
     }
 
+    /**
+     * Bu projede görevli kullanıcılar (Alias for projeEkibi).
+     * Yetki kontrollerinde standart isim olarak kullanılır.
+     */
+    public function users()
+    {
+        // projeEkibi ile aynı ilişkiyi döndürür
+        return $this->projeEkibi();
+    }
+
 }

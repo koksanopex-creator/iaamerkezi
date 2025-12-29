@@ -10,10 +10,11 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Storage; 
 use Illuminate\Support\Facades\Config; 
 
-// === EKLENEN: LOGİN İŞLEMİ İÇİN GEREKLİ SINIFLAR ===
+// === EKLENEN: LOGİN VE LOG İŞLEMLERİ İÇİN GEREKLİ SINIFLAR ===
 use Illuminate\Support\Facades\Event;
 use Illuminate\Auth\Events\Login;
 use App\Models\LoginActivity;
+use App\Models\MusteriLog; // <--- YENİ EKLENDİ
 // ===================================================
 
 use App\Models\MusteriSikayeti;
@@ -38,38 +39,41 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // === YENİ EKLENEN: GİRİŞ HAREKETLERİNİ KAYDET (LOGIN HISTORY) ===
-        // Kullanıcı giriş yaptığında bu kod çalışır ve kayıt atar.
+        // === GİRİŞ HAREKETLERİNİ KAYDET (LOGIN HISTORY & MUSTERI LOG) ===
         Event::listen(Login::class, function ($event) {
+            $user = $event->user;
+
+            // 1. Mevcut Sistem Logu (Genel)
             LoginActivity::create([
-                'user_id' => $event->user->id,
+                'user_id' => $user->id,
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
                 'created_at' => now(),
             ]);
+
+            // 2. YENİ: Müşteri Logu (Eğer giren kişi bir firma yetkilisi ise)
+            if ($user->customer_id) {
+                MusteriLog::add($user->customer_id, 'Sisteme Giriş', $user->name . ' (Yetkili) sisteme giriş yaptı.');
+            }
         });
         // ================================================================
 
-        // === GÖZLEMCİLERİ (OBSERVERS) BURAYA KAYDEDİN ===
+        // === GÖZLEMCİLER (OBSERVERS) ===
         MusteriSikayeti::observe(MusteriSikayetiObserver::class);
         Iaa::observe(IaaObserver::class);
         TakimDavetiyesi::observe(TakimDavetiyesiObserver::class);
-        // === KAYIT SONU ===
+        // ===============================
 
-        // Mevcut kodunuz buradan devam ediyor
+        // Ayarlar ve View Paylaşımları
         if (Schema::hasTable('settings')) {
-            // Ayarları tek seferde al
             $settings = Setting::all()->keyBy('key');
             
-            // Logoyu paylaş
             $logo = $settings->get('site_logo');
             View::share('siteLogo', $logo ? $logo->value : null);
 
-            // Kayıt onay ayarını paylaş
             $kayitOnay = $settings->get('kayit_onay_sistemi');
             View::share('kayitOnaySistemiAktif', $kayitOnay ? (bool)$kayitOnay->value : true);
             
-            // Para birimlerini bir dizi olarak paylaş
             $paraBirimleriSetting = $settings->get('para_birimleri');
             $paraBirimleri = $paraBirimleriSetting ? explode(',', $paraBirimleriSetting->value) : ['TL', 'USD', 'EUR'];
             View::share('paraBirimleri', $paraBirimleri);

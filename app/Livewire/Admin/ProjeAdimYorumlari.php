@@ -30,6 +30,8 @@ class ProjeAdimYorumlari extends Component
     public $editingCommentId = null;
     public $editingCommentBody = '';
     // === YENİ SONU ===
+
+    public $isMusteri = false;
     
     protected $rules = [
         'yeniYorum' => 'required_without:yeniDosya|string|min:3|nullable',
@@ -78,6 +80,15 @@ class ProjeAdimYorumlari extends Component
                 $this->kullaniciYetkiliMi = true;
                 return;
             }
+
+            // === YENİ EKLENECEK KISIM (BAŞLANGIÇ) ===
+            // C) MÜŞTERİ YETKİLİSİ KONTROLÜ
+            // Eğer giriş yapan kullanıcı bir firmaya bağlıysa VE proje o firmanın şikayetine aitse
+            if ($user->customer_id && $this->iaa->musteriSikayeti && $this->iaa->musteriSikayeti->customer_id == $user->customer_id) {
+                $this->isMusteri = true;
+                return;
+            }
+            // === YENİ EKLENECEK KISIM (BİTİŞ) ===
         }
 
         // 2. SENARYO: DIŞ MÜŞTERİ (Giriş yapmamış, Token ile gelmiş)
@@ -85,7 +96,8 @@ class ProjeAdimYorumlari extends Component
         if ($this->iaa->musteriSikayeti) {
             $sessionKey = 'sikayet_logged_in_' . $this->iaa->musteriSikayeti->takip_token;
             if (Session::has($sessionKey)) {
-                $this->kullaniciYetkiliMi = true;
+                $this->kullaniciYetkiliMi = true; // Form görünsün diye bunu da true bırakabilirsin
+                $this->isMusteri = true; // <--- BURAYI GÜNCELLE (Eskiden $kullaniciYetkiliMi idi, isMusteri daha doğru)
                 return;
             }
         }
@@ -102,7 +114,7 @@ class ProjeAdimYorumlari extends Component
             'yeniDosya' => $this->rules['yeniDosya'],
         ]);
 
-        if (!$this->kullaniciYetkiliMi) {
+        if (!$this->kullaniciYetkiliMi && !$this->isMusteri) {
             session()->flash('yorum_error', 'Yorum yapma yetkiniz bulunmamaktadır.');
             return;
         }
@@ -119,11 +131,22 @@ class ProjeAdimYorumlari extends Component
             );
         }
 
-        // ... (Yapan kişiyi belirleme kodu aynı) ...
-        $yapanKisi = "Sistem"; $userId = null; $sikayetId = null;
+        // Yapan Kişiyi Belirleme
+        $yapanKisi = "Sistem"; 
+        $userId = null; 
+        $sikayetId = null;
+
         if (Auth::check()) {
-            $yapanKisi = Auth::user()->name; $userId = Auth::id();
-        } elseif ($this->iaa->musteriSikayeti && Session::has('sikayet_logged_in_' . $this->iaa->musteriSikayeti->takip_token)) {
+            $yapanKisi = Auth::user()->name; 
+            $userId = Auth::id();
+            
+            // Eğer müşteri olarak giriş yapmışsa şikayet ID'sini de bağla
+            if ($this->isMusteri && $this->iaa->musteriSikayeti) {
+                $sikayetId = $this->iaa->musteriSikayeti->id;
+            }
+        } 
+        // Misafir Müşteri (Session ile)
+        elseif ($this->isMusteri && $this->iaa->musteriSikayeti) {
             $yapanKisi = $this->iaa->musteriSikayeti->musteri_adi . " (Müşteri)";
             $sikayetId = $this->iaa->musteriSikayeti->id;
         }
@@ -186,11 +209,13 @@ class ProjeAdimYorumlari extends Component
         // 8. MÜŞTERİYE E-POSTA GÖNDER
         // Eğer yorumu yapan GİRİŞ YAPMIŞ BİR KULLANICIYSA ($userId doluysa)
         // VE bu proje bir MÜŞTERİ ŞİKAYETİNE bağlıysa ($this->iaa->musteriSikayeti varsa)
-        if ($userId && $this->iaa->musteriSikayeti && $this->iaa->musteriSikayeti->musteri_iletisim) {
-            Mail::to($this->iaa->musteriSikayeti->musteri_iletisim)
-                ->queue(new YeniYorumBildirimiMail($yeniYorumKaydi, $this->iaa));
-        }
-        // === YENİ E-POSTA GÖNDERİMİ SONU ===
+        // 2. Müşteriye E-Posta (SADECE YORUMU YAPAN MÜŞTERİ DEĞİLSE GİDER)
+        // Eğer $isMusteri false ise, demek ki yorumu personel yapmıştır -> Müşteriye mail at.
+            if (!$this->isMusteri && $this->iaa->musteriSikayeti && $this->iaa->musteriSikayeti->musteri_iletisim) {
+                Mail::to($this->iaa->musteriSikayeti->musteri_iletisim)
+                    ->queue(new YeniYorumBildirimiMail($yeniYorumKaydi, $this->iaa));
+            }
+        // === SON ===
 
     } catch (\Exception $e) {
         \Log::error('Yeni yorum bildirimi VEYA E-POSTASI gönderilemedi: ' . $e->getMessage());

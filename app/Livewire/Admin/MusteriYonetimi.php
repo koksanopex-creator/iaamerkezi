@@ -11,71 +11,137 @@ use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Livewire\WithFileUploads; // <--- EKLENDİ
-use Illuminate\Support\Facades\Storage; // <--- EKLENDİ
+use Livewire\WithFileUploads;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class MusteriYonetimi extends Component
 {
     use WithPagination, WithFileUploads;
 
-    // Arama ve Modal Kontrolleri
+    // Arama ve Modal Değişkenleri
     public $search = '';
-    public $showModal = false; // Firma Ekleme/Düzenleme Modalı
-    public $showRepModal = false; // YENİ: Yetkili Yönetimi Modalı
+    public $showModal = false;
+    public $showRepModal = false;
+    public $showStatusModal = false;
+    
+    // Yetki Kontrolü
+    public $isAdmin = false;
+
+    // Form Alanları
     public $isEditMode = false;
+    public $statusReason = '';
+    
+    // Durum Değişikliği İçin Hedef Müşteri (View'da DB sorgusu yapmamak için)
+    public $targetCustomer = null; 
 
-    // Firma Form Alanları
-    public $customer_id;
-    public $name, $tax_number, $tax_office, $address, $phone, $location_type = 'Yurt İçi';
-
-    // İlk Yetkili Form Alanları (Firma eklerken)
+    public $customer_id, $name, $tax_number, $tax_office, $address, $phone, $location_type = 'Yurt İçi';
     public $rep_name, $rep_email, $rep_phone;
+    public $new_rep_name, $new_rep_email, $new_rep_phone, $selectedCustomer;
+    public $editingRepId = null, $edit_rep_name, $edit_rep_email, $edit_rep_phone;
+    public $logo, $rep_title, $new_rep_title, $edit_rep_title;
+    
+    // Şifre Gösterimi
+    public $createdUserPassword = null; 
 
-    // YENİ: Ek Yetkili Ekleme Alanları (Yetkili Yönetimi Modalı için)
-    public $new_rep_name, $new_rep_email, $new_rep_phone;
-    public $selectedCustomer; // İşlem yapılan firma
-
-    // Yetkili Düzenleme Değişkenleri
-    public $editingRepId = null; // Şu an düzenlenen kişinin ID'si
-    public $edit_rep_name, $edit_rep_email, $edit_rep_phone;
-
-    // Yeni Değişkenler
-    public $logo; // Logo dosyası için
-    public $rep_title; // İlk yetkili ünvanı
-    public $new_rep_title; // Yeni eklenecek yetkili ünvanı
-    public $edit_rep_title; // Düzenlenen yetkili ünvanı
-
-    // Validasyon Kuralları
     protected function rules()
     {
         return [
-            // Firma Kuralları
             'name' => 'required|min:3|max:150|string',
-            'logo' => 'nullable|image|max:2048', // <--- Logo: Resim olmalı, max 2MB
+            'logo' => 'nullable|image|max:2048',
             'tax_number' => 'nullable|numeric|digits_between:10,11',
             'address' => 'nullable|string|max:500',
             'phone' => 'nullable|numeric|digits_between:10,15',
             'location_type' => 'required|in:Yurt İçi,Yurt Dışı',
-
-            // Yetkili Kişi Kuralları
             'rep_name' => $this->isEditMode ? 'nullable' : 'required|min:3|max:50|string',
-            // DÜZELTİLEN KISIM: Silinmiş mailleri kontrol etme
-            'rep_email' => [
-                $this->isEditMode ? 'nullable' : 'required',
-                'email',
-                Rule::unique('users', 'email')->whereNull('deleted_at') 
-            ],
-            'rep_title' => 'nullable|string|max:100', // <--- İlk yetkili ünvanı
+            'rep_email' => [$this->isEditMode ? 'nullable' : 'required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')],
+            'rep_title' => 'nullable|string|max:100',
             'rep_phone' => 'nullable|numeric|digits_between:10,15',
         ];
     }
 
+    public function mount()
+    {
+        $user = Auth::user();
+
+        // 1. MÜŞTERİ ENGELİ
+        if ($user->customer_id) {
+            return redirect()->route('musteri.profil.show', $user->customer_id);
+        }
+
+        // 2. YETKİ BELİRLEME ($isAdmin burada set ediliyor)
+        // Bu roller tam yetkilidir.
+        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Bölüm Lideri'])) {
+            $this->isAdmin = true;
+        } else {
+            $this->isAdmin = false;
+
+            // GÖREV KONTROLÜ (Sinan gibi personeller için)
+            $gorevVarMi = \App\Models\MusteriSikayeti::where(function ($q) use ($user) {
+                $q->whereHas('cozumTakimi', function ($t) use ($user) {
+                    $t->whereHas('uyeler', function ($u) use ($user) {
+                        $u->where('users.id', $user->id);
+                    });
+                })
+                ->orWhereHas('iaa', function ($p) use ($user) {
+                    $p->whereHas('users', function ($u) use ($user) {
+                        $u->where('users.id', $user->id);
+                    });
+                });
+            })->exists();
+
+            if (!$gorevVarMi) {
+                abort(403, 'Herhangi bir müşteri şikayet takımında veya projede göreviniz bulunmamaktadır.');
+            }
+        }
+    }
+
     public function render()
     {
-        $customers = Customer::query()
-            ->withCount('representatives') // Yetkili sayısını getir
-            ->where('name', 'like', '%' . $this->search . '%')
-            ->orWhere('tax_number', 'like', '%' . $this->search . '%')
+        $user = Auth::user();
+        $query = Customer::query();
+
+        // FİLTRELEME MANTIĞI
+        if (!$this->isAdmin) {
+            $query->whereHas('sikayetler', function ($q) use ($user) {
+                $q->where(function($sub) use ($user) {
+                    $sub->whereHas('cozumTakimi', function ($t) use ($user) {
+                        $t->whereHas('uyeler', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
+                    })
+                    ->orWhereHas('iaa', function ($p) use ($user) {
+                        $p->whereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
+                        });
+                    });
+                });
+            });
+        }
+        elseif (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
+             $allowedBolumIds = $user->getAllowedBolumIds();
+             if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
+                $query->whereHas('sikayetler', function ($q) use ($allowedBolumIds) {
+                    $q->whereHas('sikayetKategori', function($k) use ($allowedBolumIds) {
+                        $k->whereIn('bolum_id', $allowedBolumIds);
+                    });
+                });
+             }
+        }
+
+        $customers = $query
+            ->withCount([
+                'representatives',
+                'sikayetler as toplam_sikayet',
+                'sikayetler as cozulmus_sikayet' => function ($q) {
+                    $q->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı']);
+                }
+            ])
+            ->where(function($q) {
+                $q->where('name', 'like', '%' . $this->search . '%')
+                  ->orWhere('tax_number', 'like', '%' . $this->search . '%');
+            })
+            ->orderBy('is_active', 'desc')
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
@@ -84,271 +150,137 @@ class MusteriYonetimi extends Component
         ])->layout('layouts.app');
     }
 
-    // === FİRMA İŞLEMLERİ ===
+    // --- ACTIONS ---
 
-    public function create()
-    {
-        $this->resetForm();
-        $this->showModal = true;
-        $this->isEditMode = false;
+    public function create() { 
+        if(!$this->isAdmin) abort(403); 
+        $this->resetForm(); 
+        $this->showModal = true; 
+        $this->isEditMode = false; 
     }
 
-    public function store()
-    {
+    public function store() {
+        if(!$this->isAdmin) abort(403);
         $this->validate();
-
         DB::transaction(function () {
-            // Logo Yükleme İşlemi
-            $logoPath = null;
-            if ($this->logo) {
-                $logoPath = $this->logo->store('musteri-logolari', 'public');
-            }
-            // 1. Firmayı Oluştur
+            $logoPath = $this->logo ? $this->logo->store('musteri-logolari', 'public') : null;
             $customer = Customer::create([
-                'name' => $this->name,
-                'logo_path' => $logoPath, // <--- Eklendi
-                'tax_number' => $this->tax_number,
-                'tax_office' => $this->tax_office,
-                'address' => $this->address,
-                'phone' => $this->phone,
-                'email' => $this->rep_email,
-                'location_type' => $this->location_type,
+                'name' => $this->name, 'logo_path' => $logoPath, 'tax_number' => $this->tax_number, 'tax_office' => $this->tax_office,
+                'address' => $this->address, 'phone' => $this->phone, 'email' => $this->rep_email, 'location_type' => $this->location_type, 'is_active' => true
             ]);
-
-            // 2. İlk Yetkiliyi Oluştur
             $this->createUserForCustomer($customer, $this->rep_name, $this->rep_email, $this->rep_phone, $this->rep_title);
         });
-
-        $this->showModal = false;
+        $this->showModal = false; 
+        $tempPassword = $this->createdUserPassword; 
         $this->resetForm();
+        $this->createdUserPassword = $tempPassword; 
+        session()->flash('message', 'Müşteri başarıyla oluşturuldu.');
     }
 
-    public function edit($id)
-    {
+    public function edit($id) {
+        if(!$this->isAdmin) abort(403);
         $customer = Customer::findOrFail($id);
-        $this->customer_id = $customer->id;
-        $this->name = $customer->name;
-        $this->tax_number = $customer->tax_number;
-        $this->tax_office = $customer->tax_office;
-        $this->address = $customer->address;
-        $this->phone = $customer->phone;
-        $this->location_type = $customer->location_type;
-
-        $this->isEditMode = true;
-        $this->showModal = true;
+        $this->customer_id = $customer->id; $this->name = $customer->name; $this->tax_number = $customer->tax_number;
+        $this->tax_office = $customer->tax_office; $this->address = $customer->address; $this->phone = $customer->phone;
+        $this->location_type = $customer->location_type; $this->isEditMode = true; $this->showModal = true;
     }
 
-    public function update()
-    {
-        $this->validate([
-            'name' => 'required|min:3',
-            'logo' => 'nullable|image|max:2048',
-            'location_type' => 'required',
-        ]);
-
+    public function update() {
+        if(!$this->isAdmin) abort(403);
+        $this->validate(['name' => 'required|min:3', 'logo' => 'nullable|image|max:2048', 'location_type' => 'required']);
         $customer = Customer::findOrFail($this->customer_id);
-        
-        // $data DEĞİŞKENİNİ BURADA TANIMLIYORUZ
-        $data = [
-            'name' => $this->name,
-            'tax_number' => $this->tax_number,
-            'tax_office' => $this->tax_office,
-            'address' => $this->address,
-            'phone' => $this->phone,
-            'location_type' => $this->location_type,
-        ];
-
-        // Yeni logo varsa eskini sil, yenisini yükle
+        $data = ['name' => $this->name, 'tax_number' => $this->tax_number, 'tax_office' => $this->tax_office, 'address' => $this->address, 'phone' => $this->phone, 'location_type' => $this->location_type];
         if ($this->logo) {
-            if ($customer->logo_path) {
-                Storage::disk('public')->delete($customer->logo_path);
-            }
+            if ($customer->logo_path) Storage::disk('public')->delete($customer->logo_path);
             $data['logo_path'] = $this->logo->store('musteri-logolari', 'public');
         }
-
-        $customer->update($data); // Artık $data tanımlı olduğu için hata vermeyecek
-
-        session()->flash('message', 'Müşteri bilgileri güncellendi.');
-        $this->showModal = false;
-        $this->resetForm();
+        $customer->update($data);
+        session()->flash('message', 'Güncellendi.'); $this->showModal = false; $this->resetForm();
     }
 
-    public function delete($id)
-    {
+    public function delete($id) {
+        if(!$this->isAdmin) abort(403);
         $customer = Customer::find($id);
-        
         if ($customer) {
-            // Önce bu firmaya bağlı tüm yetkilileri Soft Delete yapalım
-            foreach ($customer->representatives as $rep) {
-                $rep->delete(); 
-            }
-
-            // Sonra firmayı silelim
+            foreach ($customer->representatives as $r) $r->delete();
             $customer->delete();
-            
-            session()->flash('message', 'Müşteri ve bağlı yetkilileri silindi.');
+            session()->flash('message', 'Silindi.');
         }
     }
 
-    // === YENİ: YETKİLİ YÖNETİMİ İŞLEMLERİ ===
-
-    // Yetkililer penceresini aç
-    public function manageRepresentatives($customerId)
-    {
-        $this->selectedCustomer = Customer::with('representatives')->findOrFail($customerId);
-        $this->reset('new_rep_name', 'new_rep_email', 'new_rep_phone');
-        $this->showRepModal = true;
+    // --- DURUM DEĞİŞTİRME (DÜZELTİLDİ) ---
+    public function confirmStatusChange($id) 
+    { 
+        if(!$this->isAdmin) abort(403); 
+        
+        // Müşteriyi veritabanından çekip değişkene atıyoruz
+        // Böylece View'da tekrar DB sorgusu yapmaya gerek kalmaz.
+        $this->targetCustomer = Customer::findOrFail($id);
+        
+        $this->statusReason = $this->targetCustomer->passive_reason; 
+        $this->showStatusModal = true; 
     }
 
-    // Yeni bir yetkili ekle (Mevcut firmaya)
-    public function addRepresentative()
-    {
+    public function updateStatus() 
+    { 
+        if(!$this->isAdmin) abort(403); 
+        
+        if (!$this->targetCustomer) {
+             $this->showStatusModal = false;
+             return;
+        }
+
+        // Eğer şu an Aktifse -> Pasife alıyoruz (Sebep zorunlu)
+        if($this->targetCustomer->is_active) {
+            $this->validate(['statusReason' => 'required|min:5|max:500'], ['statusReason.required' => 'Pasife alma sebebini yazmalısınız.']);
+            $this->targetCustomer->update(['is_active' => false, 'passive_reason' => $this->statusReason]);
+        } 
+        // Eğer Pasifse -> Aktife alıyoruz
+        else {
+            $this->targetCustomer->update(['is_active' => true, 'passive_reason' => null]);
+        }
+
+        $this->showStatusModal = false; 
+        $this->reset('statusReason', 'targetCustomer');
+    }
+    
+    // --- YETKİLİ YÖNETİMİ ---
+    public function manageRepresentatives($id) { 
+        if(!$this->isAdmin) abort(403); 
+        $this->selectedCustomer = Customer::with('representatives')->findOrFail($id); 
+        $this->showRepModal = true; 
+        $this->createdUserPassword = null;
+    }
+    
+    public function addRepresentative() { 
+        if(!$this->isAdmin) abort(403); 
         $this->validate([
             'new_rep_name' => 'required|min:3|max:50|string',
-            'new_rep_title' => 'nullable|string|max:100', // Validasyon
-            // DÜZELTİLEN KISIM: Silinmiş mailleri kontrol etme
-            'new_rep_email' => [
-                'required', 
-                'email', 
-                Rule::unique('users', 'email')->whereNull('deleted_at')
-            ],
+            'new_rep_email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')],
             'new_rep_phone' => 'nullable|numeric|digits_between:10,15',
         ]);
-
-        $this->createUserForCustomer($this->selectedCustomer, $this->new_rep_name, $this->new_rep_email, $this->new_rep_phone, $this->new_rep_title);
-        
+        $this->createUserForCustomer($this->selectedCustomer, $this->new_rep_name, $this->new_rep_email, $this->new_rep_phone, $this->new_rep_title); 
         $this->selectedCustomer->refresh(); 
-        $this->reset('new_rep_name', 'new_rep_email', 'new_rep_phone', 'new_rep_title');
+        $this->reset('new_rep_name', 'new_rep_email', 'new_rep_phone', 'new_rep_title'); 
     }
-
-    // Yetkiliyi sil
-    public function deleteRepresentative($userId)
-    {
-        $user = User::find($userId);
-        if($user && $user->customer_id == $this->selectedCustomer->id) {
-            $user->delete(); // Soft delete
-            $this->selectedCustomer->refresh();
-            session()->flash('rep_message', 'Yetkili silindi.');
-        }
-    }
-
-    // Ortak Kullanıcı Oluşturma Fonksiyonu
-    private function createUserForCustomer($customer, $name, $email, $phone, $title = null): void
-    {
-        $password = Str::random(8);
+    
+    public function deleteRepresentative($id) { if(!$this->isAdmin) abort(403); $u = User::find($id); if($u && $u->customer_id == $this->selectedCustomer->id) { $u->delete(); $this->selectedCustomer->refresh(); } }
+    
+    private function createUserForCustomer($c, $n, $e, $p, $t=null): void {
+        $pass = Str::random(8);
+        $u = User::withTrashed()->updateOrCreate(['email'=>$e], ['name'=>$n, 'unvan'=>$t, 'telefon'=>$p, 'password'=>Hash::make($pass), 'is_personnel'=>false, 'customer_id'=>$c->id, 'onaylandi_mi'=>true, 'deleted_at'=>null]);
+        if(Role::where('name','Müşteri Temsilcisi')->exists()) $u->syncRoles(['Müşteri Temsilcisi']);
         
-        // 1. Bu mail adresiyle SİLİNMİŞ bir kullanıcı var mı?
-        $existingUser = User::withTrashed()->where('email', $email)->first();
-
-        if ($existingUser) {
-            // KULLANICI VARSA (Silinmişse geri getir)
-            if ($existingUser->trashed()) {
-                $existingUser->restore(); // Çöpten çıkar
-            }
-
-            // Bilgilerini Güncelle
-            $existingUser->update([
-                'name' => $name,
-                'unvan' => $title, // <--- GÜNCELLENDİ
-                'telefon' => $phone,
-                'password' => Hash::make($password),
-                'is_personnel' => false,
-                'customer_id' => $customer->id,
-                'onaylandi_mi' => true,
-            ]);
-            
-            $user = $existingUser;
-        } else {
-            // KULLANICI HİÇ YOKSA (Sıfırdan oluştur)
-            $user = User::create([
-                'name' => $name,
-                'unvan' => $title, // <--- EKLENDİ
-                'email' => $email,
-                'telefon' => $phone,
-                'password' => Hash::make($password),
-                'is_personnel' => false,
-                'customer_id' => $customer->id,
-                'onaylandi_mi' => true,
-            ]);
-        }
-
-        if (Role::where('name', 'Müşteri Temsilcisi')->exists()) {
-            $user->syncRoles(['Müşteri Temsilcisi']);
-        }
-
-        session()->flash('message', "Yetkili eklendi: {$name}. Geçici Şifre: {$password}");
+        $this->createdUserPassword = $pass;
         session()->flash('show_password_warning', true); 
-        session()->flash('rep_message', "Kullanıcı oluşturuldu. Şifre: {$password}");
+        $mesaj = "Kullanıcı oluşturuldu. Şifre: {$pass}";
+        session()->flash('message', $mesaj);
+        session()->flash('rep_message', $mesaj);
     }
-
-    private function resetForm()
-    {
-        $this->reset([
-            'name', 'tax_number', 'tax_office', 'address', 'phone', 
-            'rep_name', 'rep_email', 'rep_phone', 'customer_id',
-            'new_rep_name', 'new_rep_email', 'new_rep_phone', 'selectedCustomer'
-        ]);
-        $this->location_type = 'Yurt İçi';
-    }
-
-    // 1. Düzenleme Modunu Aç
-    public function editRepresentative($id)
-    {
-        $user = User::findOrFail($id);
-        
-        // Sadece seçili firmanın yetkilisiyse düzenlemeye izin ver
-        if($user->customer_id != $this->selectedCustomer->id) {
-            return;
-        }
-
-        $this->editingRepId = $user->id;
-        $this->edit_rep_name = $user->name;
-        $this->edit_rep_email = $user->email;
-        $this->edit_rep_phone = $user->telefon;
-        $this->edit_rep_title = $user->unvan; // <--- Mevcut ünvanı çek
-    }
-
-    // 2. Düzenlemeyi Kaydet
-    public function updateRepresentative()
-    {
-        $this->validate([
-            'edit_rep_name' => 'required|min:3|max:50|string',
-            // DÜZELTİLEN KISIM: Kendi maili ve silinmişler hariç kontrol
-            'edit_rep_email' => [
-                'required',
-                'email',
-                Rule::unique('users', 'email')->ignore($this->editingRepId)->whereNull('deleted_at')
-            ],
-            'edit_rep_phone' => 'nullable|numeric|digits_between:10,15',
-            'edit_rep_title' => 'nullable|string|max:100',
-        ]);
-
-        $user = User::findOrFail($this->editingRepId);
-        
-        $user->update([
-            'name' => $this->edit_rep_name,
-            'unvan' => $this->edit_rep_title, // <--- GÜNCELLENDİ
-            'email' => $this->edit_rep_email,
-            'telefon' => $this->edit_rep_phone,
-        ]);
-
-        $this->cancelEditRepresentative();
-        $this->selectedCustomer->refresh();
-        session()->flash('rep_message', 'Yetkili bilgileri güncellendi.');
-    }
-
-    // 3. Düzenlemeyi İptal Et
-    public function cancelEditRepresentative()
-    {
-        $this->editingRepId = null;
-        $this->reset('edit_rep_name', 'edit_rep_email', 'edit_rep_phone');
-    }
-
-    // Modal kapandığında düzenleme modunu da sıfırla
-    public function updatedShowRepModal($value)
-    {
-        if (!$value) {
-            $this->cancelEditRepresentative();
-        }
-    }
+    
+    private function resetForm() { $this->reset(['name','tax_number','tax_office','address','phone','rep_name','rep_email','rep_phone','customer_id','new_rep_name','new_rep_email','new_rep_phone','logo','statusReason','targetCustomer','createdUserPassword']); $this->location_type = 'Yurt İçi'; }
+    public function editRepresentative($id) { if(!$this->isAdmin) return; $u = User::findOrFail($id); $this->editingRepId=$u->id; $this->edit_rep_name=$u->name; $this->edit_rep_email=$u->email; $this->edit_rep_phone=$u->telefon; $this->edit_rep_title=$u->unvan; }
+    public function updateRepresentative() { if(!$this->isAdmin) return; $this->validate(['edit_rep_name' => 'required', 'edit_rep_email' => 'required|email']); User::where('id', $this->editingRepId)->update(['name'=>$this->edit_rep_name, 'email'=>$this->edit_rep_email, 'telefon'=>$this->edit_rep_phone, 'unvan'=>$this->edit_rep_title]); $this->cancelEditRepresentative(); $this->selectedCustomer->refresh(); }
+    public function cancelEditRepresentative() { $this->editingRepId = null; $this->reset('edit_rep_name','edit_rep_email','edit_rep_phone'); }
+    public function updatedShowRepModal($v) { if(!$v) $this->cancelEditRepresentative(); }
 }

@@ -26,8 +26,31 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
 
                             {{-- YENİ CANLI SEÇİM BİLEŞENİ --}}
+                            {{-- YENİ CANLI SEÇİM BİLEŞENİ --}}
                             <div class="md:col-span-2 mb-6">
-                                <livewire:admin.sikayet-musteri-secimi />
+                                @php
+                                    $currentUser = auth()->user();
+                                    $isMusteri = !$currentUser->is_personnel && $currentUser->customer_id;
+                                @endphp
+
+                                @if($isMusteri)
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Firma</label>
+                                    <div class="flex items-center p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                                        <div class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold mr-3">
+                                            {{ substr($currentUser->customer->name ?? 'F', 0, 1) }}
+                                        </div>
+                                        <div>
+                                            <p class="text-sm font-bold text-gray-900">{{ $currentUser->customer->name ?? 'Firmanız' }}</p>
+                                            <p class="text-xs text-gray-500">Bu şikayet firmanız adına kaydedilecektir.</p>
+                                        </div>
+                                    </div>
+                                    {{-- Gizli input ile veriyi gönderiyoruz --}}
+                                    <input type="hidden" name="customer_id" value="{{ $currentUser->customer_id }}">
+                                    {{-- Livewire bileşenini render etmiyoruz çünkü müşteri seçmeyecek --}}
+                                @else
+                                    {{-- Controller'dan gelen ID'yi Livewire bileşenine aktarıyoruz --}}
+                                    <livewire:admin.sikayet-musteri-secimi :preselected-customer-id="$preselectedCustomerId ?? null" />
+                                @endif
                             </div>
 
                             <div class="group md:col-span-2 mb-6">

@@ -223,4 +223,15 @@ class MusteriSikayeti extends Model
         return $this->belongsTo(\App\Models\User::class, 'yetkili_user_id'); 
     }
 
+    /**
+     * Bu şikayet bir İAA (İyileştirme) projesine dönüştürüldüyse, o projeyi getirir.
+     */
+    public function iaa()
+    {
+        // Şikayet tablosundaki 'iaa_id', Iaa tablosundaki 'id'ye gider.
+        return $this->belongsTo(Iaa::class, 'iaa_id');
+    }
+
+    
+
 }

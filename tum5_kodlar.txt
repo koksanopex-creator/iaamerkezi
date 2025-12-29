@@ -1274,6 +1274,17 @@ class ProjectWorkspaceController extends Controller
         // 1. GÄ°RÄ°Å YAPMIÅ KULLANICI KONTROLÃœ
         if (Auth::check()) {
             $isYetkiliKullanici = $this->checkAuthorization($iaa);
+
+            // =================================================================
+            // === YENÄ° EKLENEN KISIM: KURUL ÃœYESÄ°NE GÃ–RÃœNTÃœLEME Ä°ZNÄ° VER ===
+            // =================================================================
+            // checkAuthorization normalde false dÃ¶ner, burada manuel olarak true yapÄ±yoruz.
+            // Bu sayede sayfayÄ± gÃ¶rebilirler, ancak 'storeStep' metodunda checkAuthorization
+            // tekrar Ã§aÄŸrÄ±ldÄ±ÄŸÄ± iÃ§in veritabanÄ±na yazma iÅŸlemi yapamazlar.
+            if (!$isYetkiliKullanici && Auth::user()->hasRole('MÃ¼ÅŸteri Åikayeti Kurulu')) {
+                $isYetkiliKullanici = true;
+            }
+            // =================================================================
         }
 
         // 2. MÄ°SAFÄ°R (MÃœÅTERÄ°) KONTROLÃœ
@@ -1341,7 +1352,21 @@ class ProjectWorkspaceController extends Controller
         $progressUpdates = $allProgressUpdates->keyBy('iaa_workflow_step_id');
         
         // Bu deÄŸiÅŸkeni artÄ±k $canEdit ile yÃ¶netiyoruz ama eski kodlarÄ±nda kullanÄ±yorsan kalsÄ±n.
-        $isTeamMember = $isYetkiliKullanici; 
+        // 1. GerÃ§ekten TakÄ±m Ãœyesi mi? (VeritabanÄ± kontrolÃ¼)
+        // Sadece Lider, Squad Ãœyeleri veya Ã‡Ã¶zÃ¼m TakÄ±mÄ± Ã¼yeleri "Ãœye" sayÄ±lÄ±r.
+
+        $isTeamMember = false;
+        if (Auth::check()) {
+            $user = Auth::user();
+            // 1. Proje Squad ekibinde var mÄ±?
+            $squadUyesi = $iaa->projeEkibi->contains($user->id);
+            
+            // 2. Atanan TakÄ±mÄ±n Ã¼yesi mi? (KullanÄ±cÄ±nÄ±n takÄ±mlarÄ± Ã¼zerinden kontrol)
+            // Bu yÃ¶ntem iliÅŸki ismi hatasÄ±na takÄ±lmaz.
+            $takimUyesi = $iaa->atanan_takim_id && $user->takimlar->contains('id', $iaa->atanan_takim_id);
+            
+            $isTeamMember = $squadUyesi || $takimUyesi;
+        }
 
         $totalStepsCount = $steps->count();
         $completedStepsCount = count($completedStepIds);
@@ -3254,6 +3279,166 @@ class CozumTakimiController extends Controller
             return back()->with('error', 'TakÄ±m silinirken bir hata oluÅŸtu. LÃ¼tfen tekrar deneyin.');
         }
     }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Http\Controllers\Admin\CustomerProfileController.php
+==========================================
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Customer;
+use Illuminate\Http\Request; // Request eklendi
+use Illuminate\Support\Facades\Auth;
+use App\Models\MusteriLog; // Log Modeli
+
+class CustomerProfileController extends Controller
+{
+    public function show(Request $request, Customer $customer) // Request parametresi eklendi
+    {
+        $user = Auth::user();
+
+        // 1. YETKÄ° KONTROLÃœ (Aynen korundu)
+        $tamYetkiliRoller = [
+            'Superadmin', 'Yonetim', 'BÃ¶lÃ¼m Lideri', 'BÃ¶lÃ¼m Kalite YÃ¶neticisi', 
+            'MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri', 'MÃ¼ÅŸteri Åikayeti Kurulu'
+        ];
+        
+        $yetkisiVarMi = $user->hasRole($tamYetkiliRoller);
+        if (!$yetkisiVarMi && $user->customer_id !== $customer->id) {
+            abort(403, 'Bu mÃ¼ÅŸteri profilini gÃ¶rÃ¼ntÃ¼leme yetkiniz yok.');
+        }
+
+        // --- Ä°STATÄ°STÄ°KLER (Sabit KalmalÄ± - Filtreden etkilenmemeli) ---
+        $toplamSikayet = $customer->sikayetler()->count();
+        
+        $aktifSikayet = $customer->sikayetler()
+            ->whereIn('musteri_durum', ['Yeni', 'Ä°ÅŸlemde', 'Ä°nceleniyor'])
+            ->count();
+
+        $tamamlananProje = $customer->sikayetler()
+            ->whereHas('iaaProjesi', function($q) {
+                $q->where('durum', 'TamamlandÄ±');
+            })->count();
+
+        $cozulmusSikayetler = $customer->sikayetler()
+            ->whereNotNull('musteri_cozum_son_tarihi')
+            ->whereIn('musteri_durum', ['Ã‡Ã¶zÃ¼mlendi', 'KapatÄ±ldÄ±'])
+            ->get();
+        
+        $ortalamaSure = 0;
+        if ($cozulmusSikayetler->count() > 0) {
+            $toplamGun = 0;
+            foreach ($cozulmusSikayetler as $sikayet) {
+                $toplamGun += $sikayet->created_at->diffInDays($sikayet->updated_at);
+            }
+            $ortalamaSure = round($toplamGun / $cozulmusSikayetler->count());
+        }
+
+        // --- LÄ°STE FÄ°LTRELEME MANTIÄI ---
+        $query = $customer->sikayetler()->with(['iaaProjesi', 'cozumTakimi']);
+
+        // URL'den gelen 'filtre' parametresine gÃ¶re sorguyu deÄŸiÅŸtir
+        if ($request->has('filtre')) {
+            switch ($request->filtre) {
+                case 'aktif':
+                    $query->whereIn('musteri_durum', ['Yeni', 'Ä°ÅŸlemde', 'Ä°nceleniyor']);
+                    break;
+                case 'tamamlanan':
+                    $query->whereHas('iaaProjesi', function($q) {
+                        $q->where('durum', 'TamamlandÄ±');
+                    });
+                    break;
+                case 'cozulen': // Ortalama sÃ¼re kartÄ± buna baÄŸlanabilir veya boÅŸ bÄ±rakÄ±labilir
+                     $query->whereIn('musteri_durum', ['Ã‡Ã¶zÃ¼mlendi', 'KapatÄ±ldÄ±']);
+                    break;
+            }
+        }
+
+        $sikayetler = $query->latest()->paginate(15)->withQueryString(); // Sayfalama filtresi kopmasÄ±n diye withQueryString eklendi
+        $temsilciler = $customer->users; 
+
+        // --- LOGLARI Ã‡EK (Superadmin VEYA Super Admin) ---
+        $logs = null;
+        
+        // DÃœZELTME: Hem bitiÅŸik hem ayrÄ± yazÄ±mÄ± kabul etsin
+        if ($user->hasRole(['Superadmin', 'Super Admin', 'Yonetim'])) {
+            $logs = \App\Models\MusteriLog::with('user')
+                ->where('customer_id', $customer->id)
+                ->latest()
+                ->limit(20)
+                ->get();
+        }
+
+        return view('admin.musteriler.musteri-profile', compact(
+            'customer', 'temsilciler', 'sikayetler',
+            'toplamSikayet', 'aktifSikayet', 'tamamlananProje', 'ortalamaSure', 'logs'
+        ));
+    }
+
+    
+    /**
+     * HÄ±zlÄ± Yetkili Ekleme
+     */
+    public function storeRepresentative(\Illuminate\Http\Request $request, Customer $customer)
+    {
+        // Sadece yetkili personel iÅŸlem yapabilir
+        if (!auth()->user()->hasRole(['Superadmin', 'BÃ¶lÃ¼m Kalite YÃ¶neticisi', 'MÃ¼ÅŸteri Åikayeti Kurulu'])) {
+            abort(403);
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|max:20',
+            'title' => 'nullable|string|max:100',
+        ]);
+
+        // Rastgele ÅŸifre oluÅŸtur
+        $password = \Illuminate\Support\Str::random(8);
+
+        $user = \App\Models\User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'telefon' => $request->phone,
+            'unvan' => $request->title,
+            'password' => \Illuminate\Support\Facades\Hash::make($password),
+            'customer_id' => $customer->id,
+            'is_personnel' => false,
+            'onaylandi_mi' => true,
+        ]);
+
+        // Rol Ata
+        $user->assignRole('MÃ¼ÅŸteri Temsilcisi');
+        // LOG
+        MusteriLog::add($customer->id, 'Yetkili Ekleme', auth()->user()->name . ', yeni yetkili ekledi: ' . $request->name);
+
+            return back()->with('success', "Yetkili eklendi. Åifre: $password (Not edin)");
+        }
+
+    // --- YETKÄ°LÄ° SÄ°LME ---
+    public function destroyRepresentative(\App\Models\User $user)
+    {
+        if (!auth()->user()->hasRole(['Superadmin', 'Yonetim'])) { abort(403); }
+        if ($user->is_personnel) { return back()->with('error', 'Personel silinemez.'); }
+
+        // Ã–NCE VERÄ°LERÄ° ALIYORUZ (HATA BURADAYDI, DEÄÄ°ÅKEN TANIMLI DEÄÄ°LDÄ°)
+        $customerId = $user->customer_id; 
+        $userName = $user->name;
+        
+        $user->delete();
+
+        // LOG (ArtÄ±k $customerId tanÄ±mlÄ± olduÄŸu iÃ§in hata vermez)
+        \App\Models\MusteriLog::add($customerId, 'Yetkili Silme', auth()->user()->name . ', ' . $userName . ' adlÄ± yetkiliyi sildi.');
+
+        return back()->with('success', 'Yetkili baÅŸarÄ±yla silindi.');
+    }
+
+    
 }
 
 
@@ -5928,6 +6113,40 @@ class IaaYonetimController extends Controller
 
 
 ==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Http\Controllers\Admin\MusteriLogController.php
+==========================================
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\MusteriLog;
+use Illuminate\Http\Request;
+
+class MusteriLogController extends Controller
+{
+    public function index()
+    {
+        // Sadece yetkililer gÃ¶rebilir
+        if (!auth()->user()->hasRole(['Superadmin', 'Super Admin', 'Yonetim'])) {
+            abort(403, 'Bu sayfaya eriÅŸim yetkiniz yok.');
+        }
+
+        // DEÄÄ°ÅÄ°KLÄ°K YAPILDI:
+        // Blade tarafÄ±nda gruplama yapabilmek iÃ§in Ã¶nce customer_id'ye gÃ¶re sÄ±ralÄ±yoruz.
+        // Daha sonra her mÃ¼ÅŸterinin kendi loglarÄ±nÄ± tarihe gÃ¶re (yeni en Ã¼stte) sÄ±ralÄ±yoruz.
+        $logs = MusteriLog::with(['user', 'customer'])
+            ->orderBy('customer_id', 'desc') // Ana Gruplama (MÃ¼ÅŸterileri bir araya toplar)
+            ->orderBy('created_at', 'desc')  // Grup Ä°Ã§i SÄ±ralama (En yeni iÅŸlem Ã¼stte)
+            ->paginate(50);
+
+        return view('admin.musteri_logs.index', compact('logs'));
+    }
+}
+
+
+
+==========================================
 FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Http\Controllers\Admin\RaporController.php
 ==========================================
 <?php
@@ -6224,13 +6443,14 @@ use Illuminate\Support\Facades\Log;
 use App\Models\MusteriSikayetiDosyasi; 
 use App\Models\SikayetKategori;
 use Illuminate\Support\Facades\Auth;
-use App\Traits\ComplaintNotificationTrait; // <-- Add this line
+use App\Traits\ComplaintNotificationTrait; 
+use Illuminate\Support\Facades\Validator;
 
 
 class SikayetController extends Controller
 {
     use AuthorizesRequests;
-    use ComplaintNotificationTrait; // <-- Add this line
+    use ComplaintNotificationTrait; 
 
     public function index()
     {
@@ -6238,26 +6458,44 @@ class SikayetController extends Controller
         return view('admin.sikayetler.index');
     }
 
-    public function create()
+    /**
+     * Åikayet oluÅŸturma formunu gÃ¶sterir.
+     * URL'den 'musteri_id' parametresi gelirse, o mÃ¼ÅŸteriyi otomatik seÃ§er.
+     */
+    public function create(Request $request)
     {
         $this->authorize('create', MusteriSikayeti::class);
-        // Kategorileri Ã§ek ve view'e gÃ¶nder
+        
+        // Kategorileri Ã§ek
         $kategoriler = SikayetKategori::orderBy('ad')->get();
-        return view('admin.sikayetler.create', compact('kategoriler')); 
+
+        // URL'den gelen 'musteri_id' parametresini al (Varsa)
+        $preselectedCustomerId = $request->query('musteri_id');
+
+        // View'e hem kategorileri hem de varsa mÃ¼ÅŸteri ID'sini gÃ¶nder
+        return view('admin.sikayetler.create', compact('kategoriler', 'preselectedCustomerId')); 
     }
 
     public function store(Request $request)
     {
         $this->authorize('create', MusteriSikayeti::class);
 
-        // Validasyon KurallarÄ±
+        // === 1. TEMÄ°ZLÄ°K ===
+        // BoÅŸ stringleri NULL yapÄ±yoruz
+        $request->merge([
+            'yetkili_user_id' => $request->yetkili_user_id ?: null,
+            'sikayet_alt_kategori_id' => ($request->sikayet_alt_kategori_id === 'other' || !$request->sikayet_alt_kategori_id) ? null : $request->sikayet_alt_kategori_id,
+        ]);
+
+        // === 2. VALIDASYON ===
         $validated = $request->validate([
-            'musteri_adi' => 'required|string|max:255',
+            'customer_id' => 'required|integer|exists:customers,id',
+            'yetkili_user_id' => 'nullable|integer|exists:users,id',
+            'musteri_adi' => 'nullable|string|max:255',
             'musteri_iletisim' => 'nullable|string|max:255',
             'konum_tipi' => 'required|string|in:Yurt Ä°Ã§i,Yurt DÄ±ÅŸÄ±',
             'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id',
-            // Alt Kategori: "other" metni, boÅŸ veya ID gelebilir, o yÃ¼zden 'nullable' diyoruz.
-            'sikayet_alt_kategori_id' => 'nullable', 
+            'sikayet_alt_kategori_id' => 'nullable|integer',
             'sikayet_alt_kategori_diger' => 'nullable|string|max:500',
             'musteri_oncelik' => 'required|string|in:DÃ¼ÅŸÃ¼k,Normal,YÃ¼ksek,Acil',
             'musteri_sikayet_konusu' => 'required|string|max:255',
@@ -6269,42 +6507,43 @@ class SikayetController extends Controller
         $user = auth()->user();
         $kazanilacakPuan = 0;
 
-        // Puan hesaplama (Superadmin deÄŸilse)
         if (!$user->hasRole('Superadmin')) {
-            $kazanilacakPuan = (int)(Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0);
+            $kazanilacakPuan = (int)(\App\Models\Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0);
         }
 
         DB::beginTransaction();
         try {
-            // --- DÃœZELTÄ°LMÄ°Å VERÄ° HAZIRLAMA ---
             $sikayetData = $validated;
 
-            // Alt Kategori MantÄ±ÄŸÄ±
-            if ($request->sikayet_alt_kategori_id === 'other') {
-                // KullanÄ±cÄ± "DiÄŸer" seÃ§tiyse ID null olmalÄ±, aÃ§Ä±klama kaydedilmeli
+            // === 3. OTOMATÄ°K VERÄ° DOLDURMA ===
+            if ($request->customer_id) {
+                $customer = \App\Models\Customer::find($request->customer_id);
+                $sikayetData['musteri_adi'] = $customer->name;
+                
+                if ($request->yetkili_user_id) {
+                    $yetkili = \App\Models\User::find($request->yetkili_user_id);
+                    $sikayetData['musteri_iletisim'] = $yetkili->name . ' (' . $yetkili->email . ')';
+                } else {
+                    $sikayetData['musteri_iletisim'] = $customer->phone ?? 'Belirtilmedi';
+                }
+            }
+
+            if ($request->sikayet_alt_kategori_id === null && $request->sikayet_alt_kategori_diger) {
                 $sikayetData['sikayet_alt_kategori_id'] = null;
-                $sikayetData['sikayet_alt_kategori_diger'] = $request->sikayet_alt_kategori_diger;
             } else {
-                // KullanÄ±cÄ± listeden bir ÅŸey seÃ§tiyse (veya boÅŸsa)
-                // Gelen deÄŸer boÅŸ string "" ise null yap, deÄŸilse ID'yi al
-                $sikayetData['sikayet_alt_kategori_id'] = $request->sikayet_alt_kategori_id ?: null;
                 $sikayetData['sikayet_alt_kategori_diger'] = null;
             }
 
-            // DiÄŸer otomatik alanlar
             $sikayetData['olusturan_kurul_uyesi_id'] = $user->id;
             $sikayetData['musteri_durum'] = 'Yeni';
             $sikayetData['kazanilan_puan'] = $kazanilacakPuan;
 
-            // VeritabanÄ±na KayÄ±t
             $sikayet = MusteriSikayeti::create($sikayetData);
 
-            // Puan Ekleme
             if ($kazanilacakPuan > 0) {
                 $user->increment('toplam_puan', $kazanilacakPuan);
             }
 
-            // Dosya YÃ¼kleme
             if ($request->hasFile('dosyalar')) {
                 foreach ($request->file('dosyalar') as $dosya) {
                     $path = $dosya->store('sikayet_dosyalari', 'public');
@@ -6320,17 +6559,33 @@ class SikayetController extends Controller
 
             DB::commit();
 
-            // === BURAYI EKLE: BÄ°LDÄ°RÄ°M GÃ–NDER ===
-            // Bu kod kategoriye bakacak, bÃ¶lÃ¼mÃ¼ bulacak ve Emrah Al'a bildirimi Ã§akacak.
-            $this->sendNewComplaintNotification($sikayet);
-            // ====================================
+            // --- BURASI EKLENECEK (BAÅLANGIÃ‡) ---
+        
+            // 1. KullanÄ±cÄ± RolÃ¼nÃ¼ Bul
+            $rol = $user->getRoleNames()->first(); 
+            if (!$rol) {
+                $rol = $user->is_personnel ? 'Personel' : 'MÃ¼ÅŸteri';
+            }
+
+            // 2. Log KaydÄ±nÄ± At
+            \App\Models\MusteriLog::add(
+                $sikayet->customer_id, 
+                'Åikayet OluÅŸturma', 
+                $user->name . " ($rol) tarafÄ±ndan #{$sikayet->id} nolu ÅŸikayet oluÅŸturuldu."
+            );
+            
+            // --- BURASI EKLENECEK (BÄ°TÄ°Å) ---
+            
+            if (method_exists($this, 'sendNewComplaintNotification')) {
+                $this->sendNewComplaintNotification($sikayet);
+            }
 
             return redirect()->route('admin.sikayetler.index')->with('success', 'Åikayet baÅŸarÄ±yla oluÅŸturuldu.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Åikayet oluÅŸturma hatasÄ±: ' . $e->getMessage());
-            return back()->with('error', 'Åikayet kaydedilirken bir hata oluÅŸtu: ' . $e->getMessage())->withInput();
+            Log::error('Åikayet hatasÄ±: ' . $e->getMessage());
+            return back()->with('error', 'Hata: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -6339,9 +6594,6 @@ class SikayetController extends Controller
         $user = Auth::user();
         
         // === YENÄ° HÄ°BRÄ°T YETKÄ° KONTROLÃœ ===
-        // Standart Policy ($this->authorize) yerine manuel kontrol yapÄ±yoruz
-        // Ã§Ã¼nkÃ¼ Policy dosyasÄ± squad mantÄ±ÄŸÄ±nÄ± henÃ¼z bilmiyor olabilir.
-        
         $yetkiVar = false;
 
         // 1. Admin veya Kurul ise girer
@@ -6388,7 +6640,7 @@ class SikayetController extends Controller
         $sikayet->load('dosyalar');
         // Kategorileri Ã§ek ve view'e gÃ¶nder
         $kategoriler = SikayetKategori::orderBy('ad')->get();
-        return view('admin.sikayetler.edit', compact('sikayet', 'kategoriler')); // <-- 'kategoriler' eklendi
+        return view('admin.sikayetler.edit', compact('sikayet', 'kategoriler')); 
     }
 
     /**
@@ -6399,9 +6651,20 @@ class SikayetController extends Controller
     {
         $this->authorize('update', $sikayet);
 
+        // === KRÄ°TÄ°K TEMÄ°ZLÄ°K: BoÅŸ gelen ID'leri NULL yap ===
+        $request->merge([
+            'customer_id' => $request->customer_id ?: null,
+            'yetkili_user_id' => $request->yetkili_user_id ?: null,
+            'sikayet_alt_kategori_id' => ($request->sikayet_alt_kategori_id === 'other' || !$request->sikayet_alt_kategori_id) ? null : $request->sikayet_alt_kategori_id,
+        ]);
+
         // Validasyon KurallarÄ±
         $validated = $request->validate([
-            'musteri_adi' => 'required|string|max:255',
+            'customer_id' => 'nullable|integer|exists:customers,id',
+            'yetkili_user_id' => 'nullable|integer|exists:users,id',
+            
+            // ESKÄ° KAYITLAR Ä°Ã‡Ä°N: customer_id yoksa musteri_adi zorunlu
+            'musteri_adi' => 'required_without:customer_id|nullable|string|max:255',
             'musteri_iletisim' => 'nullable|string|max:255',
             'konum_tipi' => 'required|string|in:Yurt Ä°Ã§i,Yurt DÄ±ÅŸÄ±',
             'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id',
@@ -6420,6 +6683,22 @@ class SikayetController extends Controller
         try {
             // Validate edilmiÅŸ veriyi al, dosya iÅŸlemlerini (dizi olduklarÄ± iÃ§in) Ã§Ä±kar
             $updateData = collect($validated)->except(['dosyalar', 'dosyalar_sil'])->toArray();
+
+            // ============================================================
+            // === BURAYA EKLÄ°YORUZ: OTOMATÄ°K Ä°SÄ°M DOLDURMA MANTIÄI ===
+            // ============================================================
+            if ($request->customer_id) {
+                $customer = \App\Models\Customer::find($request->customer_id);
+                
+                // MÃ¼ÅŸteri adÄ±nÄ± ve iletiÅŸim bilgisini otomatik doldur (VeritabanÄ±nda boÅŸ kalmasÄ±n)
+                $updateData['musteri_adi'] = $customer->name;
+                
+                // EÄŸer iletiÅŸim bilgisi boÅŸ gelmiÅŸse, firmanÄ±nkini yaz
+                if(empty($updateData['musteri_iletisim'])) {
+                    $updateData['musteri_iletisim'] = $customer->phone ?? $customer->email;
+                }
+           }
+           // ============================================================
 
             // --- DÃœZELTÄ°LMÄ°Å VERÄ° HAZIRLAMA ---
             // Alt Kategori MantÄ±ÄŸÄ±
@@ -6489,6 +6768,14 @@ class SikayetController extends Controller
             }
             $sikayet->delete();
 
+            // --- BURASI EKLENECEK ---
+            \App\Models\MusteriLog::add(
+                $sikayet->customer_id, 
+                'Åikayet Silme', 
+                auth()->user()->name . ', #' . $sikayet->id . ' nolu ÅŸikayeti sildi.'
+            );
+            // ------------------------
+
             DB::commit();
             return redirect()->route('admin.sikayetler.index')->with('success', 'Åikayet ve iliÅŸkili dosyalarÄ± baÅŸarÄ±yla silindi, kazanÄ±lan puan geri alÄ±ndÄ±.');
 
@@ -6499,7 +6786,6 @@ class SikayetController extends Controller
         }
     }
 
-    // === 2. YENÄ° METODU BURAYA EKLEYÄ°N ===
     /**
      * Sadece Kurul Ã¼yelerinin girdiÄŸi ÅŸikayetleri filtreleyerek gÃ¶sterir.
      */
@@ -6567,15 +6853,6 @@ class SikayetController extends Controller
             'stats_kisisel' 
         ));
     }
-    // === YENÄ° METOD SONU ===
-
-    /**
-     * === BU FONKSÄ°YON SÄ°LÄ°NDÄ° ===
-     * AnÄ±nda silme (AJAX) fonksiyonu olan 'destroyDosya'
-     * sizin istediÄŸiniz "kaydet'e basana kadar bekle" mantÄ±ÄŸÄ±na
-     * uymadÄ±ÄŸÄ± iÃ§in TAMAMEN KALDIRILDI.
-     */
-    // public function destroyDosya(...) { ... }
 }
 
 
@@ -7973,6 +8250,60 @@ class Bolum extends Model
 
 
 ==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\Customer.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Customer extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    // Mass assignment korumasÄ± iÃ§in doldurulabilir alanlar
+    protected $fillable = [
+        'name',           // Firma AdÄ±
+        'logo_path',      // Logo
+        'tax_number',     // Vergi No
+        'tax_office',     // Vergi Dairesi
+        'address',        // Adres
+        'phone',          // Santral Telefonu
+        'email',          // Genel E-posta
+        'location_type',  // Yurt Ä°Ã§i / Yurt DÄ±ÅŸÄ±
+        'is_active',      // Aktif/Pasif Durumu
+    ];
+
+    /**
+     * Bu firmaya baÄŸlÄ± yetkili kiÅŸiler (MÃ¼ÅŸteri Temsilcileri)
+     * Controller'da '$customer->users' olarak Ã§aÄŸÄ±rdÄ±ÄŸÄ±mÄ±z iÃ§in ismini deÄŸiÅŸtirdik.
+     */
+    public function users()
+    {
+        return $this->hasMany(User::class, 'customer_id');
+    }
+
+    /**
+     * Bu firmaya ait ÅŸikayetler
+     * Controller'da '$customer->sikayetler()' olarak Ã§aÄŸÄ±rdÄ±ÄŸÄ±mÄ±z iÃ§in ismini deÄŸiÅŸtirdik.
+     */
+    public function sikayetler()
+    {
+        return $this->hasMany(MusteriSikayeti::class, 'customer_id');
+    }
+    
+    // --- ESKÄ° KODLARIN BOZULMAMASI Ä°Ã‡Ä°N ALIASLAR (Ä°stersen tutabilirsin) ---
+    
+    public function representatives() { return $this->users(); }
+    public function complaints() { return $this->sikayetler(); }
+}
+
+
+
+==========================================
 FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\DisciplinaryBehavior.php
 ==========================================
 <?php
@@ -8775,6 +9106,49 @@ class LoginActivity extends Model
 
 
 ==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\MusteriLog.php
+==========================================
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Request;
+
+class MusteriLog extends Model
+{
+    use HasFactory;
+
+    protected $guarded = [];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    // HÄ±zlÄ± KayÄ±t Fonksiyonu (Customer ID opsiyonel, genel iÅŸlemse null olabilir)
+    public static function add($customerId, $islem, $aciklama = null)
+    {
+        self::create([
+            'customer_id' => $customerId,
+            'user_id' => Auth::check() ? Auth::id() : null, // Login deÄŸilse null olabilir
+            'islem_turu' => $islem,
+            'aciklama' => $aciklama,
+            'ip_adresi' => Request::ip(),
+        ]);
+    }
+}
+
+
+
+==========================================
 FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Models\MusteriSikayeti.php
 ==========================================
 <?php
@@ -8794,6 +9168,10 @@ class MusteriSikayeti extends Model
 
     protected $fillable = [
         'iaa_id', // <-- YENÄ° EKLENDÄ°
+        // === YENÄ° EKLENEN (CRM) ===
+        'customer_id', // Hangi Firmadan?
+        'yetkili_user_id',
+        // ===========================
         'musteri_adi',
         'musteri_iletisim',
         'konum_tipi',
@@ -8809,31 +9187,23 @@ class MusteriSikayeti extends Model
         'musteri_onay_tarihi',
         'kurul_onay_tarihi',
         'olusturan_kurul_uyesi_id',
-        'sikayet_kategorisi_id', // <-- YENÄ° EKLENDÄ°
-
-// === ÅUNLARI EKLE ===
-'sikayet_alt_kategori_id',
-'sikayet_alt_kategori_diger',
-// ====================
-
+        'sikayet_kategorisi_id',
+        'sikayet_alt_kategori_id',
+        'sikayet_alt_kategori_diger',
         'musteri_cozum_son_tarihi',
         'musteri_ek_sure_talep_durumu',
         'musteri_puan',
-        'kazanilan_puan', // <-- YENÄ° EKLENDÄ°
-        'ek_sure_talep_aciklamasi', // <-- YENÄ° EKLENDÄ°
-        'etki_puani', // <-- YENÄ° EKLENDÄ°
-        'karmasiklik_puani', // <-- YENÄ° EKLENDÄ°
-
-        // === YENÄ° EKLENECEK ALANLAR ===
+        'kazanilan_puan',
+        'ek_sure_talep_aciklamasi',
+        'etki_puani',
+        'karmasiklik_puani',
         'takip_token',
         'guest_password_hash',
         'musteri_feedback',
         'musteri_feedback_note',
         'edit_locked_at',
-        // === YENÄ° EKLENENLER ===
         'musteri_bildirim_yapan_id',
         'musteri_bildirim_tarihi'
-        // ===============================
     ];
 
     // === BU BLOÄU EKLE ===
@@ -8848,10 +9218,21 @@ class MusteriSikayeti extends Model
         'kurul_onay_tarihi' => 'datetime',
         'musteri_cozum_son_tarihi' => 'datetime',
         'edit_locked_at' => 'datetime',
-        // === YENÄ° EKLENEN ===
         'musteri_bildirim_tarihi' => 'datetime',
     ];
-    // === EKLEME SONU ===
+
+    // =========================================================
+    // === YENÄ° Ä°LÄ°ÅKÄ° (CRM) ===
+    // =========================================================
+
+    /**
+     * Åikayetin baÄŸlÄ± olduÄŸu MÃ¼ÅŸteri FirmasÄ± (Opsiyonel)
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
 
     // === YENÄ° Ä°LÄ°ÅKÄ°YÄ° EKLE ===
     /**
@@ -8890,6 +9271,14 @@ class MusteriSikayeti extends Model
     {
         // 'sikayet_kategorisi_id' yabancÄ± anahtarÄ± Ã¼zerinden iliÅŸki kurar.
         return $this->belongsTo(SikayetKategori::class, 'sikayet_kategorisi_id');
+    }
+
+    /**
+     * Åikayetin seÃ§ilen alt kategorisi
+     */
+    public function sikayetAltKategori()
+    {
+        return $this->belongsTo(SikayetAltKategori::class, 'sikayet_alt_kategori_id');
     }
 
     /**
@@ -8981,12 +9370,10 @@ class MusteriSikayeti extends Model
                     ->whereNotNull('proje_yorumlari.musteri_sikayeti_id');
     } 
     
-    /**
-     * Åikayetin seÃ§ilen alt kategorisi
-     */
-    public function sikayetAltKategori()
+    public function yetkili_user()
     {
-        return $this->belongsTo(SikayetAltKategori::class, 'sikayet_alt_kategori_id');
+        // Yetkili kiÅŸi "users" tablosunda olduÄŸu iÃ§in User modeline baÄŸlanmalÄ±
+        return $this->belongsTo(\App\Models\User::class, 'yetkili_user_id'); 
     }
 
 }
@@ -9383,32 +9770,33 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles; // <-- BU SATIRI EKLE
-use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Takim; // Takim modelini kullanacaÄŸÄ±mÄ±zÄ± belirtiyoruz
-
-
-
+use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\SoftDeletes; // SoftDeletes'i import ettin ama 'use' etmeyi unutmuÅŸsun, onu da ekledim.
+use App\Models\Takim;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles; // <-- HasRoles'u BURAYA EKLE
+    use HasFactory, Notifiable, HasRoles, SoftDeletes; // <-- SoftDeletes EKLENDÄ°
 
     /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
      */
-    // YENÄ° VE DOÄRU HALÄ°
     protected $fillable = [
         'name',
+        'unvan', // <--- YENÄ° EKLENDÄ°
         'email',
         'password',
         'bolum_id',
         'onaylandi_mi',
-        'telefon',             // <-- YENÄ° EKLENDÄ°
-        'profile_photo_path',  // <-- YENÄ° EKLENDÄ°
+        'telefon',
+        'profile_photo_path',
+        
+        // === YENÄ° EKLENENLER (CRM) ===
+        'is_personnel', // true: Personel, false: MÃ¼ÅŸteri Temsilcisi
+        'customer_id',  // EÄŸer mÃ¼ÅŸteri temsilcisi ise baÄŸlÄ± olduÄŸu firma ID
     ];
 
     /**
@@ -9431,28 +9819,54 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_personnel' => 'boolean', // <-- Cast eklendi
         ];
     }
 
+    // =========================================================
+    // === YENÄ° CRM Ä°LÄ°ÅKÄ°LERÄ° VE SCOPE'LAR (FÄ°LTRELER) ===
+    // =========================================================
+
     /**
-     * KullanÄ±cÄ±nÄ±n ait olduÄŸu bÃ¶lÃ¼mÃ¼ getirir.
+     * Ä°liÅŸki: KullanÄ±cÄ±nÄ±n baÄŸlÄ± olduÄŸu MÃ¼ÅŸteri FirmasÄ± (EÄŸer mÃ¼ÅŸteri temsilcisi ise)
      */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * SCOPE: Sadece ÅŸirket personelini getirir.
+     * KullanÄ±mÄ±: User::personel()->get();
+     */
+    public function scopePersonel($query)
+    {
+        return $query->where('is_personnel', true);
+    }
+
+    /**
+     * SCOPE: Sadece dÄ±ÅŸ mÃ¼ÅŸteri temsilcilerini getirir.
+     * KullanÄ±mÄ±: User::musteriler()->get();
+     */
+    public function scopeMusteriler($query)
+    {
+        return $query->where('is_personnel', false);
+    }
+
+    // =========================================================
+    // === MEVCUT Ä°LÄ°ÅKÄ°LERÄ°N (AYNEN KORUNDU) ===
+    // =========================================================
+
     public function bolum()
     {
         return $this->belongsTo(Bolum::class);
     }
 
-    /**
-     * KullanÄ±cÄ±nÄ±n gÃ¶nderdiÄŸi tÃ¼m Ä°AA'larÄ± getirir.
-     */
     public function iaas()
     {
         return $this->hasMany(Iaa::class, 'gonderen_user_id');
     }
 
-    /**
-     * KullanÄ±cÄ±nÄ±n Ã¼ye olduÄŸu tÃ¼m takÄ±mlarÄ± getirir.
-     */
     public function takimlar()
     {
         return $this->belongsToMany(Takim::class, 'takim_user', 'user_id', 'takim_id')
@@ -9460,36 +9874,26 @@ class User extends Authenticatable
                     ->withTimestamps();
     }
 
-    /**
-     * Bu kullanÄ±cÄ±nÄ±n lideri olduÄŸu tÃ¼m takÄ±mlarÄ± dÃ¶ndÃ¼rÃ¼r.
-     * (hasMany iliÅŸkisi: Bir kullanÄ±cÄ±nÄ±n birden Ã§ok takÄ±mÄ± olabilir)
-     */
     public function lideriOlduguTakimlar()
     {
         return $this->hasMany(Takim::class, 'lider_user_id');
     }
 
-    /**
-     * Bu kullanÄ±cÄ±nÄ±n YÃ–NETÄ°CÄ°SÄ° (BÃ¶lÃ¼m Kalite YÃ¶neticisi) olduÄŸu Åikayet Kategorileri.
-     * (Ara Onay yetkisi iÃ§in kullanÄ±lÄ±r)
-     */
     public function yonettigiSikayetKategorileri()
     {
         return $this->belongsToMany(
             SikayetKategori::class, 
-            'bolum_kalite_yoneticileri', // Ara tablo adÄ±
+            'bolum_kalite_yoneticileri', 
             'user_id', 
             'sikayet_kategori_id'
         );
     }
 
-    // Profilime yapÄ±lan yorumlar
     public function profilYorumlari()
     {
         return $this->hasMany(ProfileComment::class)->orderBy('created_at', 'desc');
     }
 
-    // KullanÄ±cÄ±nÄ±n dahil olduÄŸu proje bazlÄ± gÃ¶revler
     public function gorevliOlduguProjeler()
     {
         return $this->belongsToMany(Iaa::class, 'iaa_user', 'user_id', 'iaa_id')
@@ -9497,19 +9901,11 @@ class User extends Authenticatable
                     ->withTimestamps();
     }
 
-    // --- DÄ°SÄ°PLÄ°N Ä°LÄ°ÅKÄ°LERÄ° ---
-
-    /**
-     * KullanÄ±cÄ±nÄ±n sanÄ±k olduÄŸu (kendisine aÃ§Ä±lan) disiplin dosyalarÄ±.
-     */
     public function disiplinDosyalari()
     {
         return $this->hasMany(\App\Models\DisciplinaryCase::class, 'user_id');
     }
 
-    /**
-     * KullanÄ±cÄ±nÄ±n ÅŸikayet ettiÄŸi/raporladÄ±ÄŸÄ± dosyalar (Amir ise).
-     */
     public function raporladigiDisiplinDosyalari()
     {
         return $this->hasMany(\App\Models\DisciplinaryCase::class, 'reporter_id');

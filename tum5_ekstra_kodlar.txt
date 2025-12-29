@@ -306,6 +306,366 @@ class SikayetGorevlerim extends Component
 
 
 ==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Livewire\Admin\MusteriYonetimi.php
+==========================================
+<?php
+
+namespace App\Livewire\Admin;
+
+use Livewire\Component;
+use Livewire\WithPagination;
+use App\Models\Customer;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Livewire\WithFileUploads; // <--- EKLENDÄ°
+use Illuminate\Support\Facades\Storage; // <--- EKLENDÄ°
+
+class MusteriYonetimi extends Component
+{
+    use WithPagination, WithFileUploads;
+
+    // Arama ve Modal Kontrolleri
+    public $search = '';
+    public $showModal = false; // Firma Ekleme/DÃ¼zenleme ModalÄ±
+    public $showRepModal = false; // YENÄ°: Yetkili YÃ¶netimi ModalÄ±
+    public $isEditMode = false;
+
+    // Firma Form AlanlarÄ±
+    public $customer_id;
+    public $name, $tax_number, $tax_office, $address, $phone, $location_type = 'Yurt Ä°Ã§i';
+
+    // Ä°lk Yetkili Form AlanlarÄ± (Firma eklerken)
+    public $rep_name, $rep_email, $rep_phone;
+
+    // YENÄ°: Ek Yetkili Ekleme AlanlarÄ± (Yetkili YÃ¶netimi ModalÄ± iÃ§in)
+    public $new_rep_name, $new_rep_email, $new_rep_phone;
+    public $selectedCustomer; // Ä°ÅŸlem yapÄ±lan firma
+
+    // Yetkili DÃ¼zenleme DeÄŸiÅŸkenleri
+    public $editingRepId = null; // Åu an dÃ¼zenlenen kiÅŸinin ID'si
+    public $edit_rep_name, $edit_rep_email, $edit_rep_phone;
+
+    // Yeni DeÄŸiÅŸkenler
+    public $logo; // Logo dosyasÄ± iÃ§in
+    public $rep_title; // Ä°lk yetkili Ã¼nvanÄ±
+    public $new_rep_title; // Yeni eklenecek yetkili Ã¼nvanÄ±
+    public $edit_rep_title; // DÃ¼zenlenen yetkili Ã¼nvanÄ±
+
+    // Validasyon KurallarÄ±
+    protected function rules()
+    {
+        return [
+            // Firma KurallarÄ±
+            'name' => 'required|min:3|max:150|string',
+            'logo' => 'nullable|image|max:2048', // <--- Logo: Resim olmalÄ±, max 2MB
+            'tax_number' => 'nullable|numeric|digits_between:10,11',
+            'address' => 'nullable|string|max:500',
+            'phone' => 'nullable|numeric|digits_between:10,15',
+            'location_type' => 'required|in:Yurt Ä°Ã§i,Yurt DÄ±ÅŸÄ±',
+
+            // Yetkili KiÅŸi KurallarÄ±
+            'rep_name' => $this->isEditMode ? 'nullable' : 'required|min:3|max:50|string',
+            // DÃœZELTÄ°LEN KISIM: SilinmiÅŸ mailleri kontrol etme
+            'rep_email' => [
+                $this->isEditMode ? 'nullable' : 'required',
+                'email',
+                Rule::unique('users', 'email')->whereNull('deleted_at') 
+            ],
+            'rep_title' => 'nullable|string|max:100', // <--- Ä°lk yetkili Ã¼nvanÄ±
+            'rep_phone' => 'nullable|numeric|digits_between:10,15',
+        ];
+    }
+
+    public function render()
+    {
+        $customers = Customer::query()
+            ->withCount('representatives') // Yetkili sayÄ±sÄ±nÄ± getir
+            ->where('name', 'like', '%' . $this->search . '%')
+            ->orWhere('tax_number', 'like', '%' . $this->search . '%')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return view('livewire.admin.musteri-yonetimi', [
+            'customers' => $customers
+        ])->layout('layouts.app');
+    }
+
+    // === FÄ°RMA Ä°ÅLEMLERÄ° ===
+
+    public function create()
+    {
+        $this->resetForm();
+        $this->showModal = true;
+        $this->isEditMode = false;
+    }
+
+    public function store()
+    {
+        $this->validate();
+
+        DB::transaction(function () {
+            // Logo YÃ¼kleme Ä°ÅŸlemi
+            $logoPath = null;
+            if ($this->logo) {
+                $logoPath = $this->logo->store('musteri-logolari', 'public');
+            }
+            // 1. FirmayÄ± OluÅŸtur
+            $customer = Customer::create([
+                'name' => $this->name,
+                'logo_path' => $logoPath, // <--- Eklendi
+                'tax_number' => $this->tax_number,
+                'tax_office' => $this->tax_office,
+                'address' => $this->address,
+                'phone' => $this->phone,
+                'email' => $this->rep_email,
+                'location_type' => $this->location_type,
+            ]);
+
+            // 2. Ä°lk Yetkiliyi OluÅŸtur
+            $this->createUserForCustomer($customer, $this->rep_name, $this->rep_email, $this->rep_phone, $this->rep_title);
+        });
+
+        $this->showModal = false;
+        $this->resetForm();
+    }
+
+    public function edit($id)
+    {
+        $customer = Customer::findOrFail($id);
+        $this->customer_id = $customer->id;
+        $this->name = $customer->name;
+        $this->tax_number = $customer->tax_number;
+        $this->tax_office = $customer->tax_office;
+        $this->address = $customer->address;
+        $this->phone = $customer->phone;
+        $this->location_type = $customer->location_type;
+
+        $this->isEditMode = true;
+        $this->showModal = true;
+    }
+
+    public function update()
+    {
+        $this->validate([
+            'name' => 'required|min:3',
+            'logo' => 'nullable|image|max:2048',
+            'location_type' => 'required',
+        ]);
+
+        $customer = Customer::findOrFail($this->customer_id);
+        
+        // $data DEÄÄ°ÅKENÄ°NÄ° BURADA TANIMLIYORUZ
+        $data = [
+            'name' => $this->name,
+            'tax_number' => $this->tax_number,
+            'tax_office' => $this->tax_office,
+            'address' => $this->address,
+            'phone' => $this->phone,
+            'location_type' => $this->location_type,
+        ];
+
+        // Yeni logo varsa eskini sil, yenisini yÃ¼kle
+        if ($this->logo) {
+            if ($customer->logo_path) {
+                Storage::disk('public')->delete($customer->logo_path);
+            }
+            $data['logo_path'] = $this->logo->store('musteri-logolari', 'public');
+        }
+
+        $customer->update($data); // ArtÄ±k $data tanÄ±mlÄ± olduÄŸu iÃ§in hata vermeyecek
+
+        session()->flash('message', 'MÃ¼ÅŸteri bilgileri gÃ¼ncellendi.');
+        $this->showModal = false;
+        $this->resetForm();
+    }
+
+    public function delete($id)
+    {
+        $customer = Customer::find($id);
+        
+        if ($customer) {
+            // Ã–nce bu firmaya baÄŸlÄ± tÃ¼m yetkilileri Soft Delete yapalÄ±m
+            foreach ($customer->representatives as $rep) {
+                $rep->delete(); 
+            }
+
+            // Sonra firmayÄ± silelim
+            $customer->delete();
+            
+            session()->flash('message', 'MÃ¼ÅŸteri ve baÄŸlÄ± yetkilileri silindi.');
+        }
+    }
+
+    // === YENÄ°: YETKÄ°LÄ° YÃ–NETÄ°MÄ° Ä°ÅLEMLERÄ° ===
+
+    // Yetkililer penceresini aÃ§
+    public function manageRepresentatives($customerId)
+    {
+        $this->selectedCustomer = Customer::with('representatives')->findOrFail($customerId);
+        $this->reset('new_rep_name', 'new_rep_email', 'new_rep_phone');
+        $this->showRepModal = true;
+    }
+
+    // Yeni bir yetkili ekle (Mevcut firmaya)
+    public function addRepresentative()
+    {
+        $this->validate([
+            'new_rep_name' => 'required|min:3|max:50|string',
+            'new_rep_title' => 'nullable|string|max:100', // Validasyon
+            // DÃœZELTÄ°LEN KISIM: SilinmiÅŸ mailleri kontrol etme
+            'new_rep_email' => [
+                'required', 
+                'email', 
+                Rule::unique('users', 'email')->whereNull('deleted_at')
+            ],
+            'new_rep_phone' => 'nullable|numeric|digits_between:10,15',
+        ]);
+
+        $this->createUserForCustomer($this->selectedCustomer, $this->new_rep_name, $this->new_rep_email, $this->new_rep_phone, $this->new_rep_title);
+        
+        $this->selectedCustomer->refresh(); 
+        $this->reset('new_rep_name', 'new_rep_email', 'new_rep_phone', 'new_rep_title');
+    }
+
+    // Yetkiliyi sil
+    public function deleteRepresentative($userId)
+    {
+        $user = User::find($userId);
+        if($user && $user->customer_id == $this->selectedCustomer->id) {
+            $user->delete(); // Soft delete
+            $this->selectedCustomer->refresh();
+            session()->flash('rep_message', 'Yetkili silindi.');
+        }
+    }
+
+    // Ortak KullanÄ±cÄ± OluÅŸturma Fonksiyonu
+    private function createUserForCustomer($customer, $name, $email, $phone, $title = null): void
+    {
+        $password = Str::random(8);
+        
+        // 1. Bu mail adresiyle SÄ°LÄ°NMÄ°Å bir kullanÄ±cÄ± var mÄ±?
+        $existingUser = User::withTrashed()->where('email', $email)->first();
+
+        if ($existingUser) {
+            // KULLANICI VARSA (SilinmiÅŸse geri getir)
+            if ($existingUser->trashed()) {
+                $existingUser->restore(); // Ã‡Ã¶pten Ã§Ä±kar
+            }
+
+            // Bilgilerini GÃ¼ncelle
+            $existingUser->update([
+                'name' => $name,
+                'unvan' => $title, // <--- GÃœNCELLENDÄ°
+                'telefon' => $phone,
+                'password' => Hash::make($password),
+                'is_personnel' => false,
+                'customer_id' => $customer->id,
+                'onaylandi_mi' => true,
+            ]);
+            
+            $user = $existingUser;
+        } else {
+            // KULLANICI HÄ°Ã‡ YOKSA (SÄ±fÄ±rdan oluÅŸtur)
+            $user = User::create([
+                'name' => $name,
+                'unvan' => $title, // <--- EKLENDÄ°
+                'email' => $email,
+                'telefon' => $phone,
+                'password' => Hash::make($password),
+                'is_personnel' => false,
+                'customer_id' => $customer->id,
+                'onaylandi_mi' => true,
+            ]);
+        }
+
+        if (Role::where('name', 'MÃ¼ÅŸteri Temsilcisi')->exists()) {
+            $user->syncRoles(['MÃ¼ÅŸteri Temsilcisi']);
+        }
+
+        session()->flash('message', "Yetkili eklendi: {$name}. GeÃ§ici Åifre: {$password}");
+        session()->flash('show_password_warning', true); 
+        session()->flash('rep_message', "KullanÄ±cÄ± oluÅŸturuldu. Åifre: {$password}");
+    }
+
+    private function resetForm()
+    {
+        $this->reset([
+            'name', 'tax_number', 'tax_office', 'address', 'phone', 
+            'rep_name', 'rep_email', 'rep_phone', 'customer_id',
+            'new_rep_name', 'new_rep_email', 'new_rep_phone', 'selectedCustomer'
+        ]);
+        $this->location_type = 'Yurt Ä°Ã§i';
+    }
+
+    // 1. DÃ¼zenleme Modunu AÃ§
+    public function editRepresentative($id)
+    {
+        $user = User::findOrFail($id);
+        
+        // Sadece seÃ§ili firmanÄ±n yetkilisiyse dÃ¼zenlemeye izin ver
+        if($user->customer_id != $this->selectedCustomer->id) {
+            return;
+        }
+
+        $this->editingRepId = $user->id;
+        $this->edit_rep_name = $user->name;
+        $this->edit_rep_email = $user->email;
+        $this->edit_rep_phone = $user->telefon;
+        $this->edit_rep_title = $user->unvan; // <--- Mevcut Ã¼nvanÄ± Ã§ek
+    }
+
+    // 2. DÃ¼zenlemeyi Kaydet
+    public function updateRepresentative()
+    {
+        $this->validate([
+            'edit_rep_name' => 'required|min:3|max:50|string',
+            // DÃœZELTÄ°LEN KISIM: Kendi maili ve silinmiÅŸler hariÃ§ kontrol
+            'edit_rep_email' => [
+                'required',
+                'email',
+                Rule::unique('users', 'email')->ignore($this->editingRepId)->whereNull('deleted_at')
+            ],
+            'edit_rep_phone' => 'nullable|numeric|digits_between:10,15',
+            'edit_rep_title' => 'nullable|string|max:100',
+        ]);
+
+        $user = User::findOrFail($this->editingRepId);
+        
+        $user->update([
+            'name' => $this->edit_rep_name,
+            'unvan' => $this->edit_rep_title, // <--- GÃœNCELLENDÄ°
+            'email' => $this->edit_rep_email,
+            'telefon' => $this->edit_rep_phone,
+        ]);
+
+        $this->cancelEditRepresentative();
+        $this->selectedCustomer->refresh();
+        session()->flash('rep_message', 'Yetkili bilgileri gÃ¼ncellendi.');
+    }
+
+    // 3. DÃ¼zenlemeyi Ä°ptal Et
+    public function cancelEditRepresentative()
+    {
+        $this->editingRepId = null;
+        $this->reset('edit_rep_name', 'edit_rep_email', 'edit_rep_phone');
+    }
+
+    // Modal kapandÄ±ÄŸÄ±nda dÃ¼zenleme modunu da sÄ±fÄ±rla
+    public function updatedShowRepModal($value)
+    {
+        if (!$value) {
+            $this->cancelEditRepresentative();
+        }
+    }
+}
+
+
+
+==========================================
 FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Livewire\Admin\ProjeAdimYorumlari.php
 ==========================================
 <?php
@@ -364,23 +724,43 @@ class ProjeAdimYorumlari extends Component
 
     private function checkYetki()
     {
-        // ... (Bu fonksiyon aynÄ± kalÄ±yor, deÄŸiÅŸiklik yok) ...
+        // 1. SENARYO: SÄ°STEME GÄ°RÄ°Å YAPMIÅ KULLANICILAR
         if (Auth::check()) {
             $user = Auth::user();
-            if ($user->hasRole(['Superadmin', 'MÃ¼ÅŸteri Åikayeti Kurulu', 'MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri'])) {
-                $this->kullaniciYetkiliMi = true; return;
+
+            // A) GENEL ROL YETKÄ°SÄ° OLANLAR
+            // Bu rollere sahip herhangi biri, hangi proje olursa olsun yorum yapabilir.
+            if ($user->hasRole([
+                'Superadmin',
+                'Yonetim',
+                'MÃ¼ÅŸteri Åikayeti Kurulu',
+                'MÃ¼ÅŸteri Åikayeti Ã‡Ã¶zÃ¼m Lideri',
+                'BÃ¶lÃ¼m Kalite YÃ¶neticisi',
+                'BÃ¶lÃ¼m Lideri'
+            ])) {
+                $this->kullaniciYetkiliMi = true;
+                return;
             }
-            // === DÃœZELTME: 'uyeler' kullandÄ±ÄŸÄ±nÄ±zdan emin olalÄ±m (Ã¶nceki hatadan ders alarak) ===
-            if ($this->iaa->atananTakim && $this->iaa->atananTakim->uyeler->contains($user)) {
-                $this->kullaniciYetkiliMi = true; return;
+
+            // B) PROJE EKÄ°P ÃœYESÄ° KONTROLÃœ (Sadece ilgili projede yetkili)
+            // KullanÄ±cÄ± yukarÄ±daki rollerden deÄŸilse bile, bu projenin takÄ±mÄ±nda mÄ±?
+            if ($this->iaa->atananTakim && $this->iaa->atananTakim->uyeler->contains('id', $user->id)) {
+                $this->kullaniciYetkiliMi = true;
+                return;
             }
         }
+
+        // 2. SENARYO: DIÅ MÃœÅTERÄ° (GiriÅŸ yapmamÄ±ÅŸ, Token ile gelmiÅŸ)
+        // Sadece o ÅŸikayetin sahibi olan mÃ¼ÅŸteri mi?
         if ($this->iaa->musteriSikayeti) {
             $sessionKey = 'sikayet_logged_in_' . $this->iaa->musteriSikayeti->takip_token;
             if (Session::has($sessionKey)) {
-                $this->kullaniciYetkiliMi = true; return;
+                $this->kullaniciYetkiliMi = true;
+                return;
             }
         }
+
+        // HÄ°Ã‡BÄ°R ÅARTA UYMUYORSA
         $this->kullaniciYetkiliMi = false;
     }
 
@@ -759,6 +1139,9 @@ class SikayetlerTablosu extends Component
     public $filtrePuanMin = null; 
     public $filtrePuanMax = null; 
     public $filtreKonumTipi = '';
+    public $filtreProjeDurumu = ''; // Yeni
+    public $filtreBeklemeMin = '';  // Yeni
+    public $filtreBeklemeMax = '';  // Yeni
 
     protected $listeners = ['sikayetGuncellendi' => '$refresh'];
 
@@ -769,7 +1152,8 @@ class SikayetlerTablosu extends Component
             'filtreMusteriAdi', 'filtreEkleyen',
             'filtreSonTarihBaslangic', 'filtreSonTarihBitis',
             'filtreKayitTarihBaslangic', 'filtreKayitTarihBitis',
-            'filtrePuanMin', 'filtrePuanMax'
+            'filtrePuanMin', 'filtrePuanMax',
+            'filtreProjeDurumu', 'filtreBeklemeMin', 'filtreBeklemeMax'
             ])) {
             $this->resetPage();
         }
@@ -782,7 +1166,8 @@ class SikayetlerTablosu extends Component
             'filtreMusteriAdi', 'filtreEkleyen',
             'filtreSonTarihBaslangic', 'filtreSonTarihBitis',
             'filtreKayitTarihBaslangic', 'filtreKayitTarihBitis',
-            'filtrePuanMin', 'filtrePuanMax'
+            'filtrePuanMin', 'filtrePuanMax',
+            'filtreProjeDurumu', 'filtreBeklemeMin', 'filtreBeklemeMax'
         ]);
         $this->resetPage();
     }
@@ -905,6 +1290,30 @@ class SikayetlerTablosu extends Component
         });
         $query->when($this->filtreKonumTipi, fn ($q) => $q->where('konum_tipi', $this->filtreKonumTipi));
 
+        // === YENÄ° FÄ°LTRE MANTIKLARI BURAYA ===
+
+        // 1. PROJE DURUMU FÄ°LTRESÄ°
+        // Åikayete baÄŸlÄ± "iaaProjesi" tablosuna gidip "durum" kolonunu kontrol eder.
+        $query->when($this->filtreProjeDurumu, function ($q) {
+            $q->whereHas('iaaProjesi', function ($subQ) {
+                $subQ->where('durum', $this->filtreProjeDurumu);
+            });
+        });
+
+        // 2. BEKLEME SÃœRESÄ° (MÄ°NÄ°MUM GÃœN)
+        // Ã–rnek: "5" yazarsan, 5 gÃ¼n ve daha eskileri getirir.
+        $query->when($this->filtreBeklemeMin, function ($q) {
+            $q->where('created_at', '<=', now()->subDays($this->filtreBeklemeMin));
+        });
+
+        // 3. BEKLEME SÃœRESÄ° (MAKSÄ°MUM GÃœN)
+        // Ã–rnek: "30" yazarsan, son 30 gÃ¼n iÃ§indekileri getirir.
+        $query->when($this->filtreBeklemeMax, function ($q) {
+            $q->where('created_at', '>=', now()->subDays($this->filtreBeklemeMax));
+        });
+
+        // ======================================
+
         $sikayetler = $query->latest()->paginate(10);
 
         return view('livewire.admin.sikayetler-tablosu', [
@@ -914,6 +1323,193 @@ class SikayetlerTablosu extends Component
             'ekleyenKullanicilar' => $ekleyenKullanicilar,
             'kategoriler' => $kategoriler,
         ]);
+    }
+}
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\app\Livewire\Admin\SikayetMusteriSecimi.php
+==========================================
+<?php
+
+namespace App\Livewire\Admin;
+
+use Livewire\Component;
+use App\Models\Customer;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
+use Livewire\WithFileUploads;
+
+class SikayetMusteriSecimi extends Component
+{
+    use WithFileUploads;
+
+    // SeÃ§im Verileri
+    public $customers;
+    public $representatives = [];
+    
+    // Formdan Gelen/Giden Veriler
+    public $selectedCustomerId = null;
+    public $selectedRepId = null;
+
+    // Modal KontrolÃ¼
+    public $showCreateModal = false;
+
+    // HÄ±zlÄ± Ekleme Form Verileri
+    public $name, $tax_number, $location_type = 'Yurt Ä°Ã§i', $phone, $address;
+    public $reps = [
+        [
+            'name' => '',
+            'title' => '',
+            'email' => '',
+            'phone' => '',
+        ]
+    ];
+    public $logo;
+
+    // Blade'den gelen parametre isimleriyle eÅŸleÅŸmeli
+    // Blade'den gelen parametreler: 
+    // :preselected-customer-id -> $preselectedCustomerId
+    // :selected-rep-id         -> $selectedRepId (Ä°leride lazÄ±m olabilir)
+    public function mount($preselectedCustomerId = null, $selectedRepId = null)
+    {
+        // 1. TÃ¼m MÃ¼ÅŸterileri Ã‡ek
+        $this->customers = Customer::orderBy('name')->get();
+
+        // 2. EÄŸer URL'den veya Blade'den MÃ¼ÅŸteri ID geldiyse
+        if ($preselectedCustomerId) {
+            $this->selectedCustomerId = $preselectedCustomerId;
+            
+            // O firmaya ait yetkilileri hemen yÃ¼kle
+            $this->representatives = User::where('customer_id', $preselectedCustomerId)->get();
+            
+            // === OTOMATÄ°K SEÃ‡Ä°M MANTIÄI ===
+            
+            // Durum A: EÄŸer dÄ±ÅŸarÄ±dan "Åu kiÅŸiyi seÃ§" diye ID geldiyse onu seÃ§ (Ã–ncelikli)
+            if ($selectedRepId) {
+                $this->selectedRepId = $selectedRepId;
+            }
+            // Durum B: KiÅŸi belirtilmemiÅŸ ama firmada ZATEN TEK YETKÄ°LÄ° varsa, onu otomatik seÃ§
+            elseif ($this->representatives->count() === 1) {
+                $this->selectedRepId = $this->representatives->first()->id;
+            }
+        }
+    }
+
+    // Firma seÃ§ildiÄŸinde yetkilileri getir
+    public function updatedSelectedCustomerId($value)
+    {
+        $this->selectedRepId = null; // FirmayÄ± deÄŸiÅŸtirince yetkiliyi sÄ±fÄ±rla
+        if ($value) {
+            $this->representatives = User::where('customer_id', $value)->get();
+        } else {
+            $this->representatives = [];
+        }
+    }
+
+    // === YENÄ°: SATIR EKLEME/SÄ°LME FONKSÄ°YONLARI ===
+    
+    public function addRepRow()
+    {
+        $this->reps[] = [
+            'name' => '',
+            'title' => '',
+            'email' => '',
+            'phone' => '',
+        ];
+    }
+
+    public function removeRepRow($index)
+    {
+        // En az 1 satÄ±r kalsÄ±n istersen bu kontrolÃ¼ aÃ§abilirsin
+        if (count($this->reps) > 1) {
+            unset($this->reps[$index]);
+            $this->reps = array_values($this->reps); // Diziyi yeniden indeksle
+        }
+    }
+
+    // === KAYDETME Ä°ÅLEMÄ° ===
+
+    // HIZLI EKLEME FONKSÄ°YONU
+    public function storeNewCustomer()
+    {
+        // Validasyon KurallarÄ± (Dizi iÃ§in Ã¶zel yazÄ±m)
+        $this->validate([
+            'name' => 'required|min:3|max:150',
+            
+            // Dizi ValidasyonlarÄ± (* iÅŸareti her satÄ±rÄ± kontrol eder)
+            'reps.*.name' => 'required|min:3',
+            'reps.*.email' => 'required|email|unique:users,email',
+        ], [
+            'reps.*.name.required' => 'Yetkili adÄ± zorunludur.',
+            'reps.*.email.required' => 'E-posta zorunludur.',
+            'reps.*.email.unique' => 'Bu e-posta adresi zaten kayÄ±tlÄ±.',
+        ]);
+
+        // 1. MÃ¼ÅŸteriyi OluÅŸtur
+        $logoPath = $this->logo ? $this->logo->store('musteri-logolari', 'public') : null;
+
+        $customer = Customer::create([
+            'name' => $this->name,
+            'tax_number' => $this->tax_number,
+            'location_type' => $this->location_type,
+            'phone' => $this->phone,
+            'address' => $this->address,
+            'logo_path' => $logoPath,
+        ]);
+
+        // 2. Yetkilileri DÃ¶ngÃ¼yle OluÅŸtur
+        $createdUserIds = [];
+        $passwords = [];
+
+        foreach ($this->reps as $repData) {
+            $password = Str::random(8);
+            
+            $user = User::create([
+                'name' => $repData['name'],
+                'email' => $repData['email'],
+                'unvan' => $repData['title'],
+                'telefon' => $repData['phone'],
+                'password' => Hash::make($password),
+                'is_personnel' => false,
+                'customer_id' => $customer->id,
+                'onaylandi_mi' => true,
+            ]);
+
+            if (Role::where('name', 'MÃ¼ÅŸteri Temsilcisi')->exists()) {
+                $user->assignRole('MÃ¼ÅŸteri Temsilcisi');
+            }
+
+            $createdUserIds[] = $user->id;
+            $passwords[] = "{$repData['name']}: {$password}";
+        }
+
+        // 3. Listeleri GÃ¼ncelle
+        $this->customers = Customer::orderBy('name')->get();
+        $this->selectedCustomerId = $customer->id;
+        $this->updatedSelectedCustomerId($customer->id);
+        
+        // Ä°lk eklenen yetkiliyi seÃ§ili yap
+        if (!empty($createdUserIds)) {
+            $this->selectedRepId = $createdUserIds[0];
+        }
+
+        // 4. Temizle ve Kapat
+        $this->showCreateModal = false;
+        $this->reset(['name', 'tax_number', 'phone', 'address', 'logo']);
+        
+        // Reps dizisini sÄ±fÄ±rla
+        $this->reps = [[ 'name' => '', 'title' => '', 'email' => '', 'phone' => '' ]];
+        
+        session()->flash('message', "MÃ¼ÅŸteri ve " . count($createdUserIds) . " yetkili eklendi. Åifreler: " . implode(', ', $passwords));
+    }
+
+    public function render()
+    {
+        return view('livewire.admin.sikayet-musteri-secimi');
     }
 }
 

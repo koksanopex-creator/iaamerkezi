@@ -91,6 +91,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/kullanici-profil/{user}', [ProfileController::class, 'show'])->name('profile.show');
     Route::post('/kullanici-profil/{user}/yorum', [ProfileController::class, 'storeComment'])->name('profile.comment.store');
     Route::delete('/kullanici-profil/yorum/{comment}', [ProfileController::class, 'destroyComment'])->name('profile.comment.destroy');
+
+    // --- MÜŞTERİ PROFİLİ VE DETAYLARI ---
+    Route::get('/musteri-profil/{customer}', [App\Http\Controllers\Admin\CustomerProfileController::class, 'show'])
+    ->name('musteri.profil.show');
+
+    // Mevcut profil rotasının altına ekle:
+    Route::post('/musteri-profil/{customer}/yetkili-ekle', [App\Http\Controllers\Admin\CustomerProfileController::class, 'storeRepresentative'])
+        ->name('musteri.yetkili.store');
+        
+    Route::delete('/musteri-profil/yetkili-sil/{user}', [App\Http\Controllers\Admin\CustomerProfileController::class, 'destroyRepresentative'])
+        ->name('musteri.yetkili.destroy');
+
+        // Tüm Müşteri Logları Sayfası
+    Route::get('/tum-musteri-loglari', [App\Http\Controllers\Admin\MusteriLogController::class, 'index'])
+    ->name('musteri-logs.index');
+
     
     // =================================================================
     // === YENİ EKLENEN KISIM: YÖNETİM KOKPİTİ ===
@@ -156,6 +172,11 @@ Route::middleware('auth')->group(function () {
       ->middleware('auth') 
       ->name('sikayet-gorevlerim.index');
 
+    // Sinan Poyraz gibi standart kullanıcılar için (Admin paneli olmayan versiyon)
+    Route::get('/musteriler', \App\Livewire\Admin\MusteriYonetimi::class)
+    ->name('personel.musteriler.index'); 
+    // Not: Aynı Livewire bileşenini kullanacağız ama Layout dinamik olacak.
+
     // Proje Davet Yanıt Rotaları
     Route::post('/proje-davet/{iaa}/yanit', [App\Http\Controllers\IaaController::class, 'davetYanitla'])->name('iaa.davetYanitla');
 
@@ -176,7 +197,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // =================================================================
     Route::get('/musteriler', \App\Livewire\Admin\MusteriYonetimi::class)
         ->name('musteriler.index') // <--- CHANGED THIS LINE
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu']); 
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri']);
     // =================================================================
 
     // =================================================================

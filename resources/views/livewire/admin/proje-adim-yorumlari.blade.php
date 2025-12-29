@@ -118,8 +118,11 @@
             @endforelse
         </div>
 
-        {{-- Yeni Yorum Formu (Sadece Yetkili İse Görünür) --}}
-        @if ($kullaniciYetkiliMi)
+        {{-- 
+            YENİ YORUM FORMU 
+            EĞER: Kullanıcı Yetkiliyse VEYA Müşteriyse Formu Göster 
+        --}}
+        @if ($kullaniciYetkiliMi || $isMusteri)
             <div class="pt-6 border-t border-gray-200">
                 @if(session()->has('yorum_success'))
                     <div class="mb-4 text-sm text-green-700 bg-green-100 p-3 rounded-lg">{{ session('yorum_success') }}</div>
@@ -133,7 +136,7 @@
                         <label for="yeniYorum-{{ $step->id }}" class="block text-sm font-medium text-gray-700">Yorum Ekle</label>
                         <textarea wire:model="yeniYorum" id="yeniYorum-{{ $step->id }}" rows="3" 
                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" 
-                                  placeholder="Bir yorum yazın..."></textarea>
+                                  placeholder="Bir yorum veya güncelleme notu yazın..."></textarea>
                         @error('yeniYorum') <span class="text-sm text-red-600">{{ $message }}</span> @enderror
                     </div>
 
@@ -141,7 +144,6 @@
                         <label for="yeniDosya-{{ $step->id }}" class="block text-sm font-medium text-gray-700">Dosya Ekle (Opsiyonel, Maks 5MB)</label>
                         <input type="file" wire:model="yeniDosya" id="yeniDosya-{{ $step->id }}" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 file:cursor-pointer">
                         
-                        {{-- Yükleme Önizlemesi --}}
                         <div wire:loading wire:target="yeniDosya" class="text-sm text-gray-500 mt-1">Yükleniyor...</div>
                         @if ($yeniDosya && !$errors->has('yeniDosya'))
                             <div class="text-sm text-green-600 mt-1">Dosya seçildi: {{ $yeniDosya->getClientOriginalName() }}</div>

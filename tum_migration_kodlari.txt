@@ -2994,3 +2994,229 @@ return new class extends Migration
 
 
 
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_16_094206_create_customers_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('customers', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // Firma AdÄ± (Ã–rn: Coca Cola A.Å.)
+            $table->string('tax_number')->nullable(); // Vergi No
+            $table->string('tax_office')->nullable(); // Vergi Dairesi
+            $table->text('address')->nullable();
+            $table->string('phone')->nullable(); // Santral Telefonu
+            $table->string('email')->nullable(); // Genel Firma E-postasÄ±
+            
+            // Yurt Ä°Ã§i / Yurt DÄ±ÅŸÄ± AyrÄ±mÄ±
+            $table->string('location_type')->default('Yurt Ä°Ã§i'); 
+            
+            $table->boolean('is_active')->default(true); // Aktif/Pasif
+            $table->timestamps();
+            $table->softDeletes(); // Silinirse Ã§Ã¶p kutusuna gitsin
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('customers');
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_16_094207_add_customer_columns_to_users_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            // ENDÄ°ÅENÄ° Ã‡Ã–ZEN KOLON:
+            // true: Bizim personelimiz (Mevcutlar bozulmasÄ±n diye default true)
+            // false: MÃ¼ÅŸteri temsilcisi
+            $table->boolean('is_personnel')->default(true)->after('id');
+
+            // EÄŸer mÃ¼ÅŸteri temsilcisi ise, hangi firmaya baÄŸlÄ±?
+            $table->foreignId('customer_id')->nullable()->after('bolum_id')
+                  ->constrained('customers')
+                  ->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropForeign(['customer_id']);
+            $table->dropColumn(['is_personnel', 'customer_id']);
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_16_094209_add_customer_id_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // Åikayetin hangi "Firma"dan geldiÄŸini tutmak iÃ§in
+            $table->foreignId('customer_id')->nullable()->after('musteri_adi')
+                  ->constrained('customers')
+                  ->onDelete('set null');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            $table->dropForeign(['customer_id']);
+            $table->dropColumn('customer_id');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_16_114625_add_logo_and_unvan_columns.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        // 1. MÃ¼ÅŸterilere LOGO ekliyoruz
+        Schema::table('customers', function (Blueprint $table) {
+            $table->string('logo_path')->nullable()->after('name');
+        });
+
+        // 2. KullanÄ±cÄ±lara (Yetkililere) ÃœNVAN ekliyoruz
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('unvan')->nullable()->after('name'); // Ã–rn: SatÄ±n Alma MÃ¼dÃ¼rÃ¼
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('customers', function (Blueprint $table) {
+            $table->dropColumn('logo_path');
+        });
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('unvan');
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_17_102449_add_yetkili_user_id_to_musteri_sikayetleri_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            // EÄŸer customer_id de yoksa onu da ekleyelim garanti olsun
+            if (!Schema::hasColumn('musteri_sikayetleri', 'customer_id')) {
+                $table->unsignedBigInteger('customer_id')->nullable()->after('id');
+                $table->foreign('customer_id')->references('id')->on('customers')->nullOnDelete();
+            }
+
+            // Eksik olan yetkili_user_id sÃ¼tunu
+            if (!Schema::hasColumn('musteri_sikayetleri', 'yetkili_user_id')) {
+                $table->unsignedBigInteger('yetkili_user_id')->nullable()->after('customer_id');
+                $table->foreign('yetkili_user_id')->references('id')->on('users')->nullOnDelete();
+            }
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('musteri_sikayetleri', function (Blueprint $table) {
+            $table->dropForeign(['yetkili_user_id']);
+            $table->dropColumn('yetkili_user_id');
+            // customer_id'yi silmiyoruz, o kalÄ±cÄ± olabilir
+        });
+    }
+};
+
+
+
+==========================================
+FILE: C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\database\migrations\2025_12_18_175736_create_musteri_logs_table.php
+==========================================
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up()
+    {
+        Schema::create('musteri_logs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('customer_id')->nullable(); // Hangi mÃ¼ÅŸteriyle ilgili?
+            $table->unsignedBigInteger('user_id')->nullable();     // Ä°ÅŸlemi kim yaptÄ±?
+            $table->string('islem_turu'); // Ziyaret, Ekleme, Login vb.
+            $table->text('aciklama')->nullable();
+            $table->string('ip_adresi')->nullable();
+            $table->timestamps();
+
+            // KullanÄ±cÄ± silinse de log kalsÄ±n, ama mÃ¼ÅŸteri silinirse loglar da gidebilir (tercihe baÄŸlÄ±)
+            // foreign key eklemiyoruz ki silinen verilerin loglarÄ± hata vermesin.
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('musteri_logs');
+    }
+};
+
+
+

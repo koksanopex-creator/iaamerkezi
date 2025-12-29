@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\SoftDeletes; // SoftDeletes'i import ettin ama 'use' etmeyi unutmuşsun, onu da ekledim.
 use App\Models\Takim;
+use App\Models\SikayetKategori; // Bunu ekledim
 
 class User extends Authenticatable
 {
@@ -145,5 +146,48 @@ class User extends Authenticatable
     public function raporladigiDisiplinDosyalari()
     {
         return $this->hasMany(\App\Models\DisciplinaryCase::class, 'reporter_id');
+    }
+
+    // App\Models\User.php içine ekle:
+
+    /**
+     * Kullanıcının yetkili olduğu (görebileceği) Bölüm ID'lerini getirir.
+     */
+
+    public function getAllowedBolumIds()
+    {
+        // 1. Superadmin/Yonetim/Kurul ise tüm bölümleri görsün
+        if ($this->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
+            return '*'; 
+        }
+
+        $bolumIds = [];
+
+        // 2. Bölüm Kalite Yöneticisi (Serkan Tölek)
+        if ($this->hasRole('Bölüm Kalite Yöneticisi')) {
+             $yonetilenBolumler = \Illuminate\Support\Facades\DB::table('bolum_kalite_yoneticileri')
+                ->where('user_id', $this->id)
+                // Pivot tablonda bolum_id varsa bunu kullan, yoksa kategori->bolum ilişkisine gitmelisin.
+                // Şimdilik pivotta bolum_id olduğunu varsayıyoruz (eski koda göre).
+                ->pluck('bolum_id') 
+                ->toArray();
+             $bolumIds = array_merge($bolumIds, $yonetilenBolumler);
+        }
+
+        // 3. Bölüm Lideri (Serkan Atak)
+        if ($this->hasRole('Bölüm Lideri') && $this->bolum_id) {
+            $bolumIds[] = $this->bolum_id;
+        }
+
+        // 4. Müşteri Şikayeti Çözüm Lideri (Hasan Ekinci)
+        if ($this->hasRole('Müşteri Şikayeti Çözüm Lideri')) {
+            // HATA VEREN KOD KALDIRILDI ($takim->bolum_id yok).
+            // Çözüm: Liderin kendi bölümünü ekliyoruz.
+            if ($this->bolum_id) {
+                $bolumIds[] = $this->bolum_id;
+            }
+        }
+
+        return array_unique($bolumIds);
     }
 }

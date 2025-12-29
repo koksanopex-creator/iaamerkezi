@@ -118,10 +118,23 @@ class MusteriSikayetiPolicy
         return false;
     }
 
-    // Diğer yetkiler (Değişiklik yok)
+    /**
+     * Şikayet OLUŞTURMA (Create) yetkisi
+     */
     public function create(User $user): bool
     {
-        return $user->hasRole('Müşteri Şikayeti Kurulu');
+        // 1. Kurul Üyeleri ekleyebilir
+        if ($user->hasRole('Müşteri Şikayeti Kurulu')) {
+            return true;
+        }
+
+        // 2. [YENİ] Kayıtlı Müşteri Yetkilileri ekleyebilir
+        // Eğer kullanıcının customer_id'si doluysa ve personel değilse
+        if ($user->customer_id && !$user->is_personnel) {
+            return true;
+        }
+
+        return false;
     }
 
     public function update(User $user, MusteriSikayeti $sikayet): bool

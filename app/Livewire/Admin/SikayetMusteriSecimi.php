@@ -38,20 +38,30 @@ class SikayetMusteriSecimi extends Component
     public $logo;
 
     // Blade'den gelen parametre isimleriyle eşleşmeli
-    public function mount($selectedCustomerId = null, $selectedRepId = null)
+    // Blade'den gelen parametreler: 
+    // :preselected-customer-id -> $preselectedCustomerId
+    // :selected-rep-id         -> $selectedRepId (İleride lazım olabilir)
+    public function mount($preselectedCustomerId = null, $selectedRepId = null)
     {
+        // 1. Tüm Müşterileri Çek
         $this->customers = Customer::orderBy('name')->get();
 
-        // Eğer bir müşteri ID'si geldiyse işlemleri başlat
-        if ($selectedCustomerId) {
-            $this->selectedCustomerId = $selectedCustomerId;
+        // 2. Eğer URL'den veya Blade'den Müşteri ID geldiyse
+        if ($preselectedCustomerId) {
+            $this->selectedCustomerId = $preselectedCustomerId;
             
             // O firmaya ait yetkilileri hemen yükle
-            $this->representatives = User::where('customer_id', $selectedCustomerId)->get();
+            $this->representatives = User::where('customer_id', $preselectedCustomerId)->get();
             
-            // Eğer yetkili ID'si de geldiyse onu da seçili yap
+            // === OTOMATİK SEÇİM MANTIĞI ===
+            
+            // Durum A: Eğer dışarıdan "Şu kişiyi seç" diye ID geldiyse onu seç (Öncelikli)
             if ($selectedRepId) {
                 $this->selectedRepId = $selectedRepId;
+            }
+            // Durum B: Kişi belirtilmemiş ama firmada ZATEN TEK YETKİLİ varsa, onu otomatik seç
+            elseif ($this->representatives->count() === 1) {
+                $this->selectedRepId = $this->representatives->first()->id;
             }
         }
     }

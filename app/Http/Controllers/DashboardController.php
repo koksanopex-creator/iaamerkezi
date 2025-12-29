@@ -24,6 +24,66 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        
+        // =============================================================
+        // 0. MÜŞTERİ (FİRMA YETKİLİSİ) KONTROLÜ
+        // =============================================================
+        if (!$user->is_personnel) { 
+            
+            $stats = [];
+            $customerId = $user->customer_id;
+            
+            if ($customerId) {
+                // Temel Sayılar
+                $stats['toplam_sikayet'] = MusteriSikayeti::where('customer_id', $customerId)->count();
+                
+                $stats['aktif_sikayet'] = MusteriSikayeti::where('customer_id', $customerId)
+                    ->whereIn('musteri_durum', ['Yeni', 'İşlemde', 'İnceleniyor'])
+                    ->count();
+                    
+                $stats['cozulen_sikayet'] = MusteriSikayeti::where('customer_id', $customerId)
+                    ->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])
+                    ->count();
+                
+                // ORTALAMA ÇÖZÜM SÜRESİ HESAPLAMA (Gün Bazında)
+                // Sütun adı düzeltildi: musteri_cozum_son_tarihi
+                $cozulmusKayitlar = MusteriSikayeti::where('customer_id', $customerId)
+                    ->whereNotNull('musteri_cozum_son_tarihi') 
+                    ->get();
+                
+                $toplamGun = 0;
+                $adet = $cozulmusKayitlar->count();
+                if ($adet > 0) {
+                    foreach ($cozulmusKayitlar as $kayit) {
+                        // Carbon nesnesi olduğundan emin olalım (casts'de tanımlı değilse parse gerekir)
+                        $cozumTarihi = $kayit->musteri_cozum_son_tarihi;
+                        if (!($cozumTarihi instanceof \Carbon\Carbon)) {
+                            $cozumTarihi = \Carbon\Carbon::parse($cozumTarihi);
+                        }
+                        
+                        $toplamGun += $kayit->created_at->diffInDays($cozumTarihi);
+                    }
+                    $stats['ortalama_sure'] = round($toplamGun / $adet);
+                } else {
+                    $stats['ortalama_sure'] = 0;
+                }
+
+                // AKTİF SÜREÇTEKİ DETAYLI ŞİKAYETLER (Takım ve Lider Bilgisi İçin)
+                // İlişkiler: Kategori, Proje, Çözüm Takımı -> Lideri
+                $stats['son_sikayetler'] = MusteriSikayeti::where('customer_id', $customerId)
+                    ->with(['iaaProjesi', 'sikayetKategori', 'cozumTakimi.lider']) 
+                    ->latest()
+                    ->take(10)
+                    ->get();
+            }
+
+            return view('dashboard', compact('user', 'stats'))->with('is_musteri_dashboard', true);
+        }
+
+        // =============================================================
+        // PERSONEL DASHBOARD (MEVCUT KODLAR AYNEN DEVAM EDİYOR)
+        // =============================================================
+        
         $stats = [];
         $bolumOnayiBekleyenSayisi = 0;
 

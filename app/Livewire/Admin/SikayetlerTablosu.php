@@ -62,6 +62,29 @@ class SikayetlerTablosu extends Component
         ]);
         $this->resetPage();
     }
+
+    // --- SİLME İŞLEMİ (EKLENDİ) ---
+    public function delete($id)
+    {
+        // 1. Yetki Kontrolü (Opsiyonel ama güvenlik için iyi olur)
+        // if (!auth()->user()->hasRole('Superadmin')) { abort(403); }
+
+        // 2. Şikayeti Bul
+        $sikayet = MusteriSikayeti::find($id);
+
+        if ($sikayet) {
+            // 3. Varsa İlişkili Logları vs. Temizleme (Modelde boot methodunda cascade varsa gerek yok)
+            
+            // 4. Sil
+            $sikayet->delete();
+
+            // 5. Bildirim Gönder (Opsiyonel)
+            session()->flash('message', 'Şikayet başarıyla silindi.');
+            
+            // Eğer modal içindeyse kapatmak için
+            $this->dispatch('close-modal'); 
+        }
+    }
       
 
     public function render()

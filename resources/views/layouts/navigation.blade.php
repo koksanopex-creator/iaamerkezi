@@ -1,453 +1,374 @@
 @php
-    // === GÜVENLİ KONTROL BLOKU ===
+    // === YETKİ KONTROLLERİ ===
     $kullaniciSikayetTakimindaMi = false;
-    $disiplinYetkisi = false; // Varsayılan kapalı
+    $disiplinYetkisi = false;
+    $arabuluculukYetkisi = false;
+    $hukukMenuYetkisi = false;
 
     if(Auth::check()) {
-        // Şikayet Takımı Kontrolü
         $kullaniciSikayetTakimindaMi = Auth::user()->takimlar()->where('tur', 'sikayet')->exists();
 
-        // Disiplin Menüsü Görme Yetkisi (Kimler Görebilir?)
-        // Superadmin, Hukuk Ekibi, Kurul Üyeleri ve Bölüm Liderleri
+        // Disiplin Yetkisi
         $disiplinYetkisi = Auth::user()->hasRole([
-            'Superadmin', 
-            'Hukuk Yöneticisi', 
-            'Hukuk Admini', 
-            'Disiplin Kurulu Başkanı', 
-            'Disiplin Kurulu Üyesi', 
-            'Bölüm Lideri'
+            'Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 
+            'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi', 'Bölüm Lideri'
         ]) || Auth::user()->can_issue_disciplinary;
+
+        // Arabuluculuk Yetkisi
+        $arabuluculukYetkisi = Auth::user()->hasRole([
+            'Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 
+            'Arabuluculuk Personel', 'Arabuluculuk Personel Lideri', 'Arabuluculuk Finans'
+        ]);
+
+        // Ana Hukuk Menüsü Görünsün mü?
+        $hukukMenuYetkisi = $disiplinYetkisi || $arabuluculukYetkisi;
     }
 @endphp
 
-<nav x-data="{ open: false }" class="bg-gradient-to-r from-gray-800 via-gray-900 to-black shadow-2xl border-b border-gray-700/50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-20">
+{{-- MENÜ ARKA PLANI: Pastel Grimsi/Mavimsi Ton --}}
+<nav x-data="{ mobileOpen: false }" class="bg-slate-100 border-b border-slate-200 sticky top-0 z-50 shadow-sm h-20 font-sans">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+        <div class="flex justify-between h-full items-center">
             
-            {{-- SOL TARA (LOGO VE LİNKLER) --}}
-            <div class="flex items-center space-x-6">
+            {{-- SOL TARA: LOGO ve MASAÜSTÜ MENÜ --}}
+            <div class="flex items-center gap-6">
                 
-                {{-- LOGO --}}
-                <div class="shrink-0 flex items-center group">
-                    <a href="{{ Auth::check() ? (Auth::user()->hasRole('Yonetim') ? route('yonetim.index') : route('dashboard')) : url('/') }}" class="flex items-center space-x-3 transition-transform hover:scale-105">
-                        <x-application-logo class="block h-10 w-auto fill-current text-white" />
+                {{-- LOGO ALANI --}}
+                <div class="shrink-0 flex items-center h-full">
+                    <a href="{{ Auth::check() ? (Auth::user()->hasRole('Yonetim') ? route('yonetim.index') : route('dashboard')) : url('/') }}" class="flex items-center gap-3 group transition-transform hover:scale-105">
+                        {{-- Logo Simgesi (Sabit Boyut) --}}
+                        <div style="height: 3.5rem; width: auto;" class="flex items-center justify-center">
+                             <x-application-logo class="block h-14 w-auto fill-current text-slate-700" />
+                        </div>
+                        {{-- PORTAL Yazısı --}}
+                        <span class="font-black text-2xl text-slate-800 tracking-tight">PORTAL</span>
                     </a>
                 </div>
 
-                {{-- MASAÜSTÜ MENÜ LİNKLERİ --}}
-                @auth
+                {{-- MASAÜSTÜ LİNKLERİ --}}
                 <div class="hidden lg:flex items-center space-x-2">
                     
-                    {{-- 1. DASHBOARD (Yönetim Rolü İSE GİZLE) --}}
-                    @if(!Auth::user()->hasRole('Yonetim'))
-                        <a href="{{ route('dashboard') }}" class="group relative px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('dashboard') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                            <span class="font-semibold text-sm">Dashboard</span>
-                            @if(request()->routeIs('dashboard'))
-                                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-                            @endif
-                        </a>
-                    @endif
-
-                    {{-- 2. YÖNETİM RAPORU (Sadece Superadmin ve Yönetim) --}}
-                    @if(Auth::user()->hasRole(['Superadmin', 'Yonetim']))
-                        <a href="{{ route('yonetim.index') }}" class="group relative px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('yonetim.index') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                            <span class="font-semibold text-sm">Yönetim Raporu</span>
-                            @if(request()->routeIs('yonetim.index'))
-                                <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-                            @endif
-                        </a>
-                    @endif
-
-                    {{-- 3. YÖNETİM'E ÖZEL İZLEME LİNKLERİ --}}
-                    @if(Auth::user()->hasRole('Yonetim'))
-                        
-                        {{-- GRUP A: İAA --}}
-                        <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.iaa-yonetim.*') || request()->routeIs('admin.raporlar.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                                <span class="font-semibold text-sm">İAA</span>
-                                <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </button>
-                            <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
-                                <x-dropdown-link :href="route('admin.iaa-yonetim.index')">{{ __('İAA Yönetimi') }}</x-dropdown-link>
-                                <x-dropdown-link :href="route('admin.raporlar.index')">{{ __('Raporlar') }}</x-dropdown-link>
-                            </div>
-                        </div>
-
-                        {{-- GRUP B: MÜŞTERİ ŞİKAYETLERİ --}}
-                        <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-raporlari.*') || request()->routeIs('admin.musteriler.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                                <span class="font-semibold text-sm">Müşteri Şikayetleri</span>
-                                <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </button>
-                            <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
-                                <x-dropdown-link :href="route('admin.sikayetler.index')">{{ __('Şikayetler') }}</x-dropdown-link>
-                                <x-dropdown-link :href="route('admin.sikayet-raporlari.index')">{{ __('Şikayet Raporları') }}</x-dropdown-link>
-                            </div>
-                        </div>
-
-                    @endif
-
-                    {{-- ======================================================= --}}
-                    {{-- [YENİ EKLENEN] DİSİPLİN MODÜLÜ (Yetkili Kişiler İçin) --}}
-                    {{-- ======================================================= --}}
-                    @if($disiplinYetkisi)
-                        <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.disiplin.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                                <span class="font-semibold text-sm">Disiplin</span>
-                                <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </button>
-                            <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
-                                {{-- 1. Disiplin Dosyaları (Ana Sayfa) --}}
-                                <x-dropdown-link :href="route('admin.disiplin.index')">{{ __('Disiplin Dosyaları') }}</x-dropdown-link>
-                                
-                                {{-- 2. Yeni Tutanak (Bölüm Lideri ve Üstü) --}}
-                                <x-dropdown-link :href="route('admin.disiplin.create')">{{ __('Yeni Tutanak Oluştur') }}</x-dropdown-link>
-                                {{-- === BURAYA EKLE: Sorumlu Atama (Sadece Bölüm Liderleri) === --}}
-                                @if(Auth::user()->hasRole('Bölüm Lideri'))
-                                    <x-dropdown-link :href="route('admin.disiplin.sorumlular.index')">
-                                        {{ __('Sorumlu Yönetimi') }}
-                                    </x-dropdown-link>
-                                @endif
-                                {{-- ======================================================= --}}
-                                {{-- 3. Ayarlar (Sadece Superadmin ve Hukuk Admini) --}}
-                                @if(Auth::user()->hasRole(['Superadmin', 'Hukuk Admini']))
-                                    <div class="border-t border-gray-100 my-1"></div>
-                                    <x-dropdown-link :href="route('admin.disiplin.settings.index')">{{ __('Disiplin Ayarları') }}</x-dropdown-link>
-                                @endif
-                            </div>
-                        </div>
-                    @endif
-                    {{-- ======================================================= --}}
-
-
-                    {{-- 4. KULLANICI REHBERİ (HERKES) --}}
-                    <a href="{{ route('user-directory.index') }}" class="group relative px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('user-directory.index') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                        <span class="font-semibold text-sm">Kullanıcı Rehberi</span>
-                        @if(request()->routeIs('user-directory.index'))
-                            <div class="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                    @auth
+                        {{-- 1. DASHBOARD --}}
+                        @if(!Auth::user()->hasRole('Yonetim'))
+                            <a href="{{ route('dashboard') }}" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('dashboard') ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/60' }}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                                Dashboard
+                            </a>
                         @endif
-                    </a>
 
-                    {{-- 5. STANDART KULLANICI MENÜLERİ (YÖNETİM GÖRMEYECEK) --}}
-                    @if(!Auth::user()->hasRole('Yonetim'))
-                        
-                        {{-- İAA Modülü Dropdown --}}
-                        <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('iaa.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                                <span class="font-semibold text-sm">İAA Modülü</span>
-                                <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </button>
-                            <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
-                                <x-dropdown-link :href="route('iaa.index')">{{ __('İAA\'larım') }}</x-dropdown-link>
-                                <x-dropdown-link :href="route('iaa.havuz')">{{ __('İyileştirme Havuzu') }}</x-dropdown-link>
+                        {{-- 2. KULLANICI REHBERİ --}}
+                        <a href="{{ route('user-directory.index') }}" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('user-directory.index') ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/60' }}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                            Rehber
+                        </a>
+
+                        {{-- 3. UYGULAMALAR --}}
+                        @if(!Auth::user()->hasRole('Yonetim'))
+                            <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                                <button type="button" @click="open = !open" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('iaa.*') || request()->routeIs('takimlar.*') ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/60' }}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                    <span>Uygulamalar</span>
+                                    <svg class="w-3 h-3 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </button>
+                                <div x-show="open" x-cloak x-transition.origin.top.left class="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 py-2 z-50">
+                                    <div class="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">İAA Modülü</div>
+                                    <x-dropdown-link :href="route('iaa.index')">İAA'larım</x-dropdown-link>
+                                    <x-dropdown-link :href="route('iaa.havuz')">İyileştirme Havuzu</x-dropdown-link>
+                                    
+                                    <div class="border-t border-slate-100 my-1"></div>
+                                    <div class="px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Takım Modülü</div>
+                                    <x-dropdown-link :href="route('takimlar.index')">Takımlar</x-dropdown-link>
+                                    <x-dropdown-link :href="route('iaa.takimProjeleri')">Takım Projelerim</x-dropdown-link>
+                                    <x-dropdown-link :href="route('takimlar.davetlerim')">Davetlerim</x-dropdown-link>
+                                </div>
                             </div>
-                        </div>
+                        @endif
 
-                        {{-- Takım Modülü Dropdown --}}
-                        <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('takimlar.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                                <span class="font-semibold text-sm">Takım Modülü</span>
-                                <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </button>
-                            <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
-                                <x-dropdown-link :href="route('takimlar.index')">{{ __('Takımlar') }}</x-dropdown-link>
-                                <x-dropdown-link :href="route('iaa.takimProjeleri')">{{ __('Takım Projelerim') }}</x-dropdown-link>
-                                <x-dropdown-link :href="route('takimlar.davetlerim')">{{ __('Davetlerim') }}</x-dropdown-link>
+                        {{-- 4. HUKUK --}}
+                        @if($hukukMenuYetkisi)
+                            <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                                <button type="button" @click="open = !open" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.disiplin.*') || request()->routeIs('admin.arabuluculuk.*') ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/60' }}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                                    <span>Hukuk</span>
+                                    <svg class="w-3 h-3 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </button>
+                                <div x-show="open" x-cloak x-transition.origin.top.left class="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 py-2 z-50 overflow-hidden">
+                                    
+                                    @if($disiplinYetkisi)
+                                        <div class="px-4 py-2 bg-slate-50 border-b border-slate-100">
+                                            <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Disiplin</span>
+                                        </div>
+                                        <x-dropdown-link :href="route('admin.disiplin.index')">Disiplin Dosyaları</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.disiplin.create')">Yeni Tutanak Oluştur</x-dropdown-link>
+                                        @if(Auth::user()->hasRole('Bölüm Lideri'))
+                                            <x-dropdown-link :href="route('admin.disiplin.sorumlular.index')">Sorumlu Yönetimi</x-dropdown-link>
+                                        @endif
+                                    @endif
+
+                                    @if($arabuluculukYetkisi)
+                                        <div class="border-t border-slate-100"></div>
+                                        <div class="px-4 py-2 bg-slate-50 border-b border-slate-100">
+                                            <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Arabuluculuk</span>
+                                        </div>
+                                        <x-dropdown-link :href="route('admin.arabuluculuk.index')">Dosya Listesi</x-dropdown-link>
+                                        @if(Auth::user()->hasRole(['Arabuluculuk Personel', 'Hukuk Admini', 'Superadmin']))
+                                            <x-dropdown-link :href="route('admin.arabuluculuk.create')">Yeni Dosya Başlat</x-dropdown-link>
+                                        @endif
+                                    @endif
+
+                                    @if(Auth::user()->hasRole(['Superadmin', 'Hukuk Admini', 'Hukuk Yöneticisi']))
+                                        <div class="border-t border-slate-100 my-1"></div>
+                                        <div class="px-4 py-1 text-[10px] text-slate-400 font-bold uppercase">Tanımlamalar</div>
+                                        <x-dropdown-link :href="route('admin.disiplin.settings.index')">Disiplin Ayarları</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.arabulucular.index')">Arabulucu Listesi</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.dis_avukatlar.index')">Dış Avukatlar</x-dropdown-link>
+                                        <x-nav-link :href="route('admin.arabuluculuk.tanim.anlasmaMaddeleri')" :active="request()->routeIs('admin.arabuluculuk.tanim.anlasmaMaddeleri')">
+            {{ __('Anlaşma Maddeleri') }}
+        </x-nav-link>
+                                    @endif
+                                </div>
                             </div>
-                        </div>
+                        @endif
 
-                        {{-- Şikayet Dropdown --}}
+                        {{-- 5. MÜŞTERİ --}}
                         @if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi']) || $kullaniciSikayetTakimindaMi)
-                        <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ request()->routeIs('admin.sikayetler.*') || request()->routeIs('admin.sikayet-raporlari.*') || request()->routeIs('admin.musteriler.*') ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                                <span class="font-semibold text-sm">Müşteri Şikayetleri</span>
-                                <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </button>
-                            <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
-                                <x-dropdown-link :href="route('admin.sikayetler.index')">{{ __('Şikayet Paneli') }}</x-dropdown-link>
-                                <x-dropdown-link :href="route('admin.sikayet-raporlari.index')">{{ __('Şikayet Raporları') }}</x-dropdown-link>
-                                {{-- === YENİ EKLENEN KISIM === --}}
-                                <div class="border-t border-gray-100 my-1"></div>
-                                <x-dropdown-link :href="route('admin.musteriler.index')">{{ __('Müşteri Listesi') }}</x-dropdown-link>
-                                {{-- ========================== --}}
-                                @role('Superadmin')
-                                    <div class="border-t border-gray-100 my-1"></div>
-                                    <x-dropdown-link :href="route('admin.sikayet-kategorileri.index')">{{ __('Şikayet Kategorileri') }}</x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.cozum-takimlari.index')">{{ __('Çözüm Takımları') }}</x-dropdown-link>
-                                @endrole
+                             <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                                <button type="button" @click="open = !open" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.sikayetler.*') ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/60' }}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                    <span>Müşteri</span>
+                                    <svg class="w-3 h-3 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </button>
+                                <div x-show="open" x-cloak x-transition.origin.top.left class="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 py-2 z-50">
+                                    <x-dropdown-link :href="route('admin.sikayetler.index')">Şikayet Paneli</x-dropdown-link>
+                                    <x-dropdown-link :href="route('admin.sikayet-raporlari.index')">Raporlar</x-dropdown-link>
+                                    <x-dropdown-link :href="route('admin.musteriler.index')">Müşteri Listesi</x-dropdown-link>
+
+                                    @role('Superadmin')
+                                        <div class="border-t border-slate-100 my-1"></div>
+                                        <div class="px-4 py-1 text-[10px] text-slate-400 font-bold uppercase">Tanımlar</div>
+                                        <x-dropdown-link :href="route('admin.sikayet-kategorileri.index')">Şikayet Kategorileri</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.cozum-takimlari.index')">Çözüm Takımları</x-dropdown-link>
+                                    @endrole
+                                </div>
                             </div>
-                        </div>
                         @endif
 
-                    @endif {{-- !Yonetim Check Sonu --}}
-
-                    {{-- 6. SUPERADMIN ÖZEL MENÜSÜ --}}
-                    @if(Auth::user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi']))
-                        <div x-data="{ open: false }" @click.away="open = false" class="relative">
-                            <button @click="open = !open" class="group flex items-center space-x-2 px-4 py-2.5 rounded-xl transition-all duration-300 {{ (request()->routeIs('admin.*') && !request()->routeIs('admin.sikayetler.*') && !request()->routeIs('admin.raporlar.*') && !request()->routeIs('admin.disiplin.*') && !request()->routeIs('admin.musteriler.*')) ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5' }}">
-                                <span class="font-semibold text-sm">Yönetim Paneli</span>
-                                <svg class="w-4 h-4 transition-transform text-gray-400 group-hover:text-white" :class="{'rotate-180': open}" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                            </button>
-                            <div x-show="open" x-transition x-cloak class="absolute left-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-50 py-1">
-                                <x-dropdown-link :href="route('admin.iaa-yonetim.index')">{{ __('İAA Yönetimi') }}</x-dropdown-link>
-                                @role('Superadmin')
-                                    <x-dropdown-link :href="route('admin.bolumler.index')">{{ __('Bölüm Yönetimi') }}</x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.takim-yonetim.index')">{{ __('Takım Yönetimi') }}</x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.workflows.index')">{{ __('Akış Şablonları') }}</x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.users.index')">{{ __('Kullanıcı Yönetimi') }}</x-dropdown-link>
-                                    <x-dropdown-link :href="route('admin.kalite-yoneticileri.index')">{{ __('Bölüm Kalite Yöneticileri') }}</x-dropdown-link>
-                                    <div class="border-t border-gray-100 my-1"></div>
-                                    <x-dropdown-link :href="route('admin.raporlar.index')">{{ __('İAA Raporları') }}</x-dropdown-link>
-                                    <div class="border-t border-gray-100 my-1"></div>
-                                    <x-dropdown-link :href="route('admin.sistem-ayarlari.index')">{{ __('Sistem Ayarları') }}</x-dropdown-link>
-                                @endrole
+                        {{-- 6. YÖNETİCİ MENÜSÜ --}}
+                        @if(Auth::user()->hasRole(['Superadmin', 'Yonetim', 'Bölüm Kalite Yöneticisi']))
+                            <div class="relative" x-data="{ open: false }" @click.away="open = false">
+                                <button type="button" @click="open = !open" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('admin.iaa-yonetim.*') || request()->routeIs('admin.users.*') ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/60' }}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    <span>Yönetici</span>
+                                    <svg class="w-3 h-3 transition-transform duration-200" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </button>
+                                <div x-show="open" x-cloak x-transition.origin.top.left class="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 py-2 z-50 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                                    @if(Auth::user()->hasRole(['Superadmin', 'Yonetim']))
+                                        <x-dropdown-link :href="route('yonetim.index')" class="font-bold text-indigo-600">Yönetim Raporu</x-dropdown-link>
+                                        <div class="border-t border-slate-100 my-1"></div>
+                                    @endif
+                                    <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase mt-1">İAA Yönetimi</div>
+                                    <x-dropdown-link :href="route('admin.iaa-yonetim.index')">İAA Listesi</x-dropdown-link>
+                                    <x-dropdown-link :href="route('admin.raporlar.index')">Raporlar</x-dropdown-link>
+                                    @role('Superadmin')
+                                        <div class="border-t border-slate-100 my-1"></div>
+                                        <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase">Sistem</div>
+                                        <x-dropdown-link :href="route('admin.users.index')">Kullanıcılar</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.bolumler.index')">Bölümler</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.takim-yonetim.index')">Takımlar</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.workflows.index')">Akış Şablonları</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.kalite-yoneticileri.index')">Kalite Yöneticileri</x-dropdown-link>
+                                        <x-dropdown-link :href="route('admin.sistem-ayarlari.index')">Sistem Ayarları</x-dropdown-link>
+                                    @endrole
+                                </div>
                             </div>
-                        </div>
-                    @endif
-
+                        @endif
+                    @endauth
                 </div>
-                @endauth
             </div>
 
-            {{-- SAĞ TARAF (BİLDİRİM VE PROFİL) --}}
+            {{-- ======================================================= --}}
+            {{-- SAĞ TARA: BİLDİRİM VE PROFİL (MASAÜSTÜ & MOBİL ORTAK) --}}
+            {{-- ======================================================= --}}
             @auth
-            <div class="hidden lg:flex items-center">
-                {{-- BİLDİRİM ZİLİ --}}
-                <div class="notification-container relative mr-4"> 
-                    <a href="#" id="notification-bell-icon" class="relative block p-2 text-gray-300 hover:text-white transition-all">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 14h14a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path></svg>
-                        <span id="notification-count-badge" class="notification-badge" style="display: none;">0</span>
-                    </a>
-                    <div id="notification-dropdown" class="notification-dropdown-menu" style="display: none;">
-                        <div class="notification-header">Bildirimler</div>
-                        <ul id="notification-list" class="notification-list-items"></ul>
-                        <div id="notification-empty" class="notification-empty-message" style="display: none;">Yeni bildirim yok.</div>
+            <div class="flex items-center gap-2 lg:gap-4">
+                
+                {{-- 1. BİLDİRİM ZİLİ (Hem Mobil Hem Masaüstünde Görünür) --}}
+                <div class="relative notification-container" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" id="notification-bell-icon" class="relative p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-200 rounded-full focus:outline-none transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        <span id="notification-count-badge" class="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white shadow-sm" style="display: none;">0</span>
+                    </button>
+                    {{-- DROPDOWN: KART GÖRÜNÜMLÜ BİLDİRİMLER (CSS ile Stile Edildi) --}}
+                    <div x-show="open" x-cloak @click.away="open = false" id="notification-dropdown" class="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 py-2 z-50">
+                        <div class="px-4 py-2 border-b border-slate-100 font-bold text-slate-700">Bildirimler</div>
+                        {{-- NOT: Buradaki liste JavaScript ile dolduruluyor. --}}
+                        {{-- [&_li] ile child li elementlerine KART stili veriyoruz --}}
+                        <ul id="notification-list" class="max-h-80 overflow-y-auto custom-scrollbar p-2 space-y-2 [&_li]:bg-slate-50 [&_li]:rounded-lg [&_li]:p-3 [&_li]:border [&_li]:border-slate-100 [&_li]:cursor-pointer [&_li]:transition-colors [&_li]:hover:bg-indigo-50"></ul>
+                        <div id="notification-empty" class="px-4 py-3 text-sm text-slate-500 text-center hidden">Yeni bildirim yok.</div>
+                        <div class="border-t border-slate-100 mt-2 pt-2 px-4 text-center">
+                            <a href="#" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Tümünü Gör</a>
+                        </div>
                     </div>
                 </div>
-                
-                {{-- PROFİL DROPDOWN --}}
-                <x-dropdown align="right" width="48">
-                    <x-slot name="trigger">
-                        <button class="flex items-center space-x-3 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-300 group">
-                            @if(Auth::user()->profile_photo_path)
-                                <img class="h-9 w-9 rounded-full object-cover border-2 border-indigo-500 shadow-lg" src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}" alt="{{ Auth::user()->name }}" />
-                            @else
-                                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                                    {{ substr(Auth::user()->name, 0, 1) }}
-                                </div>
-                            @endif
-                            <div class="text-left hidden xl:block">
-                                <p class="text-sm font-semibold text-white">{{ Auth::user()->name }}</p>
-                                <p class="text-xs text-gray-400">{{ Auth::user()->roles->first()->name ?? 'Kullanıcı' }}</p>
-                            </div>
-                            <svg class="w-4 h-4 text-gray-300 group-hover:text-white transition-transform" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                        </button>
-                    </x-slot>
-                    <x-slot name="content">
-                         <div class="py-1">
-                            <x-dropdown-link :href="route('profile.edit')">{{ __('Profil') }}</x-dropdown-link>
-                            <div class="border-t border-gray-200 my-1"></div>
-                            <div class="block px-4 py-2 text-xs text-gray-400">Puan Durumu</div>
-                            <x-dropdown-link :href="route('puan-durumu')">
-                                <div class="flex justify-between items-center">
-                                    <span>Liderlik Tablosu</span>
-                                    <span class="text-sm font-bold text-indigo-600">{{ number_format(Auth::user()->toplam_puan, 0) }} Puan</span>
-                                </div>
-                            </x-dropdown-link>
-                            <div class="border-t border-gray-200 my-1"></div>
-                            <form method="POST" action="{{ route('logout') }}">
-                                @csrf
-                                <x-dropdown-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();" class="text-red-600 hover:bg-red-50">
-                                    {{ __('Çıkış Yap') }}
-                                </x-dropdown-link>
-                            </form>
+
+                {{-- 2. PROFİL (Sadece Masaüstünde, Mobilde Menü İçinde) --}}
+                <div class="relative hidden lg:block" x-data="{ open: false }" @click.away="open = false">
+                    <button type="button" @click="open = !open" class="flex items-center gap-2 focus:outline-none group">
+                        <div class="text-right">
+                            <div class="text-sm font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">{{ Auth::user()->name }}</div>
+                            <div class="text-[10px] text-slate-500 uppercase">{{ Auth::user()->roles->first()->name ?? 'Kullanıcı' }}</div>
                         </div>
-                    </x-slot>
-                </x-dropdown>
-            </div>
-            
-            {{-- MOBİL MENÜ BUTONU --}}
-            <div class="flex items-center lg:hidden">
-                <button @click="open = !open" class="p-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                    <svg class="h-7 w-7" stroke="currentColor" fill="none" viewBox="0 0 24 24"><path :class="{'hidden': open, 'inline-flex': !open }" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/><path :class="{'block': open, 'hidden': !open }" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+                        @if(Auth::user()->profile_photo_path)
+                            <img class="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm group-hover:border-indigo-200 transition-colors" src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}" alt="{{ Auth::user()->name }}" />
+                        @else
+                            <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shadow-sm group-hover:bg-indigo-200 transition-colors">
+                                {{ substr(Auth::user()->name, 0, 1) }}
+                            </div>
+                        @endif
+                    </button>
+                    <div x-show="open" x-cloak x-transition.origin.top.right class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 py-1 z-50">
+                        <x-dropdown-link :href="route('profile.edit')">Profil</x-dropdown-link>
+                        <x-dropdown-link :href="route('puan-durumu')">
+                            <span class="flex justify-between w-full">
+                                Liderlik <span class="text-green-600 font-bold">{{ number_format(Auth::user()->toplam_puan, 0) }}</span>
+                            </span>
+                        </x-dropdown-link>
+                        <div class="border-t border-slate-100 my-1"></div>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <x-dropdown-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();" class="text-red-600">
+                                Çıkış Yap
+                            </x-dropdown-link>
+                        </form>
+                    </div>
+                </div>
+
+                {{-- 3. MOBİL MENÜ BUTONU --}}
+                <div class="flex items-center lg:hidden">
+                    <button type="button" @click="mobileOpen = !mobileOpen" class="p-2 rounded-lg text-slate-500 hover:bg-slate-200 focus:outline-none">
+                        <svg class="h-7 w-7" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                            <path :class="{'hidden': mobileOpen, 'inline-flex': !mobileOpen }" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                            <path :class="{'hidden': !mobileOpen, 'inline-flex': mobileOpen }" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
             @endauth
         </div>
     </div>
 
-    {{-- MOBİL MENÜ --}}
-    @auth
-    <div x-show="open" x-transition x-cloak class="lg:hidden bg-gray-800/95 backdrop-blur-lg border-t border-gray-700/50">
-        
-        {{-- 1. Mobil Dashboard (Yönetim Rolü İSE GİZLE) --}}
-        @if(!Auth::user()->hasRole('Yonetim'))
-            <div class="px-2 pt-2 pb-3 space-y-1">
-                <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">{{ __('Dashboard') }}</x-responsive-nav-link>
-            </div>
-        @endif
-
-        {{-- 2. Mobil Yönetim Raporu --}}
-        @if(Auth::user()->hasRole(['Superadmin', 'Yonetim']))
-            <div class="px-2 pt-2 pb-3 space-y-1">
-                <x-responsive-nav-link :href="route('yonetim.index')" :active="request()->routeIs('yonetim.index')">{{ __('Yönetim Raporu') }}</x-responsive-nav-link>
-            </div>
-        @endif
-
-        <x-responsive-nav-link :href="route('user-directory.index')" :active="request()->routeIs('user-directory.index')">
-            {{ __('Kullanıcı Rehberi') }}
-        </x-responsive-nav-link>
-        
-        {{-- YÖNETİM İÇİN ÖZEL MOBİL MENÜ (GRUPLANMIŞ) --}}
-        @if(Auth::user()->hasRole('Yonetim'))
+    {{-- ======================================================= --}}
+    {{-- MOBİL MENÜ İÇERİĞİ (EKSİKSİZ TAM LİSTE) --}}
+    {{-- ======================================================= --}}
+    <div x-show="mobileOpen" x-cloak class="lg:hidden border-t border-slate-200 bg-white max-h-[calc(100vh-80px)] overflow-y-auto shadow-inner">
+        @auth
+        <div class="pt-2 pb-3 space-y-1 px-2">
             
-            {{-- Grup 1: İAA --}}
-            <div class="pt-4 pb-1 border-t border-gray-700">
-                <div class="px-4"><div class="font-medium text-base text-gray-400">İAA</div></div>
-                <div class="mt-3 space-y-1">
-                    <x-responsive-nav-link :href="route('admin.iaa-yonetim.index')" :active="request()->routeIs('admin.iaa-yonetim.*')">
-                        {{ __('İAA Yönetimi') }}
-                    </x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('admin.raporlar.index')" :active="request()->routeIs('admin.raporlar.*')">
-                        {{ __('Raporlar') }}
-                    </x-responsive-nav-link>
-                </div>
-            </div>
+            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">Dashboard</x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('user-directory.index')">Kullanıcı Rehberi</x-responsive-nav-link>
 
-            {{-- Grup 2: Müşteri Şikayetleri --}}
-            <div class="pt-4 pb-1 border-t border-gray-700">
-                <div class="px-4"><div class="font-medium text-base text-gray-400">Müşteri Şikayetleri</div></div>
-                <div class="mt-3 space-y-1">
-                    <x-responsive-nav-link :href="route('admin.sikayetler.index')" :active="request()->routeIs('admin.sikayetler.*')">
-                        {{ __('Şikayetler') }}
-                    </x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('admin.sikayet-raporlari.index')" :active="request()->routeIs('admin.sikayet-raporlari.*')">
-                        {{ __('Şikayet Raporları') }}
-                    </x-responsive-nav-link>
-                </div>
-            </div>
-
-        @endif
-
-        {{-- [YENİ] MOBİL DİSİPLİN MENÜSÜ --}}
-        {{-- [YENİ] MOBİL DİSİPLİN MENÜSÜ --}}
-        @if($disiplinYetkisi)
-            <div class="pt-4 pb-1 border-t border-gray-700">
-                <div class="px-4"><div class="font-medium text-base text-gray-400">Disiplin Modülü</div></div>
-                <div class="mt-3 space-y-1">
-                    
-                    {{-- 1. Dosyalar (Herkes) --}}
-                    <x-responsive-nav-link :href="route('admin.disiplin.index')" :active="request()->routeIs('admin.disiplin.index')">
-                        {{ __('Disiplin Dosyaları') }}
-                    </x-responsive-nav-link>
-                    
-                    {{-- 2. Yeni Tutanak (Yetkili Olanlar) --}}
-                    {{-- Serkan burayı görecek çünkü $disiplinYetkisi true --}}
-                    <x-responsive-nav-link :href="route('admin.disiplin.create')" :active="request()->routeIs('admin.disiplin.create')">
-                        {{ __('Yeni Tutanak Oluştur') }}
-                    </x-responsive-nav-link>
-                    
-                    {{-- 3. Sorumlu Atama (Sadece Liderler) --}}
-                    @if(Auth::user()->hasRole('Bölüm Lideri'))
-                        <x-responsive-nav-link :href="route('admin.disiplin.sorumlular.index')" :active="request()->routeIs('admin.disiplin.sorumlular.*')">
-                            {{ __('Sorumlu Yönetimi') }}
-                        </x-responsive-nav-link>
-                    @endif
-
-                    {{-- 4. Ayarlar (Sadece Adminler) --}}
-                    @if(Auth::user()->hasRole(['Superadmin', 'Hukuk Admini']))
-                        <x-responsive-nav-link :href="route('admin.sistem-ayarlari.index')" :active="request()->routeIs('admin.sistem-ayarlari.*')">
-                            {{ __('Sistem Ayarları') }}
-                        </x-responsive-nav-link>
-                    @endif
-
-                </div>
-            </div>
-        @endif
-
-        {{-- STANDART KULLANICI LİNKLERİ (Yönetim GİZLİ) --}}
-        @if(!Auth::user()->hasRole('Yonetim'))
-            <div class="pt-4 pb-1 border-t border-gray-700">
-                <div class="px-4"><div class="font-medium text-base text-gray-400">İAA Modülü</div></div>
-                <div class="mt-3 space-y-1">
-                    <x-responsive-nav-link :href="route('iaa.index')">{{ __('İAA\'larım') }}</x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('iaa.havuz')">{{ __('İyileştirme Havuzu') }}</x-responsive-nav-link>
-                </div>
-            </div>
-            
-            <div class="pt-4 pb-1 border-t border-gray-700">
-                <div class="px-4"><div class="font-medium text-base text-gray-400">Takım Modülü</div></div>
-                <div class="mt-3 space-y-1">
-                    <x-responsive-nav-link :href="route('takimlar.index')">{{ __('Takımlar') }}</x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('iaa.takimProjeleri')">{{ __('Takım Projelerim') }}</x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('takimlar.davetlerim')">{{ __('Davetlerim') }}</x-responsive-nav-link>
-                </div>
-            </div>
-
-            @if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']) || $kullaniciSikayetTakimindaMi)
-            <div class="pt-4 pb-1 border-t border-gray-700">
-                <div class="px-4"><div class="font-medium text-base text-gray-400">Müşteri Şikayetleri</div></div>
-                <div class="mt-3 space-y-1">
-                    <x-responsive-nav-link :href="route('sikayet-gorevlerim.index')">{{ __('Şikayet Görevlerim') }}</x-responsive-nav-link>
-                    <x-responsive-nav-link :href="route('admin.sikayet-raporlari.index')">{{ __('Şikayet Raporları') }}</x-responsive-nav-link>
-                    {{-- === YENİ EKLENEN KISIM === --}}
-                    <x-responsive-nav-link :href="route('admin.musteriler.index')" :active="request()->routeIs('admin.musteriler.*')">
-                        {{ __('Müşteri Listesi') }}
-                    </x-responsive-nav-link>
-                    {{-- ========================== --}}
-                </div>
-            </div>
+            {{-- Mobil Uygulamalar --}}
+            @if(!Auth::user()->hasRole('Yonetim'))
+                <div class="bg-slate-50 px-3 py-1 mt-2 text-xs font-bold text-slate-400 uppercase">Uygulamalar</div>
+                <x-responsive-nav-link :href="route('iaa.index')">İAA'larım</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('iaa.havuz')">İyileştirme Havuzu</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('takimlar.index')">Takımlar</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('iaa.takimProjeleri')">Projelerim</x-dropdown-link>
+                <x-responsive-nav-link :href="route('takimlar.davetlerim')">Davetlerim</x-dropdown-link>
             @endif
-        @endif
-        
-        {{-- Superadmin Özel --}}
-        @role('Superadmin')
-        <div class="pt-4 pb-1 border-t border-gray-700">
-            <div class="px-4"><div class="font-medium text-base text-gray-400">Yönetim Paneli</div></div>
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('admin.iaa-yonetim.index')">{{ __('İAA Yönetimi') }}</x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('admin.bolumler.index')">{{ __('Bölüm Yönetimi') }}</x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('admin.takim-yonetim.index')">{{ __('Takım Yönetimi') }}</x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('admin.users.index')">{{ __('Kullanıcı Yönetimi') }}</x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('admin.raporlar.index')">{{ __('İAA Raporları') }}</x-responsive-nav-link>
-            </div>
-        </div>
-        @endrole
-        
-        {{-- Bildirimler ve Profil Mobilde --}}
-        <div class="pt-4 pb-1 border-t border-gray-700">
-            <div class="px-2">
-                <div class="notification-container relative">
-                    <a href="#" id="notification-bell-icon" class="relative flex items-center w-full px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 14h14a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"></path></svg>
-                        <span class="ml-3">Bildirimler</span>
-                        <span id="notification-count-badge" class="notification-badge" style="display: none; position: relative; top: -10px; right: -5px;">0</span>
-                    </a>
-                </div>
-            </div>
-        </div>
 
-        <div class="pt-4 pb-1 border-t border-gray-700">
+            {{-- Mobil Hukuk --}}
+            @if($hukukMenuYetkisi)
+                <div class="bg-slate-50 px-3 py-1 mt-2 text-xs font-bold text-slate-400 uppercase">Hukuk</div>
+                
+                @if($disiplinYetkisi)
+                    <div class="px-4 py-1 text-[10px] text-slate-400 font-bold uppercase mt-1">Disiplin</div>
+                    <x-responsive-nav-link :href="route('admin.disiplin.index')">Disiplin Dosyaları</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.disiplin.create')">Yeni Tutanak</x-responsive-nav-link>
+                    @if(Auth::user()->hasRole('Bölüm Lideri'))
+                        <x-responsive-nav-link :href="route('admin.disiplin.sorumlular.index')">Sorumlu Yönetimi</x-responsive-nav-link>
+                    @endif
+                @endif
+                
+                @if($arabuluculukYetkisi)
+                    <div class="px-4 py-1 text-[10px] text-slate-400 font-bold uppercase mt-1">Arabuluculuk</div>
+                    <x-responsive-nav-link :href="route('admin.arabuluculuk.index')">Dosya Listesi</x-responsive-nav-link>
+                    @if(Auth::user()->hasRole(['Arabuluculuk Personel', 'Hukuk Admini', 'Superadmin']))
+                        <x-responsive-nav-link :href="route('admin.arabuluculuk.create')">Yeni Dosya Başlat</x-responsive-nav-link>
+                    @endif
+                @endif
+
+                @if(Auth::user()->hasRole(['Superadmin', 'Hukuk Admini', 'Hukuk Yöneticisi']))
+                    <div class="px-4 py-1 text-[10px] text-slate-400 font-bold uppercase mt-1">Tanımlar</div>
+                    <x-responsive-nav-link :href="route('admin.disiplin.settings.index')">Disiplin Ayarları</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.arabulucular.index')">Arabulucu Listesi</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.dis_avukatlar.index')">Dış Avukatlar</x-responsive-nav-link>
+                @endif
+            @endif
+
+            {{-- Mobil Müşteri --}}
+            @if(Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']) || $kullaniciSikayetTakimindaMi)
+                <div class="bg-slate-50 px-3 py-1 mt-2 text-xs font-bold text-slate-400 uppercase">Müşteri</div>
+                <x-responsive-nav-link :href="route('admin.sikayetler.index')">Şikayet Paneli</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.sikayet-raporlari.index')">Raporlar</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.musteriler.index')">Müşteri Listesi</x-dropdown-link>
+                @role('Superadmin')
+                    <div class="px-4 py-1 text-[10px] text-slate-400 font-bold uppercase mt-1">Tanımlar</div>
+                    <x-responsive-nav-link :href="route('admin.sikayet-kategorileri.index')">Şikayet Kategorileri</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.cozum-takimlari.index')">Çözüm Takımları</x-responsive-nav-link>
+                @endrole
+            @endif
+
+            {{-- Mobil Yönetim --}}
+            @if(Auth::user()->hasRole(['Superadmin', 'Yonetim', 'Bölüm Kalite Yöneticisi']))
+                <div class="bg-slate-50 px-3 py-1 mt-2 text-xs font-bold text-slate-400 uppercase">Yönetim</div>
+                
+                @if(Auth::user()->hasRole(['Superadmin', 'Yonetim']))
+                    <x-responsive-nav-link :href="route('yonetim.index')">Yönetim Raporu</x-responsive-nav-link>
+                @endif
+
+                <x-responsive-nav-link :href="route('admin.iaa-yonetim.index')">İAA Yönetimi</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('admin.raporlar.index')">İAA Raporları</x-responsive-nav-link>
+
+                @role('Superadmin')
+                    <div class="px-4 py-1 text-[10px] text-slate-400 font-bold uppercase mt-1">Sistem</div>
+                    <x-responsive-nav-link :href="route('admin.users.index')">Kullanıcılar</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.bolumler.index')">Bölümler</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.takim-yonetim.index')">Takımlar</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.workflows.index')">Akış Şablonları</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.kalite-yoneticileri.index')">Kalite Yöneticileri</x-responsive-nav-link>
+                    <x-responsive-nav-link :href="route('admin.sistem-ayarlari.index')">Sistem Ayarları</x-responsive-nav-link>
+                @endrole
+            @endif
+
+        </div>
+        
+        {{-- Mobil Profil --}}
+        <div class="pt-4 pb-4 border-t border-slate-200 bg-slate-50">
             <div class="px-4 flex items-center">
-                <div class="flex-shrink-0 mr-3">
+                <div class="shrink-0">
                     @if(Auth::user()->profile_photo_path)
-                        <img class="h-10 w-10 rounded-full object-cover border-2 border-gray-500" src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}" alt="{{ Auth::user()->name }}" />
+                        <img class="h-10 w-10 rounded-full object-cover" src="{{ asset('storage/' . Auth::user()->profile_photo_path) }}" alt="{{ Auth::user()->name }}" />
                     @else
-                        <div class="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                        <div class="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
                             {{ substr(Auth::user()->name, 0, 1) }}
                         </div>
                     @endif
                 </div>
-                <div>
-                    <div class="font-medium text-base text-white">{{ Auth::user()->name }}</div>
-                    <div class="font-medium text-sm text-gray-400">{{ Auth::user()->email }}</div>
+                <div class="ml-3">
+                    <div class="font-medium text-base text-slate-800">{{ Auth::user()->name }}</div>
+                    <div class="font-medium text-sm text-slate-500">{{ Auth::user()->email }}</div>
                 </div>
             </div>
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile.edit')">{{ __('Profil') }}</x-responsive-nav-link>
-                <form method="POST" action="{{ route('logout') }}">@csrf<x-responsive-nav-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();">{{ __('Çıkış Yap') }}</x-responsive-nav-link></form>
+            <div class="mt-3 space-y-1 px-2">
+                <x-responsive-nav-link :href="route('profile.edit')">Profil</x-responsive-nav-link>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <x-responsive-nav-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();">Çıkış Yap</x-responsive-nav-link>
+                </form>
             </div>
         </div>
+        @endauth
     </div>
-    @endauth
 </nav>

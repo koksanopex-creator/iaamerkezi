@@ -5,6 +5,7 @@
             {{ __('İyileştirmeye Açık Alan Önerilerim') }}
         </h2>
     </x-slot>
+    
 
     {{-- ======================== ANA SAYFA İÇERİĞİ ======================== --}}
     <div class="py-12">

@@ -85,6 +85,10 @@
                                                     @endif
                                                 </div>
                                                 <div class="text-sm text-gray-500 truncate">{{ $kullanici->email }}</div>
+
+                                                <div class="text-xs text-indigo-600 font-medium truncate mt-0.5">
+                                                    {{ $kullanici->bolum->ad ?? '-' }}
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -169,6 +173,7 @@
                                             @endif
                                         </h4>
                                         <p class="text-xs text-gray-500 truncate">{{ $kullanici->email }}</p>
+                                        <p class="text-[10px] text-indigo-600 font-medium truncate mt-0.5">{{ $kullanici->bolum->ad ?? '-' }}</p>
                                     </div>
                                 </div>
                             </div>

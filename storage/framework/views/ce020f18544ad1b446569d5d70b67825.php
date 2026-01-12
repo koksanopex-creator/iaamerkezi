@@ -15,6 +15,7 @@
 
         </h2>
      <?php $__env->endSlot(); ?>
+    
 
     
     <div class="py-12">

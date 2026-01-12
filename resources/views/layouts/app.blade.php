@@ -19,54 +19,48 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
         
         @stack('styles')
-        
-        {{-- 1. @vite CSS/JS yüklemesi (app.js'niz Livewire/Alpine içermemeli) --}}
         @vite(['resources/css/app.css', 'resources/js/app.js']) 
-        
-        {{-- 2. Livewire Stilleri (Otomatik) --}}
         @livewireStyles
     </head>
-    <body class="font-sans antialiased">
-        <div class="min-h-screen bg-gray-100">
+    <body class="font-sans antialiased bg-gray-50">
+        
+        <div class="min-h-screen">
+            {{-- 1. ÜST MENÜ (Navigation) --}}
             @include('layouts.navigation')
 
+            {{-- 2. SAYFA BAŞLIĞI (Opsiyonel Header) --}}
             @isset($header)
-                <header class="bg-white shadow">
+                <header class="bg-white shadow-sm border-b border-gray-200">
                     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
                         {{ $header }}
                     </div>
                 </header>
             @endisset
 
+            {{-- 3. ANA İÇERİK --}}
             <main>
-                {{ $slot }}
+                <div class="py-8">
+                    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                        {{ $slot }}
+                    </div>
+                </div>
             </main>
         </div>
 
-        {{-- 3. @stack('scripts') (Livewire'dan önce) --}}
         @stack('scripts')
-
-        {{-- 🚨 4. KRİTİK DÜZELTME: Livewire'a Base URL'i Bildirme --}}
+        
         @php
-            $appUrl = config('app.url'); // .env'den (Lokal: http://localhost:8000)
+            $appUrl = config('app.url'); 
             $isLocal = str_contains($appUrl, 'localhost:8000') || app()->isLocal();
-            
-            // Lokalde: /livewire/update
-            // Sunucuda: /iaa/livewire/update
             $livewireUpdateUri = $isLocal ? '/livewire/update' : asset('livewire/update');
         @endphp
         
-        {{-- Livewire v3 için Ajax rotasını (URI) manuel olarak ayarla --}}
         <script>
             window.livewire_app_url = '{{ $appUrl }}';
             window.livewire_update_uri = '{{ $livewireUpdateUri }}';
         </script>
         
-        {{-- 5. Livewire Scriptleri (Otomatik) --}}
         @livewireScripts
-        
-        {{-- 6. Sortable (Livewire'dan SONRA) --}}
         <script src="https://cdn.jsdelivr.net/gh/livewire/sortable@v1.x.x/dist/livewire-sortable.js"></script>
-        
     </body>
 </html>

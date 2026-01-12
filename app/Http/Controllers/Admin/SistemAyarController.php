@@ -7,7 +7,8 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
-use Spatie\Permission\Models\Role; // <-- ROL MODELİNİ EKLE
+use Spatie\Permission\Models\Role; 
+use Spatie\Permission\Models\Permission; 
 use Illuminate\Validation\Rule;
 use App\Models\Bolum;
 
@@ -17,10 +18,13 @@ class SistemAyarController extends Controller
     {
         $settings = Setting::all()->keyBy('key');
         $users = User::orderBy('name')->get();
-        $roles = Role::orderBy('name')->get(); // <-- ROLLERİ ÇEK
-        $bolumler = Bolum::orderBy('ad')->get(); // <--- EKLENDİ: Bölümleri Çek
+        $roles = Role::orderBy('name')->get();
+        $bolumler = Bolum::orderBy('ad')->get();
 
-        // Ayarları daha dinamik alalım
+        // Arabuluculuk İzinleri
+        $arabuluculukPermissions = Permission::where('name', 'like', 'arabuluculuk.%')->orderBy('name')->get();
+
+        // Ayarlar daha dinamik
         $logo = $settings->get('site_logo');
         $kayitOnay = $settings->get('kayit_onay_sistemi');
         $paraBirimleri = $settings->get('para_birimleri');
@@ -34,6 +38,7 @@ class SistemAyarController extends Controller
             'users',
             'roles', // <-- ROLLERİ VIEW'A GÖNDER
             'bolumler', // <--- EKLENDİ: View'a gönder
+            'arabuluculukPermissions', // <-- EKLENDİ
             'logo',
             'kayitOnay',
             'paraBirimleri',
@@ -73,6 +78,9 @@ class SistemAyarController extends Controller
             // <--- EKLENDİ: Bölüm Yetkisi Validasyonu
             'global_disciplinary_departments' => 'nullable|array',
             'global_disciplinary_departments.*' => 'exists:bolumler,id',
+            
+            // Arabuluculuk Yetki Validasyonu (Opsiyonel ama iyi olur)
+            'role_permissions' => 'nullable|array',
         ]);
 
         // 1-7 arası (Mevcut ayarlarınız) ...
@@ -237,9 +245,46 @@ class SistemAyarController extends Controller
             }
         }
         
+        
+    // ================== 4. ARABULUCULUK YETKİLERİ (ID BAZLI DÜZELTME) ==================
+        
+        // Arabuluculuk ile ilgili tüm izin nesnelerini al
+        $arabuluculukPerms = Permission::where('name', 'like', 'arabuluculuk.%')->get();
+        $allRoles = Role::where('name', '!=', 'Superadmin')->get();
+
+        // Formdan gelen veriyi al: role_permissions[role_id][perm_id] = "on"
+        $inputPermissions = $request->input('role_permissions', []);
+
+        foreach ($allRoles as $role) {
+            // Bu rol için seçilenleri al (yoksa boş dizi)
+            $roleInput = $inputPermissions[$role->id] ?? [];
+
+            foreach ($arabuluculukPerms as $perm) {
+                // Eğer formda bu rol için bu İzin ID'si varsa -> Yetki Ver
+                if (array_key_exists($perm->id, $roleInput)) {
+                    $role->givePermissionTo($perm->name);
+                } 
+                // Formda yok ama veritabanında varsa -> Geri Al (Revoke)
+                else {
+                    if ($role->hasPermissionTo($perm->name)) {
+                        $role->revokePermissionTo($perm->name);
+                    }
+                }
+            }
+        }
+        
+        // Cache Temizliği
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
         // ================== KAYDETME SONU ==================
 
-        return back()->with('success', 'Ayarlar ve Bölüm Yetkileri başarıyla güncellendi.');
+        // 5. SEKME HATIRLAMA (GİZLİ INPUTTAN ALIYORUZ)
+        // Eğer formdan 'active_tab_input' gelmediyse varsayılan 'genel' olsun.
+        $tabToOpen = $request->input('active_tab_input', 'genel');
+
+        return back()
+            ->with('success', 'Ayarlar başarıyla kaydedildi.')
+            ->with('activeTab', $tabToOpen);
     }
     /**
      * E-posta adreslerini temizler ve virgülle ayrılmış string'e dönüştürür.

@@ -8,7 +8,8 @@
         </div>
     </x-slot>
 
-    <div class="py-8" x-data="{ activeTab: 'genel' }">
+    {{-- Session'dan 'activeTab' gelirse onu kullan, yoksa 'genel' yap --}}
+    <div class="py-8" x-data="{ activeTab: '{{ session('activeTab', 'genel') }}' }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
             {{-- BAŞARI MESAJI --}}
@@ -26,7 +27,7 @@
 
             <form action="{{ route('admin.sistem-ayarlari.update') }}" method="POST" enctype="multipart/form-data">
                 @csrf
-
+                <input type="hidden" name="active_tab_input" x-model="activeTab">
                 {{-- MODERN SEKME (TAB) MENÜSÜ --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 mb-8 overflow-hidden">
                     <nav class="flex overflow-x-auto scrollbar-hide">
@@ -53,6 +54,14 @@
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
                             Disiplin Yetki
+                        </button>
+
+                        {{-- Tab 6: Arabuluculuk Yetki (YENİ) --}}
+                        <button type="button" @click="activeTab = 'arabuluculuk'" 
+                            :class="activeTab === 'arabuluculuk' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                            class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Arabuluculuk Yetki
                         </button>
 
                         {{-- Tab 4: Müşteri --}}
@@ -233,6 +242,110 @@
                                             <strong>Bilgi:</strong> "Tüm Fabrika" yetkisi verilen bölümler (Örn: İSG), herhangi bir personele tutanak tutabilir. Ancak listede <u>sadece kendi birimlerinin oluşturduğu</u> tutanakları görürler. Diğer bölümlerin iç işlerini göremezler.
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- TAB 6: ARABULUCULUK YETKİ MATRİSİ (SON HALİ) --}}
+                    <div x-show="activeTab === 'arabuluculuk'" style="display: none;">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-indigo-600 px-6 py-5 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-xl font-bold text-white">Arabuluculuk Rol & Yetki Yönetimi</h3>
+                                        <p class="text-xs text-indigo-100 opacity-90">Hangi rolün hangi işlem yetkisine sahip olduğunu buradan yönetebilirsiniz.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4">
+                                
+                                {{-- GENİŞLETİLMİŞ Türkçe İsimlendirme Haritası --}}
+                                @php
+                                    $permLabels = [
+                                        'arabuluculuk.view_menu'          => 'Menüde Göster',
+                                        'arabuluculuk.create_ihtiyari'    => 'İhtiyari Başlat',
+                                        'arabuluculuk.create_zorunlu'     => 'Zorunlu Başlat',
+                                        'arabuluculuk.view_zorunlu_files' => 'Zorunlu Dosya Gör',
+                                        'arabuluculuk.view_all_files'     => 'Tüm Arşivi Gör',
+                                        'arabuluculuk.view_all'           => 'Genel Erişim',
+                                        'arabuluculuk.view_assigned'      => 'Sadece Atananı Gör',
+                                        'arabuluculuk.create'             => 'Dosya Oluştur',
+                                        'arabuluculuk.edit'               => 'Düzenleme',
+                                        'arabuluculuk.approve'            => 'Genel Onay', // Eski permission
+                                        'arabuluculuk.approve_legal'      => 'Hukuk Onayı',
+                                        'arabuluculuk.approve_board'      => 'Yönetim Onayı',
+                                        'arabuluculuk.upload_file'        => 'Dosya Yükleme',
+                                        'arabuluculuk.assign_mediator'    => 'Arabulucu Atama',
+                                        'arabuluculuk.finance_pay'        => 'Finans İşlemi & Dekont Yükleme',
+                                        'arabuluculuk.manage_payee'       => 'Alacaklı Tanımla',
+                                        'arabuluculuk.board_vote'         => 'Oy Kullanma',
+                                        'arabuluculuk.settings'           => 'Ayarlara Erişim',
+                                        'arabuluculuk.settings_view'      => 'Tanimlar Menüsü',
+                                        'arabuluculuk.settings_create'    => 'Madde Ekleme',
+                                        'arabuluculuk.settings_delete'    => 'Madde Silme',
+                                        'arabuluculuk.settings_edit'      => 'Madde Düzenleme',
+                                        'arabuluculuk.final_check'        => 'Son Onay ve Kapanış',
+                                    ];
+                                @endphp
+
+                                <div class="overflow-hidden rounded-lg border border-gray-200">
+                                    <table class="w-full table-fixed border-collapse text-[10px]">
+                                        <thead>
+                                            <tr class="bg-gray-100">
+                                                {{-- Rol Adı Sütunu --}}
+                                                <th class="p-2 border border-gray-200 text-left w-32 bg-gray-50 align-bottom">
+                                                    <span class="text-gray-800 font-black uppercase text-xs">Rol Adı</span>
+                                                </th>
+
+                                                {{-- Yetkiler (Dikey Yazı) --}}
+                                                @foreach($arabuluculukPermissions as $perm)
+                                                    <th class="border border-gray-200 p-1 align-bottom h-32 hover:bg-gray-200 transition relative group">
+                                                        <div class="flex justify-center items-end h-full w-full pb-2">
+                                                            <span class="font-bold text-gray-600 uppercase whitespace-nowrap tracking-wide" 
+                                                                style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                                                                {{ $permLabels[$perm->name] ?? str_replace(['arabuluculuk.', '_'], ['', ' '], $perm->name) }}
+                                                            </span>
+                                                        </div>
+                                                        {{-- Tooltip --}}
+                                                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-xs p-1 rounded whitespace-nowrap z-50">
+                                                            {{ $permLabels[$perm->name] ?? $perm->name }}
+                                                        </div>
+                                                    </th>
+                                                @endforeach
+                                            </tr>
+                                        </thead>
+                                            <tbody>
+                                                @foreach($roles as $role)
+                                                    @if($role->name != 'Superadmin') 
+                                                        <tr class="hover:bg-indigo-50 transition border-b border-gray-200">
+                                                            <td class="p-2 border-r border-gray-200 font-bold text-gray-700 bg-white truncate" title="{{ $role->name }}">
+                                                                {{ $role->name }}
+                                                            </td>
+                                                            @foreach($arabuluculukPermissions as $perm)
+                                                                <td class="p-1 border-r border-gray-200 text-center">
+                                                                    <div class="flex justify-center">
+                                                                        {{-- ID KULLANARAK KAYDETME (ÇÖZÜM BURADA) --}}
+                                                                        <input type="checkbox" 
+                                                                            name="role_permissions[{{ $role->id }}][{{ $perm->id }}]" 
+                                                                            class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                                                                            {{ $role->hasPermissionTo($perm->name) ? 'checked' : '' }}>
+                                                                    </div>
+                                                                </td>
+                                                            @endforeach
+                                                        </tr>
+                                                    @endif
+                                                @endforeach
+                                            </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="mt-3 text-xs text-gray-500 italic">
+                                    * Değişiklikleri yaptıktan sonra sayfanın altındaki "Kaydet" butonuna basmayı unutmayınız.
                                 </div>
                             </div>
                         </div>

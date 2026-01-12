@@ -48,7 +48,11 @@ class IaaController extends Controller
         if (!Auth::user()->bolum_id) {
             return redirect()->route('iaa.index')->with('error', 'İAA önerebilmek için bir bölüme atanmış olmalısınız. Lütfen yöneticinizle iletişime geçin.');
         }
-        return view('iaa.create');
+
+        // Tüm bölümleri alıp sayfaya gönderiyoruz
+    $bolumler = Bolum::orderBy('ad')->get();
+
+        return view('iaa.create', compact('bolumler'));
     }
 
     /**
@@ -68,6 +72,8 @@ class IaaController extends Controller
             'baslik' => 'required|string|max:255',
             'mevcut_durum' => 'required|string',
             'oneri' => 'required|string',
+            'bolum_id' => 'required|exists:bolumler,id', // Zorunlu yaptık
+            'konum_text' => 'required|string|max:100', // YENİ ALAN (Konum/Alan)
             'resimler' => 'nullable|array',
             'resimler.*' => 'image|mimes:jpeg,png,jpg,gif|max:4096',
             'para_birimi' => 'nullable|string|max:10',
@@ -76,11 +82,14 @@ class IaaController extends Controller
         ]);
         
         DB::transaction(function () use ($validated, $request) {
+
+            $birlestirilmisMevcutDurum = "📍 Lokasyon/Alan: " . $validated['konum_text'] . "\n\n" . $validated['mevcut_durum'];
+            
             $iaaData = [
                 'gonderen_user_id' => Auth::id(),
-                'bolum_id' => Auth::user()->bolum_id,
+                'bolum_id' => $validated['bolum_id'], // Kullanıcının seçtiği sorumlu bölüm
                 'baslik' => $validated['baslik'],
-                'mevcut_durum' => $validated['mevcut_durum'],
+                'mevcut_durum' => $birlestirilmisMevcutDurum, // Birleştirilmiş metin
                 'oneri' => $validated['oneri'],
                 'oneren_kazanc_miktar' => $validated['oneren_kazanc_miktar'] ?? null,
                 'oneren_butce_miktar' => $validated['oneren_butce_miktar'] ?? null,
@@ -153,11 +162,23 @@ class IaaController extends Controller
      * BİR İAA ÖNERİSİNİ DÜZENLEME FORMUNU GÖSTERİR
      * ====================================================================
      */
+    /**
+     * ====================================================================
+     * BİR İAA ÖNERİSİNİ DÜZENLEME FORMUNU GÖSTERİR
+     * ====================================================================
+     */
     public function edit(Iaa $iaa)
     {
-        $this->authorize('update', $iaa); // Policy'deki 'update' kuralını kullanır.
+        // 1. Senin MEVCUT Güvenlik Kodun (AYNEN KALIYOR)
+        $this->authorize('update', $iaa); 
 
-        return view('iaa.edit', compact('iaa'));
+        // 2. View için Gerekli Ek Veriler (BUNLARI EKLİYORUZ)
+        // Bölümleri çekmezsek select box boş gelir, hata verir.
+        $bolumler = \App\Models\Bolum::orderBy('ad')->get(); 
+        $paraBirimleri = ['TL', 'USD', 'EUR', 'GBP'];
+
+        // 3. Verileri View'a Gönderiyoruz
+        return view('iaa.edit', compact('iaa', 'bolumler', 'paraBirimleri'));
     }
 
     /**
@@ -165,50 +186,66 @@ class IaaController extends Controller
      * DÜZENLENEN İAA ÖNERİSİNİ GÜNCELLER
      * ====================================================================
      */
+    /**
+     * ====================================================================
+     * İAA GÜNCELLEME İŞLEMİNİ YAPAR (VERİTABANINA YAZAR)
+     * ====================================================================
+     */
     public function update(Request $request, Iaa $iaa)
     {
+        // 1. Yetki Kontrolü (Senin yapın)
         $this->authorize('update', $iaa);
 
+        // 2. Gelen Verileri Doğrula
         $validated = $request->validate([
             'baslik' => 'required|string|max:255',
+            
+            // DİKKAT: Bölüm ve Lokasyon (ilgili_alan) burada doğrulanıp kaydediliyor
+            'bolum_id' => 'required|exists:bolumler,id', 
+            'ilgili_alan' => 'nullable|string|max:255', 
+            
             'mevcut_durum' => 'required|string',
             'oneri' => 'required|string',
-            'silinecek_resimler' => 'nullable|array',
-            'silinecek_resimler.*' => 'exists:iaa_resimler,id',
-            'yeni_resimler' => 'nullable|array',
-            'yeni_resimler.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+
+            // Finansal Alanlar
+            'oneren_kazanc_miktar' => 'nullable|numeric',
+            'oneren_butce_miktar' => 'nullable|numeric',
+            'para_birimi' => 'required|string',
+
+            // Resim Kontrolleri
+            'yeni_resimler.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:10240',
+            'silinecek_resimler.*' => 'nullable|integer|exists:iaa_resimler,id',
         ]);
 
-        DB::transaction(function () use ($request, $iaa, $validated) {
-            $iaa->update([
-                'baslik' => $validated['baslik'],
-                'mevcut_durum' => $validated['mevcut_durum'],
-                'oneri' => $validated['oneri'],
-            ]);
+        // 3. Para Birimini Veritabanındaki Sütunlara Eşle
+        // Formdan tek bir 'para_birimi' geliyor ama veritabanında iki ayrı alan var.
+        $validated['oneren_kazanc_birim'] = $request->para_birimi;
+        $validated['oneren_butce_birim'] = $request->para_birimi;
 
-            if (isset($validated['silinecek_resimler'])) {
-                foreach ($validated['silinecek_resimler'] as $resimId) {
-                    $resim = IaaResim::find($resimId);
-                    if ($resim && $resim->iaa_id === $iaa->id) {
-                        $resim->delete();
-                    }
+        // 4. Verileri Güncelle (Update komutu burada çalışır)
+        $iaa->update($validated);
+
+        // 5. Resim Silme İşlemleri
+        if ($request->has('silinecek_resimler')) {
+            foreach ($request->silinecek_resimler as $resimId) {
+                $resim = $iaa->resimler()->find($resimId);
+                if ($resim) {
+                    \Storage::disk('public')->delete($resim->dosya_yolu);
+                    $resim->delete();
                 }
             }
+        }
 
-            if ($request->hasFile('yeni_resimler')) {
-                foreach ($request->file('yeni_resimler') as $file) {
-                    // 1. Aynı şekilde benzersiz ve anlamlı bir dosya adı oluşturuyoruz.
-                    $filename = 'iaa_' . now()->format('Ymd_Hisu') . '.' . $file->getClientOriginalExtension();
-            
-                    // 2. storeAs() ile dosyayı kendi belirlediğimiz adla kaydediyoruz.
-                    $path = $file->storeAs('iaa_resimleri', $filename, 'public'); 
-            
-                    $iaa->resimler()->create(['dosya_yolu' => $path]);
-                }
+        // 6. Yeni Resim Yükleme İşlemleri
+        if ($request->hasFile('yeni_resimler')) {
+            foreach ($request->file('yeni_resimler') as $file) {
+                $path = $file->store('iaa_resimler', 'public');
+                $iaa->resimler()->create(['dosya_yolu' => $path]);
             }
-        });
+        }
 
-        return redirect()->route('iaa.index')->with('success', 'İAA önerisi ve resimler başarıyla güncellendi!');
+        // 7. Yönlendirme
+        return redirect()->route('iaa.show', $iaa)->with('success', 'Öneri başarıyla güncellendi.');
     }
     
     /**

@@ -165,7 +165,15 @@ class DisciplinaryController extends Controller
             return back()->with('error', 'Bu dosya kapatıldığı için düzenlenemez.');
         }
 
-        $users = User::where('id', '!=', Auth::id())->orderBy('name')->get();
+        $gizliRoller = ['Superadmin', 'Yönetim', 'Dış Avukat', 'Hukuk Yöneticisi'];
+
+        $users = User::personel()
+        ->where('id', '!=', Auth::id()) // Kendini seçemesin
+        ->whereDoesntHave('roles', function ($q) use ($gizliRoller) {
+            $q->whereIn('name', $gizliRoller); // Bu rollere sahip olanları getirme
+        })
+        ->orderBy('name')
+        ->get();
         $categories = DisciplinaryCategory::with('behaviors')->orderBy('ad')->get();
         $impacts = DisciplinaryImpact::orderBy('puan')->get();
         $scopes = DisciplinaryScope::orderBy('puan')->get();
@@ -308,12 +316,14 @@ class DisciplinaryController extends Controller
         }
 
         // 2. KULLANICI LİSTESİ SORGUSU (Filtreleme Başlıyor)
-        $usersQuery = User::where('id', '!=', $currentUser->id) // Kendini seçemesin
+        // BAŞA User::personel() EKLENDİ
+        $usersQuery = User::personel()
+            ->where('id', '!=', $currentUser->id) // Kendini seçemesin
             ->orderBy('name');
 
         // A. DOKUNULMAZLAR (Hiyerarşik Koruma)
         // Bu rollere sahip kişiler ASLA listede çıkmaz (Tutanak tutulamaz).
-        $protectedRoles = ['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi'];
+        $protectedRoles = ['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi', 'Dış Avukat','Yönetim'];
         
         $usersQuery->whereDoesntHave('roles', function ($q) use ($protectedRoles) {
             $q->whereIn('name', $protectedRoles);

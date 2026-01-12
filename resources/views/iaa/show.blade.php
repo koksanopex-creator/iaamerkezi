@@ -92,7 +92,11 @@
                                     <div class="text-sm">
                                         <p class="font-semibold text-gray-800">Öneren</p>
                                         @if ($iaa->gonderen)
-                                        <p class="text-gray-600">{{ $iaa->gonderen->name }}</p>
+                                        <p class="text-gray-600">
+                                            <a href="{{ route('profile.show', $iaa->gonderen->id) }}" class="text-indigo-600 hover:text-indigo-800 hover:underline transition-colors font-medium">
+                                                {{ $iaa->gonderen->name }}
+                                            </a>
+                                        </p>
                                         @else
                                         <p class="text-gray-600">{{ $iaa->guest_name }} 
                                             <span class="text-xs text-white bg-gray-500 px-1.5 py-0.5 rounded-full ml-1">Misafir</span>
@@ -111,6 +115,7 @@
                                                 <p class="font-semibold text-gray-800">Gönderim Tarihi</p><p class="text-gray-600">{{ $iaa->created_at->format('d.m.Y H:i') }}</p>
                                             </div>
                                     </div>
+                                    
 
                                         {{-- ========================================================================= --}}
                                         {{-- === YENİ VE DİNAMİK DURUM ROZETİNİ TAM OLARAK BURAYA YAPIŞTIRIN === --}}
@@ -151,17 +156,54 @@
                     </div>
 
                     {{-- ÖNERİ SAHİBİNİN TAHMİNLERİ KARTI --}}
-                    @if ($iaa->oneren_kazanc_miktar || $iaa->oneren_butce_miktar)
-                        <div class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200">
-                             <div class="p-6">
-                                <h3 class="text-lg font-semibold text-gray-800 mb-4">Öneri Sahibinin Tahminleri</h3>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center"><p class="text-xs text-green-700 uppercase font-semibold">Tahmini Kazanç</p><p class="text-xl font-bold text-green-800">{{ number_format($iaa->oneren_kazanc_miktar, 0, ',', '.') }} {{ $iaa->oneren_kazanc_birim }}</p></div>
-                                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center"><p class="text-xs text-red-700 uppercase font-semibold">Tahmini Bütçe</p><p class="text-xl font-bold text-red-800">{{ number_format($iaa->oneren_butce_miktar, 0, ',', '.') }} {{ $iaa->oneren_butce_birim }}</p></div>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
+@if ($iaa->oneren_kazanc_miktar || $iaa->oneren_butce_miktar)
+    <div class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Öneri Sahibinin Tahminleri</h3>
+            
+            <div class="grid grid-cols-2 gap-4">
+                {{-- TAHMİNİ PUAN ALANI (YENİ EKLENDİ) --}}
+                {{-- Not: Eğer modelinde 'oneren_puan' diye bir attribute yoksa burada hesaplama yapabilir veya null kontrolü koyabilirsin --}}
+                <div class="col-span-2 bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-lg text-center shadow-lg">
+                    <p class="text-sm text-indigo-100 uppercase font-semibold">Öngörülen Puan</p>
+                    <p class="text-4xl font-bold text-white mt-1">
+                        {{-- Buraya Öneren Puanı Gelecek. Eğer veritabanında sütun yoksa, aşağıda geçici bir hesaplama örneği var --}}
+                        {{-- Örnek: $iaa->oneren_puan ?? '-' --}}
+                        
+                        @php
+                            // Basit bir hesaplama mantığı (Senin formülüne göre düzenle)
+                            // Eğer veritabanında kayıtlıysa direkt $iaa->oneren_puan yazabilirsin.
+                            $tahminiPuan = 0;
+                            if($iaa->oneren_butce_miktar > 0) {
+                                // Örnek Formül: (Kazanç / Bütçe) * Risk (Risk öneren girmediği için varsayılan 3 alındı)
+                                $tahminiPuan = ($iaa->oneren_kazanc_miktar / $iaa->oneren_butce_miktar) * 3; 
+                            }
+                        @endphp
+                        
+                        {{-- Puanı Göster (Virgülden sonra sıfırları atarak) --}}
+                        {{ number_format($tahminiPuan, 0, ',', '.') }}
+                    </p>
+                </div>
+
+                {{-- TAHMİNİ KAZANÇ --}}
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                    <p class="text-xs text-green-700 uppercase font-semibold">Tahmini Kazanç</p>
+                    <p class="text-xl font-bold text-green-800">
+                        {{ number_format($iaa->oneren_kazanc_miktar, 0, ',', '.') }} {{ $iaa->oneren_kazanc_birim }}
+                    </p>
+                </div>
+
+                {{-- TAHMİNİ BÜTÇE --}}
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                    <p class="text-xs text-red-700 uppercase font-semibold">Tahmini Bütçe</p>
+                    <p class="text-xl font-bold text-red-800">
+                        {{ number_format($iaa->oneren_butce_miktar, 0, ',', '.') }} {{ $iaa->oneren_butce_birim }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
 
                     {{-- YÖNETİCİ PUANLAMASI KARTI --}}
                     @if(in_array($iaa->durum, ['Havuzda', 'Talep Edildi', 'Atandı']))

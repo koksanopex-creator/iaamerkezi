@@ -88,47 +88,74 @@ class TakimController extends Controller
             abort(403, 'Bu takımı görüntüleme yetkiniz yok.');
         }
 
-        $takim->load('uyeler.bolum', 'lider'); // 'atananProjeler' ilişkisini artık manuel çekeceğiz.
+        $takim->load('uyeler.bolum', 'lider'); 
         
-        $potansiyelUyeler = User::whereNotIn('id', $takim->uyeler->pluck('id'))->where('onaylandi_mi', true)->get();
+        // === FİLTRELEME BAŞLANGICI ===
+
+        // 1. Listeden Gizlenecek Roller
+        $gizlenecekRoller = [
+            'Superadmin', 
+            'Yonetim', 
+            'Dış Avukat', 
+            'Müşteri', 
+            'Arabuluculuk Finans',
+            'Hukuk Yöneticisi',
+            'Hukuk Admini',
+            'Disiplin Kurulu Başkanı'
+        ];
+
+        // 2. Takımdaki mevcut üyelerin ID'lerini al
+        $mevcutUyeIds = $takim->uyeler->pluck('id')->toArray();
+
+        // 3. Potansiyel Üyeleri Filtreli Getir
+        $potansiyelUyeler = \App\Models\User::where('onaylandi_mi', true)
+            ->where('id', '!=', auth()->id()) // Kendini listede görme
+            
+            // A) Sadece Personel Olanlar (Müşterileri Gizle)
+            ->where('is_personnel', true)
+
+            // B) Zaten takımda olanları gizle
+            ->whereNotIn('id', $mevcutUyeIds)
+
+            // C) Yasaklı rollere sahip olanları gizle
+            ->whereDoesntHave('roles', function ($q) use ($gizlenecekRoller) {
+                $q->whereIn('name', $gizlenecekRoller);
+            })
+            
+            ->orderBy('name')
+            ->get();
+
+        // === FİLTRELEME BİTİŞİ ===
+
         $gonderilenDavetler = TakimDavetiyesi::where('takim_id', $takim->id)->where('type', 'davet')->where('durum', 'bekliyor')->with('davetEdilen.bolum')->get();
         $gelenIstekler = TakimDavetiyesi::where('takim_id', $takim->id)->where('type', 'istek')->where('durum', 'bekliyor')->with('davetEden.bolum')->get();
 
-        // ================== GÜNCELLEME BURADA BAŞLIYOR ==================
-
-        // HATA DÜZELTMESİ 1: Bekleyen talepler, sadece projenin durumu hala "Havuzda" ise listelenir.
+        // Bekleyen talepler
         $bekleyenTalepler = DB::table('iaa_talepleri')
             ->join('iaas', 'iaa_talepleri.iaa_id', '=', 'iaas.id')
             ->where('iaa_talepleri.takim_id', $takim->id)
             ->where('iaa_talepleri.durum', 'beklemede')
-            ->where('iaas.durum', 'Havuzda') // <-- BU SATIR HATAYI DÜZELTİR
+            ->where('iaas.durum', 'Havuzda') 
             ->select('iaas.id as iaa_id', 'iaas.baslik', 'iaas.puan', 'iaa_talepleri.created_at as talep_tarihi')
             ->latest('talep_tarihi')
             ->get();
 
-        // ================== GÜNCELLEME BURADA BAŞLIYOR ==================
-        
-        // === GÜNCELLENMİŞ HALİ (musteriSikayeti eklendi) ===
+        // Aktif Projeler
         $aktifProjeler = $takim->atananProjeler()
             ->whereIn('durum', ['Atandı', 'Revize Ediliyor'])
             ->with([
-                // 'logs' ilişkin (Revizyon için)
                 'logs' => function ($query) {
                     $query->where('eylem', 'Revizyon Talep Edildi')
                         ->with('user')
                         ->latest('created_at');
                 },
-                // YENİ İLİŞKİ: Proje tipini anlamak için
                 'musteriSikayeti' 
             ])
             ->get();
-        // === GÜNCELLEME SONU ===
         
         $tamamlananProjeler = $takim->atananProjeler()->where('durum', 'Tamamlandı')->get();
         $yoneticiOnayiBekleyenProjeler = $takim->atananProjeler()->where('durum', 'Yönetici Onayı Bekliyor')->get();
         
-        // ================== GÜNCELLEME BURADA BİTİYOR ==================
-
         return view('takimlar.show', compact(
             'takim', 
             'potansiyelUyeler', 

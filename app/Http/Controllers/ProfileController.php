@@ -30,11 +30,45 @@ class ProfileController extends Controller
     {
         $currentUser = auth()->user();
 
-        // Güvenlik: Normal kullanıcı Admin profilini göremez
-        if ($user->hasRole('Superadmin', 'Yonetim') && !$currentUser->hasRole('Superadmin')) {
-            abort(404);
-        }
+        // === GÜVENLİK DUVARI BAŞLANGICI ===
 
+        // 1. KURAL: Superadmin herkesi görebilir.
+        if ($currentUser->hasRole('Superadmin')) {
+             // Sorun yok, devam et.
+        }
+        // 2. KURAL: Kişi KENDİ profilini her zaman görebilir.
+        elseif ($currentUser->id == $user->id) {
+             // Sorun yok, devam et.
+        }
+        else {
+            // --- YASAKLI DURUMLAR ---
+
+            // A) Hedef kişi Müşteri ise (is_personnel = false) -> 404
+            // (Bu satır önemli, veritabanında is_personnel sütununuzun 0/1 veya true/false olmasına göre değişebilir)
+            if ($user->is_personnel == false) {
+                abort(404);
+            }
+
+            // B) Hedef kişi "Yasaklı Roller"den birine sahipse -> 403
+            // Yönetim, Dış Avukat, Finans, Hukuk Yöneticisi...
+            // Not: 'Yonetim' rolünü zaten gizlemişsiniz ama diğerlerini de ekleyelim.
+            $yasakliRoller = [
+                'Superadmin',
+                'Yonetim', 
+                'Dış Avukat', 
+                'Arabuluculuk Finans', 
+                'Hukuk Yöneticisi',
+                'Hukuk Admini'
+            ];
+
+            if ($user->hasRole($yasakliRoller)) {
+                abort(403, 'Bu kullanıcının profili gizlidir.');
+            }
+        }
+        // === GÜVENLİK DUVARI BİTİŞİ ===
+
+
+        // Mevcut Veri Hazırlama Kodunuz (Aynen Korundu)
         $data = $this->getProfileData($user);
         return view('profile.show', array_merge(['user' => $user], $data));
     }

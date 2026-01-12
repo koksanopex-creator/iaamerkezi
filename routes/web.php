@@ -28,6 +28,13 @@ use App\Http\Controllers\Admin\SikayetKategoriController;
 use App\Http\Controllers\Admin\CozumTakimiController;
 // === GÜVENLİK DÜZELTMESİ SONU ===
 
+use App\Http\Controllers\Admin\ArabuluculukController; // En üste eklemeyi unutma
+use App\Http\Controllers\Admin\ArabulucuController; // arabulucular için
+use App\Http\Controllers\Admin\ExternalLawyerController;
+
+use App\Http\Controllers\Admin\ArabuluculukTanimController;
+
+
 
 /*
 |--------------------------------------------------------------------------
@@ -122,11 +129,20 @@ Route::middleware('auth')->group(function () {
     });
     // =================================================================
     
-    // --- İAA MODÜLÜ ROTALARI ---
+    // --- İAA MODÜLÜ (SORUN ÇÖZÜCÜ DEĞİŞİKLİK) ---
+    // URL'leri değiştirdik ama 'name'leri koruduk. Böylece diğer kodların bozulmaz.
+    // localhost:8000/iyilestirme/yeni adresine gidecek.
+    Route::get('/iyilestirme/yeni', [IaaController::class, 'create'])->name('iaa.create');
+    Route::post('/iyilestirme/kaydet', [IaaController::class, 'store'])->name('iaa.store');
+    
     Route::get('/havuz', [IaaController::class, 'havuz'])->name('iaa.havuz');
     Route::post('/iaa/{iaa}/takimla-talep-et', [IaaController::class, 'takimlaTalepEt'])->name('iaa.takimlaTalepEt');
     //Route::get('/takim-projeleri', [IaaController::class, 'takimProjeleri'])->name('iaa.takimProjeleri'); // Buradan taşındı
-    Route::resource('iaa', IaaController::class);
+    // Resource (URL 'iyilestirme' oldu, ama route isimleri 'iaa.index' gibi kaldı)
+    Route::resource('iyilestirme', IaaController::class)
+    ->names('iaa') 
+    ->parameters(['iyilestirme' => 'iaa'])
+    ->except(['create', 'store']);
 
     // --- TAKIM MODÜLÜ ROTALARI ---
     Route::post('takimlar/{takim}/davet-gonder', [TakimController::class, 'davetGonder'])->name('takimlar.davetGonder');
@@ -434,6 +450,89 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
             Route::delete('/skala/{scale}', [App\Http\Controllers\Admin\DisciplinarySettingsController::class, 'deleteScale'])->name('scale.delete');
     });
 
+    // =================================================================
+    // === ARABULUCULUK YÖNETİMİ (Tam ve Eksiksiz Rotalar) ===
+    // =================================================================
+    // 1. TANIMLAMALAR (Hukuk Menüsü - /admin/arabuluculuk/tanimlar/...)
+    // Prefix zaten 'admin' olduğu için buraya 'arabuluculuk/tanimlar' yazıyoruz.
+    Route::prefix('arabuluculuk/tanimlar')->name('arabuluculuk.tanim.')->group(function () {
+        Route::get('/anlasma-maddeleri', [ArabuluculukTanimController::class, 'anlasmaMaddeleri'])->name('anlasmaMaddeleri');
+        Route::post('/anlasma-maddeleri', [ArabuluculukTanimController::class, 'storeMadde'])->name('storeMadde');
+        Route::put('/anlasma-maddeleri/{id}', [ArabuluculukTanimController::class, 'updateMadde'])->name('updateMadde');
+        Route::delete('/anlasma-maddeleri/{id}', [ArabuluculukTanimController::class, 'destroyMadde'])->name('destroyMadde');
+        Route::get('/anlasma-maddeleri/loglar', [ArabuluculukTanimController::class, 'showAllLogs'])->name('showAllLogs');
+    });
+
+
+    Route::prefix('arabuluculuk')->name('arabuluculuk.')->group(function () {
+        
+        // 1. Temel CRUD İşlemleri (Liste, Yeni Ekleme, Kaydetme, Detay)
+        Route::get('/', [ArabuluculukController::class, 'index'])->name('index');
+        Route::get('/create', [ArabuluculukController::class, 'create'])->name('create');
+        Route::post('/', [ArabuluculukController::class, 'store'])->name('store');
+        Route::get('/{case}', [ArabuluculukController::class, 'show'])->name('show');
+        
+        // 2. Düzenleme İşlemleri
+        Route::get('/{case}/edit', [ArabuluculukController::class, 'edit'])->name('edit');
+        Route::put('/{case}', [ArabuluculukController::class, 'update'])->name('update');
+        
+        // 3. Dosya Yükleme (HATA VEREN KISIM BURASIYDI, DÜZELTİLDİ)
+        Route::post('/{case}/upload-file', [ArabuluculukController::class, 'uploadFile'])->name('uploadFile');
+
+        // Dosya Silme Rotası
+        Route::delete('/file/{file}', [ArabuluculukController::class, 'deleteFile'])->name('deleteFile');
+
+        Route::post('/{case}/revert', [ArabuluculukController::class, 'revertStatus'])->name('revertStatus');
+
+        // 4. Durum ve Atama İşlemleri
+        Route::patch('/{case}/status', [ArabuluculukController::class, 'changeStatus'])->name('updateStatus');
+        Route::post('/{case}/decision', [ArabuluculukController::class, 'submitDecision'])->name('submitDecision');
+        Route::patch('/{case}/assign-mediator', [ArabuluculukController::class, 'assignMediator'])->name('assignMediator');
+
+        // 5. Kurul Değerlendirmesi (Yeni)
+        Route::post('/{case}/add-comment', [ArabuluculukController::class, 'addComment'])->name('addComment');
+
+        // 6. Ödeme İşlemleri (Yeni - Word Dosyasından Gelen)
+        Route::post('/{case}/save-payment', [ArabuluculukController::class, 'savePayment'])->name('savePayment');
+        Route::post('/{case}/approve-payment', [ArabuluculukController::class, 'approvePayment'])->name('approvePayment');
+
+        // 7. Personel için Süreci Geri Alma (Ödeme -> Arabulucuya)
+        Route::post('/{case}/revert-mediation', [ArabuluculukController::class, 'revertToMediation'])->name('revertToMediation');
+
+        // 8. Finans için Ödemeyi Reddetme
+        Route::post('/{case}/reject-payment', [ArabuluculukController::class, 'rejectPayment'])->name('rejectPayment');
+
+        // 9. Son Onay ve Dosya Kapatma
+        Route::post('/{case}/final-close', [ArabuluculukController::class, 'finalClose'])->name('finalClose');
+    });
+
+    // prefix => 'admin' ZATEN ÜST GRUPTA VAR, BURADA TEKRAR YAZMAYIN
+    Route::group(['middleware' => ['role:Superadmin|Hukuk Admini|Hukuk Yöneticisi|Arabuluculuk Personel']], function () {
+
+        // --- LOG ROTASI (En Üste) ---
+        Route::get('arabulucular/sistem-loglari', [ArabulucuController::class, 'logs'])
+        ->name('arabulucular.logs')
+        ->middleware('role:Superadmin'); // Sadece Superadmin
+
+        // Arabulucu Durum Değiştirme (Aktif/Pasif)
+        Route::patch('arabulucular/{arabulucu}/toggle-status', [ArabulucuController::class, 'toggleStatus'])
+            ->name('arabulucular.toggleStatus');
+        // 1. ARABULUCU YÖNETİMİ (CRUD)
+        // URL: /admin/arabulucular
+        Route::resource('arabulucular', ArabulucuController::class);
+    
+        // 2. DIŞ AVUKAT YÖNETİMİ
+        // URL: /admin/dis-avukatlar
+        // Route isimlerinde 'admin.' zaten üst gruptan geliyor, tekrar yazmaya gerek yok ama
+        // sizin kodunuzda name() içinde elle 'admin.' verdiğiniz için çakışma olabilir.
+        // Laravel resource veya name prefix kullanıldığında otomatik ekler.
+        
+        // En temiz haliyle şu şekilde tanımlayalım:
+        Route::get('dis-avukatlar', [ExternalLawyerController::class, 'index'])->name('dis_avukatlar.index');
+        Route::get('dis-avukatlar/create', [ExternalLawyerController::class, 'create'])->name('dis_avukatlar.create');
+        Route::post('dis-avukatlar', [ExternalLawyerController::class, 'store'])->name('dis_avukatlar.store');
+    });
+
 }); // --- Admin prefix'inin sonu ---
 
 // =================================================================
@@ -453,5 +552,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
             // Savunma Verme (YENİ ROTA BURADA OLMALI)
             Route::post('/{case}/savunma-ver', [App\Http\Controllers\Admin\DisciplinaryController::class, 'saveDefense'])->name('defense.store');
     });
+    
 
 require __DIR__.'/auth.php';

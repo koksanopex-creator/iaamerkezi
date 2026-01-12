@@ -297,17 +297,41 @@ class DashboardController extends Controller
         return $stats;
     }
 
-    // ... (puanDurumu ve kullaniciPuanlari metodları aynı kalabilir) ...
     public function puanDurumu()
     {
-        $kullanicilar = User::where('onaylandi_mi', 1)
-                            ->whereDoesntHave('roles', function ($query) {
-                                $query->where('name', 'Superadmin');
-                            })
-                            ->orderByDesc('toplam_puan')
-                            ->orderBy('name', 'asc')
-                            ->get();
+        // 1. Listeden Gizlenecek Roller
+        $gizlenecekRoller = [
+            'Superadmin', 
+            'Yonetim', 
+            'Dış Avukat', 
+            'Müşteri', 
+            'Arabuluculuk Finans',
+            'Hukuk Yöneticisi',
+            'Hukuk Admini',
+            'Disiplin Kurulu Başkanı'
+        ];
 
+        // 2. Kullanıcıları Filtreli ve Sıralı Getir
+        $kullanicilar = \App\Models\User::query()
+            ->with('bolum') 
+            ->where('onaylandi_mi', true) // Sadece onaylı hesaplar
+            
+            // A) Sadece Personel Olanlar (Müşterileri Gizle)
+            // Eğer veritabanınızda is_personnel sütunu varsa bu satır çok önemlidir.
+            ->where('is_personnel', true)
+
+            // B) Yasaklı rollere sahip olanları gizle
+            ->whereDoesntHave('roles', function ($q) use ($gizlenecekRoller) {
+                $q->whereIn('name', $gizlenecekRoller);
+            })
+            
+            // C) Puana göre sırala (En yüksekten en düşüğe)
+            ->orderBy('toplam_puan', 'desc')
+            ->orderBy('name', 'asc') // Puanı eşit olanları isme göre sırala
+            ->take(50) // Performans için ilk 50 kişiyi getir
+            ->get();
+
+        // Takımlar listesi (Mevcut kodunuzdaki gibi)
         $takimlar = Takim::where('tur', 'iaa')->orderByDesc('toplam_puan')->get();
         
         return view('puan-durumu', compact('kullanicilar', 'takimlar'));

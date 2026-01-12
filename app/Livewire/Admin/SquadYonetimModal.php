@@ -43,16 +43,41 @@ class SquadYonetimModal extends Component
 
     public function updatedAramaMetni()
     {
+        // 1. Arama metni çok kısaysa işlem yapma
         if (strlen($this->aramaMetni) < 2) {
             $this->bulunanKullanicilar = [];
             return;
         }
 
+        // 2. Zaten ekipte olanları bul (Listeden çıkarmak için)
         $ekipIds = $this->mevcutUyeListesi->pluck('id')->toArray();
 
+        // 3. Gizlenecek Roller Listesi
+        $gizlenecekRoller = [
+            'Superadmin', 
+            'Yonetim', 
+            'Dış Avukat', 
+            'Müşteri', 
+            'Arabuluculuk Finans',
+            'Hukuk Yöneticisi' // İhtiyaca göre ekleyebilirsiniz
+        ];
+
+        // 4. SORGULAMA VE FİLTRELEME
         $this->bulunanKullanicilar = User::where('name', 'like', '%' . $this->aramaMetni . '%')
             ->where('onaylandi_mi', true)
+            
+            // FİLTRE 1: Sadece Personel Olanlar (Müşterileri Garanti Gizler)
+            // Eğer veritabanınızda is_personnel sütunu varsa bu en garanti yoldur.
+            ->where('is_personnel', true) 
+
+            // FİLTRE 2: Zaten ekipte olanları gösterme
             ->whereNotIn('id', $ekipIds)
+
+            // FİLTRE 3: Yasaklı Rollere Sahip Olanları Gösterme
+            ->whereDoesntHave('roles', function ($q) use ($gizlenecekRoller) {
+                $q->whereIn('name', $gizlenecekRoller);
+            })
+            
             ->take(5)
             ->get();
     }

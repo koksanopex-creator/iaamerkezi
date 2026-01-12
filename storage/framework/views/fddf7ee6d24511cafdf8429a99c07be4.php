@@ -1,38 +1,48 @@
-<x-app-layout>
-    <x-slot name="header">
+<?php if (isset($component)) { $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54 = $attributes; } ?>
+<?php $component = App\View\Components\AppLayout::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\App\View\Components\AppLayout::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+     <?php $__env->slot('header', null, []); ?> 
         <div class="flex flex-col gap-2">
             <h2 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
-                {{ __('Sistem Konfigürasyonu') }}
+                <?php echo e(__('Sistem Konfigürasyonu')); ?>
+
             </h2>
             <p class="text-sm text-gray-500">Platformun tüm işleyiş kurallarını, yetkilerini ve iletişim şablonlarını buradan yönetebilirsiniz.</p>
         </div>
-    </x-slot>
+     <?php $__env->endSlot(); ?>
 
-    {{-- Session'dan 'activeTab' gelirse onu kullan, yoksa 'genel' yap --}}
-    <div class="py-8" x-data="{ activeTab: '{{ session('activeTab', 'genel') }}' }">
+    
+    <div class="py-8" x-data="{ activeTab: '<?php echo e(session('activeTab', 'genel')); ?>' }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
-            {{-- BAŞARI MESAJI --}}
-            @if(session('success'))
+            
+            <?php if(session('success')): ?>
                 <div class="mb-8 bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-xl shadow-sm flex items-start gap-3 animate-fade-in-down">
                     <div class="bg-emerald-100 p-2 rounded-full text-emerald-600">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                     </div>
                     <div>
                         <h4 class="font-bold text-emerald-800">Başarılı!</h4>
-                        <p class="text-sm text-emerald-700">{{ session('success') }}</p>
+                        <p class="text-sm text-emerald-700"><?php echo e(session('success')); ?></p>
                     </div>
                 </div>
-            @endif
+            <?php endif; ?>
 
-            <form action="{{ route('admin.sistem-ayarlari.update') }}" method="POST" enctype="multipart/form-data">
-                @csrf
+            <form action="<?php echo e(route('admin.sistem-ayarlari.update')); ?>" method="POST" enctype="multipart/form-data">
+                <?php echo csrf_field(); ?>
                 <input type="hidden" name="active_tab_input" x-model="activeTab">
-                {{-- MODERN SEKME (TAB) MENÜSÜ --}}
+                
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 mb-8 overflow-hidden">
                     <nav class="flex overflow-x-auto scrollbar-hide">
                         
-                        {{-- Tab 1: Genel --}}
+                        
                         <button type="button" @click="activeTab = 'genel'" 
                             :class="activeTab === 'genel' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
@@ -40,7 +50,7 @@
                             Genel
                         </button>
 
-                        {{-- Tab 2: Finans --}}
+                        
                         <button type="button" @click="activeTab = 'finans'" 
                             :class="activeTab === 'finans' ? 'bg-amber-50 text-amber-700 border-b-2 border-amber-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
@@ -48,7 +58,7 @@
                             Puanlama
                         </button>
 
-                        {{-- Tab 3: Disiplin --}}
+                        
                         <button type="button" @click="activeTab = 'disiplin'" 
                             :class="activeTab === 'disiplin' ? 'bg-red-50 text-red-700 border-b-2 border-red-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
@@ -56,7 +66,7 @@
                             Disiplin Yetki
                         </button>
 
-                        {{-- Tab 6: Arabuluculuk Yetki (YENİ) --}}
+                        
                         <button type="button" @click="activeTab = 'arabuluculuk'" 
                             :class="activeTab === 'arabuluculuk' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
@@ -64,7 +74,7 @@
                             Arabuluculuk Yetki
                         </button>
 
-                        {{-- Tab 4: Müşteri --}}
+                        
                         <button type="button" @click="activeTab = 'musteri'" 
                             :class="activeTab === 'musteri' ? 'bg-pink-50 text-pink-700 border-b-2 border-pink-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
@@ -72,7 +82,7 @@
                             Müşteri E-posta
                         </button>
 
-                        {{-- Tab 5: Bildirimler --}}
+                        
                         <button type="button" @click="activeTab = 'bildirim'" 
                             :class="activeTab === 'bildirim' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
@@ -82,14 +92,14 @@
                     </nav>
                 </div>
 
-                {{-- İÇERİK ALANI --}}
+                
                 <div class="space-y-6">
 
-                    {{-- TAB 1: GENEL & GÖRÜNÜM --}}
+                    
                     <div x-show="activeTab === 'genel'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
-                            {{-- Marka Ayarları --}}
+                            
                             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-2">
                                     <div class="w-2 h-2 bg-indigo-500 rounded-full"></div>
@@ -97,16 +107,16 @@
                                 </div>
                                 <div class="p-6">
                                     <label for="site_logo" class="block text-sm font-bold text-gray-700 mb-2">Site Logosu</label>
-                                    @if($logo && $logo->value)
+                                    <?php if($logo && $logo->value): ?>
                                         <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg inline-block shadow-inner">
-                                            <img src="{{ asset('storage/' . $logo->value) }}" alt="Mevcut Logo" class="h-12 object-contain">
+                                            <img src="<?php echo e(asset('storage/' . $logo->value)); ?>" alt="Mevcut Logo" class="h-12 object-contain">
                                         </div>
-                                    @endif
+                                    <?php endif; ?>
                                     <input type="file" name="site_logo" id="site_logo" class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 border border-gray-300 rounded-lg cursor-pointer">
                                 </div>
                             </div>
 
-                            {{-- Kullanıcı Kayıt Ayarları --}}
+                            
                             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center gap-2">
                                     <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -115,15 +125,15 @@
                                 <div class="p-6">
                                     <label class="block text-sm font-bold text-gray-700 mb-3">Yeni Kayıt Onay Sistemi</label>
                                     <div class="flex gap-4">
-                                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 w-full transition {{ ($kayitOnay && $kayitOnay->value == 1) || !$kayitOnay ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : '' }}">
-                                            <input type="radio" name="kayit_onay_sistemi" value="1" {{ ($kayitOnay && $kayitOnay->value == 1) || !$kayitOnay ? 'checked' : '' }} class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 w-full transition <?php echo e(($kayitOnay && $kayitOnay->value == 1) || !$kayitOnay ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : ''); ?>">
+                                            <input type="radio" name="kayit_onay_sistemi" value="1" <?php echo e(($kayitOnay && $kayitOnay->value == 1) || !$kayitOnay ? 'checked' : ''); ?> class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
                                             <div>
                                                 <span class="block text-sm font-bold text-gray-900">Aktif (Onay Gerekli)</span>
                                                 <span class="text-xs text-gray-500">Manuel yönetici onayı</span>
                                             </div>
                                         </label>
-                                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 w-full transition {{ $kayitOnay && $kayitOnay->value == 0 ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : '' }}">
-                                            <input type="radio" name="kayit_onay_sistemi" value="0" {{ $kayitOnay && $kayitOnay->value == 0 ? 'checked' : '' }} class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 w-full transition <?php echo e($kayitOnay && $kayitOnay->value == 0 ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : ''); ?>">
+                                            <input type="radio" name="kayit_onay_sistemi" value="0" <?php echo e($kayitOnay && $kayitOnay->value == 0 ? 'checked' : ''); ?> class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
                                             <div>
                                                 <span class="block text-sm font-bold text-gray-900">Pasif (Otomatik)</span>
                                                 <span class="text-xs text-gray-500">Anında erişim</span>
@@ -135,11 +145,11 @@
                         </div>
                     </div>
 
-                    {{-- TAB 2: PUANLAMA & FİNANS --}}
+                    
                     <div x-show="activeTab === 'finans'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             
-                            {{-- Puanlama (İstediğin Açıklamalarla) --}}
+                            
                             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div class="bg-amber-500 px-6 py-4 border-b border-amber-600 flex items-center gap-2">
                                     <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
@@ -148,39 +158,39 @@
                                 <div class="p-6">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         
-                                        {{-- 1. Standart Öneri --}}
+                                        
                                         <div>
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Standart Öneri Puanı</label>
                                             <p class="text-xs text-gray-400 mb-2">Onay sırasında varsayılan puan değeri</p>
-                                            <input type="number" name="standart_puan" value="{{ old('standart_puan', $standartPuan->value ?? 100) }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
+                                            <input type="number" name="standart_puan" value="<?php echo e(old('standart_puan', $standartPuan->value ?? 100)); ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
                                         </div>
 
-                                        {{-- 2. Şikayet Giriş --}}
+                                        
                                         <div>
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Müşteri Şikayeti Giriş Puanı</label>
                                             <p class="text-xs text-gray-400 mb-2">Yeni şikayet eklendiğinde verilecek puan</p>
-                                            <input type="number" name="musteri_sikayeti_standart_puan" value="{{ old('musteri_sikayeti_standart_puan', $musteriSikayetiPuan->value ?? 0) }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
+                                            <input type="number" name="musteri_sikayeti_standart_puan" value="<?php echo e(old('musteri_sikayeti_standart_puan', $musteriSikayetiPuan->value ?? 0)); ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
                                         </div>
 
-                                        {{-- 3. Çözüm Çarpanı --}}
+                                        
                                         <div>
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Şikayet Çözüm Puanı Çarpanı</label>
                                             <p class="text-xs text-gray-400 mb-2">Şikayet çözümünde (Etki + Karmaşıklık) puanını çarpan katsayı.</p>
-                                            <input type="number" name="musteri_sikayeti_cozum_carpan" value="{{ old('musteri_sikayeti_cozum_carpan', $musteriSikayetiCozumCarpan->value ?? 10) }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
+                                            <input type="number" name="musteri_sikayeti_cozum_carpan" value="<?php echo e(old('musteri_sikayeti_cozum_carpan', $musteriSikayetiCozumCarpan->value ?? 10)); ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
                                         </div>
 
-                                        {{-- 4. Kurul Atama --}}
+                                        
                                         <div>
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Kurulun Atadığı Şikayet Puanı</label>
                                             <p class="text-xs text-gray-400 mb-2">"Müşteri Şikayeti Kurulu" bir takıma atama yaptığında otomatik verilecek puan.</p>
-                                            <input type="number" name="kurul_default_puan" value="{{ old('kurul_default_puan', $kurulDefaultPuan->value ?? 0) }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
+                                            <input type="number" name="kurul_default_puan" value="<?php echo e(old('kurul_default_puan', $kurulDefaultPuan->value ?? 0)); ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
                                         </div>
 
                                     </div>
                                 </div>
                             </div>
 
-                            {{-- Finans --}}
+                            
                             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden h-fit">
                                 <div class="bg-emerald-500 px-6 py-4 border-b border-emerald-600 flex items-center gap-2">
                                     <div class="w-2 h-2 bg-white rounded-full"></div>
@@ -189,13 +199,13 @@
                                 <div class="p-6">
                                     <label class="block text-sm font-bold text-gray-700 mb-2">Kullanılabilir Para Birimleri</label>
                                     <p class="text-xs text-gray-500 mb-3">Virgül (,) ile ayırarak giriniz (Örn: TL,USD,EUR)</p>
-                                    <input type="text" name="para_birimleri" value="{{ old('para_birimleri', $paraBirimleri->value ?? 'TL,USD,EUR') }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="TL,USD,EUR">
+                                    <input type="text" name="para_birimleri" value="<?php echo e(old('para_birimleri', $paraBirimleri->value ?? 'TL,USD,EUR')); ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="TL,USD,EUR">
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {{-- TAB 3: DİSİPLİN YETKİLERİ --}}
+                    
                     <div x-show="activeTab === 'disiplin'" style="display: none;">
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             <div class="bg-gradient-to-r from-red-600 to-rose-700 px-6 py-5 flex items-center justify-between">
@@ -213,27 +223,28 @@
                             <div class="p-6">
                                 <div class="bg-gray-50 rounded-xl border border-gray-200 p-4">
                                     <div class="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                                        @foreach($bolumler as $bolum)
+                                        <?php $__currentLoopData = $bolumler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $bolum): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-red-300 transition-all">
                                                 <div class="flex items-center gap-3">
-                                                    {{-- Checkbox array yapısı değişti: disciplinary_auth[ID][global] --}}
-                                                    <input type="checkbox" name="disciplinary_auth[{{ $bolum->id }}][global]" value="1" 
-                                                        {{ $bolum->is_disciplinary_global ? 'checked' : '' }}
+                                                    
+                                                    <input type="checkbox" name="disciplinary_auth[<?php echo e($bolum->id); ?>][global]" value="1" 
+                                                        <?php echo e($bolum->is_disciplinary_global ? 'checked' : ''); ?>
+
                                                         class="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition cursor-pointer">
-                                                    <span class="text-sm font-bold text-gray-700">{{ $bolum->ad }}</span>
+                                                    <span class="text-sm font-bold text-gray-700"><?php echo e($bolum->ad); ?></span>
                                                 </div>
                                                 
-                                                @if($bolum->is_disciplinary_global)
+                                                <?php if($bolum->is_disciplinary_global): ?>
                                                     <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold border border-red-200">
                                                         Tüm Fabrika
                                                     </span>
-                                                @else
+                                                <?php else: ?>
                                                     <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full border border-gray-200">
                                                         Sadece Kendi Bölümü
                                                     </span>
-                                                @endif
+                                                <?php endif; ?>
                                             </div>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </div>
                                     
                                     <div class="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 flex gap-2">
@@ -247,7 +258,7 @@
                         </div>
                     </div>
 
-                    {{-- TAB 6: ARABULUCULUK YETKİ MATRİSİ (SON HALİ) --}}
+                    
                     <div x-show="activeTab === 'arabuluculuk'" style="display: none;">
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             <div class="bg-indigo-600 px-6 py-5 flex items-center justify-between">
@@ -264,8 +275,8 @@
                             
                             <div class="p-4">
                                 
-                                {{-- GENİŞLETİLMİŞ Türkçe İsimlendirme Haritası --}}
-                                @php
+                                
+                                <?php
                                     $permLabels = [
                                         'arabuluculuk.view_menu'          => 'Menüde Göster',
                                         'arabuluculuk.create_ihtiyari'    => 'İhtiyari Başlat',
@@ -295,55 +306,58 @@
                                         'arabuluculuk.settings_edit'      => 'Madde Düzenleme',
                                         'arabuluculuk.final_check'        => 'Son Onay ve Kapanış',
                                     ];
-                                @endphp
+                                ?>
 
                                 <div class="overflow-hidden rounded-lg border border-gray-200">
                                     <table class="w-full table-fixed border-collapse text-[10px]">
                                         <thead>
                                             <tr class="bg-gray-100">
-                                                {{-- Rol Adı Sütunu --}}
+                                                
                                                 <th class="p-2 border border-gray-200 text-left w-32 bg-gray-50 align-bottom">
                                                     <span class="text-gray-800 font-black uppercase text-xs">Rol Adı</span>
                                                 </th>
 
-                                                {{-- Yetkiler (Dikey Yazı) --}}
-                                                @foreach($arabuluculukPermissions as $perm)
+                                                
+                                                <?php $__currentLoopData = $arabuluculukPermissions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $perm): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                                     <th class="border border-gray-200 p-1 align-bottom h-32 hover:bg-gray-200 transition relative group">
                                                         <div class="flex justify-center items-end h-full w-full pb-2">
                                                             <span class="font-bold text-gray-600 uppercase whitespace-nowrap tracking-wide" 
                                                                 style="writing-mode: vertical-rl; transform: rotate(180deg);">
-                                                                {{ $permLabels[$perm->name] ?? str_replace(['arabuluculuk.', '_'], ['', ' '], $perm->name) }}
+                                                                <?php echo e($permLabels[$perm->name] ?? str_replace(['arabuluculuk.', '_'], ['', ' '], $perm->name)); ?>
+
                                                             </span>
                                                         </div>
-                                                        {{-- Tooltip --}}
+                                                        
                                                         <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-xs p-1 rounded whitespace-nowrap z-50">
-                                                            {{ $permLabels[$perm->name] ?? $perm->name }}
+                                                            <?php echo e($permLabels[$perm->name] ?? $perm->name); ?>
+
                                                         </div>
                                                     </th>
-                                                @endforeach
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                             </tr>
                                         </thead>
                                             <tbody>
-                                                @foreach($roles as $role)
-                                                    @if($role->name != 'Superadmin') 
+                                                <?php $__currentLoopData = $roles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $role): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                    <?php if($role->name != 'Superadmin'): ?> 
                                                         <tr class="hover:bg-indigo-50 transition border-b border-gray-200">
-                                                            <td class="p-2 border-r border-gray-200 font-bold text-gray-700 bg-white truncate" title="{{ $role->name }}">
-                                                                {{ $role->name }}
+                                                            <td class="p-2 border-r border-gray-200 font-bold text-gray-700 bg-white truncate" title="<?php echo e($role->name); ?>">
+                                                                <?php echo e($role->name); ?>
+
                                                             </td>
-                                                            @foreach($arabuluculukPermissions as $perm)
+                                                            <?php $__currentLoopData = $arabuluculukPermissions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $perm): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                                                 <td class="p-1 border-r border-gray-200 text-center">
                                                                     <div class="flex justify-center">
-                                                                        {{-- ID KULLANARAK KAYDETME (ÇÖZÜM BURADA) --}}
+                                                                        
                                                                         <input type="checkbox" 
-                                                                            name="role_permissions[{{ $role->id }}][{{ $perm->id }}]" 
+                                                                            name="role_permissions[<?php echo e($role->id); ?>][<?php echo e($perm->id); ?>]" 
                                                                             class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
-                                                                            {{ $role->hasPermissionTo($perm->name) ? 'checked' : '' }}>
+                                                                            <?php echo e($role->hasPermissionTo($perm->name) ? 'checked' : ''); ?>>
                                                                     </div>
                                                                 </td>
-                                                            @endforeach
+                                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                                         </tr>
-                                                    @endif
-                                                @endforeach
+                                                    <?php endif; ?>
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                             </tbody>
                                     </table>
                                 </div>
@@ -355,7 +369,7 @@
                         </div>
                     </div>
 
-                    {{-- TAB 4: MÜŞTERİ İLETİŞİMİ --}}
+                    
                     <div x-show="activeTab === 'musteri'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             <div class="bg-pink-500 px-6 py-4 border-b border-pink-600 flex justify-between items-center">
@@ -365,13 +379,13 @@
                                 </div>
                                 <div class="flex items-center gap-2 text-sm text-gray-600 bg-white px-3 py-1 rounded-lg border border-gray-200 shadow-sm">
                                     <span class="font-semibold">Hedef Yanıt:</span>
-                                    <input type="number" name="sikayet_response_time_hours" value="{{ old('sikayet_response_time_hours', $settings->get('sikayet_response_time_hours')->value ?? 72) }}" class="w-16 py-0 px-2 border-none text-right font-bold text-pink-600 focus:ring-0">
+                                    <input type="number" name="sikayet_response_time_hours" value="<?php echo e(old('sikayet_response_time_hours', $settings->get('sikayet_response_time_hours')->value ?? 72)); ?>" class="w-16 py-0 px-2 border-none text-right font-bold text-pink-600 focus:ring-0">
                                     <span>Saat</span>
                                 </div>
                             </div>
                             
                             <div class="p-6 space-y-8">
-                                {{-- Şikayet Alındı --}}
+                                
                                 <div>
                                     <div class="flex items-center gap-2 mb-3">
                                         <span class="w-1.5 h-6 bg-pink-500 rounded-full"></span>
@@ -380,11 +394,11 @@
                                     <div class="grid grid-cols-1 gap-4">
                                         <div>
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Konu</label>
-                                            <input type="text" name="sikayet_onay_email_subject" value="{{ old('sikayet_onay_email_subject', $settings->get('sikayet_onay_email_subject')->value ?? '') }}" class="w-full border-gray-300 rounded-lg text-sm focus:ring-pink-500 focus:border-pink-500">
+                                            <input type="text" name="sikayet_onay_email_subject" value="<?php echo e(old('sikayet_onay_email_subject', $settings->get('sikayet_onay_email_subject')->value ?? '')); ?>" class="w-full border-gray-300 rounded-lg text-sm focus:ring-pink-500 focus:border-pink-500">
                                         </div>
                                         <div>
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">İçerik</label>
-                                            <textarea name="sikayet_onay_email_body" rows="4" class="w-full border-gray-300 rounded-lg text-sm focus:ring-pink-500 focus:border-pink-500">{{ old('sikayet_onay_email_body', $settings->get('sikayet_onay_email_body')->value ?? '') }}</textarea>
+                                            <textarea name="sikayet_onay_email_body" rows="4" class="w-full border-gray-300 rounded-lg text-sm focus:ring-pink-500 focus:border-pink-500"><?php echo e(old('sikayet_onay_email_body', $settings->get('sikayet_onay_email_body')->value ?? '')); ?></textarea>
                                             <p class="text-[10px] text-gray-400 mt-1 font-mono">Variables: {musteri_adi}, {takip_linki}, {sifre}</p>
                                         </div>
                                     </div>
@@ -392,7 +406,7 @@
 
                                 <hr class="border-gray-100">
 
-                                {{-- Çözüm Bildirimi --}}
+                                
                                 <div>
                                     <div class="flex items-center gap-2 mb-3">
                                         <span class="w-1.5 h-6 bg-green-500 rounded-full"></span>
@@ -401,11 +415,11 @@
                                     <div class="grid grid-cols-1 gap-4">
                                         <div>
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Konu</label>
-                                            <input type="text" name="sikayet_cozum_email_subject" value="{{ old('sikayet_cozum_email_subject', $settings->get('sikayet_cozum_email_subject')->value ?? '') }}" class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500">
+                                            <input type="text" name="sikayet_cozum_email_subject" value="<?php echo e(old('sikayet_cozum_email_subject', $settings->get('sikayet_cozum_email_subject')->value ?? '')); ?>" class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500">
                                         </div>
                                         <div>
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">İçerik</label>
-                                            <textarea name="sikayet_cozum_email_body" rows="4" class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500">{{ old('sikayet_cozum_email_body', $settings->get('sikayet_cozum_email_body')->value ?? '') }}</textarea>
+                                            <textarea name="sikayet_cozum_email_body" rows="4" class="w-full border-gray-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500"><?php echo e(old('sikayet_cozum_email_body', $settings->get('sikayet_cozum_email_body')->value ?? '')); ?></textarea>
                                             <p class="text-[10px] text-gray-400 mt-1 font-mono">Variables: {musteri_adi}, {sikayet_konusu}, {cozum_tarihi}</p>
                                         </div>
                                     </div>
@@ -414,24 +428,24 @@
                         </div>
                     </div>
 
-                    {{-- TAB 5: YÖNETİCİ BİLDİRİMLERİ --}}
+                    
                     <div x-show="activeTab === 'bildirim'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
                         
-                        {{-- Mevcut Partial --}}
-                        @include('admin.ayarlar._mail_notification_settings')
+                        
+                        <?php echo $__env->make('admin.ayarlar._mail_notification_settings', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
                         <div class="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex items-center justify-between">
                             <div>
                                 <label class="block text-sm font-bold text-gray-800">Genel Yedek E-postası</label>
                                 <p class="text-xs text-gray-500 mt-1">Sistem bildirimleri için genel yedek e-posta adresi.</p>
                             </div>
-                            <input type="email" name="sikayet_admin_notification_email" value="{{ old('sikayet_admin_notification_email', $settings->get('sikayet_admin_notification_email')->value ?? '') }}" class="w-1/2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="admin@example.com">
+                            <input type="email" name="sikayet_admin_notification_email" value="<?php echo e(old('sikayet_admin_notification_email', $settings->get('sikayet_admin_notification_email')->value ?? '')); ?>" class="w-1/2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="admin@example.com">
                         </div>
                     </div>
 
                 </div>
 
-                {{-- SABİT KAYDET BUTONU (ALT BAR) --}}
+                
                 <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50 md:sticky md:bottom-4 md:rounded-xl md:mx-auto md:max-w-7xl md:mb-4">
                     <div class="flex justify-between items-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <span class="text-xs text-gray-500 hidden md:inline-block">Değişiklikleri kaydetmeyi unutmayın.</span>
@@ -445,4 +459,13 @@
             </form>
         </div>
     </div>
-</x-app-layout>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $attributes = $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/admin/ayarlar/index.blade.php ENDPATH**/ ?>

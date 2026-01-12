@@ -173,12 +173,25 @@ class SikayetController extends Controller
                 $this->sendNewComplaintNotification($sikayet);
             }
 
-            // Yönlendirme (Müşteriyse Dashboard'a, Personelse Listeye)
+            // --- YÖNLENDİRME MANTIĞI GÜNCELLENDİ ---
+            
+            // 1. Durum: Eğer işlem yapan bir PERSONEL DEĞİLSE (Yani Müşteri Yetkilisi ise)
             if (!$user->is_personnel) {
-                return redirect()->route('dashboard')->with('success', 'Şikayetiniz başarıyla oluşturuldu ve işleme alındı.');
+                
+                // Eğer bu kullanıcının bağlı olduğu bir Müşteri ID'si varsa Oraya Git
+                if ($user->customer_id) {
+                    return redirect()->route('musteri.profil.show', $user->customer_id)
+                        ->with('success', 'Şikayetiniz başarıyla oluşturuldu ve firma profilinize eklendi.');
+                }
+
+                // Customer ID yoksa mecburen Dashboard'a git
+                return redirect()->route('dashboard')
+                    ->with('success', 'Şikayetiniz başarıyla oluşturuldu ve işleme alındı.');
             }
 
-            return redirect()->route('admin.sikayetler.index')->with('success', 'Şikayet başarıyla oluşturuldu.');
+            // 2. Durum: Eğer işlem yapan PERSONEL ise Admin Listesine Git
+            return redirect()->route('admin.sikayetler.index')
+                ->with('success', 'Şikayet başarıyla oluşturuldu.');
 
         } catch (\Exception $e) {
             DB::rollBack();

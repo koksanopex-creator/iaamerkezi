@@ -1,0 +1,45 @@
+<?php
+
+namespace App\Services\Dashboard;
+
+use App\Models\User;
+use App\Models\MusteriSikayeti;
+use App\Models\Takim;
+use App\Models\Iaa;
+
+class SikayetDashboardService
+{
+    /**
+     * Müşteri Şikayeti Kurulu İstatistikleri
+     */
+    public function getBoardStats()
+    {
+        return [
+            'toplam_sikayet' => MusteriSikayeti::count(),
+            'yeni_sikayet' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
+            'islemde_sikayet' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
+            'son_sikayetler' => MusteriSikayeti::with('sikayetKategori', 'cozumTakimi')->latest()->take(5)->get(),
+        ];
+    }
+
+    /**
+     * Çözüm Lideri İstatistikleri
+     */
+    public function getLeaderStats(User $user)
+    {
+        $liderinTakimi = Takim::where('lider_user_id', $user->id)
+            ->where('tur', 'sikayet')
+            ->withCount('uyeler')
+            ->first();
+
+        $stats = [];
+        if ($liderinTakimi) {
+            $stats['lider_takim'] = $liderinTakimi;
+            $stats['cozulen_projeler_count'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)->where('durum', 'Tamamlandı')->count();
+            $stats['islemde_projeler_count'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)->where('durum', 'Atandı')->count();
+            $stats['son_islemde_projeler'] = Iaa::where('atanan_takim_id', $liderinTakimi->id)->where('durum', 'Atandı')->latest()->take(3)->get();
+        }
+
+        return $stats;
+    }
+}

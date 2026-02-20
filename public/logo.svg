@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- The Köksan 'K' -->
+  <g transform="translate(0, 0)">
+    <!-- Left Vertical Bar (Blue) -->
+    <path d="M40 0 H140 V512 H40 Z" fill="#00458C"/>
+    
+    <!-- Top Right Chevron (Blue) -->
+    <path d="M160 230 L390 0 H520 L290 230 Z" fill="#00458C"/>
+    
+    <!-- Bottom Right Chevron (Red) -->
+    <path d="M160 282 H290 L520 512 H390 Z" fill="#E30613"/>
+  </g>
+</svg>

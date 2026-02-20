@@ -52,7 +52,7 @@
                 </div>
 
                 {{-- Şikayet Oluştur Butonu --}}
-                @if(auth()->user()->is_personnel || auth()->user()->customer_id == $customer->id)
+                @if((auth()->user()->is_personnel || auth()->user()->customer_id == $customer->id) && !auth()->user()->hasRole('Direktör'))
                 <div>
                     <a href="{{ route('admin.sikayetler.create', ['musteri_id' => $customer->id]) }}" 
                        class="group relative inline-flex items-center px-5 py-2.5 bg-white text-indigo-600 font-bold rounded-lg shadow-lg hover:shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5 text-sm">
@@ -164,175 +164,340 @@
         </div>
     </div>
 
-    {{-- === 3. İSTATİSTİK KARTLARI (Filtreli) === --}}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    {{-- === 3. İSTATİSTİK & VERİ MERKEZİ === --}}
+    {{-- x-data GÜNCELLENDİ: URL'den 'tab' parametresini okur, yoksa varsayılanı açar --}}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8" 
+         x-data="{ activeTab: new URLSearchParams(window.location.search).get('tab') || 'sikayetler' }">
+        
+        {{-- İSTATİSTİK KARTLARI (Filtreli - Üst Bölüm) --}}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {{-- Toplam Şikayet --}}
             <a href="{{ route('musteri.profil.show', $customer->id) }}" class="relative bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all group">
-                <p class="text-[10px] font-bold text-gray-400 uppercase">Toplam</p>
+                <p class="text-[10px] font-bold text-gray-400 uppercase">Toplam Süreç</p>
                 <p class="text-2xl font-black text-slate-800 mt-1">{{ $toplamSikayet }}</p>
                 @if(!request('filtre')) <div class="absolute bottom-0 left-0 w-full h-1 bg-slate-800 rounded-b-xl"></div> @endif
             </a>
+            
+            {{-- Aktif Süreç --}}
             <a href="{{ route('musteri.profil.show', ['customer' => $customer->id, 'filtre' => 'aktif']) }}" class="relative bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all group">
                 <p class="text-[10px] font-bold text-gray-400 uppercase">Aktif Süreç</p>
                 <p class="text-2xl font-black text-orange-500 mt-1">{{ $aktifSikayet }}</p>
                 @if(request('filtre') == 'aktif') <div class="absolute bottom-0 left-0 w-full h-1 bg-orange-500 rounded-b-xl"></div> @endif
             </a>
+
+            {{-- Tamamlanan Proje --}}
             <a href="{{ route('musteri.profil.show', ['customer' => $customer->id, 'filtre' => 'tamamlanan']) }}" class="relative bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all group">
                 <p class="text-[10px] font-bold text-gray-400 uppercase">Proje (Biten)</p>
                 <p class="text-2xl font-black text-green-500 mt-1">{{ $tamamlananProje }}</p>
                 @if(request('filtre') == 'tamamlanan') <div class="absolute bottom-0 left-0 w-full h-1 bg-green-500 rounded-b-xl"></div> @endif
             </a>
-            <a href="{{ route('musteri.profil.show', ['customer' => $customer->id, 'filtre' => 'cozulen']) }}" class="relative bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all group">
-                <p class="text-[10px] font-bold text-gray-400 uppercase">Hız (Ort. Gün)</p>
-                <p class="text-2xl font-black text-blue-500 mt-1">{{ $ortalamaSure }}</p>
-                @if(request('filtre') == 'cozulen') <div class="absolute bottom-0 left-0 w-full h-1 bg-blue-500 rounded-b-xl"></div> @endif
-            </a>
-        </div>
-    </div>
 
-    {{-- === 4. LİSTE === --}}
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-            <div class="p-6 border-b border-gray-100 flex items-center justify-between">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-900">Şikayet ve Proje Geçmişi</h3>
-                    <p class="text-xs text-gray-500">Müşteriye ait tüm süreçlerin detaylı listesi</p>
-                </div>
+            {{-- İade Toplamı (Statik Özet) --}}
+            <div class="relative bg-white rounded-xl shadow-sm border border-red-100 p-4">
+                <p class="text-[10px] font-bold text-red-400 uppercase">Toplam İade (Ton)</p>
+                <p class="text-2xl font-black text-red-600 mt-1">
+                    {{ number_format($iadeToplamlari['Ton'] ?? 0, 0) }} <span class="text-sm font-bold">Ton</span>
+                </p>
+            </div>
+        </div>
+
+        {{-- TEK PENCERE (TABS) --}}
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[500px]">
+            
+            {{-- TAB BAŞLIKLARI --}}
+            <div class="flex items-center border-b border-gray-100 bg-gray-50/50 px-6">
+                
+                {{-- TAB 1: ŞİKAYETLER --}}
+                <button @click="activeTab = 'sikayetler'" 
+                        :class="activeTab === 'sikayetler' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors mr-8 focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    Şikayet & Proje Geçmişi
+                </button>
+
+                {{-- TAB 2: İADELER (Sadece Personel Görür) --}}
+                @if(!Auth::user()->customer_id)
+                <button @click="activeTab = 'iadeler'"
+                        :class="activeTab === 'iadeler' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                        class="flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
+                    İade & Maliyet Analizi
+                    <span class="ml-1 bg-red-100 text-red-600 py-0.5 px-2 rounded-full text-xs font-bold">{{ $iadeler->count() }}</span>
+                </button>
+                @endif
+
+                {{-- Filtre Temizle (Sağda) --}}
                 @if(request('filtre'))
-                    <a href="{{ route('musteri.profil.show', $customer->id) }}" class="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded-full">Filtreyi Temizle</a>
+                    <div class="ml-auto">
+                        <a href="{{ route('musteri.profil.show', $customer->id) }}" class="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 px-3 py-1 rounded-full">Filtreyi Temizle</a>
+                    </div>
                 @endif
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm text-left">
-                    <thead class="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 uppercase text-[11px] tracking-wider">
-                        <tr>
-                            <th class="px-6 py-4 w-10">#</th>
-                            <th class="px-6 py-4">Konu & Oluşturan</th>
-                            <th class="px-6 py-4">Takım</th>
-                            <th class="px-6 py-4">Sorumlu</th>
-                            <th class="px-6 py-4">Durum</th>
-                            <th class="px-6 py-4">Proje</th>
-                            <th class="px-6 py-4">Tarih</th>
-                            <th class="px-6 py-4 text-right">İşlem</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        @forelse($sikayetler as $sikayet)
-                            <tr class="hover:bg-indigo-50/30 transition group">
-                                <td class="px-6 py-4 font-medium text-gray-400 text-xs">
-                                    {{ ($sikayetler->currentPage() - 1) * $sikayetler->perPage() + $loop->iteration }}
-                                </td>
-
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">#{{ $sikayet->id }}</span>
-                                        <div class="font-bold text-gray-800 text-sm truncate max-w-[200px]" title="{{ $sikayet->musteri_sikayet_konusu }}">
-                                            {{ Str::limit($sikayet->musteri_sikayet_konusu, 30) }}
-                                        </div>
-                                    </div>
-                                    
-                                    {{-- KİM EKLEDİ? --}}
-                                    <div class="text-[10px] text-gray-400 flex items-center gap-1">
-                                        @if($sikayet->olusturanKurulUyesi)
-                                            @if($sikayet->olusturanKurulUyesi->is_personnel)
-                                                <svg class="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                                                {{-- DEĞİŞTİRİLDİ: Str::words kaldırıldı, tam isim yazıldı --}}
-                                                <span>Yönetici: {{ $sikayet->olusturanKurulUyesi->name }}</span>
-                                            @else
-                                                <svg class="w-3 h-3 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                                {{-- DEĞİŞTİRİLDİ: Str::words kaldırıldı, tam isim yazıldı --}}
-                                                <span>Müşteri: {{ $sikayet->olusturanKurulUyesi->name }}</span>
-                                            @endif
-                                        @else
-                                            <span>Bilinmiyor</span>
-                                        @endif
-                                    </div>
-                                </td>
-
-                                {{-- TAKIM SÜTUNU --}}
-                                <td class="px-6 py-4">
-                                    @if($sikayet->cozumTakimi)
-                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                            {{-- DEĞİŞTİRİLDİ: Str::limit kaldırıldı, tam isim yazıldı --}}
-                                            {{ $sikayet->cozumTakimi->ad }}
-                                        </span>
-                                    @else
-                                        <span class="text-gray-400 text-xs italic">- Atanmadı -</span>
-                                    @endif
-                                </td>
-
-                                {{-- SORUMLU (LİDER) & TOOLTIP --}}
-                                <td class="px-6 py-4">
-                                    @if($sikayet->cozumTakimi && $sikayet->cozumTakimi->lider)
-                                        <div class="relative group/tooltip inline-block">
-                                            {{-- İSİM VE AVATAR LİNKE ÇEVRİLDİ --}}
-                                            <a href="{{ route('profile.show', $sikayet->cozumTakimi->lider->id) }}" target="_blank" class="flex items-center gap-1.5 hover:text-indigo-600 transition-colors group">
-                                                <div class="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                                                    {{ substr($sikayet->cozumTakimi->lider->name, 0, 1) }}
-                                                </div>
-                                                <span class="text-sm font-medium border-b border-transparent group-hover:border-indigo-600">
-                                                    {{ $sikayet->cozumTakimi->lider->name }}
-                                                </span>
-                                            </a>
-                                            
-                                            {{-- Tooltip Kutusu (Bilgi vermeye devam etsin) --}}
-                                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                                                <div class="font-bold">{{ $sikayet->cozumTakimi->lider->name }}</div>
-                                                <div class="text-slate-300">{{ $sikayet->cozumTakimi->lider->email }}</div>
-                                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
-                                            </div>
-                                        </div>
-                                    @else
-                                        <span class="text-gray-300 text-xs">-</span>
-                                    @endif
-                                </td>
-
-                                <td class="px-6 py-4">
-                                    {!! $sikayet->musteri_durum_badge !!}
-                                </td>
-
-                                <td class="px-6 py-4">
-                                    @if($sikayet->iaaProjesi)
-                                        {{-- DOĞRU ROTA: Proje Çalışma Alanı --}}
-                                        <a href="{{ route('proje.workspace.show', $sikayet->iaaProjesi->id) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700 shadow-sm hover:shadow transition transform hover:-translate-y-0.5">
-                                            <span>Proje</span>
-                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                                        </a>
-                                    @else
-                                        <span class="text-gray-300 text-xs">-</span>
-                                    @endif
-                                </td>
-
-                                <td class="px-6 py-4 text-gray-500 text-xs">
-                                    {{ $sikayet->created_at->format('d.m.Y') }}
-                                </td>
-
-                                <td class="px-6 py-4 text-right">
-                                    <a href="{{ route('admin.sikayetler.show', $sikayet->id) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-indigo-600 hover:text-white transition-colors">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
+            {{-- TAB İÇERİKLERİ --}}
+            
+            {{-- 1. ŞİKAYETLER TABLOSU --}}
+            <div x-show="activeTab === 'sikayetler'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 uppercase text-[11px] tracking-wider">
                             <tr>
-                                <td colspan="8" class="px-6 py-16 text-center">
-                                    <div class="flex flex-col items-center justify-center">
-                                        <div class="bg-gray-50 p-4 rounded-full mb-3">
-                                            <svg class="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                        </div>
-                                        <p class="text-gray-500 font-medium">Kayıtlı işlem bulunamadı.</p>
-                                    </div>
-                                </td>
+                                <th class="px-6 py-4 w-10">#</th>
+                                <th class="px-6 py-4">Konu & Oluşturan</th>
+                                <th class="px-6 py-4">Takım</th>
+                                <th class="px-6 py-4">Sorumlu</th>
+                                <th class="px-6 py-4">Durum</th>
+                                <th class="px-6 py-4">Proje</th>
+                                <th class="px-6 py-4">Tarih</th>
+                                <th class="px-6 py-4 text-right">İşlem</th>
                             </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($sikayetler as $sikayet)
+                                <tr class="hover:bg-indigo-50/30 transition group">
+                                    <td class="px-6 py-4 font-medium text-gray-400 text-xs">
+                                        {{ ($sikayetler->currentPage() - 1) * $sikayetler->perPage() + $loop->iteration }}
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <span class="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">#{{ $sikayet->id }}</span>
+                                            
+                                            {{-- Şikayete Tıklanabilir Link --}}
+                                            @if($sikayet->iaaProjesi)
+                                                <a href="{{ route('proje.workspace.show', $sikayet->iaaProjesi->id) }}" target="_blank" class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline text-sm truncate max-w-[200px]" title="{{ $sikayet->musteri_sikayet_konusu }}">
+                                                    {{ Str::limit($sikayet->musteri_sikayet_konusu, 30) }}
+                                                </a>
+                                            @else
+                                                <div class="font-bold text-gray-800 text-sm truncate max-w-[200px]" title="{{ $sikayet->musteri_sikayet_konusu }}">
+                                                    {{ Str::limit($sikayet->musteri_sikayet_konusu, 30) }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="text-[10px] text-gray-400 flex items-center gap-1">
+                                            @if($sikayet->olusturanKurulUyesi)
+                                                <span>{{ $sikayet->olusturanKurulUyesi->name }}</span>
+                                            @else
+                                                <span>Bilinmiyor</span>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    
+                                    <td class="px-6 py-4">
+                                        @if($sikayet->cozumTakimi)
+                                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">{{ $sikayet->cozumTakimi->ad }}</span>
+                                        @else
+                                            <span class="text-gray-400 text-xs italic">- Atanmadı -</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        @if($sikayet->cozumTakimi && $sikayet->cozumTakimi->lider)
+                                            <span class="text-sm font-medium text-gray-700">{{ $sikayet->cozumTakimi->lider->name }}</span>
+                                        @else
+                                            <span class="text-gray-300 text-xs">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4">{!! $sikayet->musteri_durum_badge !!}</td>
+                                    <td class="px-6 py-4">
+                                        @if($sikayet->iaaProjesi)
+                                            <a href="{{ route('proje.workspace.show', $sikayet->iaaProjesi->id) }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700 shadow-sm hover:shadow transition transform hover:-translate-y-0.5">
+                                                <span>Proje</span>
+                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                            </a>
+                                        @else
+                                            <span class="text-gray-300 text-xs">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-500 text-xs">{{ $sikayet->created_at->format('d.m.Y') }}</td>
+                                    <td class="px-6 py-4 text-right">
+                                        <a href="{{ route('admin.sikayetler.show', $sikayet->id) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-indigo-600 hover:text-white transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                                        </a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="8" class="px-6 py-16 text-center text-gray-500">Kayıtlı işlem bulunamadı.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-100 bg-gray-50">{{ $sikayetler->links() }}</div>
             </div>
 
-            <div class="px-6 py-4 border-t border-gray-100 bg-gray-50">
-                {{ $sikayetler->links() }}
+            {{-- 2. İADELER TABLOSU (Sadece Personel) --}}
+            @if(!Auth::user()->customer_id)
+            <div x-show="activeTab === 'iadeler'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+                
+                {{-- ÜST FİLTRE VE ÖZET ALANI --}}
+                <div class="bg-slate-50 border-b border-slate-200 p-6">
+                    
+                    {{-- Yıl Filtresi ve Başlık --}}
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex items-center gap-2">
+                            <h4 class="text-sm font-bold text-slate-700 uppercase tracking-wide">İade Genel Görünümü</h4>
+                            {{-- Dinamik Bilgi Etiketi --}}
+                            <span class="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-500 font-medium">
+                                {{ request('yil') ? request('yil').' Verileri' : 'Tüm Zamanlar' }}
+                            </span>
+                        </div>
+                        
+                        {{-- Yıl Seçimi Formu --}}
+                        <form action="{{ route('musteri.profil.show', $customer->id) }}" method="GET" class="flex items-center gap-2">
+                            {{-- SEKME HAFIZASI: Bu hidden input, sayfa yenilenince 'iadeler' sekmesinin açılmasını sağlar --}}
+                            <input type="hidden" name="tab" value="iadeler">
+                            
+                            <select name="yil" onchange="this.form.submit()" class="text-xs border-slate-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-1.5 pl-3 pr-8 bg-white cursor-pointer hover:bg-gray-50">
+                                <option value="">Tüm Yıllar</option>
+                                @foreach($mevcutYillar as $yil)
+                                    <option value="{{ $yil }}" {{ request('yil') == $yil ? 'selected' : '' }}>{{ $yil }}</option>
+                                @endforeach
+                            </select>
+                        </form>
+                    </div>
+
+                    {{-- KÜÇÜLTÜLMÜŞ DETAYLI KARTLAR --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        
+                        {{-- Kart 1: Toplam Vaka --}}
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                            <div class="absolute right-0 top-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <svg class="w-16 h-16 text-slate-800" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+                            </div>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Toplam İade Kaydı</p>
+                            <p class="text-2xl font-black text-slate-800 mt-1">{{ $iadeler->count() }} <span class="text-sm font-medium text-slate-400">Adet</span></p>
+                            <div class="mt-3 flex flex-wrap gap-1">
+                                @php
+                                    $bolumVakaSayilari = $iadeler->groupBy(function($item) {
+                                        return $item->sikayet->sikayetKategori->bolum->ad ?? 'Diğer';
+                                    })->map->count();
+                                @endphp
+                                @foreach($bolumVakaSayilari as $bolum => $sayi)
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                        {{ $bolum }}: {{ $sayi }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Kart 2 & 3: Birim Bazlı Toplamlar --}}
+                        @foreach($iadeToplamlari as $birim => $toplam)
+                            <div class="bg-white p-4 rounded-xl border border-red-100 shadow-sm relative overflow-hidden group">
+                                <div class="absolute right-0 top-0 p-3 opacity-5 group-hover:opacity-10 transition-opacity">
+                                    <svg class="w-16 h-16 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                                </div>
+
+                                <p class="text-[10px] font-bold text-red-400 uppercase tracking-wider">Toplam İade ({{ $birim }})</p>
+                                <p class="text-2xl font-black text-red-600 mt-1 tracking-tight">{{ number_format($toplam, 2) }} <span class="text-sm font-bold text-red-300">{{ $birim }}</span></p>
+                                
+                                {{-- Bölüm Kırılımı --}}
+                                <div class="mt-3 space-y-1.5 relative z-10">
+                                    @if(isset($bolumKirilimi[$birim]))
+                                        @foreach($bolumKirilimi[$birim] as $bolumAdi => $miktar)
+                                            @php $yuzde = $toplam > 0 ? ($miktar / $toplam) * 100 : 0; @endphp
+                                            <div>
+                                                <div class="flex justify-between text-[9px] mb-0.5">
+                                                    <span class="font-bold text-slate-600">{{ $bolumAdi }}</span>
+                                                    <span class="font-medium text-slate-500">{{ number_format($miktar, 0) }}</span>
+                                                </div>
+                                                <div class="w-full bg-red-50 rounded-full h-1">
+                                                    <div class="bg-red-500 h-1 rounded-full" style="width: {{ $yuzde }}%"></div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+
+                    </div>
+                </div>
+
+                {{-- DETAYLI LİSTE TABLOSU --}}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-white text-gray-500 font-semibold border-b border-gray-200 uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="px-6 py-4 w-10">#</th>
+                                <th class="px-6 py-4">Tarih</th>
+                                <th class="px-6 py-4">Bölüm</th>
+                                <th class="px-6 py-4">Kaynak Şikayet (Projeye Git)</th>
+                                <th class="px-6 py-4">Ürün Grubu & Sebep</th>
+                                <th class="px-6 py-4 text-right">Miktar</th>
+                                <th class="px-6 py-4 text-center">Belge</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($iadeler as $iade)
+                                <tr class="hover:bg-red-50/20 transition group">
+                                    {{-- 1. SIRA NO --}}
+                                    <td class="px-6 py-4 font-medium text-gray-400 text-xs">
+                                        {{ $loop->iteration }}
+                                    </td>
+                                    
+                                    {{-- 2. İADE TARİHİ (Güncellendi) --}}
+                                    <td class="px-6 py-4 text-gray-500 whitespace-nowrap text-xs">
+                                        <div class="font-bold text-slate-700">{{ $iade->iade_tarihi ? $iade->iade_tarihi->format('d.m.Y') : '-' }}</div>
+                                        <div class="text-[9px] text-slate-400">İşlem: {{ $iade->created_at->format('d.m') }}</div>
+                                    </td>
+                                    
+                                    <td class="px-6 py-4 text-gray-500 whitespace-nowrap text-xs font-mono">
+                                        {{ $iade->created_at->format('d.m.Y') }}
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                            {{ $iade->sikayet->sikayetKategori->bolum->ad ?? '-' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        @if($iade->sikayet && $iade->sikayet->iaaProjesi)
+                                            <a href="{{ route('proje.workspace.show', $iade->sikayet->iaaProjesi->id) }}" target="_blank" class="flex items-center group/link">
+                                                <div class="p-1.5 bg-indigo-50 text-indigo-600 rounded-md group-hover/link:bg-indigo-600 group-hover/link:text-white transition mr-3">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                                </div>
+                                                <div>
+                                                    <span class="block font-bold text-gray-800 text-xs group-hover/link:text-indigo-600 transition truncate max-w-[250px]" title="{{ $iade->sikayet->musteri_sikayet_konusu }}">
+                                                        {{ $iade->sikayet->musteri_sikayet_konusu }}
+                                                    </span>
+                                                    <span class="text-[10px] text-gray-400">Proje ID: #{{ $iade->sikayet->iaaProjesi->id }}</span>
+                                                </div>
+                                            </a>
+                                        @else
+                                            <span class="text-gray-400 italic text-xs">Proje bağlantısı yok</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="text-xs font-bold text-gray-800">{{ $iade->urun_turu }}</div>
+                                        <div class="text-[10px] text-red-500 mt-0.5">{{ $iade->iade_sebebi }}</div>
+                                    </td>
+                                    {{-- 5. MİKTAR (GÜNCELLENDİ) --}}
+                                    <td class="px-6 py-4 text-right">
+                                        <div class="text-xs font-bold text-gray-700">
+                                            <span class="text-red-600 text-sm">{{ $iade->miktar }}</span> 
+                                            <span class="text-gray-400">/</span> 
+                                            {{ $iade->toplam_parti_miktari }} 
+                                            {{ $iade->birim }}
+                                        </div>
+                                        @php $oran = ($iade->toplam_parti_miktari > 0) ? ($iade->miktar / $iade->toplam_parti_miktari) * 100 : 0; @endphp
+                                        <div class="text-[9px] text-red-500 font-bold">%{{ number_format($oran, 1) }} İade</div>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        @if($iade->dosya_yolu)
+                                            <a href="{{ asset('storage/'.$iade->dosya_yolu) }}" target="_blank" class="text-gray-400 hover:text-indigo-600 transition-colors inline-block p-1" title="Dosyayı Görüntüle">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                            </a>
+                                        @else
+                                            <span class="text-gray-200 text-xs">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="7" class="px-6 py-16 text-center text-gray-500 italic bg-white">Bu filtreye uygun iade kaydı bulunmuyor.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
+            @endif
+
         </div>
     </div>
 

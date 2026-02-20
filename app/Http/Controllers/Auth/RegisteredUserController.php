@@ -19,14 +19,16 @@ class RegisteredUserController extends Controller
     /**
      * Kayıt formunu gösterir.
      */
-    
+
     public function create(): View
     {
         // Bölüm listesini veritabanından alıyoruz
         $bolumler = Bolum::orderBy('ad')->get();
-        
+        // KVKK Metnini al
+        $kvkkText = \App\Models\Setting::where('key', 'kvkk_text')->value('value');
+
         // ve 'bolumler' değişkeniyle birlikte view'e gönderiyoruz
-        return view('auth.register', compact('bolumler'));
+        return view('auth.register', compact('bolumler', 'kvkkText'));
     }
 
     /**
@@ -36,9 +38,10 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'bolum_id' => ['required'], // Sadece bir seçim yapılmasını zorunlu tutuyoruz.
+            'kvkk_approval' => ['required', 'accepted'], // <-- KVKK ZORUNLU
         ]);
 
         // "Diğer" seçeneği seçildiyse bolum_id'yi null yap, değilse gelen ID'yi al.

@@ -8,7 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class YeniMusteriSikayetiBildirimi extends Notification
+class YeniMusteriSikayetiBildirimi extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -32,13 +32,25 @@ class YeniMusteriSikayetiBildirimi extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $isDirector = $notifiable->hasRole('Direktör');
+        $bolumAd = $this->sikayet->sikayetKategori && $this->sikayet->sikayetKategori->bolum ? $this->sikayet->sikayetKategori->bolum->ad : 'Genel';
+        $olusturan = $this->sikayet->olusturanKurulUyesi ? $this->sikayet->olusturanKurulUyesi->name : 'Sistem';
+
+        $subject = 'Yeni Şikayet Bildirimi: #' . $this->sikayet->id;
+        $introLine = "Bölümünüzü veya sorumluluk alanınızı ilgilendiren yeni bir şikayet sisteme girildi.";
+
+        if ($isDirector) {
+            $introLine = "Direktörlüğüne bağlı {$bolumAd} bölümüne \"{$this->sikayet->musteri_sikayet_konusu}\" başlıklı şikayet {$olusturan} tarafından girilmiştir.";
+        }
+
         return (new MailMessage)
-                    ->subject('Yeni Şikayet Bildirimi: #' . $this->sikayet->id)
-                    ->greeting("Merhaba {$notifiable->name},")
-                    ->line("Bölümünüzü veya sorumluluk alanınızı ilgilendiren yeni bir şikayet sisteme girildi.")
-                    ->line("Müşteri: " . $this->sikayet->musteri_adi)
-                    ->line("Konu: " . $this->sikayet->musteri_sikayet_konusu)
-                    ->action('Şikayeti İncele', route('admin.sikayetler.show', $this->sikayet->id));
+            ->subject($subject)
+            ->greeting("Merhaba {$notifiable->name},")
+            ->line($introLine)
+            ->line("Müşteri: " . $this->sikayet->musteri_adi)
+            ->line("Konu: " . $this->sikayet->musteri_sikayet_konusu)
+            ->action('Şikayeti İncele', route('admin.sikayetler.show', $this->sikayet->id))
+            ->salutation('Saygılarımızla, Köksan İyileştirmeye Açık Alan');
     }
 
     /**
@@ -46,14 +58,23 @@ class YeniMusteriSikayetiBildirimi extends Notification
      */
     public function toDatabase(object $notifiable): array
     {
-        // Rota adını web.php dosyanızdan aldım
         $link = route('admin.sikayetler.show', $this->sikayet->id);
 
+        // Verileri hazırlayalım
+        $bolumAd = $this->sikayet->sikayetKategori && $this->sikayet->sikayetKategori->bolum ? $this->sikayet->sikayetKategori->bolum->ad : 'Genel';
+
+        // Yeni Format: **Yeni Şikayet**; #50 (**Başlık**) başlıklı şikayet sisteme girilmiştir.
+        $message = "**Yeni Şikayet**; #{$this->sikayet->id} (**{$this->sikayet->musteri_sikayet_konusu}**) başlıklı şikayet sisteme girilmiştir.";
+
+        // Eğer direktörse mevcut özel formatı koru ama iyileştir
+        if ($notifiable->hasRole('Direktör')) {
+            $olusturan = $this->sikayet->olusturanKurulUyesi ? $this->sikayet->olusturanKurulUyesi->name : 'Sistem';
+            $message = "**Yeni Şikayet**; Direktörlüğünüze bağlı **{$bolumAd}** bölümüne **{$this->sikayet->musteri_sikayet_konusu}** başlıklı şikayet **{$olusturan}** tarafından girilmiştir.";
+        }
+
         return [
-            // İstediğiniz mesaj
-            'message' => "Yeni bir müşteri şikayeti eklendi: #{$this->sikayet->id} ({$this->sikayet->musteri_sikayet_konusu})",
-            // Link, /iaa alt klasörüne otomatik uyum sağlar
-            'link' => $link, 
+            'message' => $message,
+            'link' => $link,
             'sikayet_id' => $this->sikayet->id
         ];
     }

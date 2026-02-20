@@ -31,7 +31,38 @@
         </div>
     </x-slot>
 
-    <div class="py-8">
+    @php
+        $bekleyenDavetSayisi = \App\Models\TakimDavetiyesi::where('davet_edilen_user_id', auth()->id())
+            ->where('type', 'davet')
+            ->where('durum', 'bekliyor')
+            ->count();
+    @endphp
+
+    @if($bekleyenDavetSayisi > 0)
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 mt-6">
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <span class="font-bold">{{ $bekleyenDavetSayisi }} adet</span> yeni takım davetiniz var!
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ route('takimlar.davetlerim') }}" class="text-sm font-medium text-yellow-700 hover:text-yellow-600 underline">
+                        Davetleri İncele &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    @endif
+    
+    <div class="py-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             {{-- ================================================== --}}
@@ -44,6 +75,13 @@
             {{-- ================================================== --}}
             {{-- PERSONEL DASHBOARD (ESKİ İÇERİK BURADA) --}}
             {{-- ================================================== --}}
+
+                {{-- >>> YENİ: UYARI KUTUSUNU BURAYA EKLİYORUZ <<< --}}
+                {{-- Bu sayede Lider, Yönetici veya Personel fark etmeksizin herkes en tepede uyarısını görür --}}
+                @include('dashboard.partials._alerts')
+
+                {{-- YENİ: Takım Katılma İstekleri Uyarısı (Sadece Liderler Görür) --}}
+                @include('dashboard.partials.waiting-requests')
 
                 {{-- Disiplin Modülü Partialları --}}
                 @include('dashboard.partials.disciplinary-waiting')
@@ -133,8 +171,8 @@
                     </div>
                 @endif
 
-                {{-- Puan Kartı (Superadmin hariç herkese gösterilir) --}}
-                @if(!Auth::user()->hasRole('Superadmin'))
+                {{-- Puan Kartı (Superadmin, Yönetim ve Direktör hariç herkese gösterilir) --}}
+                @unless(Auth::user()->hasRole('Superadmin') || Auth::user()->hasRole('Yonetim') || Auth::user()->hasRole('Direktör'))
                     <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl shadow-lg text-white mb-8">
                         <div class="flex justify-between items-center">
                             <div>
@@ -151,14 +189,34 @@
                 @if(isset($stats))
                     @if(Auth::user()->hasRole('Superadmin'))
                         @include('dashboard.partials.superadmin')
+                    @elseif(Auth::user()->hasRole('Yonetim'))
+                        @include('dashboard.partials.yonetim')
                     @elseif(Auth::user()->hasRole('Müşteri Şikayeti Kurulu'))
                         @include('dashboard.partials.sikayet-kurulu')
+                        @include('dashboard.partials.standart-kullanici')
+                    @elseif(Auth::user()->hasRole(['Hukuk Admini', 'Hukuk Yöneticisi']))
+                        @include('dashboard.partials.hukuk')
+                        <div class="my-12 border-t border-slate-200"></div> {{-- Ayırıcı Çizgi --}}
                         @include('dashboard.partials.standart-kullanici')
                     @elseif(Auth::user()->hasRole('Müşteri Şikayeti Çözüm Lideri'))
                         @include('dashboard.partials.cozum-lideri')
                         @include('dashboard.partials.standart-kullanici')
                     @elseif(Auth::user()->hasRole('Bölüm Kalite Yöneticisi'))
                         @include('dashboard.partials.bolum-yoneticisi')
+                    @elseif(Auth::user()->hasRole('Direktör'))
+                        @include('dashboard.partials.direktor')
+                    @elseif(Auth::user()->hasRole('Bölüm Lideri'))
+                        @if(Auth::user()->bolum_id)
+                            <div class="mb-6 flex justify-end">
+                                <a href="{{ route('admin.bolumler.dashboard', Auth::user()->bolum_id) }}" 
+                                   class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring ring-indigo-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-lg">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                                    Bölüm Paneline Git
+                                </a>
+                            </div>
+                        @endif
+                        @include('dashboard.partials._department-leader')
+                        @include('dashboard.partials.standart-kullanici')
                     @else
                         @include('dashboard.partials.standart-kullanici')
                     @endif

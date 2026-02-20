@@ -274,81 +274,90 @@ class ActiveStep extends Component
                 // --- Dosya Yükleme ---
                 foreach ($widgetConfigs as $index => $widget) {
                     if (isset($widget['type']) && $widget['type'] === 'file_upload' && isset($this->newUploads[$index])) {
-                         $existingFilePaths = $processedFormData[$index]['files'] ?? []; $newFilePaths = []; $filesToUpload = $this->newUploads[$index];
-                         if (is_array($filesToUpload)) { foreach ($filesToUpload as $file) { $storedPath = $this->storeUploadedFile($file); if ($storedPath) { $newFilePaths[] = $storedPath; } else { Log::warning('Dosya yükleme başarısız oldu, atlanıyor.', ['file' => $file?->getClientOriginalName() ?? 'N/A']); } } }
-                         $processedFormData[$index]['files'] = array_merge($existingFilePaths, $newFilePaths); $this->newUploads[$index] = [];
+                        $existingFilePaths = $processedFormData[$index]['files'] ?? [];
+                        $newFilePaths = [];
+                        $filesToUpload = $this->newUploads[$index];
+                        if (is_array($filesToUpload)) {
+                            foreach ($filesToUpload as $file) {
+                                $storedPath = $this->storeUploadedFile($file);
+                                if ($storedPath) {
+                                    $newFilePaths[] = $storedPath;
+                                } else {
+                                    Log::warning('Dosya yükleme başarısız oldu, atlanıyor.', ['file' => $file?->getClientOriginalName() ?? 'N/A']);
+                                }
+                            }
+                        }
+                        $processedFormData[$index]['files'] = array_merge($existingFilePaths, $newFilePaths);
+                        $this->newUploads[$index] = [];
                     }
                 }
                 // --- Dosya Yükleme Sonu ---
 
-                // --- Araç Verilerini Kaydet (Güncellenmiş $toolsData yapısı) ---
+                // --- Araç Verilerini Kaydet ---
                 $toolsToSave = [];
-                if($widgetTypesInThisStep->contains('five_whys')) { $toolsToSave['five_whys'] = $this->toolsData['five_whys'] ?? null; }
-                if($widgetTypesInThisStep->contains('fishbone')) { $toolsToSave['fishbone'] = $this->toolsData['fishbone'] ?? null; }
-                if($widgetTypesInThisStep->contains('pareto')) { $toolsToSave['pareto'] = $this->toolsData['pareto'] ?? null; }
-                // YENİLER: Artık tüm config ve rows'u içeren yapıyı kaydediyoruz
-                if($widgetTypesInThisStep->contains('bar_chart')) { $toolsToSave['bar_chart_data'] = $this->toolsData['bar_chart_data'] ?? null; }
-                if($widgetTypesInThisStep->contains('line_chart')) { $toolsToSave['line_chart_data'] = $this->toolsData['line_chart_data'] ?? null; }
+                if ($widgetTypesInThisStep->contains('five_whys')) { $toolsToSave['five_whys'] = $this->toolsData['five_whys'] ?? null; }
+                if ($widgetTypesInThisStep->contains('fishbone')) { $toolsToSave['fishbone'] = $this->toolsData['fishbone'] ?? null; }
+                if ($widgetTypesInThisStep->contains('pareto')) { $toolsToSave['pareto'] = $this->toolsData['pareto'] ?? null; }
+                if ($widgetTypesInThisStep->contains('bar_chart')) { $toolsToSave['bar_chart_data'] = $this->toolsData['bar_chart_data'] ?? null; }
+                if ($widgetTypesInThisStep->contains('line_chart')) { $toolsToSave['line_chart_data'] = $this->toolsData['line_chart_data'] ?? null; }
                 // --- Araç Verileri Sonu ---
 
-                $contentToSave = json_encode(['form_data' => $processedFormData,'tools' => $toolsToSave]);
-                if (json_last_error() !== JSON_ERROR_NONE) { throw new \Exception('JSON encode hatası: ' . json_last_error_msg()); }
+                $contentToSave = json_encode(['form_data' => $processedFormData, 'tools' => $toolsToSave]);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('JSON encode hatası: ' . json_last_error_msg());
+                }
 
                 IaaProgressUpdate::updateOrCreate(
                     ['iaa_talep_id' => $this->assignment->id, 'iaa_workflow_step_id' => $this->currentStep->id],
                     ['user_id' => Auth::id(), 'content' => $contentToSave, 'completed_at' => now()]
                 );
 
-                // Proje durumu güncelleme... (önceki gibi)
-                $assignmentModel = IaaTalep::find($this->assignment->id); $iaaModel = ($this->iaa instanceof Iaa) ? $this->iaa : Iaa::find($this->iaa['id'] ?? null);
-                if ($assignmentModel && $assignmentModel->workflow && $iaaModel) { $totalSteps = $assignmentModel->workflow->steps()->count(); 
-                    $completedSteps = IaaProgressUpdate::where('iaa_talep_id', $this->assignment->id)->whereNotNull('completed_at')->count(); 
-                    if ($completedSteps >= $totalSteps) { 
-                        $iaaModel->update(['durum' => 'Bölüm Onayı Bekliyor']);
-                        $assignmentModel->update(['status' => 'Bölüm Onayında']); 
-                        // 1. Bu projenin kategorisinden sorumlu olan yöneticileri bul
-                        if ($iaaModel->musteriSikayeti && $iaaModel->musteriSikayeti->sikayet_kategorisi_id) {
-                            $kategoriId = $iaaModel->musteriSikayeti->sikayet_kategorisi_id;
-                            
-                            // Bu kategoriye atanmış "Bölüm Kalite Yöneticisi" rolündeki kullanıcıları bul
-                            $yoneticiler = User::role('Bölüm Kalite Yöneticisi')
-                                ->whereHas('yonettigiSikayetKategorileri', function($q) use ($kategoriId) {
-                                    $q->where('sikayet_kategorileri.id', $kategoriId);
-                                })->get();
+                // --- PROJE DURUMU KONTROLÜ (GÜNCELLENDİ) ---
+                $assignmentModel = IaaTalep::find($this->assignment->id);
+                $iaaModel = ($this->iaa instanceof Iaa) ? $this->iaa : Iaa::find($this->iaa['id'] ?? null);
 
-                            // 2. Bildirimi Gönder
-                            if ($yoneticiler->isNotEmpty()) {
-                                
-                                // İşlemi yapan kişinin adını al (Örn: Erhan Cesur)
-                                $yapanKisi = Auth::user()->name; 
+                if ($assignmentModel && $assignmentModel->workflow && $iaaModel) {
+                    $totalSteps = $assignmentModel->workflow->steps()->count();
+                    $completedSteps = IaaProgressUpdate::where('iaa_talep_id', $this->assignment->id)->whereNotNull('completed_at')->count();
 
-                                \Illuminate\Support\Facades\Notification::send($yoneticiler, new \App\Notifications\ProjeDurumuDegisti(
-                                    $iaaModel, 
-                                    $yapanKisi . ' tarafından onayınıza sunuldu', // <-- DİNAMİK İSİM BURADA
-                                    'Proje tamamlandı ve bölüm onayı bekliyor.' 
-                                ));
-                            }
-                        }
-                    } 
+                    if ($completedSteps >= $totalSteps) {
+                        // =================================================================
+                        // DİKKAT: BURADAKİ STATÜ GÜNCELLEMESİNİ İPTAL ETTİK
+                        // Böylece proje "Devam Ediyor" statüsünde kalacak ve
+                        // "Projeyi Tamamla / İade Gir" butonu görünecek.
+                        // =================================================================
+                        
+                        // $iaaModel->update(['durum' => 'Bölüm Onayı Bekliyor']);  <-- BU SATIR KAPATILDI
+                        // $assignmentModel->update(['status' => 'Bölüm Onayında']); <-- BU SATIR KAPATILDI
+
+                        // İsteğe bağlı: Sadece bildirim gönderebiliriz
+                        // ... (Bildirim kodu buraya gelebilir) ...
+                    }
                 }
-            }); // Transaction sonu
+            }); // Transaction sonu (}); burası hatasız olmalı)
 
             session()->flash('success', '"' . ($this->currentStep->name ?? 'Adım') . '" başarıyla tamamlandı!');
-            $iaaId = ($this->iaa instanceof Iaa) ? $this->iaa->id : ($this->iaa['id'] ?? null);
             
-            if ($iaaId) { 
-                // DÜZELTME: with('scroll_to_step', ...) ile tamamlanan adımın ID'sini gönderiyoruz.
+            $iaaId = ($this->iaa instanceof Iaa) ? $this->iaa->id : ($this->iaa['id'] ?? null);
+
+            if ($iaaId) {
+                // Scroll işlemi için tamamlanan ID'yi gönderiyoruz
                 return redirect()->route('proje.workspace.show', $iaaId)
-                        ->with('scroll_to_step', $this->currentStep->id); 
-            }
-            else { 
-                Log::error('Yönlendirme için iaaId bulunamadı.'); 
-                return redirect()->route('home'); 
+                    ->with('scroll_to_step', $this->currentStep->id);
+            } else {
+                Log::error('Yönlendirme için iaaId bulunamadı.');
+                return redirect()->route('home');
             }
 
-        } catch (\Exception $e) { /* ... (Hata loglama aynı) ... */
-             Log::error('Adım kaydedilirken hata oluştu: ' . $e->getMessage(), [ 'iaa_id' => ($this->iaa instanceof Iaa) ? $this->iaa->id : ($this->iaa['id'] ?? null), 'assignment_id' => $this->assignment->id ?? null, 'step_id' => $this->currentStep->id ?? null, 'user_id' => Auth::id() ]);
-             session()->flash('error', 'Adım kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.'); return null;
+        } catch (\Exception $e) {
+            Log::error('Adım kaydedilirken hata oluştu: ' . $e->getMessage(), [
+                'iaa_id' => ($this->iaa instanceof Iaa) ? $this->iaa->id : ($this->iaa['id'] ?? null),
+                'assignment_id' => $this->assignment->id ?? null,
+                'step_id' => $this->currentStep->id ?? null,
+                'user_id' => Auth::id()
+            ]);
+            session()->flash('error', 'Adım kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.');
+            return null;
         }
     }
 

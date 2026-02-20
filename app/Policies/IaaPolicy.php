@@ -18,7 +18,7 @@ class IaaPolicy
         if ($user->hasRole('Superadmin')) {
             return true;
         }
- 
+
         return null; // Diğer kuralları kontrol etmeye devam et
     }
 
@@ -42,13 +42,44 @@ class IaaPolicy
             return true;
         }
 
+        // Kural 1.5: Direktör Yetkisi (Maksimum Kapsamlı Erişim)
+        if ($user->hasRole('Direktör')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('id')->toArray();
+
+            // 1. Doğrudan proje bölümü üzerinden
+            if (in_array($iaa->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+
+            // 2. Şikayet kategorisi departmanı üzerinden
+            if ($iaa->musteriSikayeti && $iaa->musteriSikayeti->sikayetKategori && in_array($iaa->musteriSikayeti->sikayetKategori->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+
+            // 3. Proje gönderen kişi üzerinden
+            if ($iaa->gonderen && in_array($iaa->gonderen->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+
+            // 4. Proje ekibi (Squad) üzerinden
+            $teamMembersDeptIds = $iaa->projeEkibi()->pluck('users.bolum_id')->unique()->toArray();
+            if (count(array_intersect($teamMembersDeptIds, $yonetilenBolumIds)) > 0) {
+                return true;
+            }
+
+            // 5. Takım lideri üzerinden
+            if ($iaa->atananTakim && $iaa->atananTakim->lider && in_array($iaa->atananTakim->lider->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+        }
+
         // Kural 2: Eğer öneri "Havuzda" veya daha ileri bir aşamadaysa (TAMAMLANDI DAHİL), herkes görebilir.
         // === GÜNCELLEME BURADA ===
         if (in_array($iaa->durum, ['Havuzda', 'Talep Edildi', 'Atandı', 'Yönetici Onayı Bekliyor', 'Revize Ediliyor', 'Tamamlandı'])) {
             return true;
         }
         // =========================
-        
+
         // Bu koşullar sağlanmazsa (örneğin başkasının "Onay Bekleyen" önerisi), göremez.
         return false;
     }

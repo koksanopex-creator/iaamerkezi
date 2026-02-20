@@ -43,7 +43,38 @@
         </div>
      <?php $__env->endSlot(); ?>
 
-    <div class="py-8">
+    <?php
+        $bekleyenDavetSayisi = \App\Models\TakimDavetiyesi::where('davet_edilen_user_id', auth()->id())
+            ->where('type', 'davet')
+            ->where('durum', 'bekliyor')
+            ->count();
+    ?>
+
+    <?php if($bekleyenDavetSayisi > 0): ?>
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 mt-6">
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <span class="font-bold"><?php echo e($bekleyenDavetSayisi); ?> adet</span> yeni takım davetiniz var!
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    <a href="<?php echo e(route('takimlar.davetlerim')); ?>" class="text-sm font-medium text-yellow-700 hover:text-yellow-600 underline">
+                        Davetleri İncele &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+    
+    <div class="py-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             
@@ -56,6 +87,13 @@
             
             
             
+
+                
+                
+                <?php echo $__env->make('dashboard.partials._alerts', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+
+                
+                <?php echo $__env->make('dashboard.partials.waiting-requests', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
                 
                 <?php echo $__env->make('dashboard.partials.disciplinary-waiting', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
@@ -150,7 +188,7 @@
                 <?php endif; ?>
 
                 
-                <?php if(!Auth::user()->hasRole('Superadmin')): ?>
+                <?php if (! (Auth::user()->hasRole('Superadmin') || Auth::user()->hasRole('Yonetim') || Auth::user()->hasRole('Direktör'))): ?>
                     <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-2xl shadow-lg text-white mb-8">
                         <div class="flex justify-between items-center">
                             <div>
@@ -167,14 +205,34 @@
                 <?php if(isset($stats)): ?>
                     <?php if(Auth::user()->hasRole('Superadmin')): ?>
                         <?php echo $__env->make('dashboard.partials.superadmin', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                    <?php elseif(Auth::user()->hasRole('Yonetim')): ?>
+                        <?php echo $__env->make('dashboard.partials.yonetim', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                     <?php elseif(Auth::user()->hasRole('Müşteri Şikayeti Kurulu')): ?>
                         <?php echo $__env->make('dashboard.partials.sikayet-kurulu', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                        <?php echo $__env->make('dashboard.partials.standart-kullanici', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                    <?php elseif(Auth::user()->hasRole(['Hukuk Admini', 'Hukuk Yöneticisi'])): ?>
+                        <?php echo $__env->make('dashboard.partials.hukuk', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                        <div class="my-12 border-t border-slate-200"></div> 
                         <?php echo $__env->make('dashboard.partials.standart-kullanici', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                     <?php elseif(Auth::user()->hasRole('Müşteri Şikayeti Çözüm Lideri')): ?>
                         <?php echo $__env->make('dashboard.partials.cozum-lideri', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                         <?php echo $__env->make('dashboard.partials.standart-kullanici', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                     <?php elseif(Auth::user()->hasRole('Bölüm Kalite Yöneticisi')): ?>
                         <?php echo $__env->make('dashboard.partials.bolum-yoneticisi', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                    <?php elseif(Auth::user()->hasRole('Direktör')): ?>
+                        <?php echo $__env->make('dashboard.partials.direktor', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                    <?php elseif(Auth::user()->hasRole('Bölüm Lideri')): ?>
+                        <?php if(Auth::user()->bolum_id): ?>
+                            <div class="mb-6 flex justify-end">
+                                <a href="<?php echo e(route('admin.bolumler.dashboard', Auth::user()->bolum_id)); ?>" 
+                                   class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring ring-indigo-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-lg">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                                    Bölüm Paneline Git
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                        <?php echo $__env->make('dashboard.partials._department-leader', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                        <?php echo $__env->make('dashboard.partials.standart-kullanici', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                     <?php else: ?>
                         <?php echo $__env->make('dashboard.partials.standart-kullanici', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                     <?php endif; ?>

@@ -44,17 +44,28 @@
             </div>
         </a>
 
-        <div class="group relative bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-6 overflow-hidden">
+        {{-- TIKLANABİLİR LİNK YAPILDI --}}
+        <a href="{{ route('takimlar.show', $stats['lider_takim']->id) }}" class="group relative bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-6 overflow-hidden block hover:shadow-xl transition-all">
             <div class="absolute inset-0 bg-gradient-to-br from-green-600/5 to-emerald-600/5 rounded-2xl"></div>
             <div class="relative">
                 <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 mb-4">
                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">Çözülen Projeler</h3>
-                <p class="text-3xl font-bold text-gray-900 mb-4">{{ $stats['cozulen_projeler_count'] }}</p>
-                <p class="text-gray-500 text-sm italic">Takımınızın tamamladığı toplam proje sayısı.</p>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Başarıyla Çözülenler</h3>
+                
+                {{-- SAYI AÇIKLAMASI --}}
+                <div class="flex items-end gap-2 mb-4">
+                    <p class="text-4xl font-black text-gray-900">{{ $stats['cozulen_projeler_count'] }}</p>
+                    <span class="text-green-700 font-bold text-sm mb-1.5">Proje Tamamlandı</span>
+                </div>
+                
+                <p class="text-gray-500 text-xs">Takımınızın başarıyla sonuçlandırdığı toplam proje sayısı.</p>
+                
+                <div class="mt-4 flex items-center text-green-600 text-xs font-bold uppercase tracking-wide group-hover:text-green-800">
+                    Takım Detayına Git <span class="ml-1">&rarr;</span>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 @else
     <div class="bg-gradient-to-br from-yellow-50 to-orange-100 border border-yellow-200 rounded-2xl shadow-lg overflow-hidden p-8">

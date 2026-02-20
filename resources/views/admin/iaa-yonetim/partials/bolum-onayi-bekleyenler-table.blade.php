@@ -92,15 +92,56 @@
                                         </a>
 
                                         {{-- Onayla Butonu --}}
-                                        <form action="{{ route('admin.iaa-yonetim.bolumOnayiVer', $iaa->id) }}" method="POST" class="inline-block">
-                                            @csrf
-                                            <button type="submit" 
-                                                    class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                                    onclick="return confirm('Bu projeye bölüm onayı vermek istediğinize emin misiniz?')">
-                                                <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                                Onayla
-                                            </button>
-                                        </form>
+                                        {{-- Onayla Butonu (Modal Tetikleyici) --}}
+                                        <button @click="showOnayModal = true" type="button" 
+                                                class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                            <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                            Onayla
+                                        </button>
+
+                                        {{-- ONAY MODALI (Alpine.js) --}}
+                                        <div x-show="showOnayModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+                                            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                                                <div class="fixed inset-0 transition-opacity" aria-hidden="true" @click="showOnayModal = false">
+                                                    <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                                                </div>
+                                                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                                                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                                                    <form action="{{ route('admin.iaa-yonetim.bolumOnayiVer', $iaa->id) }}" method="POST">
+                                                        @csrf
+                                                        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 text-left">
+                                                            <div class="sm:flex sm:items-start">
+                                                                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                                                                    <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                                </div>
+                                                                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                                                    <h3 class="text-lg leading-6 font-medium text-gray-900 border-b pb-2 mb-4 italic text-green-600">
+                                                                        Bölüm Yöneticisi Onayı
+                                                                    </h3>
+                                                                    <div class="mt-2">
+                                                                        <label for="not" class="block text-sm font-medium text-gray-700 mb-1">Direktöre Notunuz (Opsiyonel)</label>
+                                                                        <textarea name="not" rows="4" 
+                                                                            class="shadow-sm focus:ring-green-500 focus:border-green-500 block w-full sm:text-sm border-gray-300 rounded-md" 
+                                                                            placeholder="Varsa direktöre iletmek istediğiniz notu buraya yazabilirsiniz..."></textarea>
+                                                                        <p class="mt-1 text-xs text-gray-500">Bu not direk olarak Bölüm Direktörüne iletilecektir.</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                                                            <button type="submit" 
+                                                                class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700">
+                                                                Onayla ve Gönder
+                                                            </button>
+                                                            <button @click="showOnayModal = false" type="button" 
+                                                                class="bg-white border text-gray-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-50">
+                                                                İptal
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
 
                                         {{-- Revize Et Butonu --}}
                                         <button @click="showRevizeModal = true" type="button" 

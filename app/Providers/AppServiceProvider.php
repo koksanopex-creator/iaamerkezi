@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Facades\Storage; 
-use Illuminate\Support\Facades\Config; 
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Config;
 
 // === EKLENEN: LOGİN VE LOG İŞLEMLERİ İÇİN GEREKLİ SINIFLAR ===
 use Illuminate\Support\Facades\Event;
@@ -33,7 +33,7 @@ class AppServiceProvider extends ServiceProvider
     {
         //
     }
-    
+
     /**
      * Bootstrap any application services.
      */
@@ -44,18 +44,35 @@ class AppServiceProvider extends ServiceProvider
             $user = $event->user;
 
             // 1. Mevcut Sistem Logu (Genel)
-            LoginActivity::create([
-                'user_id' => $user->id,
-                'ip_address' => request()->ip(),
-                'user_agent' => request()->userAgent(),
-                'created_at' => now(),
-            ]);
+            // Eğer kullanıcının çok yakın zamanda (son 2 saat) bir girişi varsa ve aktivite gösterdiyse
+            // Yeni bir kayıt oluşturmak yerine mevcut oturumu devam ettiriyoruz.
+            $existingActivity = LoginActivity::where('user_id', $user->id)
+                ->where('created_at', '>', now()->subHours(2))
+                ->latest('id')
+                ->first();
+
+            if ($existingActivity) {
+                $loginActivity = $existingActivity;
+            } else {
+                $loginActivity = LoginActivity::create([
+                    'user_id' => $user->id,
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'created_at' => now(),
+                    'last_activity_at' => now(),
+                ]);
+            }
+
+            session(['current_login_id' => $loginActivity->id]);
 
             // 2. YENİ: Müşteri Logu (Eğer giren kişi bir firma yetkilisi ise)
             if ($user->customer_id) {
                 MusteriLog::add($user->customer_id, 'Sisteme Giriş', $user->name . ' (Yetkili) sisteme giriş yaptı.');
             }
         });
+
+        // === YENİ: E-POSTA DOĞRULAMA OTOMATİK ONAY ===
+        Event::listen(\Illuminate\Auth\Events\Verified::class, \App\Listeners\AutoApproveVerifiedUser::class);
         // ================================================================
 
         // === GÖZLEMCİLER (OBSERVERS) ===
@@ -67,13 +84,13 @@ class AppServiceProvider extends ServiceProvider
         // Ayarlar ve View Paylaşımları
         if (Schema::hasTable('settings')) {
             $settings = Setting::all()->keyBy('key');
-            
+
             $logo = $settings->get('site_logo');
             View::share('siteLogo', $logo ? $logo->value : null);
 
             $kayitOnay = $settings->get('kayit_onay_sistemi');
-            View::share('kayitOnaySistemiAktif', $kayitOnay ? (bool)$kayitOnay->value : true);
-            
+            View::share('kayitOnaySistemiAktif', $kayitOnay ? (bool) $kayitOnay->value : true);
+
             $paraBirimleriSetting = $settings->get('para_birimleri');
             $paraBirimleri = $paraBirimleriSetting ? explode(',', $paraBirimleriSetting->value) : ['TL', 'USD', 'EUR'];
             View::share('paraBirimleri', $paraBirimleri);

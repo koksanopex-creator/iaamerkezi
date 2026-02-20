@@ -66,7 +66,7 @@
                         <li class="flex justify-between items-center text-sm bg-gray-50 p-2 rounded border">
                             <span class="truncate">{{ $c->ad }}</span>
                             <div class="flex gap-2">
-                                <button @click="isEdit=true; id={{$c->id}}; ad='{{ addslashes($c->ad) }}'; action='/admin/disiplin-ayarlari/kategori/{{$c->id}}'" class="text-blue-500 text-xs font-bold">DÜZENLE</button>
+                                <button @click="isEdit=true; id={{$c->id}}; ad='{{ addslashes($c->ad) }}'; action='{{ route('admin.disiplin.settings.category.update', $c->id) }}'" class="text-blue-500 text-xs font-bold">DÜZENLE</button>
                                 <form action="{{ route('admin.disiplin.settings.category.delete', $c->id) }}" method="POST">
                                     @csrf @method('DELETE')
                                     <button class="text-red-500 hover:text-red-700 font-bold text-xs">SİL</button>
@@ -100,7 +100,7 @@
                             <span>{{ $i->tanim }}</span>
                             <div class="flex items-center gap-2">
                                 <span class="font-bold text-indigo-600 text-xs">{{ $i->puan }}p</span>
-                                <button @click="isEdit=true; id={{$i->id}}; tanim='{{ addslashes($i->tanim) }}'; puan='{{ $i->puan }}'; action='/admin/disiplin-ayarlari/etki/{{$i->id}}'" class="text-blue-500 text-xs font-bold">DÜZENLE</button>
+                                <button @click="isEdit=true; id={{$i->id}}; tanim='{{ addslashes($i->tanim) }}'; puan='{{ $i->puan }}'; action='{{ route('admin.disiplin.settings.impact.update', $i->id) }}'" class="text-blue-500 text-xs font-bold">DÜZENLE</button>
                                 <form action="{{ route('admin.disiplin.settings.impact.delete', $i->id) }}" method="POST">
                                     @csrf @method('DELETE')
                                     <button class="text-red-500 hover:text-red-700 font-bold text-xs">SİL</button>
@@ -134,7 +134,7 @@
                             <span>{{ $s->tanim }}</span>
                             <div class="flex items-center gap-2">
                                 <span class="font-bold text-indigo-600 text-xs">{{ $s->puan }}p</span>
-                                <button @click="isEdit=true; id={{$s->id}}; tanim='{{ addslashes($s->tanim) }}'; puan='{{ $s->puan }}'; action='/admin/disiplin-ayarlari/kapsam/{{$s->id}}'" class="text-blue-500 text-xs font-bold">DÜZENLE</button>
+                                <button @click="isEdit=true; id={{$s->id}}; tanim='{{ addslashes($s->tanim) }}'; puan='{{ $s->puan }}'; action='{{ route('admin.disiplin.settings.scope.update', $s->id) }}'" class="text-blue-500 text-xs font-bold">DÜZENLE</button>
                                 <form action="{{ route('admin.disiplin.settings.scope.delete', $s->id) }}" method="POST">
                                     @csrf @method('DELETE')
                                     <button class="text-red-500 hover:text-red-700 font-bold text-xs">SİL</button>
@@ -202,7 +202,7 @@
                                 <td class="px-4 py-2 text-sm text-gray-800">{{ $b->tanim }}</td>
                                 <td class="px-4 py-2 text-xs text-gray-500 italic">{{ $b->yasal_dayanak }}</td>
                                 <td class="px-4 py-2 text-right flex justify-end gap-2">
-                                    <button @click="editMode=true; method='PUT'; formAction='/admin/disiplin-ayarlari/davranis/{{$b->id}}'; kategori='{{ $b->category_id }}'; tanim='{{ addslashes($b->tanim) }}'; yasal='{{ $b->yasal_dayanak }}'" 
+                                    <button @click="editMode=true; method='PUT'; formAction='{{ route('admin.disiplin.settings.behavior.update', $b->id) }}'; kategori='{{ $b->category_id }}'; tanim='{{ addslashes($b->tanim) }}'; yasal='{{ $b->yasal_dayanak }}'" 
                                             class="text-blue-500 hover:text-blue-700 text-xs font-bold">DÜZENLE</button>
                                     
                                     <form action="{{ route('admin.disiplin.settings.behavior.delete', $b->id) }}" method="POST" onsubmit="return confirm('Silinecek?')">

@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Notifications\DisiplinTutanagiOlusturuldu;
 use App\Notifications\PersonelSavunmaVerdi;
-use App\Models\DisciplinaryVote; 
+use App\Models\DisciplinaryVote;
 
 class DisciplinaryController extends Controller
 {
@@ -24,8 +24,8 @@ class DisciplinaryController extends Controller
         $user = Auth::user();
 
         // 1. ERİŞİM KONTROLÜ
-        $hasAccess = $user->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi', 'Bölüm Lideri']) 
-                     || $user->can_issue_disciplinary;
+        $hasAccess = $user->hasRole(['Superadmin', 'Yonetim', 'Yönetim', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi', 'Bölüm Lideri', 'Direktör'])
+            || $user->can_issue_disciplinary;
 
         if (!$hasAccess) {
             abort(403, 'Yetkiniz yok.');
@@ -40,32 +40,53 @@ class DisciplinaryController extends Controller
 
         // --- YETKİ FİLTRELEME MANTIĞI (GÜNCELLENDİ) ---
 
-        // A. SÜPER YETKİLİLER (Admin, Hukuk, Kurul) -> HER ŞEYİ GÖRÜR
-        if ($user->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi'])) {
+        // A. SÜPER YETKİLİLER (Admin, Hukuk, Kurul, Yönetim) -> HER ŞEYİ GÖRÜR
+        if ($user->hasRole(['Superadmin', 'Yonetim', 'Yönetim', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi'])) {
             $filterMessage = 'Tam yetkili görünümü: Tüm dosyalar listeleniyor.';
             $filterType = 'success';
-        } 
-        
-        // B. BÖLÜM YETKİLİLERİ (İSG, Güvenlik, Kapak Lideri vb.)
+        }
+
+        // B. DİREKTÖRLER -> Kendi bölümlerine ait dosyaları görür
+        else if ($user->hasRole('Direktör')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('bolumler.id')->toArray();
+
+            $query->where(function ($q) use ($yonetilenBolumIds) {
+                // Raporlayanı benim bölümümden olanlar
+                $q->whereHas('reporter', function ($sub) use ($yonetilenBolumIds) {
+                    $sub->whereIn('bolum_id', $yonetilenBolumIds);
+                })
+                    // VEYA suçlananı benim bölümümden olanlar
+                    ->orWhereHas('user', function ($sub) use ($yonetilenBolumIds) {
+                        $sub->whereIn('bolum_id', $yonetilenBolumIds);
+                    });
+            });
+
+            $filterMessage = 'Sorumlu olduğunuz bölümlere ait disiplin kayıtlarını görüyorsunuz.';
+            $filterType = 'success';
+        }
+
+        // C. BÖLÜM YETKİLİLERİ (İSG, Güvenlik, Kapak Lideri vb.)
         else {
             // KURAL: Sadece "Raporlayanı (Tutanak Tutanı)" benim bölümümden olan dosyaları getir.
             // Yani: Barış Yalçın (İSG) veya Serkan (İSG) tutanak tuttuysa, İSG ekibi bunu görebilir.
             // Ama İK (İnsan Kaynakları) birine tutanak tuttuysa, İSG bunu GÖREMEZ (İlgili değilse).
-            
-            $query->whereHas('reporter', function($q) use ($user) {
-                $q->where('bolum_id', $user->bolum_id);
-            });
 
-            // EKSTRA: Dosya sahibi (suçlanan) benim bölümümden ise onu da göreyim (Lidersem)
-            if ($user->hasRole('Bölüm Lideri')) {
-                $query->orWhereHas('user', function($q) use ($user) {
-                    $q->where('bolum_id', $user->bolum_id);
+            $query->where(function ($q) use ($user) {
+                $q->whereHas('reporter', function ($sub) use ($user) {
+                    $sub->where('bolum_id', $user->bolum_id);
                 });
-            }
+
+                // EKSTRA: Dosya sahibi (suçlanan) benim bölümümden ise onu da göreyim (Lidersem)
+                if ($user->hasRole('Bölüm Lideri')) {
+                    $q->orWhereHas('user', function ($sub) use ($user) {
+                        $sub->where('bolum_id', $user->bolum_id);
+                    });
+                }
+            });
 
             // Global Yetkili ise mesajı farklı verelim ama filtre aynı kalsın (Güvenlik için)
             if ($user->bolum && $user->bolum->is_disciplinary_global) {
-                $filterMessage = 'Bölümünüz ('. $user->bolum->ad .') genel tutanak yetkisine sahiptir. Sadece bölümünüz tarafından oluşturulan tutanakları görüyorsunuz.';
+                $filterMessage = 'Bölümünüz (' . $user->bolum->ad . ') genel tutanak yetkisine sahiptir. Sadece bölümünüz tarafından oluşturulan tutanakları görüyorsunuz.';
             } else {
                 $filterMessage = 'Sadece kendi bölümünüzle ilgili kayıtları görüyorsunuz.';
                 $filterType = 'warning';
@@ -75,9 +96,9 @@ class DisciplinaryController extends Controller
         // 4. MEVCUT FİLTRELERİ UYGULA (Search ve Durum - KORUNDU)
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->whereHas('user', function($q) use ($search) {
+            $query->whereHas('user', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -95,16 +116,16 @@ class DisciplinaryController extends Controller
     {
         // 1. VERİ YÜKLEME (Senin mevcut kodun: Yorum mantığı ve ilişkiler korunuyor)
         $case = DisciplinaryCase::with([
-            'user.bolum', 
-            'behavior.category', 
-            'reporter', 
-            'impact', 
+            'user.bolum',
+            'behavior.category',
+            'reporter',
+            'impact',
             'scope',
             // Yorumları özel bir koşulla çekiyoruz:
-            'comments' => function($q) {
+            'comments' => function ($q) {
                 // Eğer giren kişi Superadmin veya Hukuk Admini ise SİLİNENLERİ DE GETİR
                 if (Auth::user()->hasRole(['Superadmin', 'Hukuk Admini'])) {
-                    $q->withTrashed(); 
+                    $q->withTrashed();
                 }
                 $q->orderBy('created_at', 'desc'); // En yeni en üstte
             },
@@ -117,7 +138,7 @@ class DisciplinaryController extends Controller
         // 2. GÜVENLİK DUVARI (Hibrit Yapı)
 
         // A. Süper Yöneticiler ve Kurul (Her şeyi görür)
-        if ($user->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi'])) {
+        if ($user->hasRole(['Superadmin', 'Yonetim', 'Yönetim', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi'])) {
             return view('admin.disiplin.show', compact('case'));
         }
 
@@ -130,6 +151,14 @@ class DisciplinaryController extends Controller
         // (Serkan tutanağı tuttuysa, yetkisi alınsa bile kendi tuttuğu tutanağı görmeye devam etmeli)
         if ($case->reporter_id == $user->id) {
             return view('admin.disiplin.show', compact('case'));
+        }
+
+        // C.1. Direktör Yetkisi
+        if ($user->hasRole('Direktör')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('bolumler.id')->toArray();
+            if (in_array($case->user->bolum_id, $yonetilenBolumIds) || ($case->reporter && in_array($case->reporter->bolum_id, $yonetilenBolumIds))) {
+                return view('admin.disiplin.show', compact('case'));
+            }
         }
 
         // D. Bölüm Liderleri ve Yetkili Sorumlular (Yeni Eklenen Kısım)
@@ -159,7 +188,7 @@ class DisciplinaryController extends Controller
     public function edit($id)
     {
         $case = DisciplinaryCase::findOrFail($id);
-        
+
         // Sadece belirli durumlarda düzenlemeye izin verelim (Örn: Karar verilmişse düzenlenemesin)
         if ($case->durum == 'Karar Verildi' || $case->durum == 'İptal Edildi') {
             return back()->with('error', 'Bu dosya kapatıldığı için düzenlenemez.');
@@ -168,12 +197,12 @@ class DisciplinaryController extends Controller
         $gizliRoller = ['Superadmin', 'Yönetim', 'Dış Avukat', 'Hukuk Yöneticisi'];
 
         $users = User::personel()
-        ->where('id', '!=', Auth::id()) // Kendini seçemesin
-        ->whereDoesntHave('roles', function ($q) use ($gizliRoller) {
-            $q->whereIn('name', $gizliRoller); // Bu rollere sahip olanları getirme
-        })
-        ->orderBy('name')
-        ->get();
+            ->where('id', '!=', Auth::id()) // Kendini seçemesin
+            ->whereDoesntHave('roles', function ($q) use ($gizliRoller) {
+                $q->whereIn('name', $gizliRoller); // Bu rollere sahip olanları getirme
+            })
+            ->orderBy('name')
+            ->get();
         $categories = DisciplinaryCategory::with('behaviors')->orderBy('ad')->get();
         $impacts = DisciplinaryImpact::orderBy('puan')->get();
         $scopes = DisciplinaryScope::orderBy('puan')->get();
@@ -187,7 +216,7 @@ class DisciplinaryController extends Controller
     public function update(Request $request, $id)
     {
         $case = DisciplinaryCase::findOrFail($id);
-        
+
         // Validasyon (Dosya zorunlu değil bu sefer)
         $request->validate([
             'behavior_id' => 'required',
@@ -198,7 +227,7 @@ class DisciplinaryController extends Controller
 
         // 1. ESKİ DOSYALARI SİLME İŞLEMİ
         $mevcutDosyalar = $case->kanit_dosyalari ?? [];
-        
+
         if ($request->has('silinecek_dosyalar')) {
             foreach ($request->silinecek_dosyalar as $silinecek) {
                 // Array'den çıkar
@@ -275,7 +304,7 @@ class DisciplinaryController extends Controller
         }
 
         // 5. TUTANAK SAHİBİ (PERSONEL): Asla silemez (Savunmasını silebilir ama tutanağı değil).
-        
+
         // 6. DİSİPLİN KURULU (BAŞKAN/ÜYE): Asla silemez.
 
         abort(403, 'Bu kaydı silme yetkiniz yok.');
@@ -294,7 +323,7 @@ class DisciplinaryController extends Controller
         $case->delete();
     }
 
-   
+
     /**
      * YENİ: Tutanak Oluşturma Formu (Akıllı Filtreleme ile)
      */
@@ -307,9 +336,9 @@ class DisciplinaryController extends Controller
         // a) Superadmin, Hukuk Yöneticileri
         // b) Bölüm Liderleri
         // c) Lider tarafından yetki verilmiş "Disiplin Sorumlusu" personeller (can_issue_disciplinary = 1)
-        
-        $hasAccess = $currentUser->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Bölüm Lideri']) 
-                     || $currentUser->can_issue_disciplinary;
+
+        $hasAccess = $currentUser->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Bölüm Lideri'])
+            || $currentUser->can_issue_disciplinary;
 
         if (!$hasAccess) {
             abort(403, 'Tutanak oluşturma yetkiniz bulunmamaktadır.');
@@ -323,20 +352,20 @@ class DisciplinaryController extends Controller
 
         // A. DOKUNULMAZLAR (Hiyerarşik Koruma)
         // Bu rollere sahip kişiler ASLA listede çıkmaz (Tutanak tutulamaz).
-        $protectedRoles = ['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi', 'Dış Avukat','Yönetim'];
-        
+        $protectedRoles = ['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi', 'Dış Avukat', 'Yönetim'];
+
         $usersQuery->whereDoesntHave('roles', function ($q) use ($protectedRoles) {
             $q->whereIn('name', $protectedRoles);
         });
 
         // B. YETKİ KAPSAMI (GLOBAL Mİ, YEREL Mİ?)
-        
+
         // --- DURUM 1: SÜPER YETKİLİLER ---
         // Superadmin ve Hukukçular fabrikadaki HERKESİ görür.
         if ($currentUser->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini'])) {
             // Ekstra bir filtre uygulanmaz, herkes gelir.
-        } 
-        
+        }
+
         // --- DURUM 2: BÖLÜM LİDERLERİ VE SORUMLULAR ---
         else {
             // Kullanıcının bölümü "Global Disiplin Yetkisine" sahip mi? (Örn: İSG, Güvenlik)
@@ -348,22 +377,21 @@ class DisciplinaryController extends Controller
                 // Tüm fabrikayı görebilirler.
                 // İsteğe Bağlı Kural: Kendi bölümlerindeki "Lideri" raporlayamasınlar.
                 if (!$currentUser->hasRole('Bölüm Lideri')) {
-                     $usersQuery->whereDoesntHave('roles', function($q){ 
-                        $q->where('name', 'Bölüm Lideri'); 
+                    $usersQuery->whereDoesntHave('roles', function ($q) {
+                        $q->where('name', 'Bölüm Lideri');
                     });
                 }
-            } 
-            else {
+            } else {
                 // >> YEREL YETKİ (STANDART) <<
                 // Sadece kendi bölümündeki personeli görebilirler.
                 if ($currentUser->bolum_id) {
                     $usersQuery->where('bolum_id', $currentUser->bolum_id);
-                    
+
                     // Hiyerarşi Kuralı: Eğer kullanıcı "Lider" değilse (yani yetkili personelse),
                     // kendi bölüm liderini şikayet edemez.
                     if (!$currentUser->hasRole('Bölüm Lideri')) {
-                        $usersQuery->whereDoesntHave('roles', function($q){ 
-                            $q->where('name', 'Bölüm Lideri'); 
+                        $usersQuery->whereDoesntHave('roles', function ($q) {
+                            $q->where('name', 'Bölüm Lideri');
                         });
                     }
                 }
@@ -372,7 +400,7 @@ class DisciplinaryController extends Controller
 
         // Sonuçları Getir
         $users = $usersQuery->get();
-        
+
         // Diğer verileri çek
         $categories = DisciplinaryCategory::with('behaviors')->orderBy('ad')->get();
         $impacts = DisciplinaryImpact::orderBy('puan')->get();
@@ -387,7 +415,7 @@ class DisciplinaryController extends Controller
     public function store(Request $request)
     {
         // dd() satırını sildik, artık işlem devam edebilir.
-        
+
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'behavior_id' => 'required|exists:disciplinary_behaviors,id',
@@ -402,9 +430,9 @@ class DisciplinaryController extends Controller
         try {
             // 1. MATRİS HESAPLAMA (GÜNCELLENDİ)
             $calc = $this->calculateMatrixScore(
-                $request->user_id, 
-                $request->behavior_id, 
-                $request->impact_id, 
+                $request->user_id,
+                $request->behavior_id,
+                $request->impact_id,
                 $request->scope_id
             );
 
@@ -426,18 +454,18 @@ class DisciplinaryController extends Controller
                 'scope_id' => $request->scope_id,
                 'olay_tarihi' => $request->olay_tarihi,
                 'olay_aciklamasi' => $request->olay_aciklamasi,
-                'kanit_dosyalari' => $kanitYollari, 
-                
+                'kanit_dosyalari' => $kanitYollari,
+
                 'tekrar_sayisi' => $calc['tekrar'],
                 'hesaplanan_puan' => $calc['toplam_puan'],
                 'sistem_oneri_ceza' => $calc['oneri_ceza'],
                 'final_karar' => $calc['oneri_ceza'],
-                
+
                 'durum' => 'Savunma Bekleniyor'
             ]);
 
             // --- BİLDİRİM GÖNDERİMİ ---
-            
+
             // A. Tutanak Yiyen Personele Gönder
             try {
                 $case->user->notify(new DisiplinTutanagiOlusturuldu($case));
@@ -450,7 +478,7 @@ class DisciplinaryController extends Controller
             try {
                 $yoneticiRolleri = ['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı'];
                 $yoneticiler = User::role($yoneticiRolleri)->get();
-                
+
                 // Eğer yönetici bulunamadıysa loga yazalım ki anlayalım
                 if ($yoneticiler->isEmpty()) {
                     \Log::warning('Bildirim gönderilecek Hukuk/Admin yetkili bulunamadı!');
@@ -509,7 +537,7 @@ class DisciplinaryController extends Controller
             ->where('behavior_id', $behaviorId)
             ->where('durum', 'Karar Verildi')
             ->count();
-        
+
         $tekrar = $gecmisSayisi + 1; // Mevcut olay dahil
 
         // C. Katsayıyı Bul
@@ -522,14 +550,14 @@ class DisciplinaryController extends Controller
 
         // D. MATRİS FORMÜLÜ
         // (Etki x Kapsam) * Katsayı
-        $baseScore = $impact * $scope; 
+        $baseScore = $impact * $scope;
         $totalScore = $baseScore * $katsayi;
 
         // E. Ceza Skalasından Öneriyi Bul
         $skala = DisciplinaryPenaltyScale::where('min_puan', '<=', $totalScore)
             ->where('max_puan', '>=', $totalScore)
             ->first();
-        
+
         $oneri = $skala ? $skala->ceza_adi : 'Kurul Değerlendirmesi';
 
         return [
@@ -553,7 +581,7 @@ class DisciplinaryController extends Controller
         // a) Dosya sahibi (Personel)
         // b) Dosyayı Raporlayan (Bölüm Lideri) -> Personel adına
         // c) Hukuk Admini / Superadmin (Acil durumlar için)
-        
+
         $isOwner = $case->user_id == $user->id;
         $isReporter = $case->reporter_id == $user->id;
         $isAdmin = $user->hasRole(['Superadmin', 'Hukuk Admini']);
@@ -564,13 +592,13 @@ class DisciplinaryController extends Controller
 
         $request->validate([
             'savunma_aciklamasi' => 'required|min:5',
-            'savunma_dosyalari.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx|max:20480' 
+            'savunma_dosyalari.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx|max:20480'
         ]);
 
         DB::beginTransaction();
         try {
             $savunmaDosyalari = $case->savunma_dosyalari ?? [];
-            
+
             // Dosya Yükleme (İsimlendirme korundu)
             if ($request->hasFile('savunma_dosyalari')) {
                 foreach ($request->file('savunma_dosyalari') as $file) {
@@ -578,10 +606,11 @@ class DisciplinaryController extends Controller
                     $dateTime = now()->format('Ymd_Hi');
                     $rawName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                     $slugName = \Illuminate\Support\Str::slug($rawName);
-                    $shortName = \Illuminate\Support\Str::limit($slugName, 25, ''); 
-                    if (empty($shortName)) $shortName = 'dosya_' . \Illuminate\Support\Str::random(3);
+                    $shortName = \Illuminate\Support\Str::limit($slugName, 25, '');
+                    if (empty($shortName))
+                        $shortName = 'dosya_' . \Illuminate\Support\Str::random(3);
                     $extension = $file->getClientOriginalExtension();
-                    
+
                     $fileName = "{$userName}_{$dateTime}_{$shortName}.{$extension}";
                     $path = $file->storeAs('disiplin_savunmalar', $fileName, 'public');
                     $savunmaDosyalari[] = $path;
@@ -590,7 +619,7 @@ class DisciplinaryController extends Controller
 
             // SAVUNMA METNİ İŞLEME
             $finalText = $request->savunma_aciklamasi;
-            
+
             // Eğer savunmayı giren kişi dosya sahibi DEĞİLSE, altına not düş.
             if (!$isOwner) {
                 $finalText .= "\n\n(Not: Bu savunma " . now()->format('d.m.Y H:i') . " tarihinde Bölüm Yöneticisi " . $user->name . " tarafından personel adına sisteme girilmiştir.)";
@@ -600,15 +629,15 @@ class DisciplinaryController extends Controller
                 'savunma_aciklamasi' => $finalText,
                 'savunma_dosyalari' => $savunmaDosyalari,
                 'savunma_tarihi' => now(),
-                'durum' => 'Yönetici Değerlendirmesi' 
+                'durum' => 'Yönetici Değerlendirmesi'
             ]);
 
             // BİLDİRİM: Hukuk ve Yönetime haber ver
             try {
                 $yoneticiler = User::role(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini'])->get();
-                foreach($yoneticiler as $yonetici) {
+                foreach ($yoneticiler as $yonetici) {
                     // İşlemi yapan kişi yöneticiyse kendine bildirim atmasın
-                    if($yonetici->id != $user->id) {
+                    if ($yonetici->id != $user->id) {
                         $yonetici->notify(new \App\Notifications\PersonelSavunmaVerdi($case));
                     }
                 }
@@ -639,7 +668,7 @@ class DisciplinaryController extends Controller
         }
 
         $request->validate(['karar_dosyasi' => 'nullable|file|max:10240']); // 10MB limit
-       
+
         // Karar Dosyası Yükleme
         $dosyaYolu = null;
         if ($request->hasFile('karar_dosyasi')) {
@@ -648,7 +677,7 @@ class DisciplinaryController extends Controller
             $file = $request->file('karar_dosyasi');
             $extension = $file->getClientOriginalExtension();
             $filename = date('Ymd') . '_' . rand(10, 99) . '.' . $extension;
-            
+
             // storeAs kullanarak özel isimle kaydet
             $dosyaYolu = $file->storeAs('disiplin_kararlar', $filename, 'public');
         }
@@ -684,7 +713,7 @@ class DisciplinaryController extends Controller
             abort(403, 'Bu işlem için yetkiniz yok.');
         }
 
-        
+
         // Karar Dosyası Yükleme
         $dosyaYolu = null;
         if ($request->hasFile('karar_dosyasi')) {
@@ -692,7 +721,7 @@ class DisciplinaryController extends Controller
             $file = $request->file('karar_dosyasi');
             $extension = $file->getClientOriginalExtension();
             $filename = date('Ymd') . '_' . rand(10, 99) . '.' . $extension;
-            
+
             $dosyaYolu = $file->storeAs('disiplin_kararlar', $filename, 'public');
         }
 
@@ -707,7 +736,7 @@ class DisciplinaryController extends Controller
         ]);
 
         // DİKKAT: Puan düşme işlemi YAPMIYORUZ.
-        
+
         return back()->with('success', 'Savunma haklı bulundu ve kabul edildi. Personelden puan düşülmedi.');
     }
 
@@ -716,7 +745,8 @@ class DisciplinaryController extends Controller
      */
     public function sendToBoard(Request $request, $id)
     {
-        if (!Auth::user()->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini'])) abort(403);
+        if (!Auth::user()->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini']))
+            abort(403);
 
         $case = DisciplinaryCase::findOrFail($id);
 
@@ -727,7 +757,7 @@ class DisciplinaryController extends Controller
         // İMZA EKLEME (Kurul sevki için not zorunlu değilse kontrol koyabilirsin)
         $not = $request->yonetici_notu ?? 'Kurula sevk edildi.';
         $imzaliNot = $not . ' (İşlemi Yapan: ' . Auth::user()->name . ')';
-        
+
         // Notu kaydet, durumu güncelle
         $case->update([
             'durum' => 'Kurulda',
@@ -775,7 +805,7 @@ class DisciplinaryController extends Controller
                 'karar_tarihi' => null,
                 // yonetici_notu silinmesin, tarihçe olarak kalsın mı? 
                 // Genelde geri alınınca temizlenmesi istenir ki yeni karar verilsin.
-                'yonetici_notu' => null, 
+                'yonetici_notu' => null,
                 'karar_dosyasi' => null
             ]);
 
@@ -788,7 +818,7 @@ class DisciplinaryController extends Controller
         }
     }
 
-   
+
     /**
      * KURUL ÜYESİ OY KULLANMA İŞLEMİ
      */
@@ -831,7 +861,7 @@ class DisciplinaryController extends Controller
     public function deleteVote($id)
     {
         $case = DisciplinaryCase::findOrFail($id);
-        
+
         // Sadece kendi oyunu silebilir
         $vote = DisciplinaryVote::where('case_id', $case->id)
             ->where('user_id', Auth::id())
@@ -854,7 +884,7 @@ class DisciplinaryController extends Controller
     public function storeComment(Request $request, $id)
     {
         $case = DisciplinaryCase::findOrFail($id);
-        
+
         $request->validate([
             'yorum' => 'required|string|max:1000',
             'dosyalar.*' => 'nullable|file|max:20480' // .msg ve diğerleri için esnek kontrol
@@ -863,21 +893,21 @@ class DisciplinaryController extends Controller
         $dosyaYollari = [];
         if ($request->hasFile('dosyalar')) {
             foreach ($request->file('dosyalar') as $file) {
-                
+
                 // 1. KULLANICI ADI (Slug: serkan-atak)
                 $userName = \Illuminate\Support\Str::slug(Auth::user()->name);
-                
+
                 // 2. TARİH SAAT (20251205_1146)
                 $dateTime = now()->format('Ymd_Hi');
-                
+
                 // 3. ORİJİNAL DOSYA İSMİ (Kısaltılmış ve Güvenli)
                 // Uzantısız ismi al
                 $rawName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
                 // Türkçe karakterleri temizle ve tirele (sahadan-cekilen-fotograflar)
                 $slugName = \Illuminate\Support\Str::slug($rawName);
                 // İlk 25 karakteri al, devamını kes (sahadan-cekilen-fotog)
-                $shortName = \Illuminate\Support\Str::limit($slugName, 25, ''); 
-                
+                $shortName = \Illuminate\Support\Str::limit($slugName, 25, '');
+
                 // Eğer isim tamamen sembolse ve boş kaldıysa rastgele bir şey ata
                 if (empty($shortName)) {
                     $shortName = 'dosya_' . \Illuminate\Support\Str::random(3);
@@ -891,7 +921,7 @@ class DisciplinaryController extends Controller
 
                 // 6. KAYDET
                 $path = $file->storeAs('disiplin_yorumlar', $fileName, 'public');
-                
+
                 $dosyaYollari[] = $path;
             }
         }
@@ -919,7 +949,7 @@ class DisciplinaryController extends Controller
         foreach ($recipients as $recipient) {
             $recipient->notify(new \App\Notifications\YeniDisiplinYorumu($case, Auth::user()->name));
         }
-        
+
         return back()->with('success', 'Yorumunuz eklendi.');
     }
 
@@ -971,5 +1001,5 @@ class DisciplinaryController extends Controller
         abort(403, 'Yetkiniz yok.');
     }
 
-    
+
 }

@@ -8,28 +8,54 @@
     @endif
 
     {{-- KPI KARTLARI --}}
+    {{-- === TARİH FİLTRESİ === --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-2 flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span class="text-sm font-bold text-gray-700">Tarih Aralığı:</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <input type="date" wire:model.live="startDate" class="text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-700">
+            <span class="text-gray-400">-</span>
+            <input type="date" wire:model.live="endDate" class="text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-gray-700">
+        </div>
+        @if($startDate || $endDate)
+            <button wire:click="clearFilter" class="text-xs text-red-500 hover:text-red-700 font-medium underline">
+                Filtreyi Temizle
+            </button>
+        @endif
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100">
+        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100 cursor-pointer transition-all hover:scale-105 {{ $activeFilter === 'toplam' ? 'ring-2 ring-blue-500 bg-blue-50' : '' }}" wire:click="setFilter('toplam')">
             <h4 class="text-sm font-semibold text-gray-500 uppercase">Toplam Şikayet</h4>
             <p class="text-3xl font-black text-blue-600">{{ $kpi['toplam'] }}</p>
         </div>
-        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100">
+        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100 cursor-pointer transition-all hover:scale-105 {{ $activeFilter === 'yeni' ? 'ring-2 ring-yellow-500 bg-yellow-50' : '' }}" wire:click="setFilter('yeni')">
             <h4 class="text-sm font-semibold text-gray-500 uppercase">Yeni (Beklemede)</h4>
             <p class="text-3xl font-black text-yellow-600">{{ $kpi['yeni'] }}</p>
         </div>
-        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100">
+        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100 cursor-pointer transition-all hover:scale-105 {{ $activeFilter === 'islemde' ? 'ring-2 ring-indigo-500 bg-indigo-50' : '' }}" wire:click="setFilter('islemde')">
             <h4 class="text-sm font-semibold text-gray-500 uppercase">İşlemde</h4>
             <p class="text-3xl font-black text-indigo-600">{{ $kpi['islemde'] }}</p>
         </div>
-        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100">
+        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100 cursor-pointer transition-all hover:scale-105 {{ $activeFilter === 'cozuldu' ? 'ring-2 ring-green-500 bg-green-50' : '' }}" wire:click="setFilter('cozuldu')">
             <h4 class="text-sm font-semibold text-gray-500 uppercase">Çözülen/Kapatılan</h4>
             <p class="text-3xl font-black text-green-600">{{ $kpi['cozuldu'] }}</p>
         </div>
-        <div class="bg-white p-5 rounded-xl shadow-lg border {{ $kpi['gecikmis'] > 0 ? 'border-red-300 bg-red-50' : 'border-gray-100' }}">
+        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100 cursor-pointer transition-all hover:scale-105 {{ $activeFilter === 'talep_kapatilan' ? 'ring-2 ring-gray-500 bg-gray-50' : '' }}" wire:click="setFilter('talep_kapatilan')">
+            <h4 class="text-sm font-semibold text-gray-500 uppercase">Talep Kapanan</h4>
+            <p class="text-3xl font-black text-gray-600">{{ $kpi['talep_kapatilan'] }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100 cursor-pointer transition-all hover:scale-105 {{ $activeFilter === 'hatali_bildirim' ? 'ring-2 ring-rose-500 bg-rose-50' : '' }}" wire:click="setFilter('hatali_bildirim')">
+            <h4 class="text-sm font-semibold text-gray-500 uppercase">Hatalı Bildirim</h4>
+            <p class="text-3xl font-black text-rose-500">{{ $kpi['hatali_bildirim'] }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-xl shadow-lg border {{ $kpi['gecikmis'] > 0 ? 'border-red-300 bg-red-50' : 'border-gray-100' }} cursor-pointer transition-all hover:scale-105 {{ $activeFilter === 'gecikmis' ? 'ring-2 ring-red-500' : '' }}" wire:click="setFilter('gecikmis')">
             <h4 class="text-sm font-semibold {{ $kpi['gecikmis'] > 0 ? 'text-red-700' : 'text-gray-500' }} uppercase">Gecikmiş (İşlemde)</h4>
             <p class="text-3xl font-black {{ $kpi['gecikmis'] > 0 ? 'text-red-600' : 'text-gray-800' }}">{{ $kpi['gecikmis'] }}</p>
         </div>
-        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100">
+        <div class="bg-white p-5 rounded-xl shadow-lg border border-gray-100 cursor-pointer transition-all hover:scale-105 {{ $activeFilter === 'projeye_donusen' ? 'ring-2 ring-purple-500 bg-purple-50' : '' }}" wire:click="setFilter('projeye_donusen')">
             <h4 class="text-sm font-semibold text-gray-500 uppercase">Projeye Dönüşen</h4>
             <p class="text-3xl font-black text-purple-600">{{ $kpi['projeye_donusen'] }}</p>
         </div>
@@ -44,7 +70,16 @@
             {{-- Başlık (Açma/Kapatma Butonu) --}}
             <div class="flex justify-between items-center p-4 md:p-6 cursor-pointer hover:bg-gray-50/50 transition-colors" @click="open = !open">
                 <h3 class="text-lg font-semibold text-gray-900">
-                    Son 10 Şikayet Kaydı
+                    {{ match($activeFilter) {
+                        'yeni' => 'Yeni Şikayetler',
+                        'islemde' => 'İşlemdeki Şikayetler',
+                        'cozuldu' => 'Çözülen/Kapatılan Şikayetler',
+                        'gecikmis' => 'Gecikmiş Şikayetler',
+                        'projeye_donusen' => 'Projeye Dönüşen Şikayetler',
+                        'talep_kapatilan' => 'Talep Olarak Kapatılan Şikayetler',
+                        'hatali_bildirim' => 'Hatalı Bildirim Olarak Kapatılanlar',
+                        default => 'Son Şikayet Kayıtları'
+                    } }}
                 </h3>
                 <svg class="w-6 h-6 text-gray-400 transform transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -70,26 +105,33 @@
                     <table class="w-full table-fixed divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 5%;">#</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 12%;">Kayıt Tarihi</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Kategori</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Müşteri İsmi</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 20%;">Şikayet Başlığı</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">Durum</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">Müşteri Kararı</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">Son Tarih</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 8%;">Resim</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 10%;">Yorumlar</th> {{-- YENİ --}}
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 15%;">İşlem</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 3%;">#</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 8%;">Kayıt Tarihi</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 11%;">Kategori</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 12%;">Müşteri İsmi</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 17%;">Şikayet Başlığı</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 8%;">Durum</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 8%;">Müşteri Kararı</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 8%;">Son Tarih</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 5%;">Resim</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 7%;">Yorumlar</th> {{-- YENİ --}}
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style="width: 13%;">İşlem</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse ($sonSikayetler as $sikayet)
                                 @php
-                                    // === RENKLENDİRME GÜNCELLENDİ (ELSE EKLENDİ) ===
+                                    $isExternal = ($sikayet->olusturanKurulUyesi && $sikayet->olusturanKurulUyesi->is_personnel == 0) || ($sikayet->user_id && !$sikayet->olusturanKurulUyesi);
+                                    
+                                    // === RENKLENDİRME GÜNCELLENDİ ===
                                     $rowBg  = 'bg-white hover:bg-gray-50';
-                                    $rowBar = 'border-l-4 border-gray-200'; // Varsayılan (diğer durumlar)
-                                    if ($sikayet->musteri_durum === 'İşlemde') {
+                                    $rowBar = 'border-l-4 border-gray-200';
+                                    
+                                    if ($isExternal) {
+                                        // DIŞ KAYNAKLI - Kırmızı Uyarı
+                                        $rowBg  = 'bg-red-50 hover:bg-red-100';
+                                        $rowBar = 'border-l-4 border-red-600';
+                                    } elseif ($sikayet->musteri_durum === 'İşlemde') {
                                         $rowBg  = 'bg-blue-100/30 hover:bg-blue-100/50';
                                         $rowBar = 'border-l-4 border-blue-500';
                                     } elseif ($sikayet->musteri_durum === 'Yeni') {
@@ -98,8 +140,13 @@
                                     } elseif (in_array($sikayet->musteri_durum, ['Çözümlendi','Kapatıldı'])) {
                                         $rowBg  = 'bg-green-100/30 hover:bg-green-100/50';
                                         $rowBar = 'border-l-4 border-green-500';
+                                    } elseif (in_array($sikayet->musteri_durum, ['Talep Olarak Kapatıldı', 'talep_olarak_kapatildi'])) {
+                                        $rowBg  = 'bg-gray-100/50 hover:bg-gray-200/50';
+                                        $rowBar = 'border-l-4 border-gray-400';
+                                    } elseif (in_array($sikayet->musteri_durum, ['Hatalı Bildirim Olarak Kapatıldı', 'hatali_bildirim_olarak_kapatildi'])) {
+                                        $rowBg  = 'bg-rose-50 hover:bg-rose-100';
+                                        $rowBar = 'border-l-4 border-rose-600';
                                     } else { 
-                                        // Diğer tüm durumlar için (örn: Yeniden Açıldı)
                                         $rowBg  = 'bg-gray-100/50 hover:bg-gray-200/50';
                                         $rowBar = 'border-l-4 border-gray-400';
                                     }
@@ -110,25 +157,80 @@
                                         {{ $loop->iteration }}
                                     </td>
                                     <td class="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
-                                        {{ $sikayet->created_at->format('d.m.Y H:i') }}
+                                        {{ $sikayet->created_at->format('d.m.Y') }}
                                     </td>
                                     <td class="px-4 py-4 text-sm text-gray-700 truncate" title="{{ $sikayet->sikayetKategori->ad ?? 'N/A' }}">
                                         {{ $sikayet->sikayetKategori->ad ?? 'N/A' }}
                                     </td>
-                                    <td class="px-4 py-4 text-sm font-medium text-gray-900 truncate" title="{{ $sikayet->musteri_adi }}">
-                                        {{ $sikayet->musteri_adi }}
+                                    <td class="px-4 py-4 text-sm font-medium text-gray-900">
+                                        <div class="flex items-center gap-2">
+                                            <span class="truncate max-w-[180px] block" title="{{ $sikayet->musteri_adi }}">{{ $sikayet->musteri_adi }}</span>
+                                            @if($isExternal)
+                                                <span class="flex-shrink-0 inline-flex items-center justify-center w-6 h-6 rounded bg-red-100 text-red-600 border border-red-200 cursor-help transition-colors hover:bg-red-200" title="MÜŞTERİ GİRİŞİ (Personel Dışı Kayıt)">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                </span>
+                                            @endif
+                                        </div>
                                     </td>
                                     <td class="px-4 py-4 text-sm text-gray-700 truncate" title="{{ $sikayet->musteri_sikayet_konusu }}">
                                         {{ $sikayet->musteri_sikayet_konusu }}
+                                        @if($sikayet->iadeler_count > 0)
+                                            <span class="ml-2 inline-flex items-center gap-1 text-red-700 bg-red-100 px-2 py-0.5 rounded-full border border-red-200 font-bold text-[10px]" title="Bu şikayet ile ilişkili iade kaydı mevcut">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
+                                                İADE VAR
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-4 text-sm">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                            @if($sikayet->musteri_durum == 'Yeni') bg-yellow-100 text-yellow-800
-                                            @elseif($sikayet->musteri_durum == 'İşlemde') bg-blue-100 text-blue-800
-                                            @elseif(in_array($sikayet->musteri_durum, ['Çözümlendi', 'Kapatıldı'])) bg-green-100 text-green-800
-                                            @else bg-gray-100 text-gray-800 @endif">
-                                            {{ $sikayet->musteri_durum }}
-                                        </span>
+                                        <div class="flex flex-col gap-1.5">
+                                            <div>
+                                                <span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                    @if($sikayet->musteri_durum == 'Yeni') bg-yellow-100 text-yellow-800
+                                                    @elseif($sikayet->musteri_durum == 'İşlemde') bg-blue-100 text-blue-800
+                                                    @elseif(in_array($sikayet->musteri_durum, ['Çözümlendi', 'Kapatıldı'])) bg-green-100 text-green-800
+                                                    @elseif(in_array($sikayet->musteri_durum, ['Talep Olarak Kapatıldı', 'talep_olarak_kapatildi'])) bg-gray-100 text-gray-800 border border-gray-300 font-bold
+                                                    @elseif(in_array($sikayet->musteri_durum, ['Hatalı Bildirim Olarak Kapatıldı', 'hatali_bildirim_olarak_kapatildi'])) bg-rose-100 text-rose-800 border border-rose-200 line-through
+                                                    @else bg-gray-100 text-gray-800 @endif">
+                                                    {{ $sikayet->musteri_durum }}
+                                                </span>
+                                            </div>
+                                            @if(in_array($sikayet->musteri_durum, ['Çözümlendi', 'Kapatıldı']) && $sikayet->iaaProjesi)
+                                                <div class="flex items-center gap-1 opacity-90 pl-1">
+                                                    @php
+                                                        $pDurum = $sikayet->iaaProjesi->durum;
+                                                        $isFaulty = Str::contains($pDurum, 'hatali_bildirim');
+                                                        $isRequest = Str::contains($pDurum, 'talep');
+                                                        $tooltipText = $isFaulty ? 'Hatalı Bildirim Olarak Kapatıldı' : ($isRequest ? 'Talep Olarak Kapatıldı' : 'Proje Durumu: ' . $pDurum);
+                                                    @endphp
+                                                    
+                                                    @if($isFaulty)
+                                                        <div class="group relative cursor-help">
+                                                            <svg class="w-5 h-5 text-red-500 hover:text-red-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                                                            </svg>
+                                                            <!-- Tooltip -->
+                                                            <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                                                                {{ $tooltipText }}
+                                                            </span>
+                                                        </div>
+                                                    @elseif($isRequest)
+                                                        <div class="group relative cursor-help">
+                                                            <svg class="w-5 h-5 text-blue-500 hover:text-blue-700 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                            </svg>
+                                                            <!-- Tooltip -->
+                                                            <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                                                                {{ $tooltipText }}
+                                                            </span>
+                                                        </div>
+                                                    @else
+                                                        <div title="{{ $pDurum }}">
+                                                            {!! $sikayet->iaaProjesi->durum_etiketi !!}
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
                                     </td>
                                     <td class="px-4 py-4 text-sm">
                                         @if($sikayet->musteri_feedback)
@@ -254,20 +356,46 @@
                                         <span class="font-semibold text-gray-700">#{{ $loop->iteration }}</span>
                                         <span class="text-sm text-gray-600 ml-2">{{ $sikayet->created_at?->format('d.m.Y H:i') }}</span>
                                     </div>
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                        @if($sikayet->musteri_durum == 'Yeni') bg-yellow-100 text-yellow-800
-                                        @elseif($sikayet->musteri_durum == 'İşlemde') bg-blue-100 text-blue-800
-                                        @elseif(in_array($sikayet->musteri_durum, ['Çözümlendi', 'Kapatıldı'])) bg-green-100 text-green-800
-                                        @else bg-gray-100 text-gray-800 @endif">
-                                        {{ $sikayet->musteri_durum }}
-                                    </span>
+                                    <div class="flex flex-col items-end gap-1">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            @if($sikayet->musteri_durum == 'Yeni') bg-yellow-100 text-yellow-800
+                                            @elseif($sikayet->musteri_durum == 'İşlemde') bg-blue-100 text-blue-800
+                                            @elseif(in_array($sikayet->musteri_durum, ['Çözümlendi', 'Kapatıldı'])) bg-green-100 text-green-800
+                                            @else bg-gray-100 text-gray-800 @endif">
+                                            {{ $sikayet->musteri_durum }}
+                                        </span>
+                                        @if(in_array($sikayet->musteri_durum, ['Çözümlendi', 'Kapatıldı']) && $sikayet->iaaProjesi)
+                                            <div class="flex items-center gap-1 opacity-90 justify-end">
+                                                <span class="text-[9px] text-gray-400 font-bold uppercase">İAA:</span>
+                                                <div class="inline-block whitespace-nowrap overflow-hidden">
+                                                    {!! $sikayet->iaaProjesi->durum_etiketi !!}
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
 
                                 {{-- Kart Gövdesi: Kategori, Başlık, Müşteri --}}
                                 <div>
                                     <p class="text-xs text-gray-500 uppercase truncate" title="{{ $sikayet->sikayetKategori->ad ?? 'N/A' }}">{{ $sikayet->sikayetKategori->ad ?? 'N/A' }}</p>
-                                    <p class="text-base font-semibold text-gray-900 truncate" title="{{ $sikayet->musteri_sikayet_konusu }}">{{ $sikayet->musteri_sikayet_konusu }}</p>
-                                    <p class="text-sm font-medium text-gray-700 truncate" title="{{ $sikayet->musteri_adi }}">{{ $sikayet->musteri_adi }}</p>
+                                    
+                                    <div class="flex items-start gap-1">
+                                        <p class="text-base font-semibold text-gray-900 truncate" title="{{ $sikayet->musteri_sikayet_konusu }}">{{ $sikayet->musteri_sikayet_konusu }}</p>
+                                        @if($sikayet->iadeler_count > 0)
+                                            <span class="flex-shrink-0 inline-flex items-center text-[10px] text-red-600 bg-red-50 px-1 rounded border border-red-100" title="İade Kaydı Var">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <div class="flex items-center gap-1">
+                                        <p class="text-sm font-medium text-gray-700 truncate" title="{{ $sikayet->musteri_adi }}">{{ $sikayet->musteri_adi }}</p>
+                                        @if(($sikayet->olusturanKurulUyesi && $sikayet->olusturanKurulUyesi->is_personnel == 0) || ($sikayet->user_id && !$sikayet->olusturanKurulUyesi))
+                                            <span class="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded bg-red-100 text-red-600 border border-red-200" title="MÜŞTERİ GİRİŞİ (Personel Dışı)">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                            </span>
+                                        @endif
+                                    </div>
                                 </div>
                                 
                                 {{-- Kart Altı: Son Tarih ve Resimler --}}
@@ -380,6 +508,134 @@
         <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
             <h3 class="text-lg font-bold text-gray-800 mb-4">Bölüm Bazlı Müşteri Memnuniyeti</h3>
             <div id="deptSatisfactionChart"></div>
+        </div>
+    </div>
+
+    {{-- === YENİ: İADE İSTATİSTİKLERİ VE TABLOSU === --}}
+    <div class="space-y-6 mt-8">
+        <h3 class="text-xl font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            İade ve Ürün Red Analizleri
+        </h3>
+        
+        {{-- İade Kartları ve Grafikleri --}}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {{-- 1. Kart: Toplam İade Tutarları (Carousel veya Liste) --}}
+            <div class="bg-gradient-to-br from-red-50 to-white p-6 rounded-xl shadow-lg border border-red-100 flex flex-col justify-center items-center text-center">
+                <h4 class="text-xs font-bold text-red-400 uppercase tracking-widest mb-4">Toplam İade Tutarları</h4>
+                
+                @if(isset($toplamIadeMiktarlari) && count($toplamIadeMiktarlari) > 0)
+                    <div class="space-y-3 w-full">
+                        @foreach($toplamIadeMiktarlari as $tutar)
+                            <div class="flex justify-between items-center bg-white px-3 py-2 rounded shadow-sm border border-red-50">
+                                <span class="text-sm text-gray-500 font-medium">{{ $tutar->birim }}</span>
+                                <span class="text-lg font-black text-red-700">{{ number_format($tutar->total, 2, ',', '.') }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-xl font-black text-red-300">İade Yok</p>
+                @endif
+                <p class="text-[10px] text-red-400 mt-4 font-medium">Tüm zamanların toplamı</p>
+            </div>
+
+            {{-- 2. Kart: İadeli Şikayet Oranı (Donut) --}}
+            <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 relative" wire:ignore>
+                <h4 class="text-xs font-bold text-gray-500 uppercase absolute top-4 left-4 z-10">İadeli Şikayet Oranı</h4>
+                <div id="iadeliOranChart" class="mt-4"></div>
+            </div>
+
+            {{-- 3. Kart: Bölümlere Göre İade Tutarı (Çoklu Bar) --}}
+            <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100" wire:ignore>
+                <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Bölümlere Göre İade Miktarı</h4>
+                <div id="bolumIadeChartsContainer" class="space-y-4 pr-1">
+                    {{-- JS ile buraya grafikler basılacak --}}
+                </div>
+            </div>
+
+            {{-- 4. Kart: Bölüm Bazlı Şikayet Sayıları (Stacked Bar) --}}
+            <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100" wire:ignore>
+                 <h4 class="text-xs font-bold text-gray-500 uppercase mb-2">Bölüm İadeli/İadesiz Şikayet</h4>
+                 <div id="bolumIadeCountChart"></div>
+            </div>
+        </div>
+
+        {{-- İade Tablosu (Inline Copy of Partial) --}}
+        <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <h3 class="font-bold text-gray-700">Son İade ve Ürün Red Kayıtları</h3>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İade Tarihi</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Müşteri / Bölüm</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Şikayet & Proje</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ürün / Sebep</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Miktar</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @if(isset($iadeVerileri))
+                            @forelse($iadeVerileri as $iade)
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                        <div class="font-medium text-gray-900">{{ $iade->iade_tarihi ? $iade->iade_tarihi->format('d.m.Y') : $iade->created_at->format('d.m.Y') }}</div>
+                                        <div class="text-xs text-gray-400">{{ $iade->created_at->diffForHumans() }}</div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-semibold text-gray-900 line-clamp-1" title="{{ $iade->musteriSikayeti->musteri_adi ?? '' }}">{{ $iade->musteriSikayeti->musteri_adi ?? '-' }}</span>
+                                            @if($iade->musteriSikayeti->sikayetKategori && $iade->musteriSikayeti->sikayetKategori->bolum)
+                                                <span class="text-xs inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium w-fit">{{ $iade->musteriSikayeti->sikayetKategori->bolum->ad }}</span>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm text-gray-900 font-medium line-clamp-1 py-1">{{ $iade->musteriSikayeti->musteri_sikayet_konusu ?? '-' }}</div>
+                                        
+                                        <div class="flex items-center gap-2 mt-2">
+                                            {{-- Şikayet Detay Butonu --}}
+                                            <a href="{{ route('admin.sikayetler.show', $iade->musteriSikayeti->id) }}" 
+                                               class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-wider rounded border border-gray-200 hover:bg-gray-200 transition-colors">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                Şikayet #{{ $iade->musteriSikayeti->id }}
+                                            </a>
+                                            
+                                            {{-- Proje Linki (Varsa) --}}
+                                            @if($iade->musteriSikayeti->iaaProjesi)
+                                                <a href="{{ route('proje.workspace.show', $iade->musteriSikayeti->iaaProjesi->id) }}" 
+                                                   class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wider rounded border border-indigo-100 hover:bg-indigo-100 transition-colors">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                    Proje #{{ $iade->musteriSikayeti->iaaProjesi->id }}
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm text-gray-900">{{ $iade->urun_turu }}</div>
+                                        <div class="text-xs text-red-500">{{ $iade->iade_sebebi }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span class="px-3 py-1 inline-flex text-sm font-bold rounded-full bg-red-100 text-red-800">
+                                            {{ number_format($iade->miktar, 0, ',', '.') }} {{ $iade->birim }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Kayıt yok.</td></tr>
+                            @endforelse
+                        @else
+                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Veri yok.</td></tr>
+                        @endif
+                    </tbody>
+                </table>
+            </div>
+            @if(isset($iadeVerileri) && method_exists($iadeVerileri, 'links'))
+                <div class="px-6 py-4 border-t border-gray-100">{{ $iadeVerileri->links() }}</div>
+            @endif
         </div>
     </div>
     {{-- ============================================================== --}}
@@ -567,7 +823,8 @@
             dataLabels: { enabled: true },
             plotOptions: { pie: { donut: { size: '60%' } } }
         };
-        new ApexCharts(document.querySelector("#customerFeedbackChart"), feedbackOptions).render();
+        window.customerFeedbackChart = new ApexCharts(document.querySelector("#customerFeedbackChart"), feedbackOptions);
+        window.customerFeedbackChart.render();
 
         // 2. Sütun Grafik
         var deptOptions = {
@@ -591,7 +848,76 @@
             legend: { position: 'top' },
             fill: { opacity: 1 }
         };
-        new ApexCharts(document.querySelector("#deptSatisfactionChart"), deptOptions).render();
+        window.deptSatisfactionChart = new ApexCharts(document.querySelector("#deptSatisfactionChart"), deptOptions);
+        window.deptSatisfactionChart.render();
+
+        // 3. İadeli Şikayet Oranı (Donut)
+        var iadeliOranOptions = {
+            series: [{{ $iadeliSikayetSayisi ?? 0 }}, {{ $iadesizSikayetSayisi ?? 0 }}],
+            chart: { type: 'donut', height: 220, fontFamily: 'inherit' },
+            labels: ['İadesi Var', 'İadesi Yok'],
+            colors: ['#EF4444', '#E5E7EB'], // Kırmızı vs Gri
+            legend: { position: 'bottom', fontSize: '12px' },
+            dataLabels: { enabled: false },
+            plotOptions: { pie: { donut: { size: '70%', labels: { show: true, total: { show: true, showAlways: true, label: 'Toplam', fontSize: '12px', fontWeight: 600, color: '#373d3f' } } } } }
+        };
+        window.iadeliOranChart = new ApexCharts(document.querySelector("#iadeliOranChart"), iadeliOranOptions);
+        window.iadeliOranChart.render();
+
+        // 4. Bölüm İade Miktarları (Birim Bazlı - Çoklu Grafik)
+        window.renderBolumIadeCharts = function(dataSets) {
+            const container = document.querySelector("#bolumIadeChartsContainer");
+            container.innerHTML = ''; // Temizle
+            
+            // dataSets: { 'KG': {labels:[], series:[]}, 'Adet': ... }
+            if(!dataSets) return;
+            
+            Object.keys(dataSets).forEach(unit => {
+                const chartData = dataSets[unit];
+                // Wrapper Div
+                const wrapper = document.createElement('div');
+                wrapper.className = 'border-b border-gray-50 pb-2 last:border-0';
+                
+                // Başlık
+                const title = document.createElement('h5');
+                title.className = 'text-[10px] font-bold text-gray-400 uppercase mb-1';
+                title.innerText = unit + ' Bazında';
+                wrapper.appendChild(title);
+                
+                // Chart Div
+                const chartEl = document.createElement('div');
+                wrapper.appendChild(chartEl);
+                container.appendChild(wrapper);
+                
+                var options = {
+                    series: [{ name: 'Miktar', data: chartData.series }],
+                    chart: { type: 'bar', height: 120, toolbar: {show: false}, fontFamily: 'inherit' },
+                    plotOptions: { bar: { borderRadius: 2, horizontal: true, barHeight: '60%' } },
+                    dataLabels: { enabled: true, formatter: function (val) { return val.toLocaleString('tr-TR') + ' ' + unit; }, offsetX: 5, style: { fontSize: '10px' } },
+                    xaxis: { categories: chartData.labels, labels: { show: false }, axisBorder: {show:false}, axisTicks: {show:false} },
+                    colors: ['#EF4444'],
+                    grid: { show: false, padding: { top: 0, bottom: 0 } },
+                    tooltip: { theme: 'light' }
+                };
+                new ApexCharts(chartEl, options).render();
+            });
+        };
+        // Initial render
+        window.renderBolumIadeCharts(@json($bolumIadeChartData ?? []));
+
+        // 5. Bölüm İadeli/İadesiz Şikayet (Stacked Bar)
+        var bolumIadeCountOptions = {
+            series: @json($bolumIadeSayilariSeries ?? []),
+            chart: { type: 'bar', height: 250, stacked: true, toolbar: {show: false}, fontFamily: 'inherit' },
+            plotOptions: { bar: { horizontal: false, borderRadius: 2, columnWidth: '50%' } },
+            xaxis: { categories: @json($bolumIadeSayilariLabels ?? []), labels: { rotate: -45, style: { fontSize: '10px' } } },
+            legend: { position: 'top', fontSize: '11px' },
+            colors: ['#EF4444', '#E5E7EB'], // Kırmızı (İadeli), Gri (İadesiz)
+            dataLabels: { enabled: false }, // Karmaşayı önlemek için kapattım
+            tooltip: { y: { formatter: function (val) { return val + " Şikayet" } } }
+        };
+        window.bolumIadeCountChart = new ApexCharts(document.querySelector("#bolumIadeCountChart"), bolumIadeCountOptions);
+        window.bolumIadeCountChart.render();
     });
 </script>
 </div>

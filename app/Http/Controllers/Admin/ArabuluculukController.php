@@ -24,29 +24,40 @@ class ArabuluculukController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         // 1. GENEL ERİŞİM KONTROLÜ (DİNAMİK)
-        // Eğer menüyü görme yetkisi bile yoksa içeri alma.
-        // (Superadmin her zaman girer)
-        if (!$user->can('arabuluculuk.view_menu') && !$user->hasRole('Superadmin')) {
+        // Kalau menüyü görme yetkisi bile yoksa içeri alma.
+        // (Superadmin ve Direktör her zaman girer veya yetki kuralına uyar)
+        $hasAccess = $user->hasRole(['Superadmin', 'Direktör']) || $user->can('arabuluculuk.view_menu');
+
+        if (!$hasAccess) {
             abort(403, 'Bu modüle erişim yetkiniz yok.');
         }
 
         $query = ArabuluculukCase::with(['calisan', 'arabulucu', 'creator']);
 
-        // 2. FİLTRELEME: Zorunlu Dosyaları Görme Yetkisi
+        // 2. DİREKTÖR FİLTRESİ
+        if ($user->hasRole('Direktör') && !$user->hasRole('Superadmin')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('bolumler.id')->toArray();
+
+            $query->whereHas('calisan', function ($q) use ($yonetilenBolumIds) {
+                $q->whereIn('bolum_id', $yonetilenBolumIds);
+            });
+        }
+
+        // 3. FİLTRELEME: Zorunlu Dosyaları Görme Yetkisi
         // Eğer kullanıcı Superadmin değilse ve 'view_zorunlu_files' yetkisi YOKSA -> Sadece İhtiyari
-        // Bu sayede Personel'den "Zorunlu Gör" tikini kaldırırsan göremezler.
-        if (!$user->hasRole('Superadmin') && !$user->can('arabuluculuk.view_zorunlu_files')) {
+        // İstisna: Direktör kendi personeli için olan zorunlu dosyayı görebilsin mi? (Plan "Tam Erişim" dediği için evet)
+        if (!$user->hasRole(['Superadmin', 'Direktör']) && !$user->can('arabuluculuk.view_zorunlu_files')) {
             $query->where('type', 'ihtiyari');
         }
 
-        // 3. Dış Avukat Filtresi (Mevcut Mantık Korundu)
+        // 4. Dış Avukat Filtresi (Mevcut Mantık Korundu)
         if ($user->hasRole('Dış Avukat')) {
             $query->where('external_lawyer_id', $user->id);
         }
 
-        // 4. Finans Filtresi (Opsiyonel: Sadece ödeme aşamasındakileri görsün dersen açabilirsin)
+        // 5. Finans Filtresi (Opsiyonel: Sadece ödeme aşamasındakileri görsün dersen açabilirsin)
         // if ($user->hasRole('Arabuluculuk Finans')) { ... }
 
         $cases = $query->latest()->paginate(15);
@@ -58,8 +69,14 @@ class ArabuluculukController extends Controller
      */
     public function show($id)
     {
-        $case = ArabuluculukCase::with(['files', 'logs.user', 'payments', 'calisan', 'kurulDegerlendirmesi.user'])->findOrFail($id);
         $user = Auth::user();
+
+        // 0. DİREKTÖR KISITLAMASI (Kullanıcı Talebi: Detay görmesin, sadece liste özeti)
+        if ($user->hasRole('Direktör') && !$user->hasRole('Superadmin')) {
+            abort(403, 'Arabuluculuk süreçlerinin detaylarını görme yetkiniz bulunmamaktadır.');
+        }
+
+        $case = ArabuluculukCase::with(['files', 'logs.user', 'payments', 'calisan', 'kurulDegerlendirmesi.user'])->findOrFail($id);
 
         $anlasmaMaddeleri = ArabuluculukAnlasmaMaddesi::where('is_active', true)->get();
 
@@ -67,7 +84,16 @@ class ArabuluculukController extends Controller
 
         // 1. ZORUNLU DOSYA ERİŞİM KONTROLÜ (DİNAMİK)
         if ($case->type == 'zorunlu') {
-            if (!$user->hasRole('Superadmin') && !$user->can('arabuluculuk.view_zorunlu_files')) {
+            // Direktör kendi personelinin zorunlu dosyasını görebilir.
+            $isOwnPersonnel = false;
+            if ($user->hasRole('Direktör')) {
+                $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('bolumler.id')->toArray();
+                if ($case->calisan && in_array($case->calisan->bolum_id, $yonetilenBolumIds)) {
+                    $isOwnPersonnel = true;
+                }
+            }
+
+            if (!$user->hasRole('Superadmin') && !$user->can('arabuluculuk.view_zorunlu_files') && !$isOwnPersonnel) {
                 abort(403, 'Zorunlu arabuluculuk dosyalarına erişim yetkiniz yoktur.');
             }
         }
@@ -76,7 +102,7 @@ class ArabuluculukController extends Controller
         if ($user->hasRole('Dış Avukat') && $case->external_lawyer_id != $user->id) {
             abort(403);
         }
-       
+
 
         return view('admin.arabuluculuk.show', compact('case', 'anlasmaMaddeleri', 'arabulucular'));
     }
@@ -101,7 +127,7 @@ class ArabuluculukController extends Controller
             ->get();
 
         $arabulucular = Arabulucu::where('is_active', true)->orderBy('name')->get();
-        
+
         $internalLawyers = User::role(['Hukuk Admini', 'Hukuk Yöneticisi'])->orderBy('name')->get();
         $externalLawyers = User::role('Dış Avukat')->orderBy('name')->get();
 
@@ -134,8 +160,8 @@ class ArabuluculukController extends Controller
         try {
             $data = $request->validated();
             $data['created_by'] = $user->id;
-            $data['status'] = 'taslak'; 
-            
+            $data['status'] = 'taslak';
+
             // Owner Role Mantığı: Zorunlu ise Hukuk, İhtiyari ise Personel (Varsayılan)
             // Sistemde 'owner_role' hala kullanılıyor o yüzden bu mantığı tutuyoruz.
             if ($request->type == 'zorunlu') {
@@ -154,7 +180,7 @@ class ArabuluculukController extends Controller
             DB::commit();
 
             return redirect()->route('admin.arabuluculuk.show', $case->id)
-                             ->with('success', 'Arabuluculuk dosyası başarıyla açıldı.');
+                ->with('success', 'Arabuluculuk dosyası başarıyla açıldı.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -176,7 +202,7 @@ class ArabuluculukController extends Controller
             return back()->with('error', 'Bu dosya onaya sunulduğu için üzerinde değişiklik yapılamaz. Değişiklik gerekliyse işlemi geri almalısınız.');
         }
         // -----------------------------------
-        
+
         // Yetki Kontrolü
         if (!Auth::user()->can('arabuluculuk.edit') && !Auth::user()->hasRole('Superadmin')) {
             abort(403, 'Düzenleme yetkiniz yok.');
@@ -204,7 +230,7 @@ class ArabuluculukController extends Controller
         if ($request->filled('ek_notlar')) {
             // Eğer yukarıda madde varsa araya boşluk koy
             if (!empty($finalText)) {
-                $finalText .= "\n"; 
+                $finalText .= "\n";
             }
             $finalText .= "EK NOTLAR:\n" . $request->ek_notlar;
         }
@@ -233,7 +259,7 @@ class ArabuluculukController extends Controller
 
         // --- 1. HUKUK KARARLARI ---
         if ($case->status == 'hukuk_incelemesinde') {
-            
+
             // Yetki Kontrolü
             if (!$user->can('arabuluculuk.approve_legal') && !$user->hasRole('Superadmin')) {
                 abort(403, 'Hukuk onayı verme yetkiniz yok.');
@@ -249,7 +275,7 @@ class ArabuluculukController extends Controller
             // B) DOĞRUDAN ONAYLA (İnisiyatif)
             if ($action == 'approve_direct') {
                 // Yönetimi atlayıp direkt "Arabulucuda/İmza" aşamasına geçer
-                $case->update(['status' => 'arabulucuda']); 
+                $case->update(['status' => 'arabulucuda']);
                 $this->logAction($case, 'HUKUK ONAYI', "Hukuk inisiyatif kullanarak doğrudan onayladı. Not: $note");
                 return back()->with('success', 'Dosya doğrudan onaylandı ve sonraki aşamaya geçildi.');
             }
@@ -257,23 +283,23 @@ class ArabuluculukController extends Controller
             // C) REVİZYON İSTE (Personele Geri Gönder)
             if ($action == 'request_revision') {
                 $request->validate(['note' => 'required|string|min:5'], ['note.required' => 'Revizyon için bir gerekçe yazmalısınız.']);
-                
+
                 $case->update([
                     'status' => 'taslak', // Düzenleme kilidini açmak için taslağa çekiyoruz
                     'mutabakat' => 'beklemede' // Personel tekrar butonlara basabilsin diye
                 ]);
-                
+
                 // Personele görünmesi için notu kaydedebiliriz veya Log'dan okurlar.
                 // Log yeterli olacaktır çünkü tarihçede görünüyor.
                 $this->logAction($case, 'REVİZYON', "Hukuk revizyon istedi. Gerekçe: $note");
-                
+
                 return back()->with('success', 'Dosya revizyon için personele geri gönderildi.');
             }
         }
 
         // --- 2. YÖNETİM KARARLARI ---
         if ($case->status == 'yonetim_onayinda') {
-            
+
             // Yetki Kontrolü
             if (!$user->can('arabuluculuk.approve_board') && !$user->hasRole('Superadmin')) {
                 abort(403, 'Yönetim onayı verme yetkiniz yok.');
@@ -292,7 +318,7 @@ class ArabuluculukController extends Controller
 
                 // Dosyayı Hukuk'a geri atıyoruz
                 $case->update(['status' => 'hukuk_incelemesinde']);
-                
+
                 $this->logAction($case, 'YÖNETİM REVİZE', "Yönetim dosyayı Hukuk birimine iade etti. Gerekçe: $note");
                 return back()->with('success', 'Dosya tekrar incelenmek üzere Hukuk birimine gönderildi.');
             }
@@ -300,11 +326,11 @@ class ArabuluculukController extends Controller
 
         // --- 3. ARABULUCULUK SONUÇLANDIRMA (YENİ EKLENEN) ---
         if ($case->status == 'arabulucuda') {
-            
+
             // Yetki: Hukuk Admini, Superadmin veya (Yetkisi varsa) Personel
-            $yetkiVarMi = $user->can('arabuluculuk.approve_legal') || 
-                          $user->hasRole('Superadmin') || 
-                          ($user->can('arabuluculuk.assign_mediator') && $case->created_by == $user->id);
+            $yetkiVarMi = $user->can('arabuluculuk.approve_legal') ||
+                $user->hasRole('Superadmin') ||
+                ($user->can('arabuluculuk.assign_mediator') && $case->created_by == $user->id);
 
             if (!$yetkiVarMi) {
                 abort(403, 'Bu işlemi yapmaya yetkiniz yok.');
@@ -312,7 +338,7 @@ class ArabuluculukController extends Controller
 
             // A) ANLAŞMA SAĞLANDI
             if ($action == 'mediation_agreement') {
-                
+
                 // === DOSYA KONTROLÜ (EKLENDİ) ===
                 $hasFile = $case->files()->where('doc_type', 'arabuluculuk_son_tutanak')->exists();
                 if (!$hasFile) {
@@ -321,7 +347,7 @@ class ArabuluculukController extends Controller
                 // ================================
 
                 $case->update(['status' => 'odeme_bekliyor']);
-                
+
                 $this->logAction($case, 'ARABULUCULUK SONUÇ', "Süreç ANLAŞMA ile sonuçlandı. Tutanak kontrol edildi.");
                 return back()->with('success', 'Süreç anlaşma ile tamamlandı. Ödeme planı oluşturabilirsiniz.');
             }
@@ -329,7 +355,7 @@ class ArabuluculukController extends Controller
             // B) ANLAŞMA SAĞLANAMADI
             if ($action == 'mediation_disagreement') {
                 $case->update(['status' => 'anlasma_saglanamadi']);
-                
+
                 $this->logAction($case, 'ARABULUCULUK SONUÇ', "Arabuluculuk süreci ANLAŞMA SAĞLANAMADI olarak sonuçlandı. Not: $note");
                 return back()->with('success', 'Dosya anlaşma sağlanamadı olarak kapatıldı.');
             }
@@ -344,14 +370,14 @@ class ArabuluculukController extends Controller
     public function changeStatus(Request $request, $id)
     {
         $case = ArabuluculukCase::findOrFail($id);
-        
+
         // --- 1. MUTABAKAT DEĞİŞİMİ (ANLAŞILDI / ANLAŞILMADI) ---
         // --- 1. MUTABAKAT DEĞİŞİMİ ---
         if ($request->has('mutabakat')) {
 
             // --- A) ANLAŞILDI SENARYOSU ---
             if ($request->mutabakat == 'anlasildi') {
-                
+
                 // 1. Madde ve Tutar Kontrolü
                 if (empty($case->anlasma_maddeleri)) {
                     return back()->with('error', 'Lütfen önce "Düzenle" butonuna basıp Anlaşma Maddelerini seçiniz.');
@@ -378,11 +404,11 @@ class ArabuluculukController extends Controller
                     'status' => 'hukuk_incelemesinde'
                 ]);
                 $this->logAction($case, 'MUTABAKAT', "Personel anlaştı, hukuk onayına sunuldu.");
-            } 
-            
+            }
+
             // --- B) ANLAŞILMADI SENARYOSU ---
             elseif ($request->mutabakat == 'anlasilmadi') {
-                
+
                 // 1. Yanlış Belge Kontrolü (Taslak Anlaşma Yüklü mü?)
                 $wrongFile = $case->files()->where('doc_type', 'taslak_anlasma')->exists();
                 if ($wrongFile) {
@@ -403,8 +429,8 @@ class ArabuluculukController extends Controller
                 $this->logAction($case, 'MUTABAKAT', "Anlaşma sağlanamadı olarak işaretlendi.");
             }
         }
-        
-        
+
+
         return back()->with('success', 'Durum başarıyla güncellendi.');
     }
 
@@ -420,38 +446,38 @@ class ArabuluculukController extends Controller
         // 1. DURUM: PERSONEL GERİ ALIYOR (Hukuk henüz bakmadıysa)
         // Sizin mevcut kodunuzdaki "anlasma_saglanamadi" kontrolünü ve log mesajını aynen koruduk.
         if (in_array($case->status, ['hukuk_incelemesinde', 'anlasma_saglanamadi']) && $case->created_by == $user->id) {
-            
+
             $case->update([
                 'status' => 'taslak',
                 'mutabakat' => 'beklemede'
             ]);
-            
+
             // Sizin istediğiniz orijinal log mesajı:
             $this->logAction($case, 'GERİ ALMA', "Personel onaya gönderimi iptal etti (Geri Aldı).");
-            
+
             return back()->with('success', 'İşlem geri alındı. Dosya tekrar taslak modunda.');
         }
 
         // 2. DURUM: HUKUK GERİ ALIYOR (Yönetim Onayındaysa -> Hukuka geri çek)
         // Bu kısım yeni eklendi.
         if ($case->status == 'yonetim_onayinda' && ($user->can('arabuluculuk.approve_legal') || $user->hasRole('Superadmin'))) {
-            
+
             $case->update(['status' => 'hukuk_incelemesinde']);
-            
+
             $this->logAction($case, 'GERİ ALMA', "Hukuk birimi, yönetim onayındaki dosyayı geri çekti.");
-            
+
             return back()->with('success', 'Dosya yönetimden geri çekildi, tekrar hukuk incelemesinde.');
         }
 
         // 3. DURUM: HUKUK GERİ ALIYOR (Arabulucuda/Son Aşamadaysa -> Hukuka geri çek)
         // Bu kısım da yeni eklendi.
         if ($case->status == 'arabulucuda' && ($user->can('arabuluculuk.approve_legal') || $user->hasRole('Superadmin'))) {
-             
-             $case->update(['status' => 'hukuk_incelemesinde']);
-             
-             $this->logAction($case, 'GERİ ALMA', "Hukuk birimi onayladığı dosyayı geri çekti.");
-             
-             return back()->with('success', 'Dosya onayı geri alındı, tekrar hukuk incelemesinde.');
+
+            $case->update(['status' => 'hukuk_incelemesinde']);
+
+            $this->logAction($case, 'GERİ ALMA', "Hukuk birimi onayladığı dosyayı geri çekti.");
+
+            return back()->with('success', 'Dosya onayı geri alındı, tekrar hukuk incelemesinde.');
         }
 
         // Hiçbir şarta uymazsa hata döndür
@@ -475,19 +501,19 @@ class ArabuluculukController extends Controller
             return back()->with('error', 'Bu dosya kapatılmıştır. Artık yeni belge yüklenemez.');
         }
         // ================================================
-        
+
         $request->validate(['files.*' => 'required|file|max:20480', 'doc_type' => 'required']);
 
-        if($request->hasFile('files')) {
-            foreach($request->file('files') as $file) {
+        if ($request->hasFile('files')) {
+            foreach ($request->file('files') as $file) {
                 DB::transaction(function () use ($case, $file, $request) {
-                    
+
                     // --- SİZİN GELİŞMİŞ DOSYA İSİMLENDİRME MANTIĞINIZ (KORUNDU) ---
                     $datePrefix = now()->format('Ymd');
-                    $caseNo = $case->dosya_no ?? 'Case'.$case->id;
+                    $caseNo = $case->dosya_no ?? 'Case' . $case->id;
                     $cleanName = \Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
-                    $newFileName = "{$datePrefix}_{$caseNo}_{$cleanName}.".$file->getClientOriginalExtension();
-                    
+                    $newFileName = "{$datePrefix}_{$caseNo}_{$cleanName}." . $file->getClientOriginalExtension();
+
                     // --- KİLİTLEME MANTIĞINIZ (KORUNDU) ---
                     $isLocked = in_array($request->doc_type, ['imzali_belge', 'islak_imza_teslim', 'anlasma_saglanamadi_tutanagi']);
 
@@ -519,9 +545,9 @@ class ArabuluculukController extends Controller
             }
             $this->logAction($case, 'DOSYA', count($request->file('files')) . " adet dosya yüklendi.");
         }
-        
+
         return redirect()->route('admin.arabuluculuk.show', $case->id . '#files')
-                         ->with('success', 'Dosya başarıyla yüklendi.');
+            ->with('success', 'Dosya başarıyla yüklendi.');
     }
 
     public function deleteFile($fileId) // Tek parametre yeterli
@@ -534,12 +560,14 @@ class ArabuluculukController extends Controller
         $user = Auth::user();
         if (!$user->hasRole('Superadmin')) {
             // Başkası silemez
-            if ($case->created_by != $user->id) { abort(403); }
+            if ($case->created_by != $user->id) {
+                abort(403);
+            }
             // Taslak değilse silemez
             $isIstisna = ($case->status == 'arabulucuda' && $file->doc_type == 'arabuluculuk_son_tutanak');
 
-            if ($case->status != 'taslak' && !$isIstisna) { 
-                abort(403, 'Dosya onaya sunulduğu için silinemez.'); 
+            if ($case->status != 'taslak' && !$isIstisna) {
+                abort(403, 'Dosya onaya sunulduğu için silinemez.');
             }
         }
 
@@ -562,13 +590,13 @@ class ArabuluculukController extends Controller
     {
         $case = ArabuluculukCase::findOrFail($id);
         $request->validate(['yorum' => 'required|string']);
-        
+
         $case->kurulDegerlendirmesi()->create([
             'user_id' => Auth::id(),
             'yorum' => $request->yorum,
             'karar' => $request->karar
         ]);
-        
+
         $this->logAction($case, 'DEĞERLENDİRME', 'Yorum eklendi.');
         return back()->with('success', 'Yorum kaydedildi.');
     }
@@ -581,7 +609,7 @@ class ArabuluculukController extends Controller
         if ($request->has('iban')) {
             $cleanIban = str_replace(' ', '', $request->iban); // Boşlukları sil
             $cleanIban = strtoupper($cleanIban); // Büyük harf yap
-            
+
             // Temizlenmiş veriyi request'e geri koyuyoruz ki validasyon hatasız geçsin
             $request->merge(['iban' => $cleanIban]);
         }
@@ -590,8 +618,8 @@ class ArabuluculukController extends Controller
         // --- 2. VALİDASYON (SENİN KODUN AYNEN KALDI) ---
         $request->validate([
             'odenecek_kisi' => 'required|string|max:255',
-            'banka_adi'     => 'required|string',
-            'iban'          => ['required', 'string', 'size:26', 'starts_with:TR'],
+            'banka_adi' => 'required|string',
+            'iban' => ['required', 'string', 'size:26', 'starts_with:TR'],
             'son_odeme_tarihi' => 'nullable|date|after_or_equal:today',
         ], [
             'iban.size' => 'IBAN numarası (boşluklar hariç) TR dahil tam 26 haneli olmalıdır.',
@@ -604,19 +632,19 @@ class ArabuluculukController extends Controller
         // --- 3. KAYIT İŞLEMİ (BURASI GÜNCELLENDİ) ---
         // create() yerine updateOrCreate() kullanıyoruz.
         // Neden? Eğer daha önce reddedilmiş bir kayıt varsa üstüne yazsın, yoksa yeni açsın.
-        
+
         $case->payments()->updateOrCreate(
             ['case_id' => $case->id], // ARAMA KRİTERİ: Bu dosyaya ait bir ödeme var mı?
             [
                 // GÜNCELLENECEK / EKLENECEK VERİLER
-                'odenecek_kisi'    => $request->odenecek_kisi,
-                'banka_adi'        => $banka,
-                'iban'             => $request->iban, // Temizlenmiş hali
-                'tutar'            => $case->anlasilan_tutar,
-                'odeme_durumu'     => 'bekliyor', // Durumu tekrar bekliyora çekiyoruz
+                'odenecek_kisi' => $request->odenecek_kisi,
+                'banka_adi' => $banka,
+                'iban' => $request->iban, // Temizlenmiş hali
+                'tutar' => $case->anlasilan_tutar,
+                'odeme_durumu' => 'bekliyor', // Durumu tekrar bekliyora çekiyoruz
                 'son_odeme_tarihi' => $request->son_odeme_tarihi,
-                'created_by'       => auth()->id(),
-                'red_gerekcesi'    => null // KRİTİK NOKTA: Hata düzeltildiği için red notunu siliyoruz!
+                'created_by' => auth()->id(),
+                'red_gerekcesi' => null // KRİTİK NOKTA: Hata düzeltildiği için red notunu siliyoruz!
             ]
         );
 
@@ -641,26 +669,27 @@ class ArabuluculukController extends Controller
 
         // Burası sizin mevcut kodunuz (Aynen çalışmaya devam eder)
         $payment = $case->payments()->latest()->first();
-        if($payment) {
+        if ($payment) {
             $payment->update([
-                'odeme_durumu' => 'odendi', 
+                'odeme_durumu' => 'odendi',
                 'finance_onay_by' => Auth::id(), // Auth facade'ini import ettiğinizden emin olun
                 'finance_onay_at' => now()
             ]);
-            
+
             $case->update(['status' => 'son_onay_bekliyor']);
-            
+
             $this->logAction($case, 'FİNANS ONAYI', 'Ödeme yapıldı, dosya SON ONAY aşamasına iletildi.');
         }
-        
+
         return back()->with('success', 'Ödeme onaylandı. Dosya son kontrol için yetkiliye gönderildi.');
     }
 
     // 1. PERSONELİN İŞLEMİ GERİ ALMASI
-    public function revertToMediation($id) {
+    public function revertToMediation($id)
+    {
         $case = ArabuluculukCase::findOrFail($id);
         // Sadece ödeme bekliyorsa ve henüz plan yoksa
-        if($case->status == 'odeme_bekliyor' && $case->payments->count() == 0) {
+        if ($case->status == 'odeme_bekliyor' && $case->payments->count() == 0) {
             $case->update(['status' => 'arabulucuda']);
             $this->logAction($case, 'GERİ ALMA', 'Personel süreci arabuluculuk aşamasına geri çekti.');
             return back()->with('success', 'Dosya düzenleme için geri çekildi.');
@@ -669,7 +698,8 @@ class ArabuluculukController extends Controller
     }
 
     // 2. FİNANSIN REDDETMESİ
-    public function rejectPayment(Request $request, $id) {
+    public function rejectPayment(Request $request, $id)
+    {
         $case = ArabuluculukCase::findOrFail($id);
         $request->validate(['reason' => 'required|string']);
 
@@ -688,27 +718,29 @@ class ArabuluculukController extends Controller
 
         // İsterseniz dosyanın genel durumunu da güncelleyebilirsiniz
         // $case->update(['status' => 'odeme_reddedildi']);
-        
+
         $this->logAction($case, 'FİNANS RED', 'Ödeme reddedildi. Gerekçe: ' . $request->reason);
-        
+
         return back()->with('success', 'Ödeme planı reddedildi ve Hukuk birimine geri gönderildi.');
     }
 
     // 3. SON ONAY VE KAPANIŞ
-    public function finalClose($id) {
+    public function finalClose($id)
+    {
         // Yetki Kontrolü
         if (!auth()->user()->can('arabuluculuk.final_check') && !auth()->user()->hasRole('Superadmin')) {
             abort(403, 'Bu işlem için yetkiniz yok.');
         }
-        
+
         $case = ArabuluculukCase::findOrFail($id);
         $case->update(['status' => 'kapatildi']);
-        
+
         $this->logAction($case, 'DOSYA KAPATILDI', 'Son kontroller yapıldı ve dosya başarıyla kapatıldı.');
         return back()->with('success', 'Dosya başarıyla kapatıldı.');
     }
 
-    private function logAction($case, $islem, $detay) {
+    private function logAction($case, $islem, $detay)
+    {
         ArabuluculukLog::create([
             'case_id' => $case->id,
             'user_id' => Auth::id(),

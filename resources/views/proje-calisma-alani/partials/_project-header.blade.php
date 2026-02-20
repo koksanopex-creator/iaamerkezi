@@ -6,6 +6,75 @@
             </div>
             <h3 class="text-lg font-bold text-gray-900">Proje Künyesi</h3>
         </div>
+
+        {{-- AKIŞ ŞABLONU VE ADIMLARI --}}
+            <div class="bg-blue-50 rounded-lg p-4 shadow-sm border border-blue-100 col-span-1 md:col-span-4 mt-2 mb-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="p-1.5 bg-blue-100 rounded-md">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium text-blue-600/80">Uygulanan Akış</dt>
+                        <dd class="text-sm font-bold text-blue-900 leading-tight">
+                            {{ $workflow->name ?? 'Standart Akış' }}
+                        </dd>
+                    </div>
+                </div>
+                
+                {{-- Adımları Görselleştirme Kısmı --}}
+                @if(isset($steps) && $steps->count() > 0)
+                    <div class="flex flex-wrap items-center gap-y-3">
+                        @foreach($steps as $step)
+                            @php
+                                $isCompleted = in_array($step->id, $completedStepIds);
+                                
+                                // Gizlilik verisini çekme
+                                $pUpdate = isset($progressUpdates) ? ($progressUpdates[$step->id] ?? null) : null;
+                                $isHidden = $pUpdate ? $pUpdate->is_hidden_from_customer : false;
+                                
+                                // Personel kontrolü
+                                $isPersonnel = auth()->check() && auth()->user()->is_personnel;
+                            @endphp
+
+                            <div class="flex items-center group">
+                                
+                                {{-- 1. DURUM İKONU --}}
+                                @if($isCompleted)
+                                    {{-- Tamamlandı: Yeşil Tik --}}
+                                    <div class="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mr-1.5 border border-green-200" title="Tamamlandı">
+                                        <svg class="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                                    </div>
+                                @else
+                                    {{-- Bekliyor: Gri Daire --}}
+                                    <div class="flex-shrink-0 w-5 h-5 rounded-full bg-white flex items-center justify-center mr-1.5 border-2 border-gray-300" title="Bekliyor">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-gray-300"></div>
+                                    </div>
+                                @endif
+
+                                {{-- 2. ADIM ADI ve NUMARASI --}}
+                                {{-- $loop->iteration: Döngüdeki sırayı verir (1, 2, 3...) --}}
+                                <a href="#step-{{ $step->id }}" class="text-sm font-medium transition-colors hover:underline decoration-blue-400 decoration-2 underline-offset-2 cursor-pointer
+                                    {{ $isCompleted ? 'text-gray-900' : 'text-gray-500' }}">
+                                    {{ $loop->iteration }}. {{ $step->name }}
+                                </a>
+
+                                {{-- 3. GİZLİLİK KİLİDİ (SADECE PERSONEL GÖRÜR) --}}
+                                @if($isHidden && $isPersonnel)
+                                     <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 select-none" title="Bu adım müşteriye GİZLENMİŞTİR">
+                                        <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg>
+                                        GİZLİ
+                                     </span>
+                                @endif
+
+                                {{-- 4. OK İŞARETİ (Son değilse) --}}
+                                @if(!$loop->last)
+                                    <svg class="w-4 h-4 text-blue-300 mx-2 sm:mx-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
         
         <dl class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div class="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
@@ -47,19 +116,15 @@
         </dl>
 
         <div class="mt-4 text-center">
-            @php
-                $durumRenk = match($iaa->durum) {
-                    'Tamamlandı' => 'bg-green-100 text-green-800',
-                    'Yönetici Onayı Bekliyor' => 'bg-blue-100 text-blue-800',
-                    'Revize Ediliyor' => 'bg-yellow-100 text-yellow-800',
-                    'Tamamlanması Reddedildi' => 'bg-red-100 text-red-800',
-                    'Atandı' => 'bg-indigo-100 text-indigo-800',
-                    default => 'bg-gray-100 text-gray-800',
-                };
-            @endphp
-            <span class="inline-block px-4 py-2 rounded-full font-semibold shadow-sm text-sm {{ $durumRenk }}">
-                Mevcut Proje Durumu: <strong>{{ $iaa->durum }}</strong>
-            </span>
+            {{-- Durum etiketini Model dosyasından otomatik çeker --}}
+            {{-- Durum etiketini Model dosyasından otomatik çeker --}}
+            {!! $iaa->durum_etiketi !!}
+            
+            @if(isset($statusDate))
+                <div class="mt-2 text-xs text-gray-500 font-medium">
+                    {{ \Carbon\Carbon::parse($statusDate)->format('d.m.Y H:i') }}
+                </div>
+            @endif
         </div>
 
         {{-- DURUM BİLGİLENDİRME KUTUSU (GÜNCELLENMİŞ) --}}
@@ -181,4 +246,23 @@
             </div>
         </div>
     </div>
+
+    {{-- İADE BİLGİSİ ÖZETİ (Sadece Onay Beklerken veya Tamamlanınca Görünür) --}}
+    @if($iaa->musteriSikayeti && $iaa->musteriSikayeti->iadeler->isNotEmpty())
+        @php $iade = $iaa->musteriSikayeti->iadeler->first(); @endphp
+        <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3 animate-pulse-slow">
+            <div class="p-2 bg-red-100 rounded-full shrink-0">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-red-900">İADE ALINMIŞTIR</h4>
+                <p class="text-xs text-red-700 mt-0.5">
+                    Bu şikayet kapsamında <strong>{{ $iaa->musteriSikayeti->customer->name ?? 'Müşteri' }}</strong> firmasından 
+                    <strong>{{ $iade->miktar }} {{ $iade->birim }} {{ $iade->urun_turu }}</strong> ürün, 
+                    <strong>{{ $iade->iade_sebebi }}</strong> sebebiyle iade alınmıştır.
+                </p>
+            </div>
+        </div>
+    @endif
+
 </div>

@@ -22,26 +22,13 @@ class CustomerProfileController extends Controller
         
         $yetkisiVarMi = $user->hasRole($tamYetkiliRoller);
         
-        // Eğer kullanıcı TAM YETKİLİ DEĞİLSE
         if (!$yetkisiVarMi) {
-            
-            // SENARYO A: Kullanıcı bu firmanın yetkilisi (Müşteri)
             if ($user->customer_id === $customer->id) {
-                // İzin ver, aşağıda devam etsin. (Kendi sayfası)
+                // İzin ver
             }
-            // SENARYO B: Kullanıcı bir Personel (Örn: Sinan) ama yetkili rolü yok
             elseif ($user->is_personnel) {
-                // Personelse, bu müşterinin herhangi bir şikayetinde görevi var mı diye bakacağız.
-                // Not: Burada 'users' ilişkisi yerine daha garanti olan 'cozumTakimi' üzerinden bakabiliriz
-                // veya Iaa modelindeki eksik ilişkiyi pas geçebiliriz.
-                
-                // Şimdilik basit kontrol: Eğer personel admin değilse ve müşteri de değilse
-                // ve görevli olduğu bir kayıt yoksa engelle.
-                
-                // Bu kontrolü QUERY içinde yapacağız, burada sadece kapı kontrolü yapıyoruz.
-                // Eğer personelse ve "hiçbir" şikayeti görmeye yetkisi yoksa 403 yiyecek aşağıda.
+                // Personel kontrolü (Basit geçiş)
             }
-            // SENARYO C: Alakasız biri (Başka müşteri vb.)
             else {
                 abort(403, 'Bu müşteri profilini görüntüleme yetkiniz yok.');
             }
@@ -53,33 +40,20 @@ class CustomerProfileController extends Controller
         
         $baseQuery = $customer->sikayetler();
 
-        // EĞER TAM YETKİLİ DEĞİLSE FİLTRE UYGULA
         if (!$yetkisiVarMi) {
-            
-            // DURUM 1: Kullanıcı MÜŞTERİ ise (Kendi firması)
             if ($user->customer_id === $customer->id) {
-                // HİÇBİR FİLTRE UYGULAMA!
-                // Müşteri kendi firmasının tüm şikayetlerini görmeli.
-                // Burası boş kalacak, böylece 'iaa->users' hatasına düşmeyecek.
+                // Müşteri ise kısıtlama yok
             }
-            
-            // DURUM 2: Kullanıcı PERSONEL ise (Sinan Poyraz gibi)
             else {
-                // İşte Sinan için olan kısıtlamalar burada devreye giriyor.
+                // Personel Kısıtlamaları
                 $allowedBolumIds = $user->getAllowedBolumIds(); 
 
                 $baseQuery->where(function($q) use ($user, $allowedBolumIds) {
-                    
-                    // A. Bölüm Yetkisi (Kategori bazlı)
                     if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
                         $q->whereHas('sikayetKategori', function($k) use ($allowedBolumIds) {
                             $k->whereIn('bolum_id', $allowedBolumIds);
                         });
                     }
-
-                    // B. Takım Üyeliği / Görevlendirme (Sinan Poyraz)
-                    // HATA VEREN YER BURASIYDI. Burayı düzelttik.
-                    // Iaa (Proje) -> CozumTakimi -> Uyeler üzerinden kontrol ediyoruz.
                     $q->orWhereHas('iaaProjesi', function($iaa) use ($user) {
                         $iaa->whereHas('atananTakim', function($takim) use ($user) {
                             $takim->whereHas('uyeler', function($u) use ($user) {
@@ -87,18 +61,14 @@ class CustomerProfileController extends Controller
                             });
                         });
                     });
-                    
-                    // Ayrıca direkt şikayetin çözüm takımındaysa da görsün
                     $q->orWhereHas('cozumTakimi', function($takim) use ($user) {
                         $takim->whereHas('uyeler', function($u) use ($user) {
                             $u->where('users.id', $user->id);
                         });
                     });
-
-                    // C. Bölüm Lideri Ekstra Yetkisi
                     if ($user->hasRole('Bölüm Lideri')) {
                         $staffIds = \App\Models\User::where('bolum_id', $user->bolum_id)->pluck('id');
-                        $q->orWhereIn('olusturan_user_id', $staffIds); // Basitçe ekibi oluşturduysa görsün
+                        $q->orWhereIn('olusturan_user_id', $staffIds);
                     }
                 });
             }
@@ -115,7 +85,7 @@ class CustomerProfileController extends Controller
             ->count();
 
         $tamamlananProje = (clone $baseQuery)
-            ->whereHas('iaaProjesi', function($q) { // Modelde 'iaaProjesi' kullanıyorsun genelde
+            ->whereHas('iaaProjesi', function($q) {
                 $q->where('durum', 'Tamamlandı');
             })->count();
 
@@ -137,7 +107,6 @@ class CustomerProfileController extends Controller
         // 4. VERİ ÇEKME
         // =============================================================
         
-        // İlişki isimlerini senin modellerine göre düzelttim
         $query = $baseQuery->with(['iaaProjesi', 'cozumTakimi', 'sikayetKategori', 'olusturanKurulUyesi']); 
 
         if ($request->has('filtre')) {
@@ -159,7 +128,7 @@ class CustomerProfileController extends Controller
         $sikayetler = $query->latest()->paginate(15)->withQueryString();
         $temsilciler = $customer->users; 
 
-        // LOGLAR (Sadece Adminler)
+        // LOGLAR
         $logs = null;
         if ($user->hasRole(['Superadmin', 'Super Admin', 'Yonetim'])) {
             $logs = \App\Models\MusteriLog::with('user')
@@ -169,9 +138,67 @@ class CustomerProfileController extends Controller
                 ->get();
         }
 
+        // =============================================================
+        // 5. İADE VE MALİYET ANALİZİ (GELİŞMİŞ - YIL VE BÖLÜM BAZLI)
+        // =============================================================
+        
+        // 1. Yıl Filtresi (Request'ten gelirse al)
+        $secilenYil = $request->input('yil');
+
+        // 2. Temel Sorgu: Bu müşteriye ait iadeleri bul
+        $iadeQuery = \App\Models\SikayetIadesi::whereHas('sikayet', function($q) use ($customer) {
+            $q->where('customer_id', $customer->id);
+        })
+        ->with(['sikayet.sikayetKategori.bolum']); // Bölüm adını almak için ilişki zinciri
+
+        // 3. Filtre Uygula (Eğer yıl seçildiyse)
+        if ($secilenYil) {
+            $iadeQuery->whereYear('created_at', $secilenYil);
+        }
+
+        $iadeler = $iadeQuery->latest()->get();
+
+        // 4. A) Genel Birim Toplamları (Örn: Ton => 1500, Adet => 5000)
+        $iadeToplamlari = $iadeler->groupBy('birim')->map(function ($row) {
+            return $row->sum('miktar');
+        });
+
+        // 5. B) Bölüm Bazlı Kırılım Hesaplama
+        // Yapı: ['Ton' => ['Preform' => 1000, 'Kapak' => 500], 'Adet' => [...]]
+        $bolumKirilimi = [];
+        foreach ($iadeler as $iade) {
+            $birim = $iade->birim;
+            // İlişki zincirinden bölüm adını al, yoksa 'Diğer' de
+            $bolumAdi = $iade->sikayet->sikayetKategori->bolum->ad ?? 'Diğer';
+            
+            if (!isset($bolumKirilimi[$birim][$bolumAdi])) {
+                $bolumKirilimi[$birim][$bolumAdi] = 0;
+            }
+            $bolumKirilimi[$birim][$bolumAdi] += $iade->miktar;
+        }
+
+        // 6. Filtre İçin Mevcut Yılları Listele (Sadece bu müşterinin yılları)
+        $mevcutYillar = \App\Models\SikayetIadesi::whereHas('sikayet', function($q) use ($customer) {
+                $q->where('customer_id', $customer->id);
+            })
+            ->selectRaw('YEAR(created_at) as yil')
+            ->distinct()
+            ->orderBy('yil', 'desc')
+            ->pluck('yil');
+
+        // =============================================================
+
         return view('admin.musteriler.musteri-profile', compact(
             'customer', 'temsilciler', 'sikayetler',
-            'toplamSikayet', 'aktifSikayet', 'tamamlananProje', 'ortalamaSure', 'logs'
+            'toplamSikayet', 'aktifSikayet', 'tamamlananProje', 'ortalamaSure', 'logs',
+            'iadeler', 'iadeToplamlari', 'bolumKirilimi', 'mevcutYillar', 'secilenYil' // <--- Yeni değişkenler eklendi
+        ));
+
+        // View'a 'iadeler' ve 'iadeToplamlari' değişkenlerini de gönderiyoruz
+        return view('admin.musteriler.musteri-profile', compact(
+            'customer', 'temsilciler', 'sikayetler',
+            'toplamSikayet', 'aktifSikayet', 'tamamlananProje', 'ortalamaSure', 'logs',
+            'iadeler', 'iadeToplamlari' // <--- EKLENDİ
         ));
     }
 

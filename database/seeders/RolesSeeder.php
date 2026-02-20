@@ -27,7 +27,9 @@ class RolesSeeder extends Seeder // Class adı RolesSeeder olarak değiştirildi
         Role::firstOrCreate(['name' => 'Kullanıcı']);
         Role::firstOrCreate(['name' => 'Müşteri Şikayeti Kurulu']);
         Role::firstOrCreate(['name' => 'Müşteri Şikayeti Çözüm Lideri']);
+        Role::firstOrCreate(['name' => 'Müşteri Temsilcisi']); // Eksik olan rol eklendi
         Role::firstOrCreate(['name' => 'Bölüm Kalite Yöneticisi']);
+        Role::firstOrCreate(['name' => 'Direktör']);
         // ===============================================
 
         // İzinler eklemek isterseniz örnek:

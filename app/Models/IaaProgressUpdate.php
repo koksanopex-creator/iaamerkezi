@@ -21,6 +21,7 @@ class IaaProgressUpdate extends Model
         'user_id',
         'content',
         'completed_at',
+        'is_hidden_from_customer', // <--- BUNU MUTLAKA EKLEYİN
     ];
 
     /**

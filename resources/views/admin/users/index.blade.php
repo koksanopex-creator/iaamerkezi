@@ -43,15 +43,15 @@
 
             {{-- DASHBOARD MİNİ KARTLAR --}}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="relative overflow-hidden rounded-2xl border border-indigo-200/60 bg-white shadow-sm">
+                <a href="{{ route('admin.users.index', ['activeTab' => 'sistem']) }}" class="block group relative overflow-hidden rounded-2xl border border-indigo-200/60 bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
                     <div class="p-4 flex items-start justify-between">
                         <div>
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Aktif Kullanıcı</p>
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide group-hover:text-indigo-600 transition-colors">Sistem Kullanıcısı</p>
                             <p class="mt-1 text-2xl font-semibold text-gray-900">
-                                {{ $aktifKullanicilar->total() }}
+                                {{ $sistemKullanicilari->total() }}
                             </p>
                         </div>
-                        <div class="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                        <div class="p-2 rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5"
                                  fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -60,9 +60,30 @@
                         </div>
                     </div>
                     <div class="px-4 py-2 text-[11px] text-gray-500 bg-gradient-to-r from-indigo-50/60 to-transparent border-t border-indigo-100/60">
-                        Sistemde oturumu aktif kullanıcı sayısı
+                        Sistemde tanımlı personel sayısı
                     </div>
-                </div>
+                </a>
+
+                <a href="{{ route('admin.users.index', ['activeTab' => 'musteri']) }}" class="block group relative overflow-hidden rounded-2xl border border-purple-200/60 bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                    <div class="p-4 flex items-start justify-between">
+                        <div>
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide group-hover:text-purple-600 transition-colors">Müşteri Yetkilisi</p>
+                            <p class="mt-1 text-2xl font-semibold text-gray-900">
+                                {{ $musteriKullanicilari->total() }}
+                            </p>
+                        </div>
+                        <div class="p-2 rounded-xl bg-purple-50 text-purple-600 group-hover:bg-purple-100 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5"
+                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="px-4 py-2 text-[11px] text-gray-500 bg-gradient-to-r from-purple-50/60 to-transparent border-t border-purple-100/60">
+                        Tanımlı müşteri temsilcisi sayısı
+                    </div>
+                </a>
 
                 <div class="relative overflow-hidden rounded-2xl border border-yellow-200/60 bg-white shadow-sm">
                     <div class="p-4 flex items-start justify-between">
@@ -103,27 +124,6 @@
                     </div>
                     <div class="px-4 py-2 text-[11px] text-gray-500 bg-gradient-to-r from-blue-50/60 to-transparent border-t border-blue-100/60">
                         Sistemde tanımlı üretim / destek alanları
-                    </div>
-                </div>
-
-                <div class="relative overflow-hidden rounded-2xl border border-emerald-200/60 bg-white shadow-sm">
-                    <div class="p-4 flex items-start justify-between">
-                        <div>
-                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Rol Çeşidi</p>
-                            <p class="mt-1 text-2xl font-semibold text-gray-900">
-                                {{ $roller->count() }}
-                            </p>
-                        </div>
-                        <div class="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5"
-                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="px-4 py-2 text-[11px] text-gray-500 bg-gradient-to-r from-emerald-50/60 to-transparent border-t border-emerald-100/60">
-                        Tanımlı yetki seviyesi sayısı
                     </div>
                 </div>
             </div>
@@ -182,6 +182,14 @@
                                         {{-- === YENİ GÜZELLEŞTİRİLMİŞ BUTONLAR === --}}
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-medium">
                                             <div class="flex items-center justify-end gap-2">
+                                                @if(!$user->hasVerifiedEmail())
+                                                    <form method="POST" action="{{ route('admin.users.verifyEmail', $user) }}">
+                                                        @csrf
+                                                        <button type="submit" class="px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors" title="E-postayı Doğrula">
+                                                            E-posta Doğrula
+                                                        </button>
+                                                    </form>
+                                                @endif
                                                 <form method="POST" action="{{ route('admin.users.onayla', $user) }}">
                                                     @csrf @method('patch')
                                                     <button type="submit" class="px-2.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
@@ -221,187 +229,311 @@
                 </div>
             @endif
 
-            {{-- AKTİF KULLANICILAR BLOKU --}}
-            <div class="bg-white/80 backdrop-blur-sm overflow-hidden shadow-xl rounded-2xl border border-gray-200 ring-1 ring-gray-100">
-                <div class="p-6 sm:p-8 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white flex flex-col gap-4">
-                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between w-full gap-4">
+            {{-- TABLAT KULLANICI LİSTESİ --}}
+            <div x-data="{ activeTab: '{{ request('activeTab', 'sistem') }}' }" class="bg-white/80 backdrop-blur-sm shadow-xl rounded-xl border border-gray-200 ring-1 ring-gray-100 overflow-hidden">
+                
+                {{-- TAB BAŞLIKLARI --}}
+                <div class="border-b border-gray-200 bg-gray-50 flex items-center px-4">
+                    <button @click="activeTab = 'sistem'" 
+                            :class="activeTab === 'sistem' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="flex-1 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors duration-200 ease-in-out focus:outline-none">
+                        Sistem Kullanıcıları ({{ $sistemKullanicilari->total() }})
+                    </button>
+                    <button @click="activeTab = 'musteri'" 
+                            :class="activeTab === 'musteri' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+                            class="flex-1 py-4 px-1 text-center border-b-2 font-medium text-sm transition-colors duration-200 ease-in-out focus:outline-none">
+                        Müşteri Yetkilileri ({{ $musteriKullanicilari->total() }})
+                    </button>
+                </div>
+
+                {{-- FİLTRE FORMU (Her iki tab için ortak) --}}
+                <div class="p-4 border-b border-gray-100 bg-white">
+                     <form method="GET" action="{{ route('admin.users.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input type="hidden" name="activeTab" :value="activeTab"> {{-- TAB DURUMUNU KORU --}}
+                        
+                        {{-- İsim/E-posta --}}
                         <div>
-                            <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                                <span class="inline-flex h-2 w-2 rounded-full bg-indigo-500 ring-4 ring-indigo-200/60"></span>
-                                Aktif Kullanıcılar
-                            </h3>
-                            <p class="text-xs text-gray-500 font-medium">
-                                Sisteme erişimi olan kullanıcılar ve yetki seviyeleri
-                            </p>
+                            <label for="name_filter" class="block text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
+                                İsim veya E-posta
+                            </label>
+                            <input type="text" name="name_filter" id="name_filter" value="{{ $filters['name_filter'] ?? '' }}"
+                                   class="mt-1 block w-full rounded-lg border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                   placeholder="Ara...">
                         </div>
 
-                        <div class="flex items-center gap-2 text-xs">
-                            <div class="px-2.5 py-1 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold shadow-sm">
-                                Toplam: {{ $aktifKullanicilar->total() }}
-                            </div>
+                        {{-- Bölüm (Sadece Sistem Kullanıcıları için) --}}
+                        <div x-show="activeTab === 'sistem'">
+                            <label for="bolum_filter" class="block text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
+                                Bölüm
+                            </label>
+                            <select name="bolum_filter" id="bolum_filter"
+                                    class="mt-1 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">Tüm Bölümler</option>
+                                @foreach($bolumler as $bolum)
+                                    <option value="{{ $bolum->id }}"
+                                            @if(isset($filters['bolum_filter']) && $filters['bolum_filter'] == $bolum->id) selected @endif>
+                                        {{ $bolum->ad }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
-                    </div>
 
-                    {{-- FİLTRE FORMU --}}
-                    <form method="GET" action="{{ route('admin.users.index') }}" class="bg-white/60 border border-gray-200 rounded-xl p-4 shadow-inner">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {{-- Firma (Sadece Müşteri Kullanıcıları için) --}}
+                        <div x-show="activeTab === 'musteri'" style="display: none;">
+                            <label for="customer_filter" class="block text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
+                                Firma (Müşteri)
+                            </label>
+                            <select name="customer_filter" id="customer_filter"
+                                    class="mt-1 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">Tüm Firmalar</option>
+                                @foreach($musteriler as $musteri)
+                                    <option value="{{ $musteri->id }}"
+                                            @if(isset($filters['customer_filter']) && $filters['customer_filter'] == $musteri->id) selected @endif>
+                                        {{ $musteri->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                            {{-- İsim/E-posta --}}
-                            <div>
-                                <label for="name_filter" class="block text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
-                                    İsim / E-posta
-                                </label>
-                                <input type="text" name="name_filter" id="name_filter"
-                                       value="{{ $filters['name_filter'] ?? '' }}"
-                                       class="mt-1 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                       placeholder="Kullanıcı ara...">
-                            </div>
+                        {{-- Rol (Sadece Sistem Kullanıcıları için) --}}
+                        <div x-show="activeTab === 'sistem'">
+                            <label for="role_filter" class="block text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
+                                Rol
+                            </label>
+                            <select name="role_filter" id="role_filter" class="mt-1 block w-full rounded-lg border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">Tüm Roller</option>
+                                @foreach($roller as $role)
+                                    <option value="{{ $role->name }}" @if(isset($filters['role_filter']) && $filters['role_filter'] == $role->name) selected @endif>
+                                        {{ $role->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                            {{-- Bölüm --}}
-                            <div>
-                                <label for="bolum_filter" class="block text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
-                                    Bölüm
-                                </label>
-                                <select name="bolum_filter" id="bolum_filter"
-                                        class="mt-1 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">Tüm Bölümler</option>
-                                    @foreach($bolumler as $bolum)
-                                        <option value="{{ $bolum->id }}"
-                                                @if(isset($filters['bolum_filter']) && $filters['bolum_filter'] == $bolum->id) selected @endif>
-                                            {{ $bolum->ad }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            {{-- Rol --}}
-                            <div>
-                                <label for="role_filter" class="block text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
-                                    Rol
-                                </label>
-                                <select name="role_filter" id="role_filter"
-                                        class="mt-1 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="">Tüm Roller</option>
-                                    @foreach($roller as $role)
-                                        <option value="{{ $role->name }}"
-                                                @if(isset($filters['role_filter']) && $filters['role_filter'] == $role->name) selected @endif>
-                                            {{ $role->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            {{-- Butonlar --}}
-                            <div class="flex items-end gap-2">
-                                <button type="submit"
-                                        class="inline-flex items-center justify-center flex-1 px-4 py-2 rounded-lg text-[11px] font-semibold text-white
-                                               bg-blue-600 hover:bg-blue-500 active:scale-[.98] shadow-sm shadow-blue-400/40 transition">
-                                    Filtrele
-                                </button>
-
-                                <a href="{{ route('admin.users.index') }}"
-                                   class="inline-flex items-center justify-center flex-1 px-4 py-2 rounded-lg text-[11px] font-semibold text-white
-                                           bg-gray-700 hover:bg-gray-600 active:scale-[.98] shadow-sm shadow-gray-500/40 transition">
-                                    Temizle
-                                </a>
-                            </div>
+                        {{-- Ünvan (Sadece Müşteri Kullanıcıları için) --}}
+                        <div x-show="activeTab === 'musteri'" style="display: none;">
+                            <label for="title_filter" class="block text-[11px] font-semibold text-gray-600 uppercase tracking-wide">
+                                Ünvan
+                            </label>
+                            <input type="text" name="title_filter" id="title_filter" value="{{ $filters['title_filter'] ?? '' }}"
+                                   class="mt-1 block w-full rounded-lg border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                   placeholder="Ünvan Ara...">
+                        </div>
+                        {{-- Butonlar --}}
+                        <div class="flex items-center gap-2">
+                            <button type="submit" class="flex-1 bg-gray-800 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:bg-gray-700 transition">Filtrele</button>
+                            <a href="{{ route('admin.users.index') }}" class="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-gray-300 transition">Temizle</a>
                         </div>
                     </form>
                 </div>
 
-                {{-- TABLO --}}
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50/70">
-                            <tr class="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                                <th class="px-6 py-3">Ad Soyad / E-posta</th>
-                                <th class="px-6 py-3">Bölüm</th>
-                                <th class="px-6 py-3">Roller</th>
-                                <th class="px-6 py-3 text-right">İşlemler</th>
-                            </tr>
-                        </thead>
-
-                        <tbody class="bg-white divide-y divide-gray-100">
-                            @forelse ($aktifKullanicilar as $user)
-                                <tr class="hover:bg-indigo-50/40 transition-colors">
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="font-semibold text-gray-900">{{ $user->name }}</div>
-                                        <div class="text-xs text-gray-500">{{ $user->email }}</div>
-                                    </td>
-
-                                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-700">
-                                        @if($user->bolum && $user->bolum->ad)
-                                            <span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                                                {{ $user->bolum->ad }}
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-300">
-                                                Atanmamış
-                                            </span>
-                                        @endif
-                                    </td>
-
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="flex flex-wrap gap-2">
-                                            @forelse ($user->roles as $role)
-                                                <span class="
-                                                    inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold ring-1 ring-inset
-                                                    @if($role->name == 'Superadmin')
-                                                        bg-red-50 text-red-700 ring-red-200
-                                                    @elseif($role->name == 'Müşteri Şikayeti Kurulu')
-                                                        bg-yellow-50 text-yellow-700 ring-yellow-200
-                                                    @elseif($role->name == 'Bölüm Lideri')
-                                                        bg-blue-50 text-blue-700 ring-blue-200
-                                                    @else
-                                                        bg-emerald-50 text-emerald-700 ring-emerald-200
-                                                    @endif
-                                                ">
-                                                    {{ $role->name }}
-                                                </span>
-                                            @empty
-                                                <span class="text-[11px] text-gray-500 italic bg-gray-100 px-2 py-1 rounded-md border border-gray-300">
-                                                    Rol Atanmamış
-                                                </span>
-                                            @endforelse
-                                        </div>
-                                    </td>
-
-                                    {{-- === YENİ GÜZELLEŞTİRİLMİŞ BUTONLAR === --}}
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-medium">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <a href="{{ route('admin.users.edit', $user) }}" class="px-2.5 py-0.5 text-xs font-medium rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors">
-                                                Düzenle
-                                            </a>
-                                            <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?');">
-                                                @csrf @method('delete')
-                                                <button type="submit" class="px-2.5 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700 hover:bg-red-200 transition-colors">
-                                                    Sil
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                    {{-- === BUTONLAR SONU === --}}
-                                </tr>
-                            @empty
+                {{-- TAB İÇERİKLERİ --}}
+                
+                {{-- 1. SİSTEM KULLANICILARI TABLOSU --}}
+                <div x-show="activeTab === 'sistem'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50/70">
                                 <tr>
-                                    <td colspan="4" class="px-6 py-12 text-center text-gray-500 text-sm">
-                                        @if(count($filters) > 0)
-                                            Filtre kriterlerine uygun aktif kullanıcı bulunamadı.
-                                        @else
-                                            Aktif kullanıcı bulunmamaktadır.
-                                        @endif
-                                    </td>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kullanıcı</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bölüm</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roller</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kayıt Tarihi</th>
+                                    <th class="px-6 py-3 text-right"></th>
                                 </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                @forelse ($sistemKullanicilari as $user)
+                                    <tr class="hover:bg-indigo-50/50 transition">
+                                        <td class="px-6 py-3">
+                                            <div class="flex items-center gap-3">
+                                                 @if($user->profile_photo_path)
+                                                    <img src="{{ asset('storage/' . $user->profile_photo_path) }}" alt="{{ $user->name }}" class="h-8 w-8 rounded-full object-cover border border-gray-200">
+                                                 @else
+                                                    <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
+                                                        {{ Str::upper(Str::substr($user->name, 0, 1)) }}
+                                                    </div>
+                                                 @endif
+                                                <div>
+                                                    <div class="font-semibold text-gray-900">{{ $user->name }}</div>
+                                                    <div class="text-xs text-gray-500">{{ $user->email }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-3">
+                                            @if($user->bolum)
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                                                    {{ $user->bolum->ad }}
+                                                </span>
+                                            @else
+                                                <span class="text-gray-400 text-xs">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-3">
+                                            <div class="flex flex-wrap gap-1">
+                                                @foreach($user->roles as $role)
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                                                        {{ $role->name }}
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-3 text-xs text-gray-500">
+                                            {{ $user->created_at->format('d.m.Y H:i') }}
+                                        </td>
+                                        <td class="px-6 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-2">
+                                                @if(!$user->hasVerifiedEmail())
+                                                    <form method="POST" action="{{ route('admin.users.verifyEmail', $user) }}" class="inline-block">
+                                                        @csrf
+                                                        <button type="submit" class="p-1.5 rounded-full text-blue-600 hover:bg-blue-50 transition-colors" title="E-postayı Doğrula">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                                <a href="{{ route('admin.users.edit', $user) }}" class="p-1.5 rounded-full text-indigo-600 hover:bg-indigo-50 transition-colors" title="Düzenle">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </a>
+                                                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?');" class="inline-block">
+                                                    @csrf @method('delete')
+                                                    <button type="submit" class="p-1.5 rounded-full text-red-600 hover:bg-red-50 transition-colors" title="Sil">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500 text-xs">Sistem kullanıcısı bulunamadı.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if ($sistemKullanicilari->hasPages())
+                        <div class="px-6 py-3 border-t border-gray-200 bg-gray-50">
+                            {{ $sistemKullanicilari->appends(['activeTab' => 'sistem'])->links() }}
+                        </div>
+                    @endif
                 </div>
 
-                @if ($aktifKullanicilar->hasPages())
-                    <div class="p-6 bg-gray-50 border-t border-gray-200">
-                        {{ $aktifKullanicilar->links() }}
+                {{-- 2. MÜŞTERİ YETKİLİLERİ TABLOSU --}}
+                <div x-show="activeTab === 'musteri'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50/70">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Yetkili Kişi</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bağlı Olduğu Firma</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ünvan</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Eklenme Tarihi</th>
+                                    <th class="px-6 py-3 text-right"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                @forelse ($musteriKullanicilari as $user)
+                                    <tr class="hover:bg-purple-50/50 transition">
+                                        <td class="px-6 py-3">
+                                            <div class="flex items-center gap-3">
+                                                 @if($user->profile_photo_path)
+                                                    <img src="{{ asset('storage/' . $user->profile_photo_path) }}" alt="{{ $user->name }}" class="h-8 w-8 rounded-full object-cover border border-gray-200">
+                                                 @else
+                                                    <div class="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-xs">
+                                                        {{ Str::upper(Str::substr($user->name, 0, 1)) }}
+                                                    </div>
+                                                 @endif
+                                                <div>
+                                                    <div class="font-semibold text-gray-900">{{ $user->name }}</div>
+                                                    <div class="text-xs text-gray-500">{{ $user->email }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-3">
+                                            @if($user->customer)
+                                                <a href="{{ route('musteri.profil.show', $user->customer->id) }}" class="text-indigo-600 hover:underline font-medium text-xs">
+                                                    {{ $user->customer->name }}
+                                                </a>
+                                            @else
+                                                <span class="text-gray-400 text-xs">Firma Bağı Yok</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-3 text-xs text-gray-700">
+                                            {{ $user->unvan ?? '-' }}
+                                        </td>
+                                        <td class="px-6 py-3">
+                                            {{-- TOOLTIP MEKANİZMASI --}}
+                                            @php
+                                                // Eğer accessor null ise hata vermemesi için kontrol
+                                                $creatorName = null;
+                                                try {
+                                                    $creator = $user->creator;
+                                                    if($creator) $creatorName = $creator->name;
+                                                } catch(\Exception $e) {}
+                                            @endphp
+
+                                            <div class="group relative inline-block cursor-help">
+                                                <span class="text-xs text-gray-500 border-b border-dotted border-gray-400">
+                                                    {{ $user->created_at->format('d.m.Y H:i') }}
+                                                </span>
+                                                {{-- Tooltip Content --}}
+                                                <div class="opacity-0 invisible group-hover:opacity-100 group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50 transition-all duration-200 pointer-events-none">
+                                                    @if($creatorName)
+                                                        <div class="font-semibold">Ekleyen:</div>
+                                                        <div>{{ $creatorName }}</div>
+                                                    @else
+                                                        Ekleyen bilgisi bulunamadı
+                                                    @endif
+                                                    {{-- Ok Kısmı --}}
+                                                    <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-3 text-right">
+                                            <div class="flex items-center justify-end gap-2">
+                                                @if(!$user->hasVerifiedEmail())
+                                                    <form method="POST" action="{{ route('admin.users.verifyEmail', $user) }}" class="inline-block">
+                                                        @csrf
+                                                        <button type="submit" class="p-1.5 rounded-full text-blue-600 hover:bg-blue-50 transition-colors" title="E-postayı Doğrula">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                                <a href="{{ route('admin.users.edit', $user) }}" class="p-1.5 rounded-full text-indigo-600 hover:bg-indigo-50 transition-colors" title="Düzenle">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                </a>
+                                                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="inline-block" onsubmit="return confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?');">
+                                                    @csrf @method('delete')
+                                                    <button type="submit" class="p-1.5 rounded-full text-red-600 hover:bg-red-50 transition-colors" title="Sil">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="5" class="px-6 py-8 text-center text-gray-500 text-xs">Müşteri yetkilisi bulunamadı.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-                @endif
+                    @if ($musteriKullanicilari->hasPages())
+                        <div class="px-6 py-3 border-t border-gray-200 bg-gray-50">
+                            {{ $musteriKullanicilari->appends(['activeTab' => 'musteri'])->links() }}
+                        </div>
+                    @endif
+                </div>
+
             </div>
         </div>
     </div>

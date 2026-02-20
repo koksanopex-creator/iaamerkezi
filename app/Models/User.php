@@ -2,19 +2,19 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail; // <-- Import Eklendi
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Database\Eloquent\SoftDeletes; // SoftDeletes'i import ettin ama 'use' etmeyi unutmuşsun, onu da ekledim.
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Takim;
-use App\Models\SikayetKategori; // Bunu ekledim
+use App\Models\SikayetKategori;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail // <-- Interface Implemente Edildi
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, SoftDeletes; // <-- SoftDeletes EKLENDİ
+    use HasFactory, Notifiable, HasRoles, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -30,10 +30,12 @@ class User extends Authenticatable
         'onaylandi_mi',
         'telefon',
         'profile_photo_path',
-        
+        'last_seen_at',
+
         // === YENİ EKLENENLER (CRM) ===
         'is_personnel', // true: Personel, false: Müşteri Temsilcisi
         'customer_id',  // Eğer müşteri temsilcisi ise bağlı olduğu firma ID
+        'email_verified_at', // <--- YENİ EKLENDİ
     ];
 
     /**
@@ -57,7 +59,17 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_personnel' => 'boolean', // <-- Cast eklendi
+            'last_seen_at' => 'datetime', // <--- KRİTİK EKLEME BURADA
         ];
+    }
+
+    /**
+     * Kullanıcının son 5 dakika içinde aktif olup olmadığını kontrol eder.
+     */
+    public function isOnline()
+    {
+        // last_seen_at verisi varsa ve şu anki zamandan farkı 5 dakikadan azsa true döner
+        return $this->last_seen_at && $this->last_seen_at->diffInMinutes(now()) < 5;
     }
 
     // =========================================================
@@ -107,8 +119,8 @@ class User extends Authenticatable
     public function takimlar()
     {
         return $this->belongsToMany(Takim::class, 'takim_user', 'user_id', 'takim_id')
-                    ->withPivot('gorev_tanimi')
-                    ->withTimestamps();
+            ->withPivot('gorev_tanimi')
+            ->withTimestamps();
     }
 
     public function lideriOlduguTakimlar()
@@ -119,9 +131,9 @@ class User extends Authenticatable
     public function yonettigiSikayetKategorileri()
     {
         return $this->belongsToMany(
-            SikayetKategori::class, 
-            'bolum_kalite_yoneticileri', 
-            'user_id', 
+            SikayetKategori::class,
+            'bolum_kalite_yoneticileri',
+            'user_id',
             'sikayet_kategori_id'
         );
     }
@@ -134,8 +146,8 @@ class User extends Authenticatable
     public function gorevliOlduguProjeler()
     {
         return $this->belongsToMany(Iaa::class, 'iaa_user', 'user_id', 'iaa_id')
-                    ->withPivot('rol', 'kazanilan_puan', 'durum')
-                    ->withTimestamps();
+            ->withPivot('rol', 'kazanilan_puan', 'durum')
+            ->withTimestamps();
     }
 
     public function disiplinDosyalari()
@@ -148,30 +160,29 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\DisciplinaryCase::class, 'reporter_id');
     }
 
-    // App\Models\User.php içine ekle:
-
     /**
      * Kullanıcının yetkili olduğu (görebileceği) Bölüm ID'lerini getirir.
      */
-
     public function getAllowedBolumIds()
     {
         // 1. Superadmin/Yonetim/Kurul ise tüm bölümleri görsün
         if ($this->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
-            return '*'; 
+            return '*';
         }
 
         $bolumIds = [];
 
-        // 2. Bölüm Kalite Yöneticisi (Serkan Tölek)
+        // 2. Bölüm Kalite Yöneticisi (Serkan Tölek - SQL HATASI BURADAYDI)
         if ($this->hasRole('Bölüm Kalite Yöneticisi')) {
-             $yonetilenBolumler = \Illuminate\Support\Facades\DB::table('bolum_kalite_yoneticileri')
-                ->where('user_id', $this->id)
-                // Pivot tablonda bolum_id varsa bunu kullan, yoksa kategori->bolum ilişkisine gitmelisin.
-                // Şimdilik pivotta bolum_id olduğunu varsayıyoruz (eski koda göre).
-                ->pluck('bolum_id') 
+            // HATA: bolum_kalite_yoneticileri tablosunda 'bolum_id' yok.
+            // DOĞRUSU: İlişki üzerinden gidip kategorinin bağlı olduğu bölümü almalıyız.
+
+            $yonetilenBolumler = $this->yonettigiSikayetKategorileri()
+                ->pluck('bolum_id') // Kategoriler tablosundaki bolum_id'yi alır
+                ->unique()          // Aynı bölümden birden fazla kategori varsa tekilleştirir
                 ->toArray();
-             $bolumIds = array_merge($bolumIds, $yonetilenBolumler);
+
+            $bolumIds = array_merge($bolumIds, $yonetilenBolumler);
         }
 
         // 3. Bölüm Lideri (Serkan Atak)
@@ -181,13 +192,76 @@ class User extends Authenticatable
 
         // 4. Müşteri Şikayeti Çözüm Lideri (Hasan Ekinci)
         if ($this->hasRole('Müşteri Şikayeti Çözüm Lideri')) {
-            // HATA VEREN KOD KALDIRILDI ($takim->bolum_id yok).
-            // Çözüm: Liderin kendi bölümünü ekliyoruz.
             if ($this->bolum_id) {
                 $bolumIds[] = $this->bolum_id;
             }
         }
 
+        // 5. Direktör Yetkisi
+        if ($this->hasRole('Direktör')) {
+            // Direktörlerin yönettiği bölümlerin ID'lerini al
+            $yonetilenBolumler = $this->yonetilenBolumler()->pluck('id')->toArray();
+            $bolumIds = array_merge($bolumIds, $yonetilenBolumler);
+        }
+
         return array_unique($bolumIds);
+    }
+
+    /**
+     * Kullanıcının giriş logları
+     */
+    public function loginActivities()
+    {
+        return $this->hasMany(\App\Models\LoginActivity::class)->latest();
+    }
+
+    /**
+     * Şifre sıfırlama bildirimini gönderir.
+     *
+     * @param  string  $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new \App\Notifications\ResetPasswordNotification($token));
+    }
+
+    /**
+     * E-posta doğrulama bildirimini gönderir.
+     *
+     * @return void
+     */
+    public function sendEmailVerificationNotification()
+    {
+        $this->notify(new \App\Notifications\VerifyEmailNotification);
+    }
+
+    /**
+     * Kullanıcıyı oluşturan kişiyi (MusteriLog üzerinden) bulmaya çalışır.
+     * Bu özellik özellikli "Müşteri Temsilcisi" kullanıcıları için çalışır.
+     */
+    public function getCreatorAttribute()
+    {
+        if (!$this->customer_id) {
+            return null;
+        }
+
+        // MusteriLog tablosunda bu kişi için "Yetkili Ekleme" kaydı var mı?
+        // Açıklama alanı: "X, yeni yetkili ekledi: {USER_NAME}"
+        $log = \App\Models\MusteriLog::where('customer_id', $this->customer_id)
+            ->where('islem_turu', 'Yetkili Ekleme')
+            ->where('aciklama', 'LIKE', '%' . $this->name . '%') // İsme göre eşleştirme (riskli ama mevcut yapıda tek yol)
+            ->with('user') // Logu oluşturan user
+            ->first();
+
+        return $log ? $log->user : null;
+    }
+
+    /**
+     * Kullanıcının Direktör olarak yönettiği Bölümler
+     */
+    public function yonetilenBolumler()
+    {
+        return $this->hasMany(Bolum::class, 'director_id');
     }
 }

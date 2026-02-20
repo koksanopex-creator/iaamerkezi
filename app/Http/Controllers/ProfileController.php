@@ -17,11 +17,29 @@ use App\Models\ProfileComment;
 use Illuminate\Support\Facades\DB;
 use App\Notifications\ProfilYorumBildirimi;
 
+use App\Services\Dashboard\KullaniciPuanService;
+
 class ProfileController extends Controller
 {
+    protected $puanService;
+
+    public function __construct(KullaniciPuanService $puanService)
+    {
+        $this->puanService = $puanService;
+    }
     public function edit(Request $request): View
     {
         $user = $request->user();
+
+        // === PUAN SENKRONİZASYONU (PROFİL DÜZENLEME EKRANI) ===
+        if ($user->is_personnel) {
+            $guncelPuan = $this->puanService->calculateTotalScore($user);
+            if ($user->toplam_puan != $guncelPuan) {
+                $user->toplam_puan = $guncelPuan;
+                $user->save();
+            }
+        }
+
         $data = $this->getProfileData($user);
         return view('profile.edit', array_merge(['user' => $user], $data));
     }
@@ -34,13 +52,12 @@ class ProfileController extends Controller
 
         // 1. KURAL: Superadmin herkesi görebilir.
         if ($currentUser->hasRole('Superadmin')) {
-             // Sorun yok, devam et.
+            // Sorun yok, devam et.
         }
         // 2. KURAL: Kişi KENDİ profilini her zaman görebilir.
         elseif ($currentUser->id == $user->id) {
-             // Sorun yok, devam et.
-        }
-        else {
+            // Sorun yok, devam et.
+        } else {
             // --- YASAKLI DURUMLAR ---
 
             // A) Hedef kişi Müşteri ise (is_personnel = false) -> 404
@@ -54,9 +71,9 @@ class ProfileController extends Controller
             // Not: 'Yonetim' rolünü zaten gizlemişsiniz ama diğerlerini de ekleyelim.
             $yasakliRoller = [
                 'Superadmin',
-                'Yonetim', 
-                'Dış Avukat', 
-                'Arabuluculuk Finans', 
+                'Yonetim',
+                'Dış Avukat',
+                'Arabuluculuk Finans',
                 'Hukuk Yöneticisi',
                 'Hukuk Admini'
             ];
@@ -67,6 +84,15 @@ class ProfileController extends Controller
         }
         // === GÜVENLİK DUVARI BİTİŞİ ===
 
+
+        // === PUAN SENKRONİZASYONU (GÖRÜNTÜLENEN PROFİL İÇİN) ===
+        if ($user->is_personnel) {
+            $guncelPuan = $this->puanService->calculateTotalScore($user);
+            if ($user->toplam_puan != $guncelPuan) {
+                $user->toplam_puan = $guncelPuan;
+                $user->save();
+            }
+        }
 
         // Mevcut Veri Hazırlama Kodunuz (Aynen Korundu)
         $data = $this->getProfileData($user);
@@ -94,11 +120,11 @@ class ProfileController extends Controller
         if ($request->parent_id) {
             // CEVAP İSE:
             $ustYorum = ProfileComment::find($request->parent_id);
-            
+
             // 1. Üst Yorum Sahibine Bildirim (Eğer ben değilsem)
             if ($ustYorum && $ustYorum->yazan_user_id !== $benimId) {
                 $target = User::find($ustYorum->yazan_user_id);
-                if($target) {
+                if ($target) {
                     // DİKKAT: 3. parametre olarak $profilSahibiId gönderiyoruz
                     $target->notify(new ProfilYorumBildirimi($comment, 'reply', $profilSahibiId));
                 }
@@ -127,7 +153,7 @@ class ProfileController extends Controller
     public function destroyComment(ProfileComment $comment)
     {
         $user = auth()->user();
-        
+
         // YETKİ KONTROLÜ:
         // 1. Yorumu yazan kişi silebilir.
         // 2. Profil sahibi silebilir (Ancak Süper Admin'in yorumunu silemez).
@@ -139,8 +165,8 @@ class ProfileController extends Controller
         $commentAuthorIsAdmin = $comment->yazan->hasRole('Superadmin');
 
         if (
-            $isSuperAdmin || 
-            $isAuthor || 
+            $isSuperAdmin ||
+            $isAuthor ||
             ($isProfileOwner && !$commentAuthorIsAdmin)
         ) {
             $comment->delete();
@@ -164,7 +190,7 @@ class ProfileController extends Controller
 
         // === FOTOĞRAF YÜKLEME İŞLEMİ ===
         if ($request->hasFile('photo')) {
-            
+
             // 1. Varsa eski fotoğrafı sil
             if ($user->profile_photo_path && Storage::disk('public')->exists($user->profile_photo_path)) {
                 Storage::disk('public')->delete($user->profile_photo_path);
@@ -174,16 +200,16 @@ class ProfileController extends Controller
             // Format: ad-soyad_24-11-2025_14-53-01_a1b2.jpg
             $file = $request->file('photo');
             $extension = $file->getClientOriginalExtension();
-            
+
             $safeName = Str::slug($user->name); // Türkçe karakterleri temizle (Serkan Tölek -> serkan-tolek)
             $timestamp = now()->format('d-m-Y_H-i-s');
             $random = Str::random(4); // Çakışmayı önlemek için kısa rastgele kod
-            
+
             $fileName = "{$safeName}_{$timestamp}_{$random}.{$extension}";
 
             // 3. Kaydet (storeAs kullanarak isimi biz belirliyoruz)
             $path = $file->storeAs('profile-photos', $fileName, 'public');
-            
+
             $user->profile_photo_path = $path;
         }
         // ===============================
@@ -209,15 +235,22 @@ class ProfileController extends Controller
     private function getProfileData($user)
     {
         // 1. Takımlar
-        $takimlar = $user->takimlar ?? collect();
-        
-        // 2. İstatistikler
+        // 1. Takımlar (ŞİKAYET TAKIMLARI HARİÇ)
+        $takimlar = $user->takimlar()->where('tur', '!=', 'sikayet')->get();
+
+        // 2. İstatistikler (DÜZELTİLDİ: SQUAD ÜYELİĞİ DAHİL)
         $tamamlananProjeSayisi = Iaa::where('durum', 'Tamamlandı')
-            ->whereHas('atananTakim.uyeler', fn($q) => $q->where('users.id', $user->id))
+            ->where(function ($q) use ($user) {
+                $q->whereHas('atananTakim.uyeler', fn($sub) => $sub->where('users.id', $user->id))
+                    ->orWhereHas('projeEkibi', fn($sub) => $sub->where('users.id', $user->id));
+            })
             ->count();
 
         $aktifProjeSayisi = Iaa::whereIn('durum', ['Atandı', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor'])
-            ->whereHas('atananTakim.uyeler', fn($q) => $q->where('users.id', $user->id))
+            ->where(function ($q) use ($user) {
+                $q->whereHas('atananTakim.uyeler', fn($sub) => $sub->where('users.id', $user->id))
+                    ->orWhereHas('projeEkibi', fn($sub) => $sub->where('users.id', $user->id));
+            })
             ->count();
 
         // 3. Son Aktiviteler (Loglar)
@@ -227,29 +260,60 @@ class ProfileController extends Controller
             ->take(10)
             ->get();
 
-        // 4. Son Proje
-        $sonProje = Iaa::whereHas('atananTakim.uyeler', fn($q) => $q->where('users.id', $user->id))
+        // 4. Son Proje (KENDİ ÖNERDİKLERİ VE SQUAD DAHİL)
+        $sonProje = Iaa::where(function ($query) use ($user) {
+            $query->whereHas('atananTakim.uyeler', fn($q) => $q->where('users.id', $user->id))
+                ->orWhereHas('projeEkibi', fn($q) => $q->where('users.id', $user->id));
+        })
+            ->orWhere('gonderen_user_id', $user->id)
             ->latest('updated_at')
             ->first();
 
-        // 5. Şikayet Bildirimleri
-        $girilenSikayetler = Iaa::where('gonderen_user_id', $user->id)
-            ->has('musteriSikayeti')
-            ->with('musteriSikayeti')
+        // 5. Şikayet Bildirimleri (DÜZELTİLEN MANTIK)
+        // Kullanıcının "Oluşturduğu" (Bildirdiği) şikayetleri alıyoruz.
+        // Dashboard mantığıyla birebir aynı olması için User->Iaa ilişkisi yerine MusteriSikayeti tablosuna bakıyoruz.
+        $girilenSikayetler = \App\Models\MusteriSikayeti::where('olusturan_kurul_uyesi_id', $user->id)
             ->latest()
             ->take(10)
             ->get();
-        
-        $sikayetPuani = $girilenSikayetler->where('durum', 'Tamamlandı')->sum('puan');
 
-        // 6. Grafik Verisi (Aylık Performans)
+        $sikayetPuani = $girilenSikayetler->sum('kazanilan_puan');
+
+        // 6. Grafik Verisi (SAF İAA ÇÖZME PERFORMANSI - ŞİKAYET HARİÇ)
         $aylikPerformans = Iaa::where('durum', 'Tamamlandı')
-            ->whereHas('atananTakim.uyeler', fn($q) => $q->where('users.id', $user->id))
+            ->doesntHave('musteriSikayeti') // <--- SADECE SAF İAA PROJELERİ
+            ->where(function ($q) use ($user) {
+                $q->whereHas('atananTakim.uyeler', fn($sub) => $sub->where('users.id', $user->id))
+                    ->orWhereHas('projeEkibi', fn($sub) => $sub->where('users.id', $user->id));
+            })
             ->select(
                 DB::raw('count(id) as sayi'),
                 DB::raw("DATE_FORMAT(onaylanma_tarihi, '%Y-%m') as ay")
             )
-            ->where('onaylanma_tarihi', '>=', now()->subMonths(6))
+            // TARİH KISITLAMASI KALDIRILDI (Tüm Zamanlar)
+            ->groupBy('ay')
+            ->orderBy('ay')
+            ->pluck('sayi', 'ay')
+            ->toArray();
+
+        // 6b. Müşteri Şikayeti Çözme Performansı (Tüm Zamanlar)
+        // Kapsam: Doğrudan Çözüm Takımı + Yetkili + Şikayetten Dönüşen Projelerin Ekibi
+        $sikayetPerformans = \App\Models\MusteriSikayeti::whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı', 'Tamamlandı'])
+            ->where(function ($q) use ($user) {
+                // 1. Çözüm Takımındaysa
+                $q->whereHas('cozumTakimi.uyeler', fn($uq) => $uq->where('users.id', $user->id))
+                    // 2. Veya Doğrudan Yetkiliyse
+                    ->orWhere('yetkili_user_id', $user->id)
+                    // 3. Veya Şikayet bir Projeye dönüşmüşse ve kullanıcı o projenin ekibindeyse (Takım veya Squad)
+                    ->orWhereHas('iaaProjesi', function ($iq) use ($user) {
+                    $iq->whereHas('atananTakim.uyeler', fn($uq) => $uq->where('users.id', $user->id))
+                        ->orWhereHas('projeEkibi', fn($uq) => $uq->where('users.id', $user->id));
+                });
+            })
+            ->select(
+                DB::raw('count(id) as sayi'),
+                DB::raw("DATE_FORMAT(updated_at, '%Y-%m') as ay")
+            )
             ->groupBy('ay')
             ->orderBy('ay')
             ->pluck('sayi', 'ay')
@@ -269,13 +333,13 @@ class ProfileController extends Controller
         // 8. Admin İstatistikleri (Sadece Admin profili için)
         $isAdmin = $user->hasRole('Superadmin');
         $adminStats = [];
-        
+
         if ($isAdmin) {
             $adminStats = [
                 'onaylanan_proje' => Iaa::where('onaylayan_user_id', $user->id)->where('durum', 'Tamamlandı')->count(),
                 'reddedilen_proje' => Iaa::where('onaylayan_user_id', $user->id)->where('durum', 'Tamamlanması Reddedildi')->count(),
                 'havuza_eklenen' => Iaa::where('onaylayan_user_id', $user->id)->where('durum', 'Havuzda')->count(),
-                
+
                 // Yönetim Logları
                 'son_yonetim_loglari' => IaaLog::where('user_id', $user->id)
                     ->whereIn('eylem', ['Proje Onaylandı', 'Revizyon Talep Edildi', 'Tamamlanmış Projenin Reddi', 'İşlem Geri Alındı'])
@@ -292,13 +356,101 @@ class ProfileController extends Controller
             ];
         }
 
-        // 9. Kullanıcının Dahil Olduğu Projeler (Edit Ekranı İçin)
-        $kullaniciProjeleri = Iaa::whereHas('atananTakim.uyeler', function($q) use ($user) {
-                $q->where('users.id', $user->id);
+        // 9. Kullanıcının Dahil Olduğu Projeler (DÜZELTİLDİ: SQUAD DAHİL)
+        $kullaniciProjeleri = Iaa::where(function ($q) use ($user) {
+            $q->whereHas('atananTakim.uyeler', function ($sub) use ($user) {
+                $sub->where('users.id', $user->id);
             })
+                ->orWhereHas('projeEkibi', function ($sub) use ($user) {
+                    $sub->where('users.id', $user->id);
+                });
+        })
+            ->orWhere('gonderen_user_id', $user->id) // Kendi önerileri
             ->with('atananTakim')
             ->latest('updated_at')
             ->get();
+
+
+
+        // 10. AKTİF GÖREVLER (Kişiye Özel Sekme)
+        $viewer = auth()->user();
+
+        // Görünürlük Kontrolü
+        $canViewActiveTasks = false;
+
+        if ($viewer->id === $user->id) {
+            $canViewActiveTasks = true; // Kendisi
+        } elseif ($viewer->hasRole(['Superadmin', 'Yonetim'])) {
+            $canViewActiveTasks = true; // Yönetici
+        } elseif ($viewer->hasRole('Bölüm Lideri') && $viewer->bolum_id == $user->bolum_id) {
+            $canViewActiveTasks = true; // İlgili Bölüm Lideri
+        }
+
+        $activeTasks = [];
+
+        if ($canViewActiveTasks) {
+            $query = Iaa::with([
+                'musteriSikayeti.sikayetKategori',
+                'atananTakim',
+                'aktifAdim.sorumlular',
+                'logs.user'
+            ])
+                ->has('musteriSikayeti')
+                ->where(function ($topQ) use ($user) {
+
+                    // 1. DURUM: BÖLÜM ONAYI BEKLİYOR (Eğer kullanıcı Bölüm Lideriyse)
+                    if ($user->hasRole('Bölüm Lideri') && $user->bolum_id) {
+                        $topQ->orWhere(function ($q) use ($user) {
+                            $q->where('durum', 'Bölüm Onayı Bekliyor')
+                                ->whereHas('musteriSikayeti.sikayetKategori', function ($k) use ($user) {
+                                    $k->where('bolum_id', $user->bolum_id);
+                                });
+                        });
+                    }
+
+                    // 2. DURUM: BÖLÜM KALİTE YÖNETİCİSİ İSE
+                    if ($user->hasRole('Bölüm Kalite Yöneticisi')) {
+                        $yonetilenKategoriler = $user->yonettigiSikayetKategorileri->pluck('id');
+                        if ($yonetilenKategoriler->isNotEmpty()) {
+                            $topQ->orWhere(function ($q) use ($yonetilenKategoriler) {
+                                $q->where('durum', 'Bölüm Onayı Bekliyor')
+                                    ->whereHas('musteriSikayeti', function ($k) use ($yonetilenKategoriler) {
+                                        $k->whereIn('sikayet_kategorisi_id', $yonetilenKategoriler);
+                                    });
+                            });
+                        }
+                    }
+
+                    // 3. DURUM: YÖNETİCİ ONAYI BEKLİYOR (Eğer kullanıcı Yönetim ise)
+                    if ($user->hasRole(['Superadmin', 'Yonetim'])) {
+                        $topQ->orWhere('durum', 'Yönetici Onayı Bekliyor');
+                    }
+
+                    // 4. DURUM: KİŞİSEL ADIM ATAMASI
+                    $topQ->orWhereHas('stepAssignments', function ($assignQ) use ($user) {
+                        $assignQ->where('user_id', $user->id)
+                            ->whereNotExists(function ($sub) {
+                                $sub->select(DB::raw(1))
+                                    ->from('iaa_progress_updates')
+                                    ->join('iaa_talepleri', 'iaa_progress_updates.iaa_talep_id', '=', 'iaa_talepleri.id')
+                                    ->whereColumn('iaa_talepleri.iaa_id', 'iaa_step_assignments.iaa_id')
+                                    ->whereColumn('iaa_progress_updates.iaa_workflow_step_id', 'iaa_step_assignments.iaa_workflow_step_id')
+                                    ->whereNotNull('completed_at');
+                            });
+                    });
+
+                    // 5. DURUM: TAKIM ÜYELİĞİ (Aktif Görevli)
+                    $topQ->orWhere(function ($activeQ) use ($user) {
+                        $activeQ->whereNotIn('durum', ['Tamamlandı', 'İptal Edildi', 'Reddedildi', 'Talep Olarak Kapatıldı', 'talep_olarak_kapatildi', 'TALEP_OLARAK_KAPATİLDİ', 'TALEP_OLARAK_KAPATILDI'])
+                            ->where(function ($teamQ) use ($user) {
+                                $teamQ->whereHas('projeEkibi', fn($pe) => $pe->where('users.id', $user->id))
+                                    ->orWhereHas('atananTakim', fn($at) => $at->where('lider_user_id', $user->id));
+                            });
+                    });
+                });
+
+            $activeTasks = $query->latest('updated_at')->get();
+        }
 
         return [
             'takimlar' => $takimlar,
@@ -309,11 +461,15 @@ class ProfileController extends Controller
             'girilenSikayetler' => $girilenSikayetler,
             'sikayetPuani' => $sikayetPuani,
             'aylikPerformans' => $aylikPerformans,
+            'sikayetPerformans' => $sikayetPerformans,
             'lastLogin' => $lastLogin,
-            'yorumlar' => $yorumlar, // <-- ARTIK İÇ İÇE YAPIYI GÖNDERİYORUZ
+            'yorumlar' => $yorumlar,
             'isAdmin' => $isAdmin,
             'adminStats' => $adminStats,
-            'kullaniciProjeleri' => $kullaniciProjeleri 
+            'kullaniciProjeleri' => $kullaniciProjeleri,
+            'canViewComplaintStats' => auth()->id() == $user->id || auth()->user()->hasRole(['Superadmin', 'Yonetim', 'Bölüm Lideri', 'Müşteri Şikayeti Çözüm Lideri', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi']),
+            'activeTasks' => $activeTasks,
+            'canViewActiveTasks' => $canViewActiveTasks
         ];
     }
 }

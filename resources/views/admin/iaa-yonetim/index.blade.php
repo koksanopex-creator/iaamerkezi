@@ -37,20 +37,11 @@
                         <option value="aktif-projeler">🔵 Aktif Projeler ({{ $atanmisOlanlar->count() }})</option>
                         
                         {{-- 2. ONAY BEKLEYENLER --}}
-                        @if(auth()->user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi']))
-                            @php
-                                $mobilOnayToplam = $bolumOnayiBekleyenler->count();
-                                if(auth()->user()->hasRole('Superadmin')) {
-                                    $mobilOnayToplam += $onayBekleyenMisafirler->count() + $onayBekleyenKullanicilar->count() + $yoneticiOnayiBekleyenler->count();
-                                }
-                            @endphp
-                            <option value="onay-bekleyenler">🟡 Onay Bekleyenler ({{ $mobilOnayToplam }})</option>
+                        @if(auth()->user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi', 'Direktör']))
+                            <option value="onay-bekleyenler">🟡 Onay Bekleyenler ({{ $onayToplam }})</option>
                         @endif
 
-                        {{-- 3. ONAYLADIKLARIM --}}
-                        @if(!auth()->user()->hasRole('Superadmin') && isset($bolumYoneticisiOnayladiklari) && $bolumYoneticisiOnayladiklari->isNotEmpty())
-                            <option value="onayladiklarim">🔵 Onayladıklarım ({{ $bolumYoneticisiOnayladiklari->count() }})</option>
-                        @endif
+
 
                         {{-- 4. HAVUZ & TALEPLER --}}
                         @role('Superadmin')
@@ -102,7 +93,7 @@
                         </button>
 
                         {{-- 2. ONAY BEKLEYENLER (SARI) --}}
-                        @if(auth()->user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi']))
+                        @if(auth()->user()->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi', 'Direktör']))
                         <button @click="switchTab('onay-bekleyenler'); activeTab = 'onay-bekleyenler'" 
                                 :class="activeTab === 'onay-bekleyenler' 
                                     ? 'border-yellow-500 text-yellow-700 bg-yellow-50' 
@@ -110,12 +101,6 @@
                                 class="w-full justify-center py-4 px-2 border-b-2 font-medium text-sm transition-all flex items-center gap-2">
                             <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             <span class="truncate">Onay Bekleyenler</span>
-                            @php 
-                                $onayToplam = $bolumOnayiBekleyenler->count(); 
-                                if(auth()->user()->hasRole('Superadmin')) {
-                                    $onayToplam += $onayBekleyenMisafirler->count() + $onayBekleyenKullanicilar->count() + $yoneticiOnayiBekleyenler->count();
-                                }
-                            @endphp
                             @if($onayToplam > 0)
                                 <span :class="activeTab === 'onay-bekleyenler' ? 'bg-yellow-200 text-yellow-800' : 'bg-yellow-100 text-yellow-600'"
                                       class="ml-1 py-0.5 px-2 rounded-full text-xs font-bold transition-colors">
@@ -125,25 +110,7 @@
                         </button>
                         @endif
 
-                        {{-- ONAYLADIKLARIM SEKMESİ --}}
-                        @php
-                            $onayladiklarimCount = 0;
-                            if(auth()->user()->hasRole('Superadmin') && isset($superadminOnayladiklari)) {
-                                $onayladiklarimCount = $superadminOnayladiklari->count();
-                            } elseif(isset($bolumYoneticisiOnayladiklari)) {
-                                $onayladiklarimCount = $bolumYoneticisiOnayladiklari->count();
-                            }
-                        @endphp
 
-                        @if($onayladiklarimCount > 0)
-                        <button onclick="switchTab('onayladiklarim')" 
-                                class="w-full justify-center tab-button py-4 px-2 border-b-2 font-medium text-sm transition-colors flex items-center gap-2"
-                                data-tab="onayladiklarim">
-                            <svg class="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            <span class="truncate">Onayladıklarım</span>
-                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">{{ $onayladiklarimCount }}</span>
-                        </button>
-                        @endif
 
                         {{-- 3. HAVUZ & TALEPLER (GRİ) --}}
                         @role('Superadmin')
@@ -231,12 +198,17 @@
                     {{-- 2. İÇERİK: ONAY BEKLEYENLER --}}
                     <div id="tab-onay-bekleyenler" class="tab-content space-y-6 hidden">
                         
-                        {{-- A. BÖLÜM ONAYI (Herkes görür, veri varsa basar) --}}
+                        {{-- A. BÖLÜM ONAYI (Kalite Yöneticisi veya Admin) --}}
                         @if($bolumOnayiBekleyenler->isNotEmpty())
                             @include('admin.iaa-yonetim.partials.bolum-onayi-bekleyenler-table', ['iaas' => $bolumOnayiBekleyenler])
                         @endif
 
-                        {{-- B. YÖNETİCİ & DİĞERLERİ (Sadece Admin) --}}
+                        {{-- B. DİREKTÖR ONAYI (Direktör veya Admin) --}}
+                        @if($direktorOnayiBekleyenler->isNotEmpty())
+                            @include('admin.iaa-yonetim.partials.direktor-onayi-bekleyenler-table', ['iaas' => $direktorOnayiBekleyenler])
+                        @endif
+
+                        {{-- C. YÖNETİCİ & DİĞERLERİ (Sadece Admin) --}}
                         @role('Superadmin')
                             @if($yoneticiOnayiBekleyenler->isNotEmpty())
                                 @include('admin.iaa-yonetim.partials.yonetici-onayi-bekleyenler-table', ['iaas' => $yoneticiOnayiBekleyenler, 'title' => 'Yönetici Onayı Bekleyen Tamamlanmış Projeler', 'color' => 'purple'])
@@ -257,25 +229,7 @@
                         @endif
                     </div>
 
-                    {{-- 6. İÇERİK: ONAYLADIKLARIM --}}
-                    <div id="tab-onayladiklarim" class="tab-content space-y-6 hidden">
-                        @if(auth()->user()->hasRole('Superadmin') && isset($superadminOnayladiklari) && $superadminOnayladiklari->isNotEmpty())
-                            {{-- SUPERADMIN TABLOSU --}}
-                            @include('admin.iaa-yonetim.partials.bolum-onayladiklari-table', [
-                                'iaas' => $superadminOnayladiklari
-                            ])
-                        @elseif(isset($bolumYoneticisiOnayladiklari) && $bolumYoneticisiOnayladiklari->isNotEmpty())
-                            {{-- BÖLÜM YÖNETİCİSİ TABLOSU --}}
-                            @include('admin.iaa-yonetim.partials.bolum-onayladiklari-table', [
-                                'iaas' => $bolumYoneticisiOnayladiklari
-                            ])
-                        @else
-                            <div class="p-8 text-center text-gray-500 bg-white rounded-lg border border-gray-200">
-                                Henüz onayladığınız ve geri alabileceğiniz bir proje bulunmamaktadır.
-                            </div>
-                        @endif
-                    </div>
-                    {{-- === EKLEME SONU === --}}
+
 
                     {{-- 3. İÇERİK: HAVUZ & TALEPLER --}}
                     @role('Superadmin')

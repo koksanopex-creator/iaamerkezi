@@ -9,19 +9,18 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage; 
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use App\Models\MusteriSikayetiDosyasi; 
+use App\Models\MusteriSikayetiDosyasi;
 use App\Models\SikayetKategori;
 use Illuminate\Support\Facades\Auth;
-use App\Traits\ComplaintNotificationTrait; 
+use App\Traits\ComplaintNotificationTrait;
 use Illuminate\Support\Facades\Validator;
 
 
 class SikayetController extends Controller
 {
     use AuthorizesRequests;
-    use ComplaintNotificationTrait; 
 
     public function index()
     {
@@ -36,15 +35,17 @@ class SikayetController extends Controller
     public function create(Request $request)
     {
         $this->authorize('create', MusteriSikayeti::class);
-        
+
         // Kategorileri çek
         $kategoriler = SikayetKategori::orderBy('ad')->get();
 
         // URL'den gelen 'musteri_id' parametresini al (Varsa)
-        $preselectedCustomerId = $request->query('musteri_id');
+        // Ancak validation hatası varsa old('customer_id') daha öncelikli olsun
+        $preselectedCustomerId = old('customer_id') ?? $request->query('musteri_id');
+        $preselectedRepId = old('yetkili_user_id');
 
         // View'e hem kategorileri hem de varsa müşteri ID'sini gönder
-        return view('admin.sikayetler.create', compact('kategoriler', 'preselectedCustomerId')); 
+        return view('admin.sikayetler.create', compact('kategoriler', 'preselectedCustomerId', 'preselectedRepId'));
     }
 
     public function store(Request $request)
@@ -55,7 +56,7 @@ class SikayetController extends Controller
         // ============================================================
         // === GÜVENLİK VE OTOMATİK VERİ ATAMA ===
         // ============================================================
-        
+
         // 1. Eğer Müşteri İse: Başkası adına kayıt giremez, kendi ID'sini zorla.
         if (!$user->is_personnel && $user->customer_id) {
             $request->merge(['customer_id' => $user->customer_id]);
@@ -67,6 +68,9 @@ class SikayetController extends Controller
             'sikayet_alt_kategori_id' => ($request->sikayet_alt_kategori_id === 'other' || !$request->sikayet_alt_kategori_id) ? null : $request->sikayet_alt_kategori_id,
         ]);
 
+        // ============================================================
+        // === VALIDASYON ===
+        // ============================================================
         // ============================================================
         // === VALIDASYON ===
         // ============================================================
@@ -84,6 +88,16 @@ class SikayetController extends Controller
             'musteri_sikayet_detayi' => 'required|string',
             'musteri_sikayet_tarihi' => 'required|date',
             'dosyalar.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,mp4|max:10240',
+
+            // YENİ ALANLAR (Çoklu Giriş)
+            'lot_no' => 'nullable|array',
+            'lot_no.*' => 'nullable|string|max:255',
+            'machine_id' => 'nullable|array',
+            'machine_id.*' => 'nullable|exists:machines,id',
+            'genel_hammadde_id' => 'nullable|array',
+            'genel_hammadde_id.*' => 'nullable|exists:genel_hammaddeler,id',
+            'urun_versiyonu_id' => 'nullable|array',
+            'urun_versiyonu_id.*' => 'nullable|exists:urun_versiyonlari,id',
         ]);
 
         // ============================================================
@@ -92,19 +106,26 @@ class SikayetController extends Controller
         $kazanilacakPuan = 0;
 
         // KURAL: Sadece Kurul Üyesi/Personel ise puan ver. Müşteriye puan YOK.
-        if (!$user->hasRole('Superadmin') && $user->is_personnel) { 
-            $kazanilacakPuan = (int)(\App\Models\Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0);
+        if (!$user->hasRole('Superadmin') && $user->is_personnel) {
+            $kazanilacakPuan = (int) (\App\Models\Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0);
         }
 
         DB::beginTransaction();
         try {
-            $sikayetData = $validated;
+            // Validasyon verisinden 'dosyalar' ve dizi olan teknik detayları çıkarıyoruz (Ana modelde yoklar)
+            $sikayetData = collect($validated)->except([
+                'dosyalar',
+                'lot_no',
+                'machine_id',
+                'genel_hammadde_id',
+                'urun_versiyonu_id'
+            ])->toArray();
 
             // Müşteri Adı ve İletişim Bilgisi Doldurma
             if ($request->customer_id) {
                 $customer = \App\Models\Customer::find($request->customer_id);
                 $sikayetData['musteri_adi'] = $customer->name;
-                
+
                 // Müşteri kendi ekliyorsa, iletişim bilgisi olarak kendi profilini yazsın
                 if (!$user->is_personnel) {
                     $sikayetData['musteri_iletisim'] = $user->name . ' (' . $user->email . ')';
@@ -113,7 +134,7 @@ class SikayetController extends Controller
                 elseif ($request->yetkili_user_id) {
                     $yetkili = \App\Models\User::find($request->yetkili_user_id);
                     $sikayetData['musteri_iletisim'] = $yetkili->name . ' (' . $yetkili->email . ')';
-                } 
+                }
                 // Hiçbiri değilse firmanın genel telefonunu yazsın
                 else {
                     $sikayetData['musteri_iletisim'] = $customer->phone ?? 'Belirtilmedi';
@@ -135,6 +156,27 @@ class SikayetController extends Controller
 
             $sikayet = MusteriSikayeti::create($sikayetData);
 
+            // TEKNİK DETAYLARI KAYDET (Çoklu)
+            if ($request->has('lot_no') && is_array($request->lot_no)) {
+                $count = count($request->lot_no);
+                for ($i = 0; $i < $count; $i++) {
+                    $lot = $request->lot_no[$i] ?? null;
+                    $machine = $request->machine_id[$i] ?? null;
+                    $hammadde = $request->genel_hammadde_id[$i] ?? null;
+                    $versiyon = $request->urun_versiyonu_id[$i] ?? null;
+
+                    // Eğer herhangi bir veri girilmişse kaydet (Boş satırları atla)
+                    if ($lot || $machine || $hammadde || $versiyon) {
+                        $sikayet->teknikDetaylar()->create([
+                            'lot_no' => $lot,
+                            'machine_id' => $machine,
+                            'genel_hammadde_id' => $hammadde,
+                            'urun_versiyonu_id' => $versiyon,
+                        ]);
+                    }
+                }
+            }
+
             // Puan Ekleme (Sadece Personelse)
             if ($kazanilacakPuan > 0) {
                 $user->increment('toplam_puan', $kazanilacakPuan);
@@ -154,42 +196,44 @@ class SikayetController extends Controller
                 }
             }
 
+            // DİREKTÖR BİLDİRİMİ (Yeni)
+            // Şikayetin bağlı olduğu kategorinin bölümü üzerinden direktörü bulalım
+            if ($sikayet->sikayetKategori && $sikayet->sikayetKategori->bolum) {
+                $bolum = $sikayet->sikayetKategori->bolum;
+                // Bölümün tanımlı bir direktörü var mı?
+                if ($bolum->director) {
+                    $direktor = $bolum->director;
+                    // Kendi eklediği şikayet için kendine bildirim gitmesin (İsteğe bağlı, genelde tercih edilir)
+                    if ($direktor->id !== $user->id) {
+                        $direktor->notify(new \App\Notifications\YeniMusteriSikayetiBildirimi($sikayet));
+                    }
+                }
+            }
+
             DB::commit();
 
             // LOGLAMA
-            $rol = $user->getRoleNames()->first(); 
+            $rol = $user->getRoleNames()->first();
             if (!$rol) {
                 $rol = $user->is_personnel ? 'Personel' : 'Müşteri';
             }
 
             \App\Models\MusteriLog::add(
-                $sikayet->customer_id, 
-                'Şikayet Oluşturma', 
+                $sikayet->customer_id,
+                'Şikayet Oluşturma',
                 $user->name . " ($rol) tarafından #{$sikayet->id} nolu şikayet oluşturuldu."
             );
-            
-            // Bildirim Gönder
-            if (method_exists($this, 'sendNewComplaintNotification')) {
-                $this->sendNewComplaintNotification($sikayet);
-            }
 
-            // --- YÖNLENDİRME MANTIĞI GÜNCELLENDİ ---
-            
-            // 1. Durum: Eğer işlem yapan bir PERSONEL DEĞİLSE (Yani Müşteri Yetkilisi ise)
+            // YÖNLENDİRME
             if (!$user->is_personnel) {
-                
-                // Eğer bu kullanıcının bağlı olduğu bir Müşteri ID'si varsa Oraya Git
                 if ($user->customer_id) {
                     return redirect()->route('musteri.profil.show', $user->customer_id)
                         ->with('success', 'Şikayetiniz başarıyla oluşturuldu ve firma profilinize eklendi.');
                 }
-
-                // Customer ID yoksa mecburen Dashboard'a git
                 return redirect()->route('dashboard')
                     ->with('success', 'Şikayetiniz başarıyla oluşturuldu ve işleme alındı.');
             }
 
-            // 2. Durum: Eğer işlem yapan PERSONEL ise Admin Listesine Git
             return redirect()->route('admin.sikayetler.index')
                 ->with('success', 'Şikayet başarıyla oluşturuldu.');
 
@@ -205,7 +249,7 @@ class SikayetController extends Controller
         // Model Binding kullanıyorsan parametre (MusteriSikayeti $sikayet) kalabilir.
         // Ben garanti olsun diye ID üzerinden çekiyorum, ilişkileri de burada yüklüyorum.
         $sikayet = \App\Models\MusteriSikayeti::with(['sikayetKategori', 'iaa'])->findOrFail($id);
-        
+
         $user = \Illuminate\Support\Facades\Auth::user();
         $yetkiVar = false;
 
@@ -222,7 +266,7 @@ class SikayetController extends Controller
         // -------------------------------------------------------------
         if (!$yetkiVar) {
             // User modeline eklediğimiz o akıllı fonksiyonu kullanıyoruz.
-            $allowedBolumIds = $user->getAllowedBolumIds(); 
+            $allowedBolumIds = $user->getAllowedBolumIds();
 
             // Şikayetin kategorisi var mı ve bu kategori kullanıcının yetki alanında mı?
             if ($sikayet->sikayetKategori && in_array($sikayet->sikayetKategori->bolum_id, $allowedBolumIds)) {
@@ -234,7 +278,7 @@ class SikayetController extends Controller
         // 3. GÖREV VE TAKIM YETKİSİ (Sinan Poyraz, Cihangir vb.)
         // -------------------------------------------------------------
         if (!$yetkiVar) {
-            
+
             // A. Atanan Çözüm Takımının Üyesi mi?
             if ($sikayet->atanan_cozum_takimi_id && $user->takimlar->contains($sikayet->atanan_cozum_takimi_id)) {
                 $yetkiVar = true;
@@ -247,7 +291,7 @@ class SikayetController extends Controller
                     ->where('users.id', $user->id)
                     // ->wherePivot('durum', 'onaylandi') // İstersen bu filtreyi açabilirsin
                     ->exists();
-                
+
                 if ($isSquadMember) {
                     $yetkiVar = true;
                 }
@@ -285,18 +329,52 @@ class SikayetController extends Controller
         // İLİŞKİLERİ YÜKLE VE GÖNDER
         // -------------------------------------------------------------
         // Senin orijinal kodundaki ilişkileri yüklüyoruz
-        $sikayet->load('cozumTakimi', 'olusturanKurulUyesi', 'dosyalar', 'sikayetKategori');
+        $sikayet->load([
+            'cozumTakimi',
+            'olusturanKurulUyesi',
+            'dosyalar',
+            'sikayetKategori',
+            'sikayetAltKategori',
+            'customer',
+            'yetkili_user',
+            'iaaProjesi',
+            'machine',
+            'genelHammadde',
+            'urunVersiyonu',
+            'loglar.user' // Logları ve logu oluşturan kullanıcıyı yükle
+        ]);
 
-        return view('admin.sikayetler.show', compact('sikayet'));
+        // Firma İstatistikleri
+        $firmaSikayetSayisi = 0;
+        $kacinciSikayet = 0;
+
+        if ($sikayet->customer_id) {
+            $firmaSikayetSayisi = \App\Models\MusteriSikayeti::where('customer_id', $sikayet->customer_id)->count();
+            $kacinciSikayet = \App\Models\MusteriSikayeti::where('customer_id', $sikayet->customer_id)
+                ->where('id', '<=', $sikayet->id)
+                ->count();
+        }
+
+        return view('admin.sikayetler.show', compact('sikayet', 'firmaSikayetSayisi', 'kacinciSikayet'));
     }
 
     public function edit(MusteriSikayeti $sikayet)
     {
         $this->authorize('update', $sikayet);
         $sikayet->load('dosyalar');
-        // Kategorileri çek ve view'e gönder
+
+        // Kategorileri çek
         $kategoriler = SikayetKategori::orderBy('ad')->get();
-        return view('admin.sikayetler.edit', compact('sikayet', 'kategoriler')); 
+
+        // Üretim Detayları için Verileri Çek
+        $machines = \App\Models\Machine::where('status', 'active')->orderBy('name')->get();
+
+        // Hammaddeler ve Versiyonlar Bölüme göre filtrelenebilir ama şimdilik hepsini veya genel olanları çekelim
+        // İleride kategoriye göre filtreleme JS ile yapılabilir. Şimdilik aktif olanları çekiyoruz.
+        $genelHammaddeler = \App\Models\GenelHammadde::where('aktif_mi', true)->orderBy('ad')->get();
+        $urunVersiyonlari = \App\Models\UrunVersiyonu::where('aktif_mi', true)->orderBy('ad')->get();
+
+        return view('admin.sikayetler.edit', compact('sikayet', 'kategoriler', 'machines', 'genelHammaddeler', 'urunVersiyonlari'));
     }
 
     /**
@@ -318,13 +396,13 @@ class SikayetController extends Controller
         $validated = $request->validate([
             'customer_id' => 'nullable|integer|exists:customers,id',
             'yetkili_user_id' => 'nullable|integer|exists:users,id',
-            
+
             // ESKİ KAYITLAR İÇİN: customer_id yoksa musteri_adi zorunlu
             'musteri_adi' => 'required_without:customer_id|nullable|string|max:255',
             'musteri_iletisim' => 'nullable|string|max:255',
             'konum_tipi' => 'required|string|in:Yurt İçi,Yurt Dışı',
             'sikayet_kategorisi_id' => 'required|integer|exists:sikayet_kategorileri,id',
-            'sikayet_alt_kategori_id' => 'nullable', 
+            'sikayet_alt_kategori_id' => 'nullable',
             'sikayet_alt_kategori_diger' => 'nullable|string|max:500',
             'musteri_oncelik' => 'required|string|in:Düşük,Normal,Yüksek,Acil',
             'musteri_sikayet_konusu' => 'required|string|max:255',
@@ -332,29 +410,46 @@ class SikayetController extends Controller
             'musteri_sikayet_tarihi' => 'required|date',
             'dosyalar.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,mp4|max:10240',
             'dosyalar_sil' => 'nullable|array',
-            'dosyalar_sil.*' => 'integer|exists:musteri_sikayeti_dosyalari,id'
+            'dosyalar_sil.*' => 'integer|exists:musteri_sikayeti_dosyalari,id',
+
+            // YENİ ALANLAR (Çoklu Giriş)
+            'lot_no' => 'nullable|array',
+            'lot_no.*' => 'nullable|string|max:255',
+            'machine_id' => 'nullable|array',
+            'machine_id.*' => 'nullable|exists:machines,id',
+            'genel_hammadde_id' => 'nullable|array',
+            'genel_hammadde_id.*' => 'nullable|exists:genel_hammaddeler,id',
+            'urun_versiyonu_id' => 'nullable|array',
+            'urun_versiyonu_id.*' => 'nullable|exists:urun_versiyonlari,id',
         ]);
 
         DB::beginTransaction();
         try {
-            // Validate edilmiş veriyi al, dosya işlemlerini (dizi oldukları için) çıkar
-            $updateData = collect($validated)->except(['dosyalar', 'dosyalar_sil'])->toArray();
+            // Validate edilmiş veriyi al, dosya ve teknik detay işlem dizilerini çıkar
+            $updateData = collect($validated)->except([
+                'dosyalar',
+                'dosyalar_sil',
+                'lot_no',
+                'machine_id',
+                'genel_hammadde_id',
+                'urun_versiyonu_id'
+            ])->toArray();
 
             // ============================================================
             // === BURAYA EKLİYORUZ: OTOMATİK İSİM DOLDURMA MANTIĞI ===
             // ============================================================
             if ($request->customer_id) {
                 $customer = \App\Models\Customer::find($request->customer_id);
-                
+
                 // Müşteri adını ve iletişim bilgisini otomatik doldur (Veritabanında boş kalmasın)
                 $updateData['musteri_adi'] = $customer->name;
-                
+
                 // Eğer iletişim bilgisi boş gelmişse, firmanınkini yaz
-                if(empty($updateData['musteri_iletisim'])) {
+                if (empty($updateData['musteri_iletisim'])) {
                     $updateData['musteri_iletisim'] = $customer->phone ?? $customer->email;
                 }
-           }
-           // ============================================================
+            }
+            // ============================================================
 
             // --- DÜZELTİLMİŞ VERİ HAZIRLAMA ---
             // Alt Kategori Mantığı
@@ -371,12 +466,38 @@ class SikayetController extends Controller
             // Veritabanını Güncelle
             $sikayet->update($updateData);
 
+            // TEKNİK DETAYLARI GÜNCELLE (Strategy: Delete All & Re-create)
+            // Mevcut detayları sil
+            $sikayet->teknikDetaylar()->delete();
+
+            // Yeni detayları ekle
+            if ($request->has('lot_no') && is_array($request->lot_no)) {
+                $count = count($request->lot_no);
+                for ($i = 0; $i < $count; $i++) {
+                    $lot = $request->lot_no[$i] ?? null;
+                    $machine = $request->machine_id[$i] ?? null;
+                    $hammadde = $request->genel_hammadde_id[$i] ?? null;
+                    $versiyon = $request->urun_versiyonu_id[$i] ?? null;
+
+                    // Eğer herhangi bir veri doluysa kaydet
+                    if ($lot || $machine || $hammadde || $versiyon) {
+                        $sikayet->teknikDetaylar()->create([
+                            'lot_no' => $lot,
+                            'machine_id' => $machine,
+                            'genel_hammadde_id' => $hammadde,
+                            'urun_versiyonu_id' => $versiyon,
+                        ]);
+                    }
+                }
+            }
+
             // Silinmek istenen dosyaları sil
             if ($request->has('dosyalar_sil')) {
                 $dosyalar = MusteriSikayetiDosyasi::where('musteri_sikayeti_id', $sikayet->id)
                     ->whereIn('id', $request->input('dosyalar_sil'))->get();
-                
+
                 foreach ($dosyalar as $dosya) {
+                    /** @var MusteriSikayetiDosyasi $dosya */
                     Storage::disk('public')->delete($dosya->dosya_yolu);
                     $dosya->delete();
                 }
@@ -413,7 +534,7 @@ class SikayetController extends Controller
         $puan = $sikayet->kazanilan_puan;
         $olusturanId = $sikayet->olusturan_kurul_uyesi_id;
 
-        DB::beginTransaction(); 
+        DB::beginTransaction();
         try {
             if ($puan > 0 && $olusturanId) {
                 User::where('id', $olusturanId)->decrement('toplam_puan', $puan);
@@ -426,8 +547,8 @@ class SikayetController extends Controller
 
             // --- BURASI EKLENECEK ---
             \App\Models\MusteriLog::add(
-                $sikayet->customer_id, 
-                'Şikayet Silme', 
+                $sikayet->customer_id,
+                'Şikayet Silme',
                 auth()->user()->name . ', #' . $sikayet->id . ' nolu şikayeti sildi.'
             );
             // ------------------------
@@ -436,9 +557,9 @@ class SikayetController extends Controller
             return redirect()->route('admin.sikayetler.index')->with('success', 'Şikayet ve ilişkili dosyaları başarıyla silindi, kazanılan puan geri alındı.');
 
         } catch (\Exception $e) {
-             DB::rollBack();
-             Log::error('Şikayet silinirken hata: ' . $e->getMessage());
-             return back()->with('error', 'Şikayet silinirken bir hata oluştu.');
+            DB::rollBack();
+            Log::error('Şikayet silinirken hata: ' . $e->getMessage());
+            return back()->with('error', 'Şikayet silinirken bir hata oluştu.');
         }
     }
 
@@ -480,33 +601,33 @@ class SikayetController extends Controller
         } else {
             $filteredQuery->where('olusturan_kurul_uyesi_id', $selectedUserId);
         }
-        
+
         $stats_filtrelenmis = [
             'toplam' => (clone $filteredQuery)->count(),
             'islemde' => (clone $filteredQuery)->where('musteri_durum', 'İşlemde')->count(),
             'cozulen' => (clone $filteredQuery)->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])->count(),
             'kategoriler' => (clone $filteredQuery)
-                                ->join('sikayet_kategorileri', 'musteri_sikayetleri.sikayet_kategorisi_id', '=', 'sikayet_kategorileri.id')
-                                ->select('sikayet_kategorileri.ad', DB::raw('count(musteri_sikayetleri.id) as toplam'))
-                                ->groupBy('sikayet_kategorileri.ad')
-                                ->orderBy('toplam', 'desc')
-                                ->get()
+                ->join('sikayet_kategorileri', 'musteri_sikayetleri.sikayet_kategorisi_id', '=', 'sikayet_kategorileri.id')
+                ->select('sikayet_kategorileri.ad', DB::raw('count(musteri_sikayetleri.id) as toplam'))
+                ->groupBy('sikayet_kategorileri.ad')
+                ->orderBy('toplam', 'desc')
+                ->get()
         ];
         // === FİLTRELENMİŞ İSTATİSTİK SONU ===
-        
+
 
         // Ana veriyi al ve view'e gönder
         $sikayetler = $filteredQuery->with('olusturanKurulUyesi', 'cozumTakimi', 'sikayetKategori')
-                                  ->latest()
-                                  ->paginate(15)
-                                  ->withQueryString();
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
 
         return view('admin.sikayetler.kurul', compact(
-            'sikayetler', 
-            'kurulUyeleri', 
+            'sikayetler',
+            'kurulUyeleri',
             'selectedUserId',
             'stats_filtrelenmis',
-            'stats_kisisel' 
+            'stats_kisisel'
         ));
     }
 }

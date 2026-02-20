@@ -7,8 +7,8 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
-use Spatie\Permission\Models\Role; 
-use Spatie\Permission\Models\Permission; 
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
 use Illuminate\Validation\Rule;
 use App\Models\Bolum;
 
@@ -32,20 +32,28 @@ class SistemAyarController extends Controller
         $musteriSikayetiPuan = $settings->get('musteri_sikayeti_standart_puan');
         $musteriSikayetiCozumCarpan = $settings->get('musteri_sikayeti_cozum_carpan');
         $kurulDefaultPuan = $settings->get('kurul_default_puan');
+        $iaaOneriPuani = $settings->get('iaa_oneri_puani');
+        $kvkkText = $settings->get('kvkk_text');
+        $notifyBolumLideri = $settings->get('sikayet_notify_bolum_lideri')?->value;
+        $direktorOnayiAktif = $settings->get('sikayet_direktor_onayi_aktif')?->value; // <--- YENİ
 
         return view('admin.ayarlar.index', compact(
             'settings',
             'users',
-            'roles', // <-- ROLLERİ VIEW'A GÖNDER
-            'bolumler', // <--- EKLENDİ: View'a gönder
-            'arabuluculukPermissions', // <-- EKLENDİ
+            'roles',
+            'bolumler',
+            'arabuluculukPermissions',
             'logo',
             'kayitOnay',
             'paraBirimleri',
             'standartPuan',
             'musteriSikayetiPuan',
             'musteriSikayetiCozumCarpan',
-            'kurulDefaultPuan'
+            'kurulDefaultPuan',
+            'iaaOneriPuani',
+            'kvkkText',
+            'notifyBolumLideri',
+            'direktorOnayiAktif' // <--- YENİ
         ));
     }
 
@@ -59,6 +67,7 @@ class SistemAyarController extends Controller
             'musteri_sikayeti_standart_puan' => 'nullable|integer|min:0',
             'musteri_sikayeti_cozum_carpan' => 'nullable|integer|min:1',
             'kurul_default_puan' => 'nullable|integer|min:0',
+            'iaa_oneri_puani' => 'nullable|integer|min:0',
 
             // === Müşteri E-posta Ayarları ===
             'sikayet_onay_email_subject' => 'nullable|string|max:255',
@@ -73,12 +82,14 @@ class SistemAyarController extends Controller
             'sikayet_notify_role_ids' => 'nullable|array', // <-- YENİ (Roller)
             'sikayet_notify_role_ids.*' => 'integer|exists:roles,id', // <-- YENİ (Roller)
             'sikayet_notify_manual_emails' => 'nullable|string',
-            'sikayet_atama_notify_manual_emails' => 'nullable|string', // <-- YENİ (Atama Bildirimi)
+            'sikayet_atama_notify_manual_emails' => 'nullable|string',
+            'sikayet_notify_bolum_lideri' => 'nullable|boolean',
+            'sikayet_direktor_onayi_aktif' => 'nullable|boolean', // <--- YENİ
 
             // <--- EKLENDİ: Bölüm Yetkisi Validasyonu
             'global_disciplinary_departments' => 'nullable|array',
             'global_disciplinary_departments.*' => 'exists:bolumler,id',
-            
+
             // Arabuluculuk Yetki Validasyonu (Opsiyonel ama iyi olur)
             'role_permissions' => 'nullable|array',
         ]);
@@ -86,7 +97,7 @@ class SistemAyarController extends Controller
         // 1-7 arası (Mevcut ayarlarınız) ...
         // ... (Logo, Kayıt, Para Birimi, Puanlar vs. kodlarınız burada)
         // ... (Kısalık olması için eklemedim, sizde mevcut)
-        
+
         // 1. Logo Güncelleme
         if ($request->hasFile('site_logo')) {
             $oldLogo = Setting::where('key', 'site_logo')->first();
@@ -123,7 +134,7 @@ class SistemAyarController extends Controller
             ['key' => 'musteri_sikayeti_standart_puan'],
             ['value' => $request->filled('musteri_sikayeti_standart_puan') ? $request->musteri_sikayeti_standart_puan : 0]
         );
-        
+
         // 6. Müşteri Şikayeti Çözüm Çarpanı Güncelleme
         Setting::updateOrCreate(
             ['key' => 'musteri_sikayeti_cozum_carpan'],
@@ -134,6 +145,12 @@ class SistemAyarController extends Controller
         Setting::updateOrCreate(
             ['key' => 'kurul_default_puan'],
             ['value' => $request->filled('kurul_default_puan') ? $request->kurul_default_puan : 0] // Varsayılan 0
+        );
+
+        // [YENİ] 7.1 İAA Öneri Puanı Kaydetme
+        Setting::updateOrCreate(
+            ['key' => 'iaa_oneri_puani'],
+            ['value' => $request->filled('iaa_oneri_puani') ? $request->iaa_oneri_puani : 0]
         );
 
 
@@ -216,10 +233,22 @@ class SistemAyarController extends Controller
             ['value' => $atamaManualEmailsValue]
         );
 
+        // 18. (YENİ) Bölüm Lideri Bildirimi (Opsiyonel)
+        Setting::updateOrCreate(
+            ['key' => 'sikayet_notify_bolum_lideri'],
+            ['value' => $request->has('sikayet_notify_bolum_lideri') ? '1' : '0']
+        );
+
+        // 19. (YENİ) Direktör Onayı Aktif mi?
+        Setting::updateOrCreate(
+            ['key' => 'sikayet_direktor_onayi_aktif'],
+            ['value' => $request->has('sikayet_direktor_onayi_aktif') ? '1' : '0']
+        );
+
         // ================== KAYDETME SONU ==================
 
-       // ================== GÜNCELLENMİŞ: DİSİPLİN YETKİ AYARLARI ==================
-        
+        // ================== GÜNCELLENMİŞ: DİSİPLİN YETKİ AYARLARI ==================
+
         // 1. Önce temizlik (Reset)
         Bolum::query()->update([
             'is_disciplinary_global' => 0,
@@ -233,21 +262,21 @@ class SistemAyarController extends Controller
                 if ($bolum) {
                     // Global Yetki (Tüm Fabrika) İşaretli mi?
                     $isGlobal = isset($data['global']) && $data['global'] == '1';
-                    
+
                     $bolum->is_disciplinary_global = $isGlobal;
-                    
+
                     // Eğer Global değilse ama spesifik bölümler seçildiyse onları kaydet
                     // (Şimdilik global ise 'all' yapalım, değilse null bırakalım, mantığı basitleştirelim)
                     // İleride buraya "Sadece Üretim ve Depo'ya tutabilsin" gibi detay ekleyebiliriz.
-                    
+
                     $bolum->save();
                 }
             }
         }
-        
-        
-    // ================== 4. ARABULUCULUK YETKİLERİ (ID BAZLI DÜZELTME) ==================
-        
+
+
+        // ================== 4. ARABULUCULUK YETKİLERİ (ID BAZLI DÜZELTME) ==================
+
         // Arabuluculuk ile ilgili tüm izin nesnelerini al
         $arabuluculukPerms = Permission::where('name', 'like', 'arabuluculuk.%')->get();
         $allRoles = Role::where('name', '!=', 'Superadmin')->get();
@@ -263,7 +292,7 @@ class SistemAyarController extends Controller
                 // Eğer formda bu rol için bu İzin ID'si varsa -> Yetki Ver
                 if (array_key_exists($perm->id, $roleInput)) {
                     $role->givePermissionTo($perm->name);
-                } 
+                }
                 // Formda yok ama veritabanında varsa -> Geri Al (Revoke)
                 else {
                     if ($role->hasPermissionTo($perm->name)) {
@@ -272,9 +301,21 @@ class SistemAyarController extends Controller
                 }
             }
         }
-        
+
         // Cache Temizliği
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Cache Temizliği
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // ================== 5. KVKK METNİ KAYDETME (YENİ) ==================
+        if ($request->has('kvkk_text')) {
+            Setting::updateOrCreate(
+                ['key' => 'kvkk_text'],
+                ['value' => $request->input('kvkk_text')]
+            );
+        }
+        // ===================================================================
 
         // ================== KAYDETME SONU ==================
 
@@ -300,7 +341,7 @@ class SistemAyarController extends Controller
 
         $emails = preg_split('/[,\n\r]+/', $emailsInput);
         $cleanedEmails = array_filter(array_map('trim', $emails));
-        $validEmails = array_filter($cleanedEmails, function($email) {
+        $validEmails = array_filter($cleanedEmails, function ($email) {
             return filter_var($email, FILTER_VALIDATE_EMAIL);
         });
 

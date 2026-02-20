@@ -23,21 +23,43 @@
             </div>
         </a>
 
+        {{-- MAVİ KART: SORUMLU OLUNAN ALANLAR --}}
         <a href="{{ route('admin.sikayetler.index') }}" class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-blue-200 transition-all duration-300 group">
+            
             <div class="flex items-center justify-between mb-4">
+                {{-- İkon --}}
                 <div class="p-3 bg-blue-50 group-hover:bg-blue-100 text-blue-600 transition-colors rounded-xl">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
                 </div>
-                <span class="text-gray-400 text-xs group-hover:text-blue-500 transition-colors">Tümünü Gör →</span>
+                
+                {{-- BURASI DEĞİŞTİ: Toplam Şikayet (7) Sayısını sağ üste rozet olarak aldık --}}
+                <div class="flex flex-col items-end gap-1">
+                    <span class="text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs font-bold border border-blue-100">
+                        {{ $stats['toplam_sikayet'] }} Aktif Dosya
+                    </span>
+                    @if(($stats['bolum_onay_sayisi'] ?? 0) > 0)
+                        <span class="bg-purple-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                            {{ $stats['bolum_onay_sayisi'] }} Onay Bekleyen
+                        </span>
+                    @endif
+                </div>
             </div>
-            <h3 class="text-3xl font-bold text-gray-800">{{ $stats['toplam_sikayet'] }}</h3>
+
+            {{-- BURASI DEĞİŞTİ: Ana sayı artık Kategori Sayısı (3) oldu --}}
+            <div class="flex flex-col">
+                {{-- İlişkiden sayıyı çekiyoruz --}}
+                <h3 class="text-3xl font-bold text-gray-800">
+                    {{ Auth::user()->yonettigiSikayetKategorileri->count() }}
+                </h3>
+                <span class="text-gray-500 text-sm font-medium">Sorumlu Olduğunuz Alan</span>
+            </div>
             
-            {{-- Sorumlu Olduğu Kategorileri Listele --}}
-            <div class="mt-3">
-                <p class="text-gray-500 text-xs mb-2">Sorumlu Olduğunuz Alanlar:</p>
+            {{-- Alt Kısım: Alan İsimleri --}}
+            <div class="mt-4 pt-3 border-t border-gray-50">
+                <p class="text-gray-400 text-[10px] uppercase font-bold mb-2">Yönetilen Kategoriler</p>
                 <div class="flex flex-wrap gap-1.5">
                     @foreach(Auth::user()->yonettigiSikayetKategorileri as $kategori)
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100 truncate max-w-[150px]">
                             {{ $kategori->ad }}
                         </span>
                     @endforeach
@@ -130,28 +152,35 @@
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-            <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
-                <h3 class="font-bold text-gray-800 flex items-center gap-2">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
-                    Departman Şikayet Akışı
-                </h3>
-            </div>
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                        Departman Şikayet Akışı <span class="text-xs font-normal text-gray-500 ml-1">(Son 5 Kayıt)</span>
+                    </h3>
+                    
+                    {{-- Tüm listeye gitmek isteyenler için link --}}
+                    <a href="{{ route('admin.sikayetler.index') }}" class="text-xs text-blue-600 hover:underline font-semibold">
+                        Tümünü Gör &rarr;
+                    </a>
+                </div>
             <div class="flex-1 overflow-y-auto max-h-80">
                 @if($stats['son_departman_sikayetleri']->isNotEmpty())
                     <div class="space-y-0">
                         @foreach($stats['son_departman_sikayetleri'] as $sikayet)
                             <a href="{{ route('admin.sikayetler.show', $sikayet->id) }}" class="block px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors group">
                                 <div class="flex justify-between items-start mb-1">
-                                    <span class="text-xs font-bold px-2 py-0.5 rounded 
-                                        {{ $sikayet->musteri_durum == 'Kapatıldı' ? 'bg-green-100 text-green-700' : 
-                                          ($sikayet->musteri_durum == 'Yeni' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700') }}">
-                                        {{ $sikayet->musteri_durum }}
-                                    </span>
+                                    {{-- MODELDEKİ AKILLI ROZETİ KULLAN (HTML Olarak Bas) --}}
+                                    {!! $sikayet->musteri_durum_badge !!}
                                     <span class="text-xs text-gray-400">{{ $sikayet->created_at->format('d.m.Y') }}</span>
                                 </div>
                                 <p class="text-sm font-medium text-gray-800 mb-1 group-hover:text-blue-600 transition-colors">{{ Str::limit($sikayet->musteri_sikayet_konusu, 60) }}</p>
                                 <div class="flex items-center gap-2 text-xs text-gray-500">
                                     <span>Müşteri: {{ Str::limit($sikayet->musteri_adi, 15) }}</span>
+                                    @if($sikayet->iaaProjesi && in_array($sikayet->iaaProjesi->durum, ['talep_olarak_kapatildi', 'hatali_bildirim_olarak_kapatildi', 'Talep Olarak Kapatıldı']))
+                                        <span class="ml-1 scale-75 origin-left">
+                                            {!! $sikayet->iaaProjesi->durum_etiketi !!}
+                                        </span>
+                                    @endif
                                     <span>•</span>
                                     <span>Takım: {{ $sikayet->cozumTakimi->ad ?? 'Atanmadı' }}</span>
                                 </div>
@@ -168,6 +197,11 @@
 
     </div>
     
+    {{-- İADE TABLOSU --}}
+    @if(isset($iadeVerileri))
+        @include('dashboard.partials.iadeler-tablosu')
+    @endif
+
     {{-- 3. BÖLÜM: STANDART KARTLAR (Havuz vs. için partial çağırıyoruz) --}}
     <div class="pt-4 border-t border-gray-200">
         <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Diğer Araçlar</h4>

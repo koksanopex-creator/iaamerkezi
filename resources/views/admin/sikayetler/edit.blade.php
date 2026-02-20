@@ -43,12 +43,12 @@
                             {{-- MÜŞTERİ BİLGİSİ ALANI (AKILLI KONTROL) --}}
                             {{-- ========================================================= --}}
 
-                            @if($sikayet->customer_id)
+                                @if($sikayet->customer_id)
                                 {{-- DURUM 1: Bu kayıt YENİ sisteme göre açılmış veya bağlanmış --}}
                                 <div class="lg:col-span-2">
                                     <livewire:admin.sikayet-musteri-secimi 
-                                        :selectedCustomerId="$sikayet->customer_id" 
-                                        :selectedRepId="$sikayet->yetkili_user_id" 
+                                        :preselected-customer-id="$sikayet->customer_id" 
+                                        :selected-rep-id="$sikayet->yetkili_user_id" 
                                     />
                                 </div>
                             @else
@@ -221,6 +221,86 @@
                                     placeholder="Şikayetin detaylı açıklamasını giriniz...">{{ old('musteri_sikayet_detayi', $sikayet->musteri_sikayet_detayi) }}</textarea>
                                 @error('musteri_sikayet_detayi') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
                             </div>
+                            
+                            {{-- ========================================================= --}}
+                            {{-- ÜRETİM VE ÜRÜN DETAYLARI (OPSİYONEL) --}}
+                            {{-- ========================================================= --}}
+                            {{-- ========================================================= --}}
+                            {{-- ÜRETİM VE ÜRÜN DETAYLARI (OPSİYONEL) --}}
+                            {{-- ========================================================= --}}
+                            <div class="lg:col-span-2 bg-blue-50 rounded-xl p-6 border border-blue-100 mb-6" id="uretim_detaylari_container">
+                                
+                                <div class="flex items-center justify-between mb-4">
+                                    <h4 class="text-base font-bold text-blue-900 flex items-center">
+                                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
+                                        Üretim ve Ürün Detayları
+                                    </h4>
+                                    <button type="button" @click="addDetail()" class="text-xs flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                        Yeni Satır Ekle
+                                    </button>
+                                </div>
+                                
+                                <template x-for="(detail, index) in technicalDetails" :key="index">
+                                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4 pb-4 border-b border-blue-200 last:border-0 last:pb-0 relative animate-fade-in-down">
+                                        
+                                        {{-- Silme Butonu --}}
+                                        <div class="md:col-span-12 flex justify-end" x-show="technicalDetails.length > 1">
+                                            <button type="button" @click="removeDetail(index)" class="text-red-500 hover:text-red-700 text-xs font-semibold flex items-center gap-1">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                Sil
+                                            </button>
+                                        </div>
+
+                                        {{-- Lot Numarası --}}
+                                        <div class="md:col-span-3">
+                                            <label class="block text-xs font-bold text-gray-500 mb-1">Lot Numarası</label>
+                                            <input type="text" name="lot_no[]" x-model="detail.lot_no"
+                                                class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2.5 text-sm" 
+                                                placeholder="Örn: LT-2024-001">
+                                        </div>
+
+                                        {{-- Makine / Hat --}}
+                                        <div class="md:col-span-3">
+                                            <label class="block text-xs font-bold text-gray-500 mb-1">Makine / Hat</label>
+                                            <select name="machine_id[]" x-model="detail.machine_id" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2.5 bg-white text-sm">
+                                                <option value="">Seçiniz</option>
+                                                @foreach($machines as $machine)
+                                                    <option value="{{ $machine->id }}">
+                                                        {{ $machine->name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        {{-- Kullanılan Hammadde --}}
+                                        <div class="md:col-span-3">
+                                            <label class="block text-xs font-bold text-gray-500 mb-1">Hammadde</label>
+                                            <select name="genel_hammadde_id[]" x-model="detail.genel_hammadde_id" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2.5 bg-white text-sm">
+                                                <option value="">Seçiniz</option>
+                                                @foreach($genelHammaddeler as $hammadde)
+                                                    <option value="{{ $hammadde->id }}">
+                                                        {{ $hammadde->ad }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        {{-- Ürün Versiyonu --}}
+                                        <div class="md:col-span-3">
+                                            <label class="block text-xs font-bold text-gray-500 mb-1">Versiyon</label>
+                                            <select name="urun_versiyonu_id[]" x-model="detail.urun_versiyonu_id" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2.5 bg-white text-sm">
+                                                <option value="">Seçiniz</option>
+                                                @foreach($urunVersiyonlari as $versiyon)
+                                                    <option value="{{ $versiyon->id }}">
+                                                        {{ $versiyon->ad }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
 
                             {{-- Mevcut Kanıtlar --}}
                             {{-- mb-6 EKLENDİ --}}
@@ -386,10 +466,58 @@
                 dbSubId: '{{ $sikayet->sikayet_alt_kategori_id }}',
                 dbOther: '{{ $sikayet->sikayet_alt_kategori_diger }}',
 
+                // YENİ: TEKNİK DETAYLAR
+                technicalDetails: [],
+
                 init() {
                     // Sayfa açıldığında kategori varsa alt kategorileri çek
                     if (this.selectedCategory) {
                         this.fetchSubCategories(true); // true = Seçimi Koru
+                    }
+
+                    // TEKNİK DETAYLARI DOLDUR
+                    // 1. Önce validation hatasından dönen veri var mı?
+                    var oldLots = @json(old('lot_no', []));
+                    var oldMachines = @json(old('machine_id', []));
+                    var oldHammaddeler = @json(old('genel_hammadde_id', []));
+                    var oldVersiyonlar = @json(old('urun_versiyonu_id', []));
+
+                    if (Array.isArray(oldLots) && oldLots.length > 0) {
+                        for (let i = 0; i < oldLots.length; i++) {
+                            this.technicalDetails.push({
+                                lot_no: oldLots[i],
+                                machine_id: oldMachines[i] ?? '',
+                                genel_hammadde_id: oldHammaddeler[i] ?? '',
+                                urun_versiyonu_id: oldVersiyonlar[i] ?? ''
+                            });
+                        }
+                    } else {
+                        // 2. Yoksa Veritabanındaki kayıtları çek
+                        var dbDetails = @json($sikayet->teknikDetaylar);
+                        
+                        // Eğer eski sistem tekil sütunlarda veri varsa ve ilişkisel tabloda yoksa?
+                        // Migration ile taşıdığımız için buna gerek kalmamalı ama kontrol etmekte fayda var.
+                        if (dbDetails.length > 0) {
+                            this.technicalDetails = dbDetails;
+                        } else {
+                            // 3. Hiçbiri yoksa en az 1 boş satır ekle
+                            this.addDetail();
+                        }
+                    }
+                },
+
+                addDetail() {
+                    this.technicalDetails.push({
+                        lot_no: '',
+                        machine_id: '',
+                        genel_hammadde_id: '',
+                        urun_versiyonu_id: ''
+                    });
+                },
+
+                removeDetail(index) {
+                    if (this.technicalDetails.length > 1) {
+                        this.technicalDetails.splice(index, 1);
                     }
                 },
 
@@ -402,10 +530,18 @@
                     }
 
                     this.isLoading = true;
-                    var apiUrl = '/api/get-alt-kategoriler/' + this.selectedCategory;
+                    var path = window.location.pathname;
+                    var rootUrl = window.location.origin;
+                    if (path.indexOf('/iaa/') > -1) {
+                        rootUrl += '/iaa';
+                    }
+                    var apiUrl = rootUrl + '/api/get-alt-kategoriler/' + this.selectedCategory;
 
                     fetch(apiUrl)
-                        .then(res => res.json())
+                        .then(res => {
+                            if (!res.ok) throw new Error("API Hatası");
+                            return res.json();
+                        })
                         .then(data => {
                             this.subCategories = data.alt_kategoriler;
                             this.showOtherOption = data.diger_goster;

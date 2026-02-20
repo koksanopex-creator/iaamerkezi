@@ -59,19 +59,11 @@
                         </button>
 
                         
-                        <button type="button" @click="activeTab = 'disiplin'" 
-                            :class="activeTab === 'disiplin' ? 'bg-red-50 text-red-700 border-b-2 border-red-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                        <button type="button" @click="activeTab = 'hukuk'" 
+                            :class="activeTab === 'hukuk' ? 'bg-red-50 text-red-700 border-b-2 border-red-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
-                            Disiplin Yetki
-                        </button>
-
-                        
-                        <button type="button" @click="activeTab = 'arabuluculuk'" 
-                            :class="activeTab === 'arabuluculuk' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
-                            class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                            Arabuluculuk Yetki
+                            Hukuk & KVKK
                         </button>
 
                         
@@ -89,6 +81,16 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                             İç Bildirimler
                         </button>
+
+                        
+                        <button type="button" @click="activeTab = 'rapor'" 
+                            :class="activeTab === 'rapor' ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                            class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Otomatik Raporlar
+                        </button>
+
+
                     </nav>
                 </div>
 
@@ -132,13 +134,21 @@
                                                 <span class="text-xs text-gray-500">Manuel yönetici onayı</span>
                                             </div>
                                         </label>
-                                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 w-full transition <?php echo e($kayitOnay && $kayitOnay->value == 0 ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : ''); ?>">
-                                            <input type="radio" name="kayit_onay_sistemi" value="0" <?php echo e($kayitOnay && $kayitOnay->value == 0 ? 'checked' : ''); ?> class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                                            <div>
-                                                <span class="block text-sm font-bold text-gray-900">Pasif (Otomatik)</span>
-                                                <span class="text-xs text-gray-500">Anında erişim</span>
+                                    </div>
+
+                                    
+                                    <div class="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                                        <div class="flex items-center">
+                                            <input type="checkbox" id="sikayet_direktor_onayi_aktif" name="sikayet_direktor_onayi_aktif" value="1"
+                                                class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 transition cursor-pointer"
+                                                <?php if(isset($direktorOnayiAktif) && $direktorOnayiAktif == '1'): ?> checked <?php endif; ?>>
+                                            <div class="ml-3">
+                                                <label for="sikayet_direktor_onayi_aktif" class="text-sm font-bold text-gray-900">
+                                                    Müşteri Şikayeti Projeleri Direktör Onayına Tabi Olsun
+                                                </label>
+                                                <p class="text-xs text-gray-500 mt-1">İşaretlenirse, şikayet projeleri bölüm onayından sonra Direktör onayına gönderilir. İşaretlenmezse doğrudan Üst Yönetim onayına sunulur.</p>
                                             </div>
-                                        </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -163,6 +173,17 @@
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Standart Öneri Puanı</label>
                                             <p class="text-xs text-gray-400 mb-2">Onay sırasında varsayılan puan değeri</p>
                                             <input type="number" name="standart_puan" value="<?php echo e(old('standart_puan', $standartPuan->value ?? 100)); ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
+                                        </div>
+
+                                        
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">İAA Öneri Kabul Puanı</label>
+                                            <p class="text-xs text-gray-400 mb-2">Öneri onaylanıp havuza düştüğünde kazanılacak puan.</p>
+                                            <input type="number" 
+                                                name="iaa_oneri_puani" 
+                                                
+                                                value="<?php echo e(old('iaa_oneri_puani', isset($iaaOneriPuani) ? ($iaaOneriPuani->value ?? 0) : ($settings->get('iaa_oneri_puani')->value ?? 0))); ?>" 
+                                                class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
                                         </div>
 
                                         
@@ -202,27 +223,63 @@
                                     <input type="text" name="para_birimleri" value="<?php echo e(old('para_birimleri', $paraBirimleri->value ?? 'TL,USD,EUR')); ?>" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="TL,USD,EUR">
                                 </div>
                             </div>
+
+                            
+                            <div class="lg:col-span-2">
+                                <div class="bg-amber-50 rounded-xl p-5 border border-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                                    <div class="flex items-start gap-4">
+                                        <div class="p-3 bg-white rounded-xl text-amber-600 shadow-sm">
+                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-lg font-black text-amber-900 leading-tight">Puan Veritabanı Senkronizasyonu</h4>
+                                            <p class="text-sm text-amber-700 mt-1 leading-relaxed max-w-2xl">Önemli: Veritabanına manuel müdahale (kayıt silme/ekleme) yapıldığında puanlar tutarsızlaşabilir. Bu buton, tüm çalışanların ve takımların puanlarını mevcut gerçek kayıtlara göre baştan hesaplayarak veritabanına işler.</p>
+                                        </div>
+                                    </div>
+                                    <a href="<?php echo e(route('admin.puan.sync')); ?>" 
+                                       onclick="return confirm('Tüm sistem puanları yeniden hesaplanacaktır. Bu işlem büyük veritabanlarında birkaç saniye sürebilir. Emin misiniz?')"
+                                       class="whitespace-nowrap inline-flex items-center px-8 py-4 bg-amber-600 hover:bg-amber-700 text-white text-sm font-black uppercase tracking-widest rounded-xl transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                        Şimdi Senkronize Et
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     
-                    <div x-show="activeTab === 'disiplin'" style="display: none;">
+                    <div x-show="activeTab === 'hukuk'" style="display: none;" class="space-y-6">
+                        
+                        
+                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-red-600 px-6 py-4 flex items-center gap-2">
+                                <div class="w-2 h-2 bg-white rounded-full"></div>
+                                <h3 class="text-base font-bold text-white">KVKK & Aydınlatma Metni</h3>
+                            </div>
+                            <div class="p-6">
+                                <label for="kvkk_text" class="block text-sm font-bold text-gray-700 mb-2">Kayıt Sırasında Gösterilecek Metin</label>
+                                <p class="text-xs text-gray-500 mb-2">Bu metin, kullanıcı kayıt olurken "Okudum, onaylıyorum" kutucuğunun yanındaki linke tıklandığında açılır.</p>
+                                <textarea name="kvkk_text" id="kvkk_text" rows="10" class="w-full border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500 font-mono"><?php echo e(old('kvkk_text', isset($kvkkText) ? $kvkkText->value : '')); ?></textarea>
+                            </div>
+                        </div>
+
+                        
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div class="bg-gradient-to-r from-red-600 to-rose-700 px-6 py-5 flex items-center justify-between">
+                            <div class="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                    <div class="p-2 bg-white border border-red-200 rounded-lg">
+                                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                                     </div>
                                     <div>
-                                        <h3 class="text-xl font-bold text-white">Global Disiplin Yetkisi</h3>
-                                        <p class="text-xs text-rose-100 opacity-90">Hangi bölümler tüm fabrikaya tutanak tutabilir?</p>
+                                        <h3 class="text-base font-bold text-gray-900">Disiplin Yetki Matrisi</h3>
+                                        <p class="text-xs text-gray-500">Hangi bölümler tüm fabrikaya tutanak tutabilir?</p>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="p-6">
                                 <div class="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                                    <div class="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                                    <div class="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                                         <?php $__currentLoopData = $bolumler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $bolum): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-red-300 transition-all">
                                                 <div class="flex items-center gap-3">
@@ -230,7 +287,7 @@
                                                     <input type="checkbox" name="disciplinary_auth[<?php echo e($bolum->id); ?>][global]" value="1" 
                                                         <?php echo e($bolum->is_disciplinary_global ? 'checked' : ''); ?>
 
-                                                        class="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition cursor-pointer">
+                                                        class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 transition cursor-pointer">
                                                     <span class="text-sm font-bold text-gray-700"><?php echo e($bolum->ad); ?></span>
                                                 </div>
                                                 
@@ -246,35 +303,25 @@
                                             </div>
                                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </div>
-                                    
-                                    <div class="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 flex gap-2">
-                                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        <div>
-                                            <strong>Bilgi:</strong> "Tüm Fabrika" yetkisi verilen bölümler (Örn: İSG), herhangi bir personele tutanak tutabilir. Ancak listede <u>sadece kendi birimlerinin oluşturduğu</u> tutanakları görürler. Diğer bölümlerin iç işlerini göremezler.
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    
-                    <div x-show="activeTab === 'arabuluculuk'" style="display: none;">
+                        
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div class="bg-indigo-600 px-6 py-5 flex items-center justify-between">
+                            <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                    <div class="p-2 bg-white border border-indigo-200 rounded-lg">
+                                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
                                     </div>
                                     <div>
-                                        <h3 class="text-xl font-bold text-white">Arabuluculuk Rol & Yetki Yönetimi</h3>
-                                        <p class="text-xs text-indigo-100 opacity-90">Hangi rolün hangi işlem yetkisine sahip olduğunu buradan yönetebilirsiniz.</p>
+                                        <h3 class="text-base font-bold text-gray-900">Arabuluculuk Yetki Matrisi</h3>
+                                        <p class="text-xs text-gray-500">Hangi rolün hangi işlem yetkisine sahip olduğunu buradan yönetebilirsiniz.</p>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="p-4">
-                                
                                 
                                 <?php
                                     $permLabels = [
@@ -287,7 +334,7 @@
                                         'arabuluculuk.view_assigned'      => 'Sadece Atananı Gör',
                                         'arabuluculuk.create'             => 'Dosya Oluştur',
                                         'arabuluculuk.edit'               => 'Düzenleme',
-                                        'arabuluculuk.approve'            => 'Genel Onay', // Eski permission
+                                        'arabuluculuk.approve'            => 'Genel Onay',
                                         'arabuluculuk.approve_legal'      => 'Hukuk Onayı',
                                         'arabuluculuk.approve_board'      => 'Yönetim Onayı',
                                         'arabuluculuk.upload_file'        => 'Dosya Yükleme',
@@ -308,18 +355,15 @@
                                     ];
                                 ?>
 
-                                <div class="overflow-hidden rounded-lg border border-gray-200">
+                                <div class="overflow-x-auto rounded-lg border border-gray-200">
                                     <table class="w-full table-fixed border-collapse text-[10px]">
                                         <thead>
                                             <tr class="bg-gray-100">
-                                                
                                                 <th class="p-2 border border-gray-200 text-left w-32 bg-gray-50 align-bottom">
                                                     <span class="text-gray-800 font-black uppercase text-xs">Rol Adı</span>
                                                 </th>
-
-                                                
                                                 <?php $__currentLoopData = $arabuluculukPermissions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $perm): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                                    <th class="border border-gray-200 p-1 align-bottom h-32 hover:bg-gray-200 transition relative group">
+                                                    <th class="border border-gray-200 p-1 align-bottom h-32 hover:bg-gray-200 transition relative group w-8">
                                                         <div class="flex justify-center items-end h-full w-full pb-2">
                                                             <span class="font-bold text-gray-600 uppercase whitespace-nowrap tracking-wide" 
                                                                 style="writing-mode: vertical-rl; transform: rotate(180deg);">
@@ -327,7 +371,6 @@
 
                                                             </span>
                                                         </div>
-                                                        
                                                         <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-xs p-1 rounded whitespace-nowrap z-50">
                                                             <?php echo e($permLabels[$perm->name] ?? $perm->name); ?>
 
@@ -347,7 +390,6 @@
                                                             <?php $__currentLoopData = $arabuluculukPermissions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $perm): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                                                 <td class="p-1 border-r border-gray-200 text-center">
                                                                     <div class="flex justify-center">
-                                                                        
                                                                         <input type="checkbox" 
                                                                             name="role_permissions[<?php echo e($role->id); ?>][<?php echo e($perm->id); ?>]" 
                                                                             class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
@@ -360,10 +402,6 @@
                                                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                             </tbody>
                                     </table>
-                                </div>
-                                
-                                <div class="mt-3 text-xs text-gray-500 italic">
-                                    * Değişiklikleri yaptıktan sonra sayfanın altındaki "Kaydet" butonuna basmayı unutmayınız.
                                 </div>
                             </div>
                         </div>
@@ -443,7 +481,47 @@
                         </div>
                     </div>
 
+                    
+                    <div x-show="activeTab === 'rapor'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-purple-600 px-6 py-5 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-xl font-bold text-white">Raporlama Otomasyonu</h3>
+                                        <p class="text-xs text-purple-100 opacity-90">Periyodik e-posta rapor kurallarını buradan yönetebilirsiniz.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-6">
+                                
+                                <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('admin.ayarlar.rapor-kurallari');
+
+$__html = app('livewire')->mount($__name, $__params, 'lw-1289960055-0', $__slots ?? [], get_defined_vars());
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__split);
+if (isset($__slots)) unset($__slots);
+?>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
+
+                
+                <div class="h-32 md:h-24"></div> 
 
                 
                 <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50 md:sticky md:bottom-4 md:rounded-xl md:mx-auto md:max-w-7xl md:mb-4">

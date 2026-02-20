@@ -10,8 +10,8 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Models\IaaWorkflow;
-use App\Models\IaaLog; 
-use Illuminate\Support\Facades\Auth; 
+use App\Models\IaaLog;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\User; // <-- BU SATIRI EKLEYİN
 use App\Models\MusteriSikayeti; // <-- BU SATIRI DA EKLEYİN (Şikayet güncellemesi için şart)
@@ -20,7 +20,7 @@ use App\Notifications\ProjeDurumuDegisti; // <-- EKLE
 
 class IaaYonetimController extends Controller
 {
- 
+
     /**
      * ====================================================================
      * TÜM İAA'LARI DURUMLARINA GÖRE LİSTELER (GÜNCELLENMİŞ HALİ)
@@ -31,7 +31,7 @@ class IaaYonetimController extends Controller
         $user = Auth::user();
 
         // --- YETKİ KONTROLÜ ---
-        if (!$user->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi'])) {
+        if (!$user->hasRole(['Superadmin', 'Bölüm Kalite Yöneticisi', 'Direktör'])) {
             abort(403, 'Bu sayfaya erişim yetkiniz yok.');
         }
 
@@ -46,35 +46,60 @@ class IaaYonetimController extends Controller
         $bolumYoneticisiOnayladiklari = collect(); // <-- BUNU EKLEYİN (EKSİK OLAN BU)
         $superadminOnayladiklari = collect();      // <-- BUNU DA EKLEYİN (Lazım olacak)
         $yoneticiOnayiBekleyenler = collect();
+        $direktorOnayiBekleyenler = collect(); // <-- EKLENDİ
         $tamamlanmasiReddedilenler = collect();
         $sonTamamlananlar = collect();
 
         // === SENARYO 1: SUPERADMIN (HER ŞEYİ GÖRÜR) ===
         if ($user->hasRole('Superadmin')) {
-            $onayBekleyenKullanicilar = Iaa::where('durum', 'Onay Bekliyor')->whereNotNull('gonderen_user_id')->with('gonderen', 'bolum')->latest()->get();
-            $onayBekleyenMisafirler = Iaa::where('durum', 'Onay Bekliyor')->whereNull('gonderen_user_id')->with('gonderen', 'bolum')->latest()->get();
-            
-            $talepAlanOneriler = Iaa::where('durum', 'Havuzda')->has('talepEdenTakimlar')->withCount('talepEdenTakimlar')->latest()->get();
-            $havuzdakiler = Iaa::where('durum', 'Havuzda')->doesntHave('talepEdenTakimlar')->with('gonderen', 'bolum', 'onaylayan')->latest()->get();
-            
-            $atanmisOlanlar = Iaa::whereIn('durum', ['Atandı', 'Revize Ediliyor'])->with('gonderen', 'bolum', 'atananTakim')->latest()->get();
-            
-            $reddedilenler = Iaa::where('durum', 'Reddedildi')->with('gonderen', 'bolum', 'onaylayan')->latest()->get();
-            
-            $bolumOnayiBekleyenler = Iaa::where('durum', 'Bölüm Onayı Bekliyor')->with('gonderen', 'bolum', 'atananTakim', 'musteriSikayeti.sikayetKategori')->latest()->get();
-            $yoneticiOnayiBekleyenler = Iaa::where('durum', 'Yönetici Onayı Bekliyor')->with('gonderen', 'bolum', 'atananTakim', 'workflow.steps')->latest()->get();
-            
-            $tamamlanmasiReddedilenler = Iaa::where('durum', 'Tamamlanması Reddedildi')->with('gonderen', 'bolum', 'atananTakim')->latest()->get();
-            $sonTamamlananlar = Iaa::where('durum', 'Tamamlandı')->orderBy('onaylanma_tarihi', 'desc')->take(5)->get();
+            $onayBekleyenKullanicilar = Iaa::sadeceOneriler()->where('durum', 'Onay Bekliyor')->whereNotNull('gonderen_user_id')->with('gonderen', 'bolum')->latest()->get();
+            $onayBekleyenMisafirler = Iaa::sadeceOneriler()->where('durum', 'Onay Bekliyor')->whereNull('gonderen_user_id')->with('gonderen', 'bolum')->latest()->get();
+
+            $talepAlanOneriler = Iaa::sadeceOneriler()->where('durum', 'Havuzda')->has('talepEdenTakimlar')->withCount('talepEdenTakimlar')->latest()->get();
+            $havuzdakiler = Iaa::sadeceOneriler()->where('durum', 'Havuzda')->doesntHave('talepEdenTakimlar')->with('gonderen', 'bolum', 'onaylayan')->latest()->get();
+
+            $atanmisOlanlar = Iaa::sadeceOneriler()->whereIn('durum', ['Atandı', 'Revize Ediliyor'])->with('gonderen', 'bolum', 'atananTakim')->latest()->get();
+
+            $reddedilenler = Iaa::sadeceOneriler()->where('durum', 'Reddedildi')->with('gonderen', 'bolum', 'onaylayan')->latest()->get();
+
+            $bolumOnayiBekleyenler = Iaa::sadeceOneriler()->where('durum', 'Bölüm Onayı Bekliyor')->with('gonderen', 'bolum', 'atananTakim', 'musteriSikayeti.sikayetKategori')->latest()->get();
+            $direktorOnayiBekleyenler = Iaa::sadeceOneriler()->where('durum', 'Direktör Onayı Bekliyor')->with('gonderen', 'bolum', 'atananTakim', 'musteriSikayeti.sikayetKategori')->latest()->get();
+            $yoneticiOnayiBekleyenler = Iaa::sadeceOneriler()->where('durum', 'Yönetici Onayı Bekliyor')->with('gonderen', 'bolum', 'atananTakim', 'workflow.steps')->latest()->get();
+
+            $tamamlanmasiReddedilenler = Iaa::sadeceOneriler()->where('durum', 'Tamamlanması Reddedildi')->with('gonderen', 'bolum', 'atananTakim')->latest()->get();
+            $sonTamamlananlar = Iaa::sadeceOneriler()->where('durum', 'Tamamlandı')->orderBy('onaylanma_tarihi', 'desc')->take(5)->get();
 
             // === YENİ: SUPERADMIN ONAYLADIKLARI (Final Onayı Verdikleri) ===
-            $superadminOnayladiklari = Iaa::where('durum', 'Tamamlandı')
-                                        ->where('onaylayan_user_id', $user->id)
-                                        ->with('gonderen', 'bolum', 'atananTakim')
-                                        ->latest('onaylanma_tarihi')
-                                        ->get();
+            $superadminOnayladiklari = Iaa::sadeceOneriler()->where('durum', 'Tamamlandı')
+                ->where('onaylayan_user_id', $user->id)
+                ->with('gonderen', 'bolum', 'atananTakim')
+                ->latest('onaylanma_tarihi')
+                ->get();
         }
-        
+
+        // === SENARYO 3: DİREKTÖR (KENDİ BÖLÜMLERİNİ GÖRÜR) ===
+        else if ($user->hasRole('Direktör')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('bolumler.id')->toArray();
+
+            $direktorOnayiBekleyenler = Iaa::where('durum', 'Direktör Onayı Bekliyor')
+                ->whereIn('bolum_id', $yonetilenBolumIds)
+                ->with('gonderen', 'bolum', 'atananTakim', 'musteriSikayeti.sikayetKategori')
+                ->latest()
+                ->get();
+
+            $atanmisOlanlar = Iaa::whereIn('durum', ['Atandı', 'Revize Ediliyor'])
+                ->whereIn('bolum_id', $yonetilenBolumIds)
+                ->with('gonderen', 'bolum', 'atananTakim')
+                ->latest()
+                ->get();
+
+            $sonTamamlananlar = Iaa::where('durum', 'Tamamlandı')
+                ->whereIn('bolum_id', $yonetilenBolumIds)
+                ->orderBy('onaylanma_tarihi', 'desc')
+                ->take(10)
+                ->get();
+        }
+
         // === SENARYO 2: BÖLÜM KALİTE YÖNETİCİSİ (SADECE KENDİ BÖLÜMÜNÜ GÖRÜR) ===
         else {
             // Kullanıcının sorumlu olduğu kategori ID'lerini al
@@ -82,7 +107,8 @@ class IaaYonetimController extends Controller
 
             // Ortak Filtre Fonksiyonu
             $applyFilter = function ($query) use ($sorumluKategoriler) {
-                return $query->whereHas('musteriSikayeti', function ($q) use ($sorumluKategoriler) {
+                // Sadece Öneriler + Bölüm Filtresi
+                return $query->sadeceOneriler()->whereHas('musteriSikayeti', function ($q) use ($sorumluKategoriler) {
                     $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriler);
                 });
             };
@@ -90,80 +116,108 @@ class IaaYonetimController extends Controller
             // 1. Bölüm Onayı Bekleyenler (GÖRMELİ)
             $bolumOnayiBekleyenler = $applyFilter(
                 Iaa::where('durum', 'Bölüm Onayı Bekliyor')
-                   ->with('gonderen', 'bolum', 'atananTakim', 'musteriSikayeti.sikayetKategori')
-                   ->latest()
+                    ->with('gonderen', 'bolum', 'atananTakim', 'musteriSikayeti.sikayetKategori')
+                    ->latest()
             )->get();
 
             // 2. Atanmış / Revize Edilenler (GÖRMELİ - Takip İçin)
             $atanmisOlanlar = $applyFilter(
                 Iaa::whereIn('durum', ['Atandı', 'Revize Ediliyor'])
-                   ->with('gonderen', 'bolum', 'atananTakim')
-                   ->latest()
+                    ->with('gonderen', 'bolum', 'atananTakim')
+                    ->latest()
             )->get();
 
             // 3. Tamamlanması Reddedilenler (GÖRMELİ)
             $tamamlanmasiReddedilenler = $applyFilter(
                 Iaa::where('durum', 'Tamamlanması Reddedildi')
-                   ->with('gonderen', 'bolum', 'atananTakim')
-                   ->latest()
+                    ->with('gonderen', 'bolum', 'atananTakim')
+                    ->latest()
             )->get();
 
             // 4. Tamamlananlar (GÖRMELİ)
             $sonTamamlananlar = $applyFilter(
                 Iaa::where('durum', 'Tamamlandı')
-                   ->orderBy('onaylanma_tarihi', 'desc')
-                   ->take(5)
+                    ->orderBy('onaylanma_tarihi', 'desc')
+                    ->take(5)
             )->get();
 
             // 5. Reddedilenler (YENİ EKLENDİ - GÖRMELİ)
             // En başta reddedilen önerileri de kendi bölümündense görsün.
             $reddedilenler = $applyFilter(
                 Iaa::where('durum', 'Reddedildi')
-                   ->with('gonderen', 'bolum', 'onaylayan')
-                   ->latest()
+                    ->with('gonderen', 'bolum', 'onaylayan')
+                    ->latest()
             )->get();
 
             // === 6. YENİ: ONAYLADIKLARIM (Bölüm Yöneticisi Onaylamış, Üst Yönetici Bekliyor) ===
             // Serkan'ın onaylayıp gönderdiği projeler bunlardır.
             $bolumYoneticisiOnayladiklari = $applyFilter(
                 Iaa::where('durum', 'Yönetici Onayı Bekliyor')
-                   ->with('gonderen', 'bolum', 'atananTakim', 'musteriSikayeti.sikayetKategori')
-                   ->latest()
+                    ->with('gonderen', 'bolum', 'atananTakim', 'musteriSikayeti.sikayetKategori')
+                    ->latest()
             )->get();
         }
 
-        // İSTATİSTİK KARTLARI
+        // === ARAMA DESTEĞİ (Kullanıcı talebi: Dashboard'daki projeye tıklandığında filtreleme) ===
+        if ($request->filled('search')) {
+            $searchTerm = mb_strtolower($request->search, 'UTF-8');
+            $filterBySearch = function ($collection) use ($searchTerm) {
+                return $collection->filter(function ($item) use ($searchTerm) {
+                    return str_contains(mb_strtolower($item->baslik, 'UTF-8'), $searchTerm);
+                });
+            };
+
+            $onayBekleyenKullanicilar = $filterBySearch($onayBekleyenKullanicilar);
+            $onayBekleyenMisafirler = $filterBySearch($onayBekleyenMisafirler);
+            $talepAlanOneriler = $filterBySearch($talepAlanOneriler);
+            $atanmisOlanlar = $filterBySearch($atanmisOlanlar);
+            $havuzdakiler = $filterBySearch($havuzdakiler);
+            $reddedilenler = $filterBySearch($reddedilenler);
+            $bolumOnayiBekleyenler = $filterBySearch($bolumOnayiBekleyenler);
+            $direktorOnayiBekleyenler = $filterBySearch($direktorOnayiBekleyenler);
+            $yoneticiOnayiBekleyenler = $filterBySearch($yoneticiOnayiBekleyenler);
+            $tamamlanmasiReddedilenler = $filterBySearch($tamamlanmasiReddedilenler);
+            $sonTamamlananlar = $filterBySearch($sonTamamlananlar);
+        }
+
+        // 5. ONAY TOPLAM HESAPLA (Blade'deki hatayı gidermek için)
+        $onayToplam = $bolumOnayiBekleyenler->count() + $direktorOnayiBekleyenler->count();
+        if ($user->hasRole('Superadmin')) {
+            $onayToplam += $onayBekleyenMisafirler->count() + $onayBekleyenKullanicilar->count() + $yoneticiOnayiBekleyenler->count();
+        }
+
+        // İSTATİSTİK KARTLARI (GERİ YÜKLENDİ - Önceki düzenlemede yanlışlıkla silinmişti)
         $stats = [
             'onayBekleyen' => $user->hasRole('Superadmin') ? ($onayBekleyenKullanicilar->count() + $onayBekleyenMisafirler->count()) : 0,
             'talepAlan' => $user->hasRole('Superadmin') ? $talepAlanOneriler->count() : 0,
             'havuzda' => $user->hasRole('Superadmin') ? $havuzdakiler->count() : 0,
             'yoneticiOnayi' => $user->hasRole('Superadmin') ? $yoneticiOnayiBekleyenler->count() : 0,
-            
+
             'bolumOnayi' => $bolumOnayiBekleyenler->count(),
             'atanmis' => $atanmisOlanlar->count(),
-            
-            'tamamlanan' => $user->hasRole('Superadmin') 
-                ? Iaa::where('durum', 'Tamamlandı')->count() 
-                : $sonTamamlananlar->count(), // Filtrelenmiş sayıyı gösterelim
 
-            'reddedilen' => $user->hasRole('Superadmin') 
-                ? ($reddedilenler->count() + $tamamlanmasiReddedilenler->count()) 
-                : ($reddedilenler->count() + $tamamlanmasiReddedilenler->count()),
+            'tamamlanan' => $user->hasRole('Superadmin')
+                ? Iaa::sadeceOneriler()->where('durum', 'Tamamlandı')->count()
+                : $sonTamamlananlar->count(),
+
+            'reddedilen' => ($reddedilenler->count() + $tamamlanmasiReddedilenler->count()),
         ];
 
         return view('admin.iaa-yonetim.index', compact(
-            'onayBekleyenKullanicilar', 
-            'onayBekleyenMisafirler',  
+            'onayBekleyenKullanicilar',
+            'onayBekleyenMisafirler',
             'talepAlanOneriler',
             'atanmisOlanlar',
-            'havuzdakiler', 
+            'havuzdakiler',
             'reddedilenler',
             'bolumOnayiBekleyenler',
             'yoneticiOnayiBekleyenler',
+            'direktorOnayiBekleyenler',
             'tamamlanmasiReddedilenler',
             'sonTamamlananlar',
             'bolumYoneticisiOnayladiklari',
             'superadminOnayladiklari',
+            'onayToplam',
             'stats'
         ));
     }
@@ -231,7 +285,7 @@ class IaaYonetimController extends Controller
         });
 
         return redirect()->route('admin.iaa-yonetim.index')
-                         ->with('success', '"' . $iaa->baslik . '" projesi, ' . $takim->ad . ' takımına başarıyla atandı.');
+            ->with('success', '"' . $iaa->baslik . '" projesi, ' . $takim->ad . ' takımına başarıyla atandı.');
     }
 
     /**
@@ -246,7 +300,7 @@ class IaaYonetimController extends Controller
         // --- KONTROL: Eğer proje zaten onaylanmışsa (Havuzda, Atandı vs.) işlem yapma ---
         if ($iaa->durum !== 'Onay Bekliyor') {
             return redirect()->route('admin.iaa-yonetim.index')
-                             ->with('error', 'Bu öneri zaten onaylanmış veya farklı bir statüde.');
+                ->with('error', 'Bu öneri zaten onaylanmış veya farklı bir statüde.');
         }
         // --- KONTROL SONU ---
 
@@ -266,7 +320,7 @@ class IaaYonetimController extends Controller
         // 2. Eğer kullanıcı tüm alanları doldurduysa puanı hesapla
         if ($request->filled('risk') && $request->filled('kazanc_miktar') && $request->filled('butce_miktar')) {
             $puan = round(($validated['risk'] * $validated['kazanc_miktar']) / $validated['butce_miktar']);
-        } 
+        }
         // 3. Eğer alanlar boş bırakıldıysa, sistem ayarlarından standart puanı çek
         else {
             // Veritabanından 'standart_puan' ayarını al, bulamazsan varsayılan olarak 100 kullan.
@@ -293,7 +347,7 @@ class IaaYonetimController extends Controller
 
         return redirect()->route('admin.iaa-yonetim.index')->with('success', 'İAA önerisi başarıyla onaylandı ve havuza eklendi.');
     }
-    
+
 
     /**
      * ====================================================================
@@ -338,29 +392,29 @@ class IaaYonetimController extends Controller
 
                 case 'Tamamlandı':
                     $takim = $iaa->atananTakim;
-                    
+
                     // Puan verilmişse geri al
                     if ($takim && $iaa->puan > 0) {
-                        
+
                         // 1. TAKIMIN KENDİ HANESİNDEN PUANI DÜŞ (Bu kalmalı, takım puanı her zaman işler)
                         $takim->decrement('toplam_puan', $iaa->puan);
 
                         // ================== DÜZELTİLEN KISIM BURASI ==================
                         // ESKİ (YANLIŞ): foreach ($takim->uyeler as $uye) { ... } -> BUNU SİLİYORUZ
-                        
+
                         // YENİ (DOĞRU): Sadece bu projede çalışmış SQUAD üyelerinden puanı düş
                         // Proje ekibindeki kişilerin ID'lerini al (Lider, Cihangir, Mehmet vs.)
                         $squadUyeIdleri = $iaa->projeEkibi()->pluck('users.id');
-                        
+
                         // Bu ID'ye sahip kullanıcıların puanını toplu halde düşür
                         User::whereIn('id', $squadUyeIdleri)->decrement('toplam_puan', $iaa->puan);
                         // =============================================================
                     }
-                    
+
                     // Tarihleri sıfırla
-                    $iaa->onaylanma_tarihi = null; 
-                    $iaa->tamamlanma_tarihi = null; 
-                    
+                    $iaa->onaylanma_tarihi = null;
+                    $iaa->tamamlanma_tarihi = null;
+
                     $yeniDurum = 'Yönetici Onayı Bekliyor';
                     break;
 
@@ -370,7 +424,7 @@ class IaaYonetimController extends Controller
                     $yeniDurum = 'Yönetici Onayı Bekliyor';
                     break;
                 // =========================   
-                
+
                 // ===== YENİ EKLENEN CASE =====
                 case 'Revize Ediliyor':
                     $yeniDurum = 'Yönetici Onayı Bekliyor';
@@ -383,23 +437,23 @@ class IaaYonetimController extends Controller
                     // "Yönetici Onayı Bekliyor" durumuna döner.
                     if ($iaa->iaaTalebi && $iaa->iaaTalebi->status === 'Tamamlandı') {
                         $yeniDurum = 'Yönetici Onayı Bekliyor';
-                    
-                    // Eğer proje havuzdan yeni atandıysa,
-                    // Sizin kodunuzdaki gibi havuza geri döner ve talep kaydı silinir.
+
+                        // Eğer proje havuzdan yeni atandıysa,
+                        // Sizin kodunuzdaki gibi havuza geri döner ve talep kaydı silinir.
                     } else {
                         $iaa->atanan_takim_id = null;
                         DB::table('iaa_talepleri')->where('iaa_id', $iaa->id)->delete();
                         $yeniDurum = 'Havuzda';
                     }
                     break;
-                
+
                 case 'Reddedildi':
                     // Sizin de belirttiğiniz gibi, reddedilen bir önerinin önceki durumu farklı olabilir.
                     // Eğer proje daha önce bir takıma atanmışsa, "Yönetici Onayı Bekliyor"a döner.
                     if ($iaa->atanan_takim_id) {
                         $yeniDurum = 'Yönetici Onayı Bekliyor';
 
-                    // Eğer hiç atanmamışsa, ilk baştaki "Onay Bekliyor" durumuna döner ve puan vs. sıfırlanır.
+                        // Eğer hiç atanmamışsa, ilk baştaki "Onay Bekliyor" durumuna döner ve puan vs. sıfırlanır.
                     } else {
                         $iaa->onaylayan_user_id = null;
                         $iaa->onaylanma_tarihi = null;
@@ -462,67 +516,116 @@ class IaaYonetimController extends Controller
 
         // 2. Yetki Kontrolü: Superadmin her şeyi onaylar. Diğerleri kontrol edilir.
         if (!$user->hasRole('Superadmin')) {
-            
+
             // Proje bir şikayete bağlı değilse veya kategorisi yoksa hata ver (veya yetkisiz say)
             if (!$iaa->musteriSikayeti || !$iaa->musteriSikayeti->sikayet_kategorisi_id) {
-                 return back()->with('error', 'Bu proje bir şikayet kategorisine bağlı olmadığı için onaylanamaz.');
+                return back()->with('error', 'Bu proje bir şikayet kategorisine bağlı olmadığı için onaylanamaz.');
             }
 
             $projeKategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
-            
+
             // Kullanıcının yetkili olduğu kategori ID'lerini al
             // (User modeline eklediğimiz 'yonettigiSikayetKategorileri' ilişkisini kullanıyoruz)
             $yetkiliKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
-            
+
             // Kontrol et
             if (!in_array($projeKategoriId, $yetkiliKategoriler)) {
                 return back()->with('error', 'Bu kategorideki projeleri onaylama yetkiniz yok.');
             }
         }
 
-        // 3. Durumu Güncelle -> Topu Süper Yöneticiye At
+        // 3. Durumu Güncelle -> Şikayet kaynaklı projeler için Direktör varsa ona, yoksa Süper Yöneticiye
+        $yeniDurum = 'Yönetici Onayı Bekliyor';
+        $logMesaji = 'tarafından ara onay verildi, proje son onay için üst yönetime iletildi.';
+        $bildirimMesajiSon = "Yönetici onayı bekleniyor.";
+
+        // Direktör kullanıcı nesnesini burada tutacağız
+        $direktorUser = null;
+
+        // KURAL: Sadece Müşteri Şikayeti kaynaklı projelerde direktör onayı olacak (Kullanıcı talebi)
+        if ($iaa->musteriSikayeti) {
+            // YENİ: Sistem ayarlarından direktör onayının aktif olup olmadığını kontrol et
+            $direktorOnayiAyari = \App\Models\Setting::where('key', 'sikayet_direktor_onayi_aktif')->first();
+            $direktorOnayiAktif = $direktorOnayiAyari ? $direktorOnayiAyari->value == '1' : false;
+
+            if ($direktorOnayiAktif) {
+                // İlişkiler üzerinden bölüm ve direktörü güvenli şekilde alalım
+                $bolum = null;
+                // Şikayet ve Kategori ilişkisinin loaded olup olmadığını kontrol etmeden erişebiliriz çünkü model lazy load yapar
+                if ($iaa->musteriSikayeti && $iaa->musteriSikayeti->sikayetKategori) {
+                    $bolum = $iaa->musteriSikayeti->sikayetKategori->bolum;
+                }
+
+                if ($bolum && $bolum->director_id) {
+                    // Direktör kullanıcısının varlığını kontrol et
+                    $direktorUser = $bolum->director; // BelongsTo ilişkisi
+
+                    if ($direktorUser) {
+                        $yeniDurum = 'Direktör Onayı Bekliyor';
+                        $logMesaji = 'tarafından ara onay verildi, proje direktör onayına sunuldu.';
+                        $bildirimMesajiSon = "Direktör onayı bekleniyor.";
+                    }
+                }
+            }
+        }
+
+        // NOT: İlgili alan validasyonu (opsiyonel olduğu için 'nullable' ama string olmalı)
+        $request->validate(['not' => 'nullable|string']);
+
         $iaa->update([
-            'durum' => 'Yönetici Onayı Bekliyor',
-            // İsterseniz 'bolum_onaylayan_user_id' gibi bir sütun açıp kaydedebiliriz
-            // Şimdilik logluyoruz.
+            'durum' => $yeniDurum,
+            'yonetici_notu' => $request->not, // YENİ: Yönetici notunu kaydet
         ]);
 
         // 4. Log Kaydı
+        $ekAciklama = $request->not ? " (Not: {$request->not})" : "";
         \App\Models\IaaLog::create([
             'iaa_id' => $iaa->id,
             'user_id' => $user->id,
             'eylem' => 'Bölüm Onayı Verildi',
-            'aciklama' => $user->name . ' tarafından ara onay verildi, proje son onay için üst yönetime iletildi.'
+            'aciklama' => $user->name . " " . $logMesaji . $ekAciklama
         ]);
 
-        // === 5. BİLDİRİM ZİNCİRİ (YENİ EKLENDİ) ===
+        // === 5. BİLDİRİM ZİNCİRİ (GÜNCELLENDİ) ===
         try {
-            // A) Takım Liderine Bildirim ("Bölüm Yöneticisi Onayladı")
+            // A) Takım Liderine Bildirim
             $takim = $iaa->atananTakim;
             if ($takim && $takim->lider) {
                 \Illuminate\Support\Facades\Notification::send(
-                    $takim->lider, 
+                    $takim->lider,
                     new \App\Notifications\ProjeDurumuDegisti(
-                        $iaa, 
-                        "bölüm yöneticisi tarafından onaylandı", 
-                        "Yönetici onayı bekleniyor."
+                        $iaa,
+                        "bölüm yöneticisi tarafından onaylandı",
+                        $bildirimMesajiSon
                     )
                 );
             }
 
-            // B) Superadmin'e Bildirim
-            $superadmins = User::role('Superadmin')->get();
-            if ($superadmins->isNotEmpty()) {
+            // B) EĞER DİREKTÖR ONAYINA GİTTİYSE -> DİREKTÖRE BİLDİRİM (YENİ)
+            if ($yeniDurum == 'Direktör Onayı Bekliyor' && $direktorUser) {
                 \Illuminate\Support\Facades\Notification::send(
-                    $superadmins, 
+                    $direktorUser,
                     new \App\Notifications\ProjeDurumuDegisti(
-                        $iaa, 
-                        // Mesajın ilk kısmı: "Onayınızı beklemektedir."
-                        "onayınızı beklemektedir.", 
-                        // Mesajın ikinci kısmı (Parantez içi / Neden):
+                        $iaa,
+                        "onayınızı beklemektedir",
                         "Bölüm yöneticisi {$user->name} tarafından onaylanmıştır."
                     )
                 );
+            }
+
+            // C) EĞER YÖNETİCİ ONAYINA GİTTİYSE (Direktör yoksa veya pasifse) -> SUPERADMIN'E BİLDİRİM
+            if ($yeniDurum == 'Yönetici Onayı Bekliyor') {
+                $superadmins = User::role('Superadmin')->get();
+                if ($superadmins->isNotEmpty()) {
+                    \Illuminate\Support\Facades\Notification::send(
+                        $superadmins,
+                        new \App\Notifications\ProjeDurumuDegisti(
+                            $iaa,
+                            "onayınızı beklemektedir.",
+                            "Bölüm yöneticisi {$user->name} tarafından onaylanmıştır."
+                        )
+                    );
+                }
             }
 
         } catch (\Exception $e) {
@@ -530,7 +633,270 @@ class IaaYonetimController extends Controller
         }
         // === BİLDİRİM SONU ===
 
-        return back()->with('success', 'Bölüm onayı verildi. Proje, son onay ve puan dağıtımı için yöneticiye iletildi.');
+        return back()->with('success', 'Bölüm onayı verildi. ' . ($yeniDurum == 'Direktör Onayı Bekliyor' ? 'Proje direktör onayına sunuldu.' : 'Proje son onay için yönetime iletildi.'));
+    }
+
+    /**
+     * YENİ: DİREKTÖR ONAYI
+     * Direktör onaylar ve projeyi "Süper Yönetici" onayına (Yönetici Onayı Bekliyor) sunar.
+     */
+    public function direktorOnayiVer(Request $request, Iaa $iaa)
+    {
+        $user = Auth::user();
+        Log::info("direktorOnayiVer: Giriş yapıldı. User: {$user->id}, IAA: {$iaa->id}, Durum: {$iaa->durum}");
+
+        try {
+            // 1.5 VERİ ONARIMI: Eğer Iaa'nın bolum_id'si yoksa, bağlı şikayetten bulmaya çalış.
+            // 1.5 VERİ ONARIMI: Eğer Iaa'nın bolum_id'si yoksa, bağlı şikayetten bulmaya çalış.
+            if (is_null($iaa->bolum_id)) {
+                Log::warning("direktorOnayiVer: Projenin bolum_id değeri NULL. Şikayet üzerinden kontrol ediliyor...");
+                $bolumId = null;
+
+                // A) Şikayet Kategorisinden bulmayı dene
+                if ($iaa->musteriSikayeti && $iaa->musteriSikayeti->sikayetKategori && $iaa->musteriSikayeti->sikayetKategori->bolum_id) {
+                    $bolumId = $iaa->musteriSikayeti->sikayetKategori->bolum_id;
+                    Log::info("direktorOnayiVer: bolum_id Şikayet Kategorisinden ({$iaa->musteriSikayeti->sikayetKategori->ad}) bulundu: {$bolumId}");
+                }
+                // B) Şikayet tablosunda varsa oradan dene (yedek)
+                elseif ($iaa->musteriSikayeti && $iaa->musteriSikayeti->bolum_id) {
+                    $bolumId = $iaa->musteriSikayeti->bolum_id;
+                    Log::info("direktorOnayiVer: bolum_id Şikayetten bulundu: {$bolumId}");
+                }
+
+                if ($bolumId) {
+                    $iaa->bolum_id = $bolumId;
+                    $iaa->save(); // Veritabanını güncelle
+                    Log::info("direktorOnayiVer: Iaa bolum_id onarıldı ve kaydedildi.");
+                } else {
+                    Log::error("direktorOnayiVer: HATA - Projenin bölüm bilgisi SİSTEMSEL EKSİK (Kategori Bulunamadı)!");
+                    return back()->with('error', 'Bu projenin bölüm bilgisi sistemsel olarak eksik. Lütfen IT birimi ile iletişime geçin.');
+                }
+            }
+            // 1. Durum Kontrolü
+            if ($iaa->durum !== 'Direktör Onayı Bekliyor') {
+                Log::warning("direktorOnayiVer: Hatalı durum! Beklenen: 'Direktör Onayı Bekliyor', Gelen: {$iaa->durum}");
+                return back()->with('error', 'Bu proje direktör onayı aşamasında değil.');
+            }
+
+            // 2. Yetki Kontrolü
+            if (!$user->hasRole('Superadmin') && !$user->hasRole('Direktör')) {
+                Log::warning("direktorOnayiVer: Yetkisiz kullanıcı (Rol yok)");
+                return back()->with('error', 'Bu işlemi yapmaya yetkiniz yok.');
+            }
+
+            if ($user->hasRole('Direktör')) {
+                // HATA DÜZELTME: pluck('bolumler.id') yerine pluck('id')
+                $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('id')->toArray();
+
+                if (!in_array($iaa->bolum_id, $yonetilenBolumIds)) {
+                    Log::warning("direktorOnayiVer: Bölüm yetkisi yok. Userın bölümleri: " . implode(',', $yonetilenBolumIds) . ", İstenen: {$iaa->bolum_id}");
+                    return back()->with('error', 'Bu projeyi onaylama yetkiniz yok (Bölüm dışı).');
+                }
+            }
+
+            // YENİ MANTIK: Direktör onayı NİHAİ onaydır. Projeyi tamamlar.
+            Log::info("direktorOnayiVer: finalizeProjectApproval çağrılıyor...");
+            $puanVerildi = $this->finalizeProjectApproval($iaa, $user, 'Direktör');
+            Log::info("direktorOnayiVer: İşlem tamam. Puan verildi: " . ($puanVerildi ? 'Evet' : 'Hayır'));
+
+            return back()->with('success', 'Direktör onayı verildi. Proje tamamlandı ve puanlar dağıtıldı.');
+
+        } catch (\Exception $e) {
+            Log::error("direktorOnayiVer: KRİTİK HATA: " . $e->getMessage() . " | " . $e->getFile() . ":" . $e->getLine());
+            return back()->with('error', 'İşlem sırasında bir hata oluştu: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * YENİ: DİREKTÖR ONAYINI GERİ ALMA
+     * Direktör tarafından verilen "Tamamlandı" onayını geri alır.
+     * Puanları siler, statüyü "Direktör Onayı Bekliyor"a döndürür.
+     */
+    public function direktorOnayiGeriAl(Iaa $iaa)
+    {
+        $user = Auth::user();
+        Log::info("direktorOnayiGeriAl: Giriş. User: {$user->id}, IAA: {$iaa->id}");
+
+        // 1. Yetki Kontrolü
+        if (!$user->hasRole('Superadmin')) {
+            // Direktör mü?
+            if (!$user->hasRole('Direktör')) {
+                return back()->with('error', 'Yetkisiz işlem (Direktör değilsiniz).');
+            }
+            // Kendi bölümü mü?
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('id')->toArray();
+            if (!in_array($iaa->bolum_id, $yonetilenBolumIds)) {
+                return back()->with('error', 'Bu proje sizin yetki alanınızda değil.');
+            }
+        }
+
+        // 2. Durum Kontrolü
+        if ($iaa->durum !== 'Tamamlandı') {
+            return back()->with('error', 'Sadece "Tamamlandı" durumundaki projelerin onayı geri alınabilir.');
+        }
+
+        // 3. Log Kontrolü: Gerçekten Direktör mü onaylamış?
+        // Son onaylayan kişinin Direktör olup olmadığına bakmak güvenli olur.
+        // Ancak admin müdahalesi varsa karışabilir. Biz sadece "Direktör Onayı Verildi" logunu arayalım.
+        $direktorOnayiVarMi = IaaLog::where('iaa_id', $iaa->id)
+            ->where('eylem', 'Direktör Onayı Verildi')
+            ->exists();
+
+        if (!$direktorOnayiVarMi && !$user->hasRole('Superadmin')) {
+            return back()->with('error', 'Bu proje direktör onayı ile tamamlanmamış görünüyor. Geri alamazsınız.');
+        }
+
+        try {
+            DB::transaction(function () use ($iaa, $user) {
+                // A) PUANLARI GERİ AL
+                // Puan verilmiş miydi? (Puan > 0 ve Onay Tarihi Dolu)
+                if ($iaa->puan > 0) {
+                    $takim = $iaa->atananTakim;
+                    if ($takim) {
+                        // 1. Takım Puanını Düş
+                        $takim->decrement('toplam_puan', $iaa->puan);
+
+                        // 2. Squad (Ekip) Puanlarını Düş
+                        $uyeIdleri = $iaa->projeEkibi()->pluck('users.id');
+                        User::whereIn('id', $uyeIdleri)->decrement('toplam_puan', $iaa->puan);
+
+                        Log::info("direktorOnayiGeriAl: {$iaa->puan} puan Takım ve Squad'dan geri alındı.");
+                    }
+                }
+
+                // B) PROJE DURUMUNU GERİ ÇEVİR
+                $iaa->update([
+                    'durum' => 'Direktör Onayı Bekliyor',
+                    'onaylanma_tarihi' => null,
+                    'tamamlanma_tarihi' => null, // Varsa bunu da sıfırla
+                    'direktor_onay_tarihi' => null
+                ]);
+
+                // C) BAĞLI ŞİKAYETİ GERİ ÇEVİR
+                if ($iaa->musteriSikayeti) {
+                    $iaa->musteriSikayeti->update([
+                        'musteri_durum' => 'Direktör Onayı Bekliyor',
+                        'kurul_onay_tarihi' => null,
+                        // Not: musteri_cozum_notlari'na "Geri Alındı" eklenebilir ama şart değil.
+                    ]);
+                    Log::info("direktorOnayiGeriAl: Bağlı şikayet durumu 'Direktör Onayı Bekliyor' yapıldı.");
+                }
+
+                // D) LOG OLUŞTUR
+                IaaLog::create([
+                    'iaa_id' => $iaa->id,
+                    'user_id' => $user->id,
+                    'eylem' => 'Direktör İşlemi Geri Alındı', // Özel log eylemi
+                    'aciklama' => "Direktör ({$user->name}) tamamlanan projeyi geri aldı. Puanlar silindi ve statü 'Direktör Onayı Bekliyor'a döndü."
+                ]);
+            });
+
+            return back()->with('success', 'Onay geri alındı. Puanlar silindi ve proje tekrar onayınıza sunuldu.');
+
+        } catch (\Exception $e) {
+            Log::error("direktorOnayiGeriAl Hatası: " . $e->getMessage());
+            return back()->with('error', 'İşlem sırasında hata oluştu: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * YENİ: DİREKTÖR REVİZYON TALEBİ
+     */
+    public function direktorRevizyonIste(Request $request, Iaa $iaa)
+    {
+        $user = Auth::user();
+        $request->validate(['not' => 'required|string|min:5']);
+
+        if ($iaa->durum !== 'Direktör Onayı Bekliyor') {
+            return back()->with('error', 'Bu proje direktör onayı aşamasında değil.');
+        }
+
+        if (!$user->hasRole('Superadmin')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('bolumler.id')->toArray();
+            if (!in_array($iaa->bolum_id, $yonetilenBolumIds)) {
+                return back()->with('error', 'Yetkisiz işlem.');
+            }
+        }
+
+        $iaa->update([
+            'durum' => 'Revize Ediliyor',
+            'direktor_notu' => $request->not, // YENİ: Direktör notunu kendi sütununa yaz
+            'yonetici_notu' => $request->not, // Uyumluluk için buraya da yazabiliriz veya kaldırabiliriz (şimdilik kalsın)
+        ]);
+
+        \App\Models\IaaLog::create([
+            'iaa_id' => $iaa->id,
+            'user_id' => $user->id,
+            'eylem' => 'Revizyon Talep Edildi (Direktör)',
+            'aciklama' => $user->name . ' (Direktör) revizyon istedi. Not: ' . $request->not
+        ]);
+
+        // === BİLDİRİM GÖNDER ===
+        try {
+            $takim = $iaa->atananTakim;
+            if ($takim && $takim->uyeler->isNotEmpty()) {
+                // 1. Takım Üyelerine Bildir
+                \Illuminate\Support\Facades\Notification::send(
+                    $takim->uyeler,
+                    new \App\Notifications\ProjeDurumuDegisti($iaa, "direktör tarafından revizyona gönderildi", $request->not)
+                );
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Direktör revizyon bildirim hatası: ' . $e->getMessage());
+        }
+        // === BİLDİRİM SONU ===
+
+        return back()->with('success', 'Proje revizyon için takıma geri gönderildi.');
+    }
+
+    /**
+     * YENİ: DİREKTÖR RED İŞLEMİ
+     */
+    public function direktorReddet(Request $request, Iaa $iaa)
+    {
+        $user = Auth::user();
+        $request->validate(['not' => 'required|string|min:5']);
+
+        if ($iaa->durum !== 'Direktör Onayı Bekliyor') {
+            return back()->with('error', 'Hatalı durum.');
+        }
+
+        if (!$user->hasRole('Superadmin')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('bolumler.id')->toArray();
+            if (!in_array($iaa->bolum_id, $yonetilenBolumIds)) {
+                return back()->with('error', 'Yetkisiz işlem.');
+            }
+        }
+
+        $iaa->update([
+            'durum' => 'Tamamlanması Reddedildi',
+            'direktor_notu' => $request->not, // YENİ: Direktör notunu kaydet
+            'yonetici_notu' => $request->not
+        ]);
+
+        \App\Models\IaaLog::create([
+            'iaa_id' => $iaa->id,
+            'user_id' => $user->id,
+            'eylem' => 'Proje Reddedildi (Direktör)',
+            'aciklama' => $user->name . ' (Direktör) projeyi reddetti. Gerekçe: ' . $request->not
+        ]);
+
+        // === BİLDİRİM GÖNDER ===
+        try {
+            $takim = $iaa->atananTakim;
+            if ($takim && $takim->uyeler->isNotEmpty()) {
+                // Takım Üyelerine Bildir
+                \Illuminate\Support\Facades\Notification::send(
+                    $takim->uyeler,
+                    new \App\Notifications\ProjeDurumuDegisti($iaa, "direktör tarafından reddedildi", $request->not)
+                );
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Direktör red bildirim hatası: ' . $e->getMessage());
+        }
+        // === BİLDİRİM SONU ===
+
+        return back()->with('success', 'Proje direktör tarafından reddedildi.');
     }
 
     /**
@@ -546,8 +912,8 @@ class IaaYonetimController extends Controller
         // - Yönetici Onayı Bekliyor (Onaylamıştı)
         // - Revize Ediliyor (Revizyon istemişti)
         // - Tamamlanması Reddedildi (Reddetmişti)
-        
-        $izinVerilenDurumlar = ['Yönetici Onayı Bekliyor', 'Revize Ediliyor', 'Tamamlanması Reddedildi'];
+
+        $izinVerilenDurumlar = ['Yönetici Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Revize Ediliyor', 'Tamamlanması Reddedildi'];
 
         if (!in_array($iaa->durum, $izinVerilenDurumlar)) {
             return back()->with('error', 'Bu proje şu an geri alınabilir bir aşamada değil (Bölüm yöneticisi yetkisi dışı).');
@@ -555,14 +921,14 @@ class IaaYonetimController extends Controller
 
         // 2. Yetki Kontrolü
         if (!$user->hasRole('Superadmin')) {
-             // Kategori kontrolü (Kendi tarlası mı?)
-             if (!$iaa->musteriSikayeti || !$iaa->musteriSikayeti->sikayet_kategorisi_id) {
-                  return back()->with('error', 'Veri hatası.');
-             }
-             $yetkiliKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
-             if (!in_array($iaa->musteriSikayeti->sikayet_kategorisi_id, $yetkiliKategoriler)) {
-                  return back()->with('error', 'Bu işlem için yetkiniz yok.');
-             }
+            // Kategori kontrolü (Kendi tarlası mı?)
+            if (!$iaa->musteriSikayeti || !$iaa->musteriSikayeti->sikayet_kategorisi_id) {
+                return back()->with('error', 'Veri hatası.');
+            }
+            $yetkiliKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
+            if (!in_array($iaa->musteriSikayeti->sikayet_kategorisi_id, $yetkiliKategoriler)) {
+                return back()->with('error', 'Bu işlem için yetkiniz yok.');
+            }
         }
 
         // Eski durumu not edelim (Log için)
@@ -591,7 +957,7 @@ class IaaYonetimController extends Controller
     public function bolumRevizyonIste(Request $request, Iaa $iaa)
     {
         $user = Auth::user();
-        
+
         // Validasyon: Açıklama şart
         $request->validate(['not' => 'required|string|min:5']);
 
@@ -603,7 +969,7 @@ class IaaYonetimController extends Controller
         // 2. Yetki Kontrolü
         if (!$user->hasRole('Superadmin')) {
             if (!$iaa->musteriSikayeti || !$iaa->musteriSikayeti->sikayet_kategorisi_id) {
-                 return back()->with('error', 'Kategori bilgisi eksik.');
+                return back()->with('error', 'Kategori bilgisi eksik.');
             }
             $yetkiliKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
             if (!in_array($iaa->musteriSikayeti->sikayet_kategorisi_id, $yetkiliKategoriler)) {
@@ -632,7 +998,7 @@ class IaaYonetimController extends Controller
             if ($takim && $takim->uyeler->isNotEmpty()) {
                 // Takım üyelerine bildirim gönder
                 \Illuminate\Support\Facades\Notification::send(
-                    $takim->uyeler, 
+                    $takim->uyeler,
                     new \App\Notifications\ProjeDurumuDegisti($iaa, "bölüm yöneticisi tarafından revizyona gönderildi", $request->not)
                 );
             }
@@ -653,12 +1019,15 @@ class IaaYonetimController extends Controller
         $request->validate(['not' => 'required|string|min:5']);
 
         // 1. Durum & Yetki Kontrolü (Revizyon ile aynı)
-        if ($iaa->durum !== 'Bölüm Onayı Bekliyor') return back()->with('error', 'Hatalı durum.');
-        
+        if ($iaa->durum !== 'Bölüm Onayı Bekliyor')
+            return back()->with('error', 'Hatalı durum.');
+
         if (!$user->hasRole('Superadmin')) {
-             if (!$iaa->musteriSikayeti || !$iaa->musteriSikayeti->sikayet_kategorisi_id) return back()->with('error', 'Kategori hatası.');
-             $yetkiliKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
-             if (!in_array($iaa->musteriSikayeti->sikayet_kategorisi_id, $yetkiliKategoriler)) return back()->with('error', 'Yetkisiz işlem.');
+            if (!$iaa->musteriSikayeti || !$iaa->musteriSikayeti->sikayet_kategorisi_id)
+                return back()->with('error', 'Kategori hatası.');
+            $yetkiliKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
+            if (!in_array($iaa->musteriSikayeti->sikayet_kategorisi_id, $yetkiliKategoriler))
+                return back()->with('error', 'Yetkisiz işlem.');
         }
 
         // 2. Güncelleme (Red Durumuna Çek)
@@ -680,7 +1049,7 @@ class IaaYonetimController extends Controller
             $takim = $iaa->atananTakim;
             if ($takim && $takim->uyeler->isNotEmpty()) {
                 \Illuminate\Support\Facades\Notification::send(
-                    $takim->uyeler, 
+                    $takim->uyeler,
                     new \App\Notifications\ProjeDurumuDegisti($iaa, "bölüm yöneticisi tarafından reddedildi", $request->not)
                 );
             }
@@ -727,18 +1096,107 @@ class IaaYonetimController extends Controller
         ]);
         $iaaIds = $validated['iaa_ids'];
         DB::transaction(function () use ($iaaIds) {
-            $iaas = Iaa::with('resimler')->whereIn('id', $iaaIds)->get();
+            $iaas = Iaa::whereIn('id', $iaaIds)->with('resimler')->get();
             foreach ($iaas as $iaa) {
+                /** @var \App\Models\Iaa $iaa */
+                // Resimleri sil
                 foreach ($iaa->resimler as $resim) {
                     Storage::disk('public')->delete($resim->dosya_yolu);
                 }
+                // Eloquent model üzerinden sil
                 $iaa->forceDelete();
             }
         });
         return redirect()->route('admin.iaa-yonetim.index')->with('success', count($iaaIds) . ' adet öneri kalıcı olarak silindi.');
     }
 
-   /**
+    /**
+     * ====================================================================
+     * PROJEYİ TAMAMLAR, PUANLARI DAĞITIR VE ŞİKAYETİ KAPATIR (ORTAK METOD)
+     * ====================================================================
+     * Hem Süper Yönetici (approveCompleted) hem de Direktör (direktorOnayiVer)
+     * tarafından kullanılır.
+     */
+    private function finalizeProjectApproval(Iaa $iaa, User $approver, string $approverTitle)
+    {
+        Log::info("finalizeProjectApproval başladı. IAA ID: {$iaa->id}, Approver: {$approverTitle}, Durum: {$iaa->durum}");
+        $takim = $iaa->atananTakim;
+        $projePuani = $iaa->puan ?? 0;
+        $puanVerildi = false;
+
+        // Log mesajını hazırlayalım
+        $logAciklama = "{$approverTitle} tarafından proje onaylandı ve \"Tamamlandı\" durumuna getirildi.";
+        $sikayetGuncellendi = false;
+
+        try {
+            DB::transaction(function () use ($iaa, $takim, $projePuani, $approver, $approverTitle, &$puanVerildi, &$logAciklama, &$sikayetGuncellendi) {
+
+                // 1. PUANLARI DAĞIT
+                if (is_null($iaa->onaylanma_tarihi) && $takim && $projePuani > 0) {
+                    // A) Takım Puanı
+                    $takim->increment('toplam_puan', $projePuani);
+
+                    // B) Squad Puanı (Sadece proje ekibi)
+                    $uyeIdleri = $iaa->projeEkibi()->pluck('users.id');
+                    User::whereIn('id', $uyeIdleri)->increment('toplam_puan', $projePuani);
+
+                    $puanVerildi = true;
+                    $logAciklama = "Proje {$approverTitle} tarafından onaylandı. " . $projePuani . ' puan, ' . $takim->ad . ' hanesine ve görevli ' . $uyeIdleri->count() . ' proje çalışanına (Squad) eklendi.';
+
+                } elseif (!is_null($iaa->onaylanma_tarihi)) {
+                    $logAciklama .= ' (Proje daha önce onaylandığı için tekrar puan verilmedi.)';
+                }
+
+                // 2. PROJEYİ GÜNCELLE
+                $iaa->update([
+                    'durum' => 'Tamamlandı',
+                    'onaylanma_tarihi' => $iaa->onaylanma_tarihi ?? now(),
+                    'yonetici_notu' => null
+                ]);
+
+                // 3. BAĞLI MÜŞTERİ ŞİKAYETİNİ GÜNCELLE
+                $bagliSikayet = MusteriSikayeti::where('iaa_id', $iaa->id)->first();
+                if ($bagliSikayet && $bagliSikayet->musteri_durum !== 'Kapatıldı') {
+                    $bagliSikayet->update([
+                        'musteri_durum' => 'Kapatıldı',
+                        'musteri_cozum_notlari' => ($bagliSikayet->musteri_cozum_notlari ?? '') . "\nİlgili IAA Projesi (ID: {$iaa->id}) {$approverTitle} tarafından onaylanarak kapatıldı.",
+                        'kurul_onay_tarihi' => now()
+                    ]);
+                    $sikayetGuncellendi = true;
+                }
+
+                // 4. BİLDİRİM
+                if ($takim && $takim->uyeler->isNotEmpty()) {
+                    \Illuminate\Support\Facades\Notification::send($takim->uyeler, new ProjeDurumuDegisti($iaa, "onaylandı"));
+                }
+
+                // 5. LOG
+                IaaLog::create([
+                    'iaa_id' => $iaa->id,
+                    'user_id' => $approver->id,
+                    'eylem' => ($approverTitle == 'Direktör' ? 'Direktör Onayı Verildi' : 'Proje Onaylandı'),
+                    'aciklama' => $logAciklama
+                ]);
+            });
+
+        } catch (\Exception $e) {
+            Log::error('Proje onaylanırken hata (finalizeProjectApproval): ' . $e->getMessage());
+            throw $e; // Hatayı yukarı fırlat
+        }
+
+        // 6. EVENT (Transaction dışı)
+        if ($sikayetGuncellendi) {
+            try {
+                event(new \App\Events\SikayetDurumuDegisti());
+            } catch (\Exception $e) {
+                Log::error('Event hatası: ' . $e->getMessage());
+            }
+        }
+
+        return $puanVerildi;
+    }
+
+    /**
      * ====================================================================
      * TAMAMLANMIŞ PROJEYİ ONAYLAR (GÜNCELLENMİŞ VE TAM SÜRÜM)
      * ====================================================================
@@ -751,92 +1209,12 @@ class IaaYonetimController extends Controller
             return back()->with('error', 'Bu proje onaylanabilir durumda değil.');
         }
 
-        $takim = $iaa->atananTakim;
-        $projePuani = $iaa->puan ?? 0;
-        $puanVerildi = false; 
-        $logAciklama = 'Yönetici tarafından proje onaylandı ve "Tamamlandı" durumuna getirildi.';
-        $sikayetGuncellendi = false;
-
         try {
-            DB::transaction(function () use ($iaa, $takim, $projePuani, &$puanVerildi, &$logAciklama, &$sikayetGuncellendi) {
-                
-                // 3. PUANLARI DAĞIT
-                if (is_null($iaa->onaylanma_tarihi) && $takim && $projePuani > 0) {
-                    
-                    // A) Takımın KENDİ hanesine puan yaz (Liderlik tablosu için)
-                    $takim->increment('toplam_puan', $projePuani);
-                    
-                    // B) === DÜZELTME BURADA: SADECE SQUAD ÜYELERİNE PUAN VER ===
-                    // Eski Hatalı Kod: $uyeIdleri = $takim->uyeler()->pluck('users.id');
-                    
-                    // YENİ DOĞRU KOD: Sadece iaa_user tablosundaki proje ekibini çek
-                    // (Lider de bu tabloya eklendiği için o da puanını alır)
-                    $uyeIdleri = $iaa->projeEkibi()->pluck('users.id'); 
-                    
-                    User::whereIn('id', $uyeIdleri)->increment('toplam_puan', $projePuani);
-                    
-                    $puanVerildi = true;
-                    
-                    // Log açıklamasını da güncelleyelim
-                    $logAciklama = 'Proje onaylandı. ' . $projePuani . ' puan, ' . $takim->ad . ' hanesine ve görevli ' . $uyeIdleri->count() . ' proje çalışanına (Squad) eklendi.';
-                
-                } elseif (!is_null($iaa->onaylanma_tarihi)) {
-                    $logAciklama .= ' (Proje daha önce onaylandığı için tekrar puan verilmedi.)';
-                }
-
-                // 4. PROJEYİ (IAA) GÜNCELLE
-                $iaa->update([
-                    'durum' => 'Tamamlandı',
-                    'onaylanma_tarihi' => $iaa->onaylanma_tarihi ?? now(), 
-                    'yonetici_notu' => null 
-                ]);
-
-                // 5. BAĞLI MÜŞTERİ ŞİKAYETİNİ GÜNCELLE
-                $bagliSikayet = MusteriSikayeti::where('iaa_id', $iaa->id)->first();
-                
-                if ($bagliSikayet && $bagliSikayet->musteri_durum !== 'Kapatıldı') {
-                    $bagliSikayet->update([
-                        'musteri_durum' => 'Kapatıldı', 
-                        'musteri_cozum_notlari' => ($bagliSikayet->musteri_cozum_notlari ?? '') . "\nİlgili IAA Projesi (ID: {$iaa->id}) yönetici tarafından onaylanarak kapatıldı.",
-                        'kurul_onay_tarihi' => now()
-                    ]);
-                    $sikayetGuncellendi = true;
-                }
-
-                // === BİLDİRİM KODU (DÜZELTİLDİ) ===
-                if ($takim) {
-                    // HATA BURADAYDI: $takim->users yerine $takim->uyeler olmalı
-                    $uyeler = $takim->uyeler; 
-                    if($uyeler->isNotEmpty()) {
-                        \Illuminate\Support\Facades\Notification::send($uyeler, new ProjeDurumuDegisti($iaa, "onaylandı"));
-                    }
-                }
-
-                // 6. LOG KAYDI OLUŞTUR
-                IaaLog::create([
-                    'iaa_id' => $iaa->id,
-                    'user_id' => Auth::id(),
-                    'eylem' => 'Proje Onaylandı',
-                    'aciklama' => $logAciklama
-                ]);
-            }); 
-
+            $puanVerildi = $this->finalizeProjectApproval($iaa, Auth::user(), 'Yönetici');
+            return back()->with('success', 'Proje başarıyla onaylandı!' . ($puanVerildi ? ' Puanlar dağıtıldı.' : ''));
         } catch (\Exception $e) {
-            Log::error('Proje onaylanırken hata oluştu (approveCompleted): ' . $e->getMessage());
             return back()->with('error', 'İşlem sırasında bir hata oluştu: ' . $e->getMessage());
         }
-
-        // 7. CANLI RAPOR SAYFASINI GÜNCELLEMEK İÇİN OLAYI TETİKLE
-        if ($sikayetGuncellendi) {
-            try {
-                event(new \App\Events\SikayetDurumuDegisti());
-            } catch (\Exception $e) {
-                Log::error('SikayetDurumuDegisti broadcast olayı gönderilemedi: ' . $e->getMessage());
-            }
-        }
-
-        // 8. Başarı mesajıyla geri dön
-        return back()->with('success', 'Proje başarıyla onaylandı!' . ($puanVerildi ? ' Puanlar dağıtıldı.' : ''));
     }
 
     /**
@@ -848,7 +1226,7 @@ class IaaYonetimController extends Controller
     public function rejectCompleted(Request $request, Iaa $iaa)
     {
         if (!Auth::user()->hasRole('Superadmin')) {
-             abort(403, 'Bu işlemi yapma yetkiniz yok.');
+            abort(403, 'Bu işlemi yapma yetkiniz yok.');
         }
 
         $validated = $request->validate([
@@ -859,7 +1237,7 @@ class IaaYonetimController extends Controller
             'durum' => 'Tamamlanması Reddedildi',
             'yonetici_notu' => $validated['rejection_reason']
         ]);
-        
+
         IaaLog::create([
             'iaa_id' => $iaa->id,
             'user_id' => Auth::id(),
@@ -890,18 +1268,18 @@ class IaaYonetimController extends Controller
     public function requestRevision(Request $request, Iaa $iaa)
     {
         if (!Auth::user()->hasRole('Superadmin')) {
-             abort(403, 'Bu işlemi yapma yetkiniz yok.');
+            abort(403, 'Bu işlemi yapma yetkiniz yok.');
         }
 
         $validated = $request->validate([
             'revision_reason' => 'required|string|min:10',
         ]);
-        
+
         $iaa->update([
             'durum' => 'Revize Ediliyor',
             'yonetici_notu' => $validated['revision_reason']
         ]);
-        
+
         IaaLog::create([
             'iaa_id' => $iaa->id,
             'user_id' => Auth::id(),
@@ -923,7 +1301,7 @@ class IaaYonetimController extends Controller
         return back()->with('success', 'Proje için revizyon talebi takıma iletildi.');
     }
 
-     // ================================================================
+    // ================================================================
     // YENİ OLUŞTURULAN ARŞİV METODU
     // ================================================================
     public function arsiv()
@@ -937,7 +1315,7 @@ class IaaYonetimController extends Controller
             ->groupBy('atanan_takim_id')
             ->orderByDesc('proje_sayisi')
             ->first();
-        
+
         $enIyiTakim = null;
         if ($topTeamResult) {
             $takim = Takim::find($topTeamResult->atanan_takim_id);
@@ -952,7 +1330,7 @@ class IaaYonetimController extends Controller
         return view('admin.iaa-yonetim.arsiv', compact('tamamlananProjeler', 'enIyiTakim'));
     }
 
-    
+
     /**
      * Bir İAA önerisini başka bir kullanıcıya atama formunu gösterir.
      */
@@ -970,7 +1348,7 @@ class IaaYonetimController extends Controller
         if (!Auth::user()->hasRole('Superadmin')) {
             abort(403, 'Bu işlemi yapma yetkiniz yok.');
         }
-        
+
         $validated = $request->validate([
             'gonderen_user_id' => 'required|exists:users,id',
         ]);
@@ -1025,4 +1403,4 @@ class IaaYonetimController extends Controller
 
 }
 
-   
+

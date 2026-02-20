@@ -1,8 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Kullanıcı Rehberi') }}
-        </h2>
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Kullanıcı Rehberi') }}
+            </h2>
+            {{-- Toplam Kullanıcı Sayısı --}}
+            <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-bold">
+                Toplam: {{ $totalUserCount }} Kişi
+            </span>
+        </div>
     </x-slot>
 
     <div class="py-12">

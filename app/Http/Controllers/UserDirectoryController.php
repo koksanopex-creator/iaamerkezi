@@ -61,7 +61,10 @@ class UserDirectoryController extends Controller
                         ->paginate(12)
                         ->withQueryString();
 
-        return view('user-directory.index', compact('users', 'search'));
+        // Toplam Personel Sayısı
+        $totalUserCount = User::where('is_personnel', true)->count();
+
+        return view('user-directory.index', compact('users', 'search', 'totalUserCount'));
     }
 
     /**

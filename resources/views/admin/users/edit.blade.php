@@ -12,11 +12,33 @@
 
                     <h3 class="text-2xl font-bold text-gray-800 tracking-tight mb-6">Kullanıcı Bilgilerini Güncelle</h3>
 
-                    <form action="{{ route('admin.users.update', $user) }}" method="POST">
+                    <form action="{{ route('admin.users.update', $user) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         @method('PATCH') {{-- Güncelleme işlemi için metod PATCH olarak belirtilir --}}
 
                         <div class="space-y-6">
+
+                            {{-- Avatar Yükleme --}}
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Profil Fotoğrafı</label>
+                                <div class="mt-2 flex items-center space-x-5">
+                                    <div class="h-16 w-16 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                                        @if($user->profile_photo_path)
+                                            <img src="{{ asset('storage/' . $user->profile_photo_path) }}" alt="{{ $user->name }}" class="h-full w-full object-cover">
+                                        @else
+                                            <svg class="h-10 w-10 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                                            </svg>
+                                        @endif
+                                    </div>
+                                    <div class="flex-1">
+                                        <input type="file" name="photo" id="photo" accept="image/*"
+                                               class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors">
+                                        <p class="mt-1 text-xs text-gray-500">Değiştirmek için yeni bir dosya yükleyin. (Max. 2MB)</p>
+                                    </div>
+                                </div>
+                                <x-input-error :messages="$errors->get('photo')" class="mt-2" />
+                            </div>
 
                             {{-- İsim Soyisim --}}
                             <div>
@@ -45,28 +67,18 @@
                                 <x-input-error :messages="$errors->get('bolum_id')" class="mt-2" />
                             </div>
 
-                            {{-- Rol Seçimi (Checkbox'lar ile güncellendi) --}}
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Kullanıcı Rolleri</label>
-                                <div class="mt-2 space-y-2">
-                                     {{-- === DÜZELTME: $roller yerine $roles kullanıldı === --}}
+                                <label for="role" class="block text-sm font-medium text-gray-700">Kullanıcı Rolü <span class="text-red-500">*</span></label>
+                                <select name="roles[]" id="role" multiple size="5" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 custom-scrollbar">
                                     @foreach($roles as $rol)
-                                        <div class="flex items-center">
-                                            <input id="role-{{ $rol->id }}"
-                                                   name="roles[]"
-                                                   type="checkbox"
-                                                   value="{{ $rol->name }}"
-                                                   {{-- Eğer kullanıcı bu role zaten sahipse veya form hatası sonrası eski seçim varsa işaretle --}}
-                                                   @if( (is_array(old('roles')) && in_array($rol->name, old('roles'))) || (empty(old('roles')) && $user->hasRole($rol->name)) ) checked @endif
-                                                   class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                                            <label for="role-{{ $rol->id }}" class="ml-3 block text-sm font-medium text-gray-700">
-                                                {{ $rol->name }}
-                                            </label>
-                                        </div>
+                                        <option value="{{ $rol->name }}"
+                                                @if( (is_array(old('roles')) && in_array($rol->name, old('roles'))) || (empty(old('roles')) && $user->hasRole($rol->name)) ) selected @endif>
+                                            {{ $rol->name }}
+                                        </option>
                                     @endforeach
-                                </div>
+                                </select>
+                                <p class="mt-1 text-xs text-gray-500 italic">Birden fazla rol seçmek için Ctrl tuşuna basılı tutun.</p>
                                 <x-input-error :messages="$errors->get('roles')" class="mt-2" />
-                                <x-input-error :messages="$errors->get('roles.*')" class="mt-2" /> {{-- Dizi elemanları için hata gösterimi --}}
                             </div>
 
                             {{-- Şifre ve Şifre Tekrar (İsteğe Bağlı) --}}

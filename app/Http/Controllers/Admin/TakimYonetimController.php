@@ -24,9 +24,22 @@ class TakimYonetimController extends Controller
     {
         // with('lider') -> Her takımın liderinin bilgilerini tek seferde çeker (N+1 problemini önler)
         // withCount('uyeler') -> Her takım için üye sayısını 'uyeler_count' adında bir alanda hesaplar
-        $takimlar = Takim::with('lider')->withCount('uyeler')->latest()->paginate(10);
 
-        return view('admin.takim-yonetim.index', compact('takimlar'));
+        // Şikayet Çözüm Takımları
+        $sikayetTakimlari = Takim::where('tur', 'sikayet')
+            ->with('lider')
+            ->withCount('uyeler')
+            ->latest()
+            ->paginate(10, ['*'], 'sikayet_page'); // Sayfalama çakışmasını önlemek için özel page parametresi
+
+        // İAA (İyileştirme) Takımları - Türü 'sikayet' olmayanlar
+        $iaaTakimlari = Takim::where('tur', '!=', 'sikayet')
+            ->with('lider')
+            ->withCount('uyeler')
+            ->latest()
+            ->paginate(10, ['*'], 'iaa_page');
+
+        return view('admin.takim-yonetim.index', compact('sikayetTakimlari', 'iaaTakimlari'));
     }
 
     /**
@@ -89,7 +102,7 @@ class TakimYonetimController extends Controller
     {
         // Takımın ilişkili verilerini (üyeler, lider, atanmış projeler) önceden yüklüyoruz.
         $takim->load('uyeler', 'lider', 'atananProjeler');
-        
+
         // Takıma eklenebilecek potansiyel üyeleri buluyoruz (mevcut üyeler hariç).
         $mevcutUyeIdleri = $takim->uyeler->pluck('id');
         $potansiyelUyeler = User::whereNotIn('id', $mevcutUyeIdleri)->orderBy('name')->get();
@@ -126,7 +139,7 @@ class TakimYonetimController extends Controller
 
         return back()->with('success', 'Üye başarıyla takıma eklendi.');
     }
-    
+
     /**
      * ==========================================================
      * YENİ: BİR ÜYEYİ TAKIMDAN ÇIKARIR
@@ -140,10 +153,10 @@ class TakimYonetimController extends Controller
         }
 
         $takim->uyeler()->detach($user->id);
-        
+
         return back()->with('success', 'Üye başarıyla takımdan çıkarıldı.');
     }
-    
+
     /**
      * ==========================================================
      * YENİ: BİR TAKIMA HAVUZDAN PROJE ATAR
@@ -169,7 +182,7 @@ class TakimYonetimController extends Controller
         return back()->with('success', 'Proje başarıyla takıma atandı.');
     }
 
-     /**
+    /**
      * ==========================================================
      * TAKIM DÜZENLEME FORMUNU GÖSTERİR
      * ==========================================================
@@ -203,7 +216,7 @@ class TakimYonetimController extends Controller
 
         // 1. Takımın ana bilgilerini güncelle
         $takim->update($validated);
-        
+
         // 2. Eğer lider değiştirildiyse, üyelik durumunu güncelle
         if ($eskiLiderId != $yeniLiderId) {
             // Yeni liderin zaten üye olduğundan emin ol
@@ -216,7 +229,7 @@ class TakimYonetimController extends Controller
                 ]
             ]);
         }
-        
+
         return redirect()->route('admin.takim-yonetim.index')->with('success', 'Takım başarıyla güncellendi.');
     }
 
@@ -228,7 +241,7 @@ class TakimYonetimController extends Controller
         try {
             // Transaction başlat: Herhangi bir adımda hata olursa tüm işlemler geri alınır.
             DB::transaction(function () use ($takim) {
-                
+
                 // 1. Atanmış Projeleri Havuza Geri Döndür
                 // Bu takıma atanmış ve henüz tamamlanmamış tüm projelerin durumunu 'Havuzda' yapar
                 // ve atanan_takim_id'sini null'a çeker.
@@ -258,7 +271,7 @@ class TakimYonetimController extends Controller
             // Beklenmedik bir veritabanı hatası olursa kullanıcıyı bilgilendir.
             return back()->with('error', 'Takım silinirken bir veritabanı hatası oluştu. Detay: ' . $e->getMessage());
         }
-        
+
         // Başarılı olursa ana sayfaya yönlendir.
         return redirect()->route('admin.takim-yonetim.index')->with('success', 'Takım ve tüm bağlantıları başarıyla silindi.');
     }

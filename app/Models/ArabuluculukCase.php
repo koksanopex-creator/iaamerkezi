@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 class ArabuluculukCase extends Model
 {
     use SoftDeletes;
-    
+
     protected $table = 'arabuluculuk_cases';
 
     // Mass Assignment için tüm alanları açıyoruz
@@ -24,37 +24,47 @@ class ArabuluculukCase extends Model
 
     // --- İLİŞKİLER ---
 
-    public function arabulucu() {
+    public function arabulucu()
+    {
         return $this->belongsTo(Arabulucu::class, 'arabulucu_id');
     }
 
-    public function calisan() {
+    public function calisan()
+    {
         return $this->belongsTo(User::class, 'calisan_user_id');
     }
 
-    public function creator() {
+    public function creator()
+    {
         return $this->belongsTo(User::class, 'created_by');
     }
-    
-    public function externalLawyer() {
+
+
+
+    public function externalLawyer()
+    {
         return $this->belongsTo(User::class, 'external_lawyer_id');
     }
 
-    public function files() {
+    public function files()
+    {
         return $this->hasMany(ArabuluculukFile::class, 'case_id');
     }
 
-    public function payments() {
+    public function payments()
+    {
         return $this->hasMany(ArabuluculukPayment::class, 'case_id');
     }
 
-    public function logs() {
+    public function logs()
+    {
         return $this->hasMany(ArabuluculukLog::class, 'case_id')->orderBy('created_at', 'desc');
     }
 
     // TEK VE DOĞRU İLİŞKİ METODU BU OLMALI
     // Controller'da ve Blade'de '$case->kurulDegerlendirmesi' diye çağırıyoruz.
-    public function kurulDegerlendirmesi() {
+    public function kurulDegerlendirmesi()
+    {
         return $this->hasMany(ArabuluculukKurulDegerlendirme::class, 'case_id');
     }
 

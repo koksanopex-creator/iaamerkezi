@@ -2,27 +2,27 @@
 
 namespace App\Notifications;
 
-use App\Models\TakimDavetiyesi; //
+use App\Models\TakimDavetiyesi;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage; // <-- EKLENDİ
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class TakimDavetiYanitlandi extends Notification
+class TakimDavetiYanitlandi extends Notification implements ShouldQueue
 {
     use Queueable;
 
     protected $davetiye;
-    protected $yanitlayanUser;
+    protected $kabulEdenUser;
 
     /**
      * Create a new notification instance.
      */
-    public function __construct(TakimDavetiyesi $davetiye, User $yanitlayanUser)
+    public function __construct(TakimDavetiyesi $davetiye, User $kabulEdenUser)
     {
         $this->davetiye = $davetiye;
-        $this->yanitlayanUser = $yanitlayanUser;
+        $this->kabulEdenUser = $kabulEdenUser;
     }
 
     /**
@@ -30,19 +30,22 @@ class TakimDavetiYanitlandi extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database', 'mail']; // <-- 'mail' EKLENDİ
+        // Hem veritabanına (zil) hem maile gönderir
+        return ['database', 'mail'];
     }
 
-    // === MAİL METODU EKLENDİ ===
+    // === MAİL FORMATI ===
     public function toMail(object $notifiable): MailMessage
     {
         $durum = $this->davetiye->durum === 'kabul edildi' ? 'kabul etti' : 'reddetti';
-        
+        $renk = $this->davetiye->durum === 'kabul edildi' ? 'success' : 'error'; // Buton rengi
+
         return (new MailMessage)
-                    ->subject('Takım Davet Yanıtı: ' . $this->yanitlayanUser->name)
-                    ->greeting("Merhaba {$notifiable->name},")
-                    ->line("Personeliniz {$this->yanitlayanUser->name}, '{$this->davetiye->takim->ad}' takımı için gelen daveti {$durum}.")
-                    ->action('Takımı Görüntüle', route('takimlar.show', $this->davetiye->takim_id));
+            ->subject('Takım Davet Yanıtı: ' . $this->kabulEdenUser->name)
+            ->greeting("Merhaba {$notifiable->name},")
+            ->line("Personeliniz {$this->kabulEdenUser->name}, '{$this->davetiye->takim->ad}' takımı için gelen daveti {$durum}.")
+            ->action('Takımı Görüntüle', route('takimlar.show', $this->davetiye->takim_id))
+            ->level($renk); // Kabul ise yeşil, red ise kırmızı buton/çerçeve
     }
 
     /**
@@ -50,18 +53,25 @@ class TakimDavetiYanitlandi extends Notification
      */
     public function toDatabase(object $notifiable): array
     {
-        // Rota adını web.php dosyanızdan aldım
-        $link = route('takimlar.show', $this->davetiye->takim_id);
-        
-        // "kabul edildi" veya "reddedildi" durumuna göre metni ayarla
-        $durumText = $this->davetiye->durum === 'kabul edildi' ? 'takımınıza katıldı' : 'takım davetinizi reddetti';
-        $takimAdi = $this->davetiye->takim->ad;
+        // Duruma göre metin, ikon ve renk belirleyelim
+        $isKabul = $this->davetiye->durum === 'kabul edildi';
+
+        $durumText = $isKabul ? 'takım davetini kabul etti' : 'takım davetini reddetti';
+        $icon = $isKabul ? 'check-circle' : 'x-circle';
+        $color = $isKabul ? 'green' : 'red';
 
         return [
-            // İstediğiniz mesaj
-            'message' => "{$this->yanitlayanUser->name}, '{$takimAdi}' {$durumText}.",
-            'link' => $link,
-            'takim_id' => $this->davetiye->takim_id
+            // Standart Yapı (Diğer bildirimlerinizle uyumlu)
+            'message' => "{$this->kabulEdenUser->name}, '{$this->davetiye->takim->ad}' {$durumText}.",
+
+            // Frontendde linkin çalışması için genelde 'action_url' kullanıyoruz
+            'action_url' => route('takimlar.show', $this->davetiye->takim_id),
+
+            // Görsel Güzellikler
+            'icon' => $icon,
+            'color' => $color,
+            'takim_id' => $this->davetiye->takim_id,
+            'type' => 'davet_yaniti'
         ];
     }
 }

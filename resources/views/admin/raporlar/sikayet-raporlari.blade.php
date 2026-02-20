@@ -246,6 +246,55 @@
                 altKategoriChart.updateSeries(data.altKategoriSeries);
             }
 
+            // --- YENİ EKLENEN CHART GÜNCELLEMELERİ ---
+
+             // 4. Müşteri Geri Bildirim (Donut)
+             if (data.feedbackCounts && window.customerFeedbackChart) {
+                const fSeries = [
+                    data.feedbackCounts['Onaylandı'] || 0,
+                    data.feedbackCounts['Reddedildi'] || 0,
+                    data.feedbackCounts['Revizyon İstendi'] || 0
+                ];
+                window.customerFeedbackChart.updateSeries(fSeries);
+            }
+
+            // 5. Bölüm Memnuniyet (Stacked Bar)
+            if (data.bolumMemnuniyeti && window.deptSatisfactionChart) {
+               // Veri array'e dönüştürülmeli (Collection/Object gelebilir)
+               const bData = Object.values(data.bolumMemnuniyeti);
+               const bNames = bData.map(i => i.bolum_adi);
+               const bOnay = bData.map(i => i.onay_sayisi);
+               const bRed = bData.map(i => i.red_sayisi);
+               const bRev = bData.map(i => i.revizyon_sayisi);
+               
+               window.deptSatisfactionChart.updateOptions({
+                   xaxis: { categories: bNames },
+                   series: [
+                       { name: 'Onaylandı', data: bOnay },
+                       { name: 'Reddedildi', data: bRed },
+                       { name: 'Revizyon', data: bRev }
+                   ]
+               });
+            }
+
+            // 6. İadeli Oran (Donut)
+            if (window.iadeliOranChart && (data.iadeliSikayetSayisi !== undefined)) {
+                window.iadeliOranChart.updateSeries([data.iadeliSikayetSayisi, data.iadesizSikayetSayisi]);
+            }
+
+            // 7. Bölüm İade Miktarları (Birim Bazlı - Çoklu Grafik)
+            if (window.renderBolumIadeCharts && data.bolumIadeChartData) {
+                window.renderBolumIadeCharts(data.bolumIadeChartData);
+            }
+
+            // 8. Bölüm İadeli/İadesiz Şikayet (Stacked Bar)
+            if (window.bolumIadeCountChart && data.bolumIadeSayilariSeries) {
+                 window.bolumIadeCountChart.updateOptions({
+                    xaxis: { categories: data.bolumIadeSayilariLabels || [] },
+                    series: data.bolumIadeSayilariSeries
+                });
+            }
+
         });
     </script>
     @endpush

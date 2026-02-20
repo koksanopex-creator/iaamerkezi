@@ -1,325 +1,371 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Takım Projeleri ve Talepleri') }}
-        </h2>
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Takım Projeleri ve Yönetimi') }}
+            </h2>
+            <a href="javascript:history.back()" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 transition ease-in-out duration-150">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Geri Dön
+            </a>
+        </div>
     </x-slot>
 
-    {{-- ================== YENİ İSTATİSTİK KARTLARI BÖLÜMÜ ================== --}}
-    <div class="pt-6"> {{-- py-12 yerine pt-6 yaptık, alttaki py-12 devam ediyor --}}
+    {{-- ================== TAKIM KARTLARI ================== --}}
+    <div class="pt-6 pb-2">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            {{-- Kartları Grid ile sırala --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-
-                {{-- Aktif Proje Kartı --}}
-                <a href="#aktif-projeler" class="block p-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-indigo-100 uppercase tracking-wider">Aktif Projeler</p>
-                            <p class="text-3xl font-bold text-white mt-1">{{ $stats['aktif'] }}</p>
-                        </div>
-                        <div class="p-3 bg-white/20 rounded-full">
-                            {{-- Briefcase Icon --}}
-                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        </div>
-                    </div>
-                </a>
-
-                {{-- Onay Bekleyen Talep Kartı --}}
-                 <a href="#onay-bekleyen-talepler" class="block p-6 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-amber-100 uppercase tracking-wider">Bekleyen Talepler</p>
-                            <p class="text-3xl font-bold text-white mt-1">{{ $stats['talep'] }}</p>
-                        </div>
-                        <div class="p-3 bg-white/20 rounded-full">
-                             {{-- Calendar Icon --}}
-                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        </div>
-                    </div>
-                </a>
-
-                 {{-- Onay Bekleyen Tamamlanmış Proje Kartı --}}
-                 <a href="#onay-bekleyen-tamamlanmis" class="block p-6 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-red-100 uppercase tracking-wider">Onay Bekleyenler</p>
-                            <p class="text-3xl font-bold text-white mt-1">{{ $stats['onay_bekleyen_tamamlanmis'] }}</p>
-                        </div>
-                        <div class="p-3 bg-white/20 rounded-full">
-                            {{-- Hourglass Icon --}}
-                             <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </div>
-                    </div>
-                </a>
-
-                {{-- Tamamlanan Proje Kartı --}}
-                 <a href="#tamamlanan-projeler" class="block p-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-emerald-100 uppercase tracking-wider">Tamamlanan Projeler</p>
-                            <p class="text-3xl font-bold text-white mt-1">{{ $stats['tamamlanan'] }}</p>
-                        </div>
-                        <div class="p-3 bg-white/20 rounded-full">
-                            {{-- Check Circle Icon --}}
-                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        </div>
-                    </div>
-                </a>
-                
-                 {{-- Toplam Puan Kartı --}}
-                 <div class="block p-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg col-span-1 md:col-span-1 lg:col-span-1"> {{-- Boyut ayarlaması --}}
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-pink-100 uppercase tracking-wider">Toplam Kazanılan Puan</p>
-                            <p class="text-3xl font-bold text-white mt-1">{{ number_format($stats['toplam_puan'], 0) }}</p>
-                        </div>
-                        <div class="p-3 bg-white/20 rounded-full">
-                           {{-- Star Icon --}}
-                           <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                        </div>
+            <div class="bg-indigo-900 rounded-xl shadow-lg overflow-hidden relative">
+                <div class="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-indigo-800 opacity-50"></div>
+                <div class="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 rounded-full bg-indigo-700 opacity-50"></div>
+                <div class="p-6 relative z-10">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        Bağlı Olduğum Takımlar
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @forelse($katildigimTakimlar as $takim)
+                            <div class="bg-white/10 backdrop-blur-sm border border-indigo-500/30 rounded-lg p-4 hover:bg-white/20 transition duration-200">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="font-bold text-white text-lg">{{ $takim->ad }}</h4>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            @if($takim->lider_user_id == auth()->id())
+                                                <span class="bg-amber-500 text-white text-xs px-2 py-0.5 rounded font-bold">LİDER</span>
+                                            @else
+                                                <span class="bg-indigo-600 text-indigo-100 text-xs px-2 py-0.5 rounded">ÜYE</span>
+                                            @endif
+                                            <span class="text-xs text-indigo-200">{{ \Carbon\Carbon::parse($takim->pivot->created_at)->format('d.m.Y') }} tarihinden beri</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="block text-2xl font-bold text-white">{{ $takim->atanan_projeler_count }}</span>
+                                        <span class="text-[10px] uppercase text-indigo-200 tracking-wide">Proje</span>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="col-span-full text-center text-indigo-200 py-4">Henüz bir takıma dahil değilsiniz.</div>
+                        @endforelse
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
-    {{-- ================== KART BÖLÜMÜ SONU ================== --}}
 
-    <div class="py-12">
+    {{-- ================== İSTATİSTİK KARTLARI ================== --}}
+    <div class="pt-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {{-- Aktif Proje --}}
+                <a href="#aktif-projeler" class="block p-6 bg-white border border-gray-100 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover:text-blue-600 transition-colors">Aktif Projeler</p>
+                            <p class="text-3xl font-black text-gray-800 mt-1 group-hover:text-blue-600">{{ $stats['aktif'] }}</p>
+                        </div>
+                        <div class="p-3 bg-blue-50 rounded-full group-hover:bg-blue-100">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </div>
+                    </div>
+                </a>
+                {{-- Onay Bekleyen --}}
+                <a href="#onay-bekleyen-tamamlanmis" class="block p-6 bg-white border border-gray-100 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover:text-red-600 transition-colors">Onay Bekleyenler</p>
+                            <p class="text-3xl font-black text-gray-800 mt-1 group-hover:text-red-600">{{ $stats['onay_bekleyen_tamamlanmis'] }}</p>
+                        </div>
+                        <div class="p-3 bg-red-50 rounded-full group-hover:bg-red-100">
+                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                    </div>
+                </a>
+                {{-- Tamamlanan --}}
+                <a href="#tamamlanan-projeler" class="block p-6 bg-white border border-gray-100 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover:text-green-600 transition-colors">Tamamlanan</p>
+                            <p class="text-3xl font-black text-gray-800 mt-1 group-hover:text-green-600">{{ $stats['tamamlanan'] }}</p>
+                        </div>
+                        <div class="p-3 bg-green-50 rounded-full group-hover:bg-green-100">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                    </div>
+                </a>
+                {{-- Kişisel Görevler --}}
+                <div class="block p-6 bg-white border border-gray-100 rounded-xl shadow-md group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Bana Atanan Adımlar</p>
+                            <p class="text-3xl font-black text-gray-800 mt-1">{{ count($banaAtananAdimlar) }}</p>
+                        </div>
+                        <div class="p-3 bg-amber-50 rounded-full">
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ================== DİKKAT ÇEKİCİ GÖREV UYARISI ================== --}}
+    @if(count($banaAtananAdimlar) > 0)
+    <div class="pb-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-red-50 border-l-8 border-red-500 p-6 shadow-md rounded-r-lg animate-pulse"> {{-- Pulse eklendi, border kalınlaştı, renk kırmızıya döndü --}}
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-red-500" viewBox="0 0 20 20" fill="currentColor"> {{-- İkon büyüdü --}}
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="text-xl font-bold text-red-700">DİKKAT: EYLEM BEKLEYEN GÖREVLERİNİZ VAR!</h3> {{-- Başlık büyüdü --}}
+                        <div class="mt-3 text-base text-red-800">
+                            <ul class="list-disc pl-5 space-y-2">
+                                @foreach($banaAtananAdimlar as $gorev)
+                                    <li>
+                                        <span class="font-semibold">{{ $gorev->baslik }}</span> projesinde 
+                                        <span class="font-bold underline">"{{ $gorev->adim_adi }}"</span> adımı işlem bekliyor.
+                                        <a href="{{ route('proje.workspace.show', $gorev->iaa_id) }}" class="inline-flex items-center px-3 py-1 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 ml-3 shadow-sm transition">
+                                            GİT &rarr;
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <div class="pb-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
 
-        {{-- BÖLÜM 1: ONAY BEKLEYEN TALEPLER --}}
-            <div id="onay-bekleyen-talepler" class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200 scroll-mt-20"> {{-- Scroll margin top eklendi --}}
-                 <div class="p-6 sm:p-8">
-                    <div class="flex items-center space-x-4 mb-6">
-                        <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-yellow-400 to-amber-500 rounded-xl flex items-center justify-center shadow-lg">
-                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        </div>
+            {{-- BÖLÜM 1: ONAY BEKLEYEN TALEPLER (Havuzdan Çekilmeyi Bekleyenler) --}}
+            <div id="onay-bekleyen-talepler" class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200 scroll-mt-20">
+                <div class="p-6 border-b border-gray-100 bg-gray-50/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-8 bg-yellow-400 rounded-full"></div>
                         <div>
-                            <h3 class="text-2xl font-bold text-gray-800 tracking-tight">Onay Bekleyen Talepler</h3>
-                            <p class="text-gray-600">Yönetici onayına gönderilen proje talepleriniz.</p>
+                            <h3 class="text-lg font-bold text-gray-800">Onay Bekleyen Talepler</h3>
+                            <p class="text-sm text-gray-500 mt-0.5">Yönetici havuzunda onay bekleyen proje talepleriniz.</p>
                         </div>
                     </div>
-                    
-                     <div class="bg-white/60 backdrop-blur-sm rounded-xl shadow-inner border border-gray-200/80 overflow-hidden">
-                        <table class="block sm:table min-w-full">
-                            <thead class="hidden sm:table-header-group">
-                                <tr class="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">
-                                    <th class="px-6 py-4">Proje Başlığı</th>
-                                    <th class="px-6 py-4">Talep Eden Takım</th>
-                                    <th class="px-6 py-4">Talep Tarihi</th>
-                                    <th class="px-6 py-4">Durum</th>         {{-- YENİ SÜTUN --}}
-                                    <th class="px-6 py-4 text-right">İşlem</th> {{-- YENİ SÜTUN --}}
-                                </tr>
-                            </thead>
-                            <tbody class="block sm:table-row-group">
-                                @forelse($bekleyenTalepler as $talep)
-                                <tr class="block mb-4 border bg-white border-gray-200 rounded-lg sm:table-row sm:mb-0 sm:border-0 sm:border-b sm:border-gray-100">
-                                    <td class="flex justify-between items-center p-3 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Proje:</span><span class="text-right sm:text-left font-medium text-gray-800">{{ $talep->baslik }}</span></td>
-                                    <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Takım:</span><span class="text-right sm:text-left text-sm text-gray-600">{{ $talep->takim_adi }}</span></td>
-                                    <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle"><span class="font-semibold text-sm text-gray-500 sm:hidden">Tarih:</span><span class="text-right sm:text-left text-sm text-gray-500">{{ \Carbon\Carbon::parse($talep->created_at)->format('d.m.Y') }}</span></td>
-                                    
-                                    {{-- YENİ DURUM HÜCRESİ --}}
-                                    <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
-                                        <span class="font-semibold text-sm text-gray-500 sm:hidden">Durum:</span>
-                                        <div class="w-full text-right sm:text-left">
-                                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{{ Str::ucfirst($talep->talep_durumu) }}</span>
-                                        </div>
-                                    </td>
-                                    
-                                    {{-- YENİ İŞLEM HÜCRESİ --}}
-                                    <td class="p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
-                                        <div class="flex justify-end">
-                                            <a href="{{ route('iaa.show', $talep->iaa_id) }}" class="inline-flex justify-center text-sm font-semibold text-white bg-gray-600 px-3 py-2 rounded-md hover:bg-gray-700">İncele</a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @empty
-                                    <tr class="block sm:table-row"><td colspan="5" class="p-12 text-center text-gray-500">Yönetici onayında bekleyen bir talebiniz bulunmamaktadır.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
-            </div>
-
-
-
-        {{-- BÖLÜM 2: ÜSTLENİLEN PROJELER --}}
-            <div id="aktif-projeler" class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200 scroll-mt-20"> {{-- Scroll margin top eklendi --}}
-                <div class="p-6 sm:p-8">
-                    <div class="flex items-center space-x-4 mb-6">
-                        {{-- YORUM SATIRI KALDIRILDI VE BAŞLIK EKLENDİ --}}
-                        <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-400 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
-                        </div>
-                        <div>
-                            <h3 class="text-2xl font-bold text-gray-800 tracking-tight">Üstlenilen Projeler</h3>
-                            <p class="text-gray-600">Takımlarınızın üzerinde çalıştığı talebi onaylanmış projeler.</p>
-                        </div>
-                    </div>
-                    <div class="bg-white/60 backdrop-blur-sm rounded-xl shadow-inner border border-gray-200/80 overflow-hidden">
-                        {{-- PARTIAL KULLANMAK YERİNE DOĞRUDAN TABLOYU BURAYA YAZIYORUZ --}}
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proje Başlığı</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Atanan Takım</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse($atanmisProjeler as $proje)
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $proje->baslik }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $proje->atananTakim->ad ?? 'N/A' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                                {{ $proje->durum }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href="{{ route('proje.workspace.show', $proje->id) }}" class="text-indigo-600 hover:text-indigo-900">Projeye Git</a>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="px-6 py-12 text-center text-gray-500">
-                                            Takımlarınızın üstlendiği bir proje bulunmamaktadır.
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            
-
-            {{-- BÖLÜM 3: ONAY BEKLEYEN TAMAMLANMIŞ PROJELER --}}
-            <div id="onay-bekleyen-tamamlanmis" class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200 scroll-mt-20"> {{-- Scroll margin top eklendi --}}
-        <div class="p-6 sm:p-8">
-            <div class="flex items-center space-x-4 mb-6">
-                <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
-                    {{-- Hourglass ikonu --}}
-                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </div>
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800 tracking-tight">Onay Bekleyen Tamamlanmış Projeler</h3>
-                    <p class="text-gray-600">Yönetici onayı veya revizyonu bekleyen tamamlanmış projeleriniz.</p>
-                </div>
-            </div>
-            <div class="bg-white/60 backdrop-blur-sm rounded-xl shadow-inner border border-gray-200/80 overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proje Başlığı</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Atanan Takım</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum / Not</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlem</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @forelse($onayBekleyenTamamlanmisProjeler as $proje)
-                            @php
-                                // Controller'da çektiğimiz logu alalım
-                                $revisionLog = $proje->logs->first(); 
-                            @endphp
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $proje->baslik }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $proje->atananTakim->ad ?? 'N/A' }}</td>
-                                <td class="px-6 py-4 text-sm text-gray-500">
-                                    @if ($revisionLog) {{-- Eğer revizyon logu varsa --}}
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                            Revizyon Bekliyor
-                                        </span>
-                                        @if($proje->yonetici_notu)
-                                         <p class="text-xs text-gray-500 mt-1 italic">"{{ $proje->yonetici_notu }}"</p>
-                                        @endif
-                                        @if($revisionLog->user)
-                                            <p class="text-xs text-gray-400 mt-1">({{ $revisionLog->user->name }} - {{ $revisionLog->created_at->format('d.m.Y H:i') }})</p>
-                                        @endif
-                                    @else {{-- Normal onay bekliyorsa --}}
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                            Yönetici Onayı Bekliyor
-                                        </span>
-                                    @endif
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-10">#</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Proje Başlığı</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Talep Eden Takım</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Talep Tarihi</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Durum</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @forelse($bekleyenTalepler as $talep)
+                            <tr class="hover:bg-gray-50 transition-colors">
+                                <td class="px-6 py-4 text-sm text-gray-400">{{ $loop->iteration }}</td>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $talep->baslik }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $talep->takim_adi }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ \Carbon\Carbon::parse($talep->created_at)->format('d.m.Y') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        {{ Str::ucfirst($talep->talep_durumu) }}
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="{{ route('proje.workspace.show', $proje->id) }}" class="text-indigo-600 hover:text-indigo-900">Projeyi Gör</a>
+                                    <a href="{{ route('iaa.show', $talep->iaa_id) }}" class="text-indigo-600 hover:text-indigo-900 font-bold">İncele</a>
                                 </td>
                             </tr>
-                        @empty
+                            @empty
                             <tr>
-                                <td colspan="4" class="px-6 py-12 text-center text-gray-500">
-                                    Onay bekleyen tamamlanmış bir projeniz bulunmamaktadır.
-                                </td>
+                                <td colspan="6" class="px-6 py-12 text-center text-gray-500">Yönetici onayında bekleyen bir talebiniz bulunmamaktadır.</td>
                             </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-    </div>
-    {{-- ======================== YENİ KART SONU ======================== --}}
 
-    {{-- BÖLÜM 4: TAMAMLANAN VE PUAN KAZANDIRAN PROJELER --}}
-    <div id="tamamlanan-projeler" class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200 scroll-mt-20"> {{-- Scroll margin top eklendi --}}
-        <div class="p-6 sm:p-8">
-            <div class="flex items-center space-x-4 mb-6">
-                <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
-                    {{-- Trophy ikonu --}}
-                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18zm0 18a9 9 0 005.35-16.65M12 21a9 9 0 01-5.35-16.65"></path></svg> 
+            {{-- BÖLÜM 2: ÜSTLENİLEN PROJELER (AKTİF) --}}
+            <div id="aktif-projeler" class="bg-white shadow-xl sm:rounded-2xl border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-100 bg-gray-50/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-8 bg-blue-500 rounded-full"></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">Üstlenilen Projeler</h3>
+                            <p class="text-sm text-gray-500 mt-0.5">Takımlarınızın üzerinde çalıştığı talebi onaylanmış ve devam eden projeler.</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h3 class="text-2xl font-bold text-gray-800 tracking-tight">Tamamlanan ve Puan Kazandıran Projeler</h3>
-                    <p class="text-gray-600">Takımlarınızın başarıyla tamamladığı projeler.</p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-10">#</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[250px]">Proje Başlığı</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Takım</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Başlangıç</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Durum</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @forelse($atanmisProjeler as $proje)
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 text-sm text-gray-400">{{ $loop->iteration }}</td>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                                        <div class="flex flex-col">
+                                            <span>{{ $proje->baslik }}</span>
+                                            @if($proje->musteriSikayeti)
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 mt-1 w-fit uppercase tracking-wide">Müşteri Şikayeti</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 mt-1 w-fit uppercase tracking-wide">İyileştirme (İAA)</span>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $proje->atananTakim->ad ?? 'N/A' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $proje->created_at->format('d.m.Y') }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                            {{ $proje->durum }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <a href="{{ route('proje.workspace.show', $proje->id) }}" class="text-indigo-600 hover:text-indigo-900 font-bold">Projeye Git &rarr;</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">Takımlarınızın üstlendiği aktif bir proje bulunmamaktadır.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <div class="bg-white/60 backdrop-blur-sm rounded-xl shadow-inner border border-gray-200/80 overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proje Başlığı</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tamamlayan Takım</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Onay Tarihi</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Kazanılan Puan</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @forelse($tamamlananProjeler as $proje)
+
+            {{-- BÖLÜM 3: ONAY BEKLEYEN TAMAMLANMIŞ PROJELER --}}
+            <div id="onay-bekleyen-tamamlanmis" class="bg-white shadow-xl sm:rounded-2xl border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-100 bg-gray-50/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-8 bg-red-500 rounded-full"></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">Onay Bekleyenler</h3>
+                            <p class="text-sm text-gray-500 mt-0.5">Yönetici onayı veya revizyonu bekleyen tamamlanmış projeleriniz.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
-                                {{-- === DEĞİŞİKLİK BURADA === --}}
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    <a href="{{ route('proje.workspace.show', $proje->id) }}" class="text-indigo-600 hover:text-indigo-800 hover:underline" title="Projeyi Görüntüle">
-                                        {{ $proje->baslik }}
-                                    </a>
-                                </td>
-                                {{-- === DEĞİŞİKLİK SONU === --}}
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $proje->atananTakim->ad ?? 'N/A' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $proje->onaylanma_tarihi ? $proje->onaylanma_tarihi->format('d.m.Y') : '-' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600">
-                                    +{{ number_format($proje->puan, 0) }}
-                                </td>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-10">#</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[250px]">Proje Başlığı</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Takım</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Onaya Gönderim</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Durum</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">İşlem</th>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="px-6 py-12 text-center text-gray-500">
-                                    Takımlarınız henüz puan kazandıran bir proje tamamlamadı.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @forelse($onayBekleyenTamamlanmisProjeler as $proje)
+                                @php 
+                                    $revisionLog = $proje->logs->first(); 
+                                    $onayTarihi = $revisionLog ? $revisionLog->created_at->format('d.m.Y H:i') : $proje->updated_at->format('d.m.Y H:i');
+                                @endphp
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 text-sm text-gray-400">{{ $loop->iteration }}</td>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                                        <div class="flex flex-col">
+                                            <span>{{ $proje->baslik }}</span>
+                                            @if($proje->musteriSikayeti)
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 mt-1 w-fit uppercase">Müşteri Şikayeti</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 mt-1 w-fit uppercase">İyileştirme</span>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $proje->atananTakim->ad ?? 'N/A' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $onayTarihi }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">
+                                        @if ($revisionLog && str_contains($revisionLog->eylem, 'Revizyon'))
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Revizyon Bekliyor</span>
+                                        @else
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Yönetici Onayı</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <a href="{{ route('proje.workspace.show', $proje->id) }}" class="text-indigo-600 hover:text-indigo-900 font-bold">İncele &rarr;</a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">Onay bekleyen projeniz yok.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-    </div>
-    {{-- ======================== YENİ KART SONU ======================== --}}
+
+            {{-- BÖLÜM 4: TAMAMLANAN PROJELER --}}
+            <div id="tamamlanan-projeler" class="bg-white shadow-xl sm:rounded-2xl border border-gray-200 overflow-hidden">
+                <div class="p-6 border-b border-gray-100 bg-gray-50/50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-8 bg-green-500 rounded-full"></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">Tamamlanan Projeler</h3>
+                            <p class="text-sm text-gray-500 mt-0.5">Takımlarınızın başarıyla tamamladığı ve puan kazandıran projeler.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider w-10">#</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[250px]">Proje Başlığı</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Takım</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Bitiş Tarihi</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Puan</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @forelse($tamamlananProjeler as $proje)
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 text-sm text-gray-400">{{ $loop->iteration }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        <div class="flex flex-col">
+                                            <a href="{{ route('proje.workspace.show', $proje->id) }}" class="text-indigo-600 hover:text-indigo-800 hover:underline">
+                                                {{ $proje->baslik }}
+                                            </a>
+                                            @if($proje->musteriSikayeti)
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 mt-1 w-fit uppercase">Müşteri Şikayeti</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800 mt-1 w-fit uppercase">İyileştirme</span>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $proje->atananTakim->ad ?? 'N/A' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $proje->onaylanma_tarihi ? $proje->onaylanma_tarihi->format('d.m.Y') : '-' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600">+{{ number_format($proje->puan, 0) }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">Henüz tamamlanan proje yok.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
         </div>
     </div>

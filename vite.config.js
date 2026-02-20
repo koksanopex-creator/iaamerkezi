@@ -14,8 +14,27 @@ export default ({ mode }) => {
         plugins: [
             laravel({
                 input: ['resources/css/app.css', 'resources/js/app.js'],
-                refresh: true,
+                refresh: [
+                    'resources/routes/**',
+                    'routes/**',
+                    'resources/views/**',
+                    'app/Http/Controllers/**', // Controller değişikliklerini izle
+                    'app/Models/**',           // Model değişikliklerini izle
+                    'resources/js/**',         // JS değişikliklerini izle
+                    'resources/css/**'         // CSS değişikliklerini izle
+                ],
             }),
         ],
+        server: {
+            watch: {
+                ignored: [
+                    '**/storage/**',
+                    '**/vendor/**',
+                    '**/public/**',
+                    '**/.git/**',
+                    '**/node_modules/**'
+                ]
+            }
+        }
     });
 };

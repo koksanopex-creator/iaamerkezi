@@ -39,8 +39,8 @@ class DisciplinaryCase extends Model
         'olay_tarihi' => 'datetime',
         'savunma_tarihi' => 'datetime',
         'karar_tarihi' => 'datetime',
-        'kanit_dosyalari' => 'array', 
-        'savunma_dosyalari' => 'array', 
+        'kanit_dosyalari' => 'array',
+        'savunma_dosyalari' => 'array',
         'toplanti_tarihi' => 'datetime',
     ];
 
@@ -77,16 +77,16 @@ class DisciplinaryCase extends Model
     }
 
     // Kategoriye Erişim (Behavior üzerinden)
-    public function category() 
-    { 
+    public function category()
+    {
         return $this->hasOneThrough(
-            DisciplinaryCategory::class, 
-            DisciplinaryBehavior::class, 
+            DisciplinaryCategory::class,
+            DisciplinaryBehavior::class,
             'id', // Behavior tablosundaki primary key
             'id', // Category tablosundaki primary key
             'behavior_id', // Case tablosundaki foreign key
             'category_id' // Behavior tablosundaki foreign key
-        ); 
+        );
     }
 
     // Kurul Oyları
@@ -99,4 +99,6 @@ class DisciplinaryCase extends Model
     {
         return $this->hasMany(DisciplinaryComment::class, 'case_id')->orderBy('created_at', 'desc');
     }
+
+
 }

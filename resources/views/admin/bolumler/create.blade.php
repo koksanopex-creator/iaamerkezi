@@ -12,7 +12,8 @@
 
                     {{-- ======================== HATA MESAJLARI ======================== --}}
                     @if ($errors->any())
-                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+                            role="alert">
                             <strong class="font-bold">Hata!</strong>
                             <span class="block sm:inline">Lütfen formdaki hataları düzeltin.</span>
                             <ul>
@@ -24,30 +25,65 @@
                     @endif
 
                     {{-- ======================== YENİ BÖLÜM EKLEME FORMU ======================== --}}
-                    <form action="{{ route('admin.bolumler.store') }}" method="POST">
+                    <form action="{{ route('admin.bolumler.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
-                        
+
                         {{-- Bölüm Adı --}}
                         <div class="mb-4">
                             <label for="ad" class="block text-gray-700 text-sm font-bold mb-2">Bölüm Adı:</label>
-                            <input type="text" name="ad" id="ad" value="{{ old('ad') }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            <input type="text" name="ad" id="ad" value="{{ old('ad') }}"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                required>
                         </div>
-                        
+
+                        {{-- Kategori --}}
+                        <div class="mb-4">
+                            <label for="bolum_kategori_id" class="block text-gray-700 text-sm font-bold mb-2">Kategori:</label>
+                            <select name="bolum_kategori_id" id="bolum_kategori_id" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                                <option value="">Kategori Seçiniz (Opsiyonel)</option>
+                                @foreach($kategoriler as $kategori)
+                                    <option value="{{ $kategori->id }}" {{ old('bolum_kategori_id') == $kategori->id ? 'selected' : '' }}>
+                                        {{ $kategori->ad }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        {{-- Logo --}}
+                        <div class="mb-4">
+                            <label for="logo_yolu" class="block text-gray-700 text-sm font-bold mb-2">Bölüm Logosu:</label>
+                            <input type="file" name="logo_yolu" id="logo_yolu" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        </div>
+
+                        {{-- Makine Yönetimi Var mı? --}}
+                        <div class="mb-4">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" name="has_machines" value="1"
+                                    class="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                    {{ old('has_machines') ? 'checked' : '' }}>
+                                <span class="ml-2 text-gray-700 font-bold">Bu bölümde makine yönetimi yapılsın
+                                    mı?</span>
+                            </label>
+                        </div>
+
                         {{-- Durum --}}
                         <div class="mb-4">
                             <label for="is_active" class="block text-gray-700 text-sm font-bold mb-2">Durum:</label>
-                            <select name="is_active" id="is_active" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <select name="is_active" id="is_active"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tightfocus:outline-none focus:shadow-outline">
                                 <option value="1" selected>Aktif</option>
                                 <option value="0">Pasif</option>
                             </select>
                         </div>
-                        
+
                         {{-- Butonlar --}}
                         <div class="flex items-center justify-between">
-                            <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                            <button type="submit"
+                                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                                 Kaydet
                             </button>
-                            <a href="{{ route('admin.bolumler.index') }}" class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">
+                            <a href="{{ route('admin.bolumler.index') }}"
+                                class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">
                                 İptal
                             </a>
                         </div>

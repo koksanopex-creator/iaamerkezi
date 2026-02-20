@@ -1,9 +1,9 @@
 <?php
     // Yetki kontrolü: Şikayet sekmesini kimler görebilir?
     $sikayetGormeYetkisi = $user->hasRole([
-        'Superadmin', 
-        'Müşteri Şikayeti Kurulu', 
-        'Müşteri Şikayeti Çözüm Lideri', 
+        'Superadmin',
+        'Müşteri Şikayeti Kurulu',
+        'Müşteri Şikayeti Çözüm Lideri',
         'Bölüm Kalite Yöneticisi'
     ]);
 ?>
@@ -25,29 +25,34 @@
     <?php echo $__env->make('profile.partials.show.header', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
     <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 pb-12">
-        
+
         
         <?php echo $__env->make('profile.partials.show.stats', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
         
-        <div x-data="{ activeTab: '<?php echo e(session('active_tab', request('tab', 'performans'))); ?>' }" class="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[600px]">
-            
+        <div x-data="{ activeTab: '<?php echo e(session('active_tab', request('tab', 'performans'))); ?>' }"
+            class="bg-white rounded-2xl shadow-xl overflow-hidden min-h-[600px]">
+
             
             <?php echo $__env->make('profile.partials.show.tabs-nav', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
             
             <div class="p-6 bg-gray-50 min-h-[500px]">
-                
+
                 <?php echo $__env->make('profile.partials.show.tab-performance', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
-                
+
+                <?php if($canViewActiveTasks): ?>
+                    <?php echo $__env->make('profile.partials.show.tab-aktif-gorevler', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                <?php endif; ?>
+
                 <?php if($sikayetGormeYetkisi): ?>
                     <?php echo $__env->make('profile.partials.show.tab-complaints', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                 <?php endif; ?>
-                
+
                 <?php echo $__env->make('profile.partials.show.tab-comments', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
-                
+
                 <?php if (\Illuminate\Support\Facades\Blade::check('role', 'Superadmin')): ?>
-                    <?php echo $__env->make('profile.partials.show.tab-security', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                <?php echo $__env->make('profile.partials.show.tab-security', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
                 <?php endif; ?>
 
                 

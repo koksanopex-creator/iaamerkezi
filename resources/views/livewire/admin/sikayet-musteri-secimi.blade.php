@@ -77,6 +77,25 @@
                         <div class="space-y-4">
                             <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-1">Firma Bilgileri</h4>
                             
+                            {{-- Firma Logosu --}}
+                            <div class="flex items-center space-x-4">
+                                <div class="shrink-0">
+                                    @if ($logo)
+                                        <img src="{{ $logo->temporaryUrl() }}" class="h-16 w-16 object-cover rounded-full border border-gray-200">
+                                    @else
+                                        <div class="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 border border-gray-200">
+                                            <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                        </div>
+                                    @endif
+                                </div>
+                                <div class="flex-1">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">Firma Logosu</label>
+                                    <input type="file" wire:model="logo" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors">
+                                    <p class="mt-1 text-xs text-gray-500">PNG, JPG, GIF (Max 2MB)</p>
+                                    @error('logo') <span class="text-red-500 text-xs block mt-1">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                            
                             <div>
                                 <label class="block text-sm font-semibold text-gray-700 mb-1">Firma Adı <span class="text-red-500">*</span></label>
                                 <input type="text" wire:model="name" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Örn: ABC Lojistik A.Ş.">
@@ -94,6 +113,17 @@
                                         <option value="Yurt İçi">Yurt İçi</option>
                                         <option value="Yurt Dışı">Yurt Dışı</option>
                                     </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-1">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">Firma Telefonu</label>
+                                    <input type="tel" wire:model="phone" maxlength="15" oninput="this.value = this.value.replace(/[^0-9]/g, '')" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="0212...">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">Firma Adresi</label>
+                                    <textarea wire:model="address" rows="2" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Adres detayları..."></textarea>
                                 </div>
                             </div>
                         </div>

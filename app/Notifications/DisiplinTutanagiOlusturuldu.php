@@ -26,9 +26,8 @@ class DisiplinTutanagiOlusturuldu extends Notification
      */
     public function via(object $notifiable): array
     {
-        // DÜZELTME 1: Zil bildirimi çalışması için 'database' EKLENDİ.
-        // Eğer mail de gitmesini istiyorsan: return ['database', 'mail']; yapabilirsin.
-        return ['database'];
+        // Hem veritabanı (zil) hem de e-posta ile bildirim gönder
+        return ['database', 'mail'];
     }
 
     /**
@@ -36,11 +35,24 @@ class DisiplinTutanagiOlusturuldu extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $url = '';
+        $line = '';
+
+        if ($notifiable->id == $this->case->user_id) {
+            $url = route('disiplin.show', $this->case->id);
+            $line = 'Hakkınızda yeni bir disiplin tutanağı oluşturuldu. Savunma vermeniz beklenmektedir.';
+        } else {
+            $url = route('admin.disiplin.show', $this->case->id);
+            $line = $this->case->user->name . ' hakkında yeni bir disiplin tutanağı oluşturuldu.';
+        }
+
         return (new MailMessage)
-                    ->subject('Yeni Disiplin Tutanağı Bildirimi')
-                    ->line('Hakkınızda veya sorumluluk alanınızda yeni bir disiplin süreci başlatılmıştır.')
-                    ->action('Dosyayı Görüntüle', route('disiplin.show', $this->case->id))
-                    ->line('Lütfen sistemi kontrol ediniz.');
+            ->subject('Yeni Disiplin Tutanağı Bildirimi')
+            ->greeting("Merhaba {$notifiable->name},")
+            ->line($line)
+            ->action('Tutanağı Görüntüle', $url)
+            ->line('Lütfen sistemi kontrol ediniz.')
+            ->salutation('Saygılarımızla, Köksan İyileştirmeye Açık Alan');
     }
 
     /**
@@ -57,7 +69,7 @@ class DisiplinTutanagiOlusturuldu extends Notification
         if ($notifiable->id == $this->case->user_id) {
             $url = route('disiplin.show', $this->case->id);
             $message = 'Hakkınızda yeni bir disiplin tutanağı oluşturuldu. Savunma bekleniyor.';
-        } 
+        }
         // DEĞİLSE (Demek ki yönetici veya amir):
         // Yönetici ekranına gitmeli.
         else {
@@ -68,8 +80,8 @@ class DisiplinTutanagiOlusturuldu extends Notification
         return [
             'message' => $message,
             'url' => $url,
-            'icon' => 'exclamation-circle', 
-            'color' => 'red', 
+            'icon' => 'exclamation-circle',
+            'color' => 'red',
             'case_id' => $this->case->id
         ];
     }

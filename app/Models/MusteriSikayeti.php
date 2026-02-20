@@ -50,7 +50,11 @@ class MusteriSikayeti extends Model
         'musteri_feedback_note',
         'edit_locked_at',
         'musteri_bildirim_yapan_id',
-        'musteri_bildirim_tarihi'
+        'musteri_bildirim_tarihi',
+        'lot_no',
+        'machine_id',
+        'genel_hammadde_id',
+        'urun_versiyonu_id'
     ];
 
     // === BU BLOĞU EKLE ===
@@ -157,36 +161,104 @@ class MusteriSikayeti extends Model
     }
 
     /**
-     * Durum için Tailwind CSS badge HTML'ini döndürür.
-     * Veritabanındaki 'musteri_durum' değerini okur ve HTML üretir.
+     * Durum etiketini HTML olarak döndürür.
+     * ÖZELLİK: Eğer bağlı proje "Talep" modundaysa, şikayet durumunu ezer ve Talep durumunu gösterir.
      */
     public function getMusteriDurumBadgeAttribute(): string
     {
+        // 1. ÖNCE PROJE DURUMUNA BAK (ÜSTÜNLÜK PROJEDE)
+        if ($this->iaaProjesi) {
+            $projeDurum = $this->iaaProjesi->durum;
+
+            if ($projeDurum == 'talep_olarak_kapatildi') {
+                return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-300 decoration-slice">⚪ Talep Olarak Kapatıldı</span>';
+            }
+            if ($projeDurum == 'talep_onayi_bekliyor_kalite') {
+                return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200 animate-pulse">🟣 Talep Onayı (Kalite)</span>';
+            }
+            if ($projeDurum == 'talep_onayi_bekliyor_superadmin') {
+                return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 animate-pulse">🔵 Talep Onayı (Yönetim)</span>';
+            }
+            if ($projeDurum == 'Revize Ediliyor') {
+                return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border bg-orange-100 text-orange-800 border-orange-200">İşlemde</span>';
+            }
+        }
+
+        // 2. EĞER PROJE TALEP DEĞİLSE, NORMAL ŞİKAYET DURUMUNA BAK
         $class = '';
+        $metin = $this->musteri_durum;
+
         switch ($this->musteri_durum) {
             case 'Yeni':
-                $class = 'bg-yellow-100 text-yellow-800';
+                $class = 'bg-blue-100 text-blue-800 border-blue-200';
                 break;
             case 'İşlemde':
-                $class = 'bg-blue-100 text-blue-800';
+            case 'İnceleniyor':
+            case 'Atandı':
+            case 'Devam Ediyor':
+                $class = 'bg-orange-100 text-orange-800 border-orange-200';
+                $metin = 'İşlemde';
+                break;
+            case 'Bölüm Onayı Bekliyor': // Mevcut
+                $class = 'bg-purple-100 text-purple-800 border-purple-200';
+                break;
+            case 'Direktör Onayı Bekliyor': // EKLENDİ
+                $class = 'bg-pink-100 text-pink-800 border-pink-200';
+                break;
+            case 'Yönetici Onayı Bekliyor': // Mevcut
+                $class = 'bg-orange-100 text-orange-800 border-orange-200';
                 break;
             case 'Çözümlendi':
             case 'Kapatıldı':
-                $class = 'bg-green-100 text-green-800';
+            case 'Tamamlandı':
+                $class = 'bg-green-100 text-green-800 border-green-200';
                 break;
-            case 'Yeniden Açıldı': // Senaryonuz için eklendi
-            case 'Revize':       // Senaryonuz için eklendi
-                $class = 'bg-red-100 text-red-800';
+            case 'İptal Edildi':
+            case 'Reddedildi':
+            case 'Revize':
+            case 'Tamamlanması Reddedildi':
+                $class = 'bg-red-100 text-red-800 border-red-200';
                 break;
             default:
-                $class = 'bg-gray-100 text-gray-800';
+                $class = 'bg-gray-100 text-gray-800 border-gray-200';
         }
-        
-        // Doğrudan HTML olarak hazır bir badge (etiket) döndürüyoruz
-        return "<span class=\"inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold {$class}\">{$this->musteri_durum}</span>";
+
+        return "<span class=\"inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border {$class}\">{$metin}</span>";
     }
 
- 
+    /**
+     * Duruma göre renk kodunu döndürür.
+     * ÖZELLİK: Proje Talep ise rengi ona göre ayarlar.
+     */
+    public function getDurumRengiAttribute()
+    {
+        // 1. PROJE KONTROLÜ
+        if ($this->iaaProjesi) {
+            $projeDurum = $this->iaaProjesi->durum;
+            if ($projeDurum == 'talep_olarak_kapatildi')
+                return 'gray';
+            if ($projeDurum == 'talep_onayi_bekliyor_kalite')
+                return 'purple';
+            if ($projeDurum == 'talep_onayi_bekliyor_superadmin')
+                return 'indigo';
+            if ($projeDurum == 'Revize Ediliyor')
+                return 'orange'; // İşlemde rengi
+        }
+
+        // 2. NORMAL DURUM
+        return match ($this->musteri_durum) {
+            'Yeni' => 'blue',
+            'İşlemde', 'İnceleniyor', 'Atandı', 'Devam Ediyor' => 'orange',
+            'Bölüm Onayı Bekliyor' => 'purple',
+            'Direktör Onayı Bekliyor' => 'pink', // EKLENDİ
+            'Yönetici Onayı Bekliyor' => 'orange',
+            'Çözümlendi', 'Kapatıldı', 'Tamamlandı' => 'green',
+            'İptal Edildi', 'Reddedildi', 'Revize', 'Tamamlanması Reddedildi' => 'red',
+            default => 'gray'
+        };
+    }
+
+
 
     /**
      * Hatanın Çözümü 1: Şikayete bağlı PROJE üzerinden TÜM yorumları getirir.
@@ -213,14 +285,14 @@ class MusteriSikayeti extends Model
     {
         // Yukarıdaki 'projeYorumlari' ilişkisini kullanır ve onu Müşteri için filtreler
         return $this->projeYorumlari()
-                    ->whereNull('proje_yorumlari.user_id')
-                    ->whereNotNull('proje_yorumlari.musteri_sikayeti_id');
-    } 
-    
+            ->whereNull('proje_yorumlari.user_id')
+            ->whereNotNull('proje_yorumlari.musteri_sikayeti_id');
+    }
+
     public function yetkili_user()
     {
         // Yetkili kişi "users" tablosunda olduğu için User modeline bağlanmalı
-        return $this->belongsTo(\App\Models\User::class, 'yetkili_user_id'); 
+        return $this->belongsTo(\App\Models\User::class, 'yetkili_user_id');
     }
 
     /**
@@ -232,6 +304,32 @@ class MusteriSikayeti extends Model
         return $this->belongsTo(Iaa::class, 'iaa_id');
     }
 
-    
+    // Bu dosyaya şu ilişkiyi ekleyin:
+    public function iadeler()
+    {
+        return $this->hasMany(SikayetIadesi::class, 'musteri_sikayeti_id');
+    }
 
+    public function machine()
+    {
+        return $this->belongsTo(Machine::class, 'machine_id');
+    }
+
+    public function genelHammadde()
+    {
+        return $this->belongsTo(GenelHammadde::class, 'genel_hammadde_id');
+    }
+
+    public function urunVersiyonu()
+    {
+        return $this->belongsTo(UrunVersiyonu::class, 'urun_versiyonu_id');
+    }
+
+    /**
+     * Şikayete ait birden fazla teknik detay (Lot, Makine vb.) olabilir.
+     */
+    public function teknikDetaylar()
+    {
+        return $this->hasMany(SikayetTeknikDetay::class, 'musteri_sikayeti_id');
+    }
 }

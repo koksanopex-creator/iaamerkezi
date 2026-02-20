@@ -4,7 +4,7 @@ namespace App\Policies;
 
 use App\Models\MusteriSikayeti;
 use App\Models\User;
-use App\Models\Iaa; 
+use App\Models\Iaa;
 use Illuminate\Auth\Access\Response;
 
 class MusteriSikayetiPolicy
@@ -17,7 +17,7 @@ class MusteriSikayetiPolicy
         if ($user->hasRole(['Superadmin'])) {
             return true;
         }
-        return null; 
+        return null;
     }
 
     /**
@@ -28,7 +28,7 @@ class MusteriSikayetiPolicy
     {
         // 1. Yönetici Rolleri
         // 'Bölüm Lideri' buraya eklendiği için Emrah Al artık listeye girebilir (403 almaz).
-        if ($user->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi', 'Yonetim', 'Bölüm Lideri'])) {
+        if ($user->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi', 'Yonetim', 'Bölüm Lideri', 'Direktör'])) {
             return true;
         }
 
@@ -56,15 +56,23 @@ class MusteriSikayetiPolicy
             return true;
         }
 
+        // 1.5. Direktör Yetkisi (Kendi bölümüne ait şikayetleri görür)
+        if ($user->hasRole('Direktör')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('bolumler.id')->toArray();
+            if ($sikayet->sikayetKategori && in_array($sikayet->sikayetKategori->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+        }
+
         // 2. Bölüm Kalite Yöneticisi (Sorumlu olduğu kategoriyi görür)
         if ($user->hasRole('Bölüm Kalite Yöneticisi')) {
-             $kategoriId = $sikayet->sikayet_kategorisi_id;
-             return $user->yonettigiSikayetKategorileri->contains($kategoriId);
+            $kategoriId = $sikayet->sikayet_kategorisi_id;
+            return $user->yonettigiSikayetKategorileri->contains($kategoriId);
         }
 
         // === 3. BÖLÜM LİDERİ (EMRAH AL İÇİN ÖZEL KURAL) ===
         if ($user->hasRole('Bölüm Lideri') && $user->bolum_id) {
-            
+
             // SENARYO A: Şikayet Kendi Bölümüne mi Ait? (Örn: Preform Şikayeti)
             if ($sikayet->sikayetKategori && $sikayet->sikayetKategori->bolum_id == $user->bolum_id) {
                 return true; // Evet, görebilir.
@@ -74,17 +82,17 @@ class MusteriSikayetiPolicy
             if ($sikayet->iaa_id) {
                 // Emrah'ın bölümündeki tüm personellerin ID'lerini bul
                 $bolumPersonelIdleri = \App\Models\User::where('bolum_id', $user->bolum_id)->pluck('id');
-                
+
                 // İAA Projesini kontrol et
                 $iaa = Iaa::find($sikayet->iaa_id);
-                
+
                 if ($iaa) {
                     // Proje ekibinde, Emrah'ın bölümünden (onaylı) bir personel var mı?
                     $personelVarMi = $iaa->projeEkibi()
-                                         ->whereIn('users.id', $bolumPersonelIdleri)
-                                         ->wherePivot('durum', 'onaylandi')
-                                         ->exists();
-                    
+                        ->whereIn('users.id', $bolumPersonelIdleri)
+                        ->wherePivot('durum', 'onaylandi')
+                        ->exists();
+
                     if ($personelVarMi) {
                         return true; // Evet, personeli işin içinde olduğu için İzleyici olarak görebilir.
                     }
@@ -139,6 +147,11 @@ class MusteriSikayetiPolicy
 
     public function update(User $user, MusteriSikayeti $sikayet): bool
     {
+        // Kapatılmış şikayetleri kimse (Superadmin hariç) düzenleyemez
+        if (trim($sikayet->musteri_durum) === 'Kapatıldı') {
+            return false;
+        }
+
         return $user->id === $sikayet->olusturan_kurul_uyesi_id;
     }
 

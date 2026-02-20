@@ -270,26 +270,46 @@ class IaaController extends Controller
     }
 
     /**
-     * ====================================================================
-     * BİR TAKIM LİDERİNİN TALEP GÖNDERME İŞLEMİNİ YAPAR
-     * ====================================================================
-     * Gelen isteği doğrular ve yeni talebi 'iaa_talepleri' tablosuna kaydeder.
+     * MANUEL KONTROLLÜ TALEP METODU
      */
-    public function takimlaTalepEt(Request $request, Iaa $iaa)
+    // DİKKAT: İkinci parametredeki 'Iaa $iaa' kısmını '$id' yaptık.
+    public function takimlaTalepEt(Request $request, $id) 
     {
+        // 1. Önce ID'nin doğru gelip gelmediğini test edelim.
+        // Eğer bu satır ekrana basılırsa ROTA ÇALIŞIYOR demektir.
+        // dd("Rota çalıştı! Gelen ID: " . $id); // Test için yorumu açabilirsiniz
+
+        // 2. Kaydı manuel bulalım (Silinmişler dahil baksın diye withTrashed ekleyebiliriz ama şimdilik normal bakalım)
+        $iaa = \App\Models\Iaa::find($id);
+
+        if (!$iaa) {
+            // Eğer kayıt yoksa 404 vermek yerine hatayı biz söyleyelim
+            return back()->with('error', 'HATA: ID numarası ' . $id . ' olan öneri veritabanında bulunamadı! (Silinmiş olabilir)');
+        }
+
+        // --- Buradan sonrası eski kodun aynısı ---
+        
         $kullanici = auth()->user();
         
+        // Takım Lideri Kontrolü
+        if ($kullanici->lideriOlduguTakimlar->isEmpty()) {
+             return back()->with('error', 'Bu işlem için bir takımın lideri olmalısınız.');
+        }
+
         $validated = $request->validate([
             'takim_id' => [
                 'required',
                 'exists:takimlar,id',
-                Rule::in($kullanici->lideriOlduguTakimlar->pluck('id')),
+                \Illuminate\Validation\Rule::in($kullanici->lideriOlduguTakimlar->pluck('id')),
             ],
         ]);
         
         $takim_id = $validated['takim_id'];
 
-        $mevcutTalep = DB::table('iaa_talepleri')->where('iaa_id', $iaa->id)->where('takim_id', $takim_id)->exists();
+        $mevcutTalep = DB::table('iaa_talepleri')
+            ->where('iaa_id', $iaa->id)
+            ->where('takim_id', $takim_id)
+            ->exists();
 
         if ($mevcutTalep) {
             return back()->with('error', 'Bu takımla zaten bu öneriye talepte bulunulmuş.');
@@ -306,7 +326,6 @@ class IaaController extends Controller
 
         return redirect()->route('iaa.havuz')->with('success', 'Takımınızın talebi başarıyla yönetici onayına gönderildi.');
     }
-
     /**
      * ====================================================================
      * YENİ: KULLANICININ TAKIMLARININ PROJELERİNİ VE TALEPLERİNİ LİSTELER
@@ -316,109 +335,109 @@ class IaaController extends Controller
      */
 
      public function takimProjeleri()
-     {
-         $kullanici = auth()->user();
-         
-         // 1. Kullanıcının "Ana Takım" (Kalıcı) üyelikleri
-         $takimIdleri = $kullanici->takimlar->pluck('id'); 
- 
-         // === YENİ EKLENEN KISIM: SQUAD (GEÇİCİ) ÜYELİKLER ===
-         // Kullanıcının "iaa_user" tablosunda ekli olduğu ve "onaylandi" durumundaki proje ID'leri
-         $squadProjeIdleri = $kullanici->gorevliOlduguProjeler()
-                                       ->wherePivot('durum', 'onaylandi')
-                                       ->pluck('iaas.id')
-                                       ->toArray();
-         // =====================================================
- 
-         // ---------------------------------------------------------------------
-         // 1. Onay Bekleyen Talepler (Havuz)
-         // Not: Havuzdaki işler genelde takıma aittir, squad henüz kurulmamıştır.
-         // Bu kısmı değiştirmemize gerek yok, sadece ana takım üyeleri görür.
-         // ---------------------------------------------------------------------
-         $bekleyenTalepler = DB::table('iaa_talepleri')
-             ->join('iaas', 'iaa_talepleri.iaa_id', '=', 'iaas.id')
-             ->join('takimlar', 'iaa_talepleri.takim_id', '=', 'takimlar.id')
-             ->whereIn('iaa_talepleri.takim_id', $takimIdleri)
-             ->where('iaa_talepleri.durum', 'beklemede')
-             ->where('iaas.durum', 'Havuzda') 
-             ->select(
-                 'iaas.id as iaa_id',
-                 'iaas.baslik',
-                 'takimlar.ad as takim_adi', 
-                 'iaa_talepleri.created_at',
-                 'iaa_talepleri.durum as talep_durumu'
-             )
-             ->latest('iaa_talepleri.created_at') 
-             ->get();
-      
-         // 2. Atanmış (Aktif) Projeler
-        // GÜNCELLEME: 'Bölüm Onayı Bekliyor' ve diğer ara statüler eklendi.
-        $atanmisProjeler = \App\Models\Iaa::with('atananTakim')
-        ->where(function($query) use ($takimIdleri, $squadProjeIdleri) {
-            $query->whereIn('atanan_takim_id', $takimIdleri)
-                  ->orWhereIn('id', $squadProjeIdleri);
-        })
-        ->whereIn('durum', [
-            'Atandı', 
-            'Revize Ediliyor', 
-            'Tamamlanması Reddedildi', 
-            'Bölüm Onayı Bekliyor',    // <-- EKLENDİ (Cihangir artık görecek)
-            'Yönetici Onayı Bekliyor'  // <-- EKLENDİ
-        ]) 
-        ->latest('updated_at') 
-        ->get();
-                              
-         // ---------------------------------------------------------------------
-         // 3. Tamamlanan Projeler - GÜNCELLENDİ
-         // Aynı mantık buraya da uygulandı
-         // ---------------------------------------------------------------------
-         $tamamlananProjeler = \App\Models\Iaa::with('atananTakim')
-             ->where(function($query) use ($takimIdleri, $squadProjeIdleri) {
-                 $query->whereIn('atanan_takim_id', $takimIdleri)
-                       ->orWhereIn('id', $squadProjeIdleri);
-             })
-             ->where('durum', 'Tamamlandı')
-             ->where('puan', '>', 0) 
-             ->orderByDesc('onaylanma_tarihi') 
-             ->get();
-      
-         // ---------------------------------------------------------------------
-         // 4. Onay Bekleyen TAMAMLANMIŞ Projeler - GÜNCELLENDİ
-         // Aynı mantık buraya da uygulandı
-         // ---------------------------------------------------------------------
-         $onayBekleyenTamamlanmisProjeler = \App\Models\Iaa::with([
-                 'atananTakim', 
-                 'logs' => function ($query) {
-                     $query->where('eylem', 'Revizyon Talep Edildi')
-                           ->with('user')
-                           ->latest('created_at');
-                 }
-             ])
-             ->where(function($query) use ($takimIdleri, $squadProjeIdleri) {
-                 $query->whereIn('atanan_takim_id', $takimIdleri)
-                       ->orWhereIn('id', $squadProjeIdleri);
-             })
-             ->where('durum', 'Yönetici Onayı Bekliyor')
-             ->orderByDesc('updated_at')
-             ->get();
-      
-         // İstatistikler
-         $stats = [
-             'aktif' => $atanmisProjeler->count(),
-             'talep' => $bekleyenTalepler->count(),
-             'onay_bekleyen_tamamlanmis' => $onayBekleyenTamamlanmisProjeler->count(),
-             'tamamlanan' => $tamamlananProjeler->count(),
-             'toplam_puan' => $tamamlananProjeler->sum('puan')
-         ];
+    {
+        $user = \Illuminate\Support\Facades\Auth::user();
         
-         return view('iaa.takim-projeleri', compact(
-             'bekleyenTalepler',
-             'atanmisProjeler',
-             'tamamlananProjeler',
-             'onayBekleyenTamamlanmisProjeler',
-             'stats'
-         ));
-     }
+        // 1. KULLANICININ ÜYE OLDUĞU TAKIMLAR (Kartlar için gerekli)
+        $katildigimTakimlar = $user->takimlar()
+            ->with('lider')
+            ->withCount(['uyeler', 'atananProjeler'])
+            ->latest('pivot_created_at')
+            ->get();
+            
+        // [DÜZELTME] Değişken ismi hatası giderildi
+        $takimIdleri = $katildigimTakimlar->pluck('id');
+
+        // === 2. SQUAD (GEÇİCİ) ÜYELİKLER ===
+        $squadProjeIdleri = $user->gorevliOlduguProjeler()
+                                 ->wherePivot('durum', 'onaylandi')
+                                 ->pluck('iaas.id')
+                                 ->toArray();
+
+        // 3. VERİLERİ ÇEKME
+
+        // A) Bekleyen Talepler (Havuz)
+        $bekleyenTalepler = \Illuminate\Support\Facades\DB::table('iaa_talepleri')
+            ->join('iaas', 'iaa_talepleri.iaa_id', '=', 'iaas.id')
+            ->join('takimlar', 'iaa_talepleri.takim_id', '=', 'takimlar.id')
+            ->whereIn('iaa_talepleri.takim_id', $takimIdleri)
+            ->where('iaa_talepleri.durum', 'beklemede')
+            ->where('iaas.durum', 'Havuzda') 
+            ->select('iaas.id as iaa_id', 'iaas.baslik', 'takimlar.ad as takim_adi', 'iaa_talepleri.created_at', 'iaa_talepleri.durum as talep_durumu')
+            ->latest('iaa_talepleri.created_at') 
+            ->get();
+
+        // B) Aktif Projeler
+        $atanmisProjeler = \App\Models\Iaa::with(['atananTakim', 'musteriSikayeti'])
+            ->where(function($query) use ($takimIdleri, $squadProjeIdleri) {
+                $query->whereIn('atanan_takim_id', $takimIdleri)
+                      ->orWhereIn('id', $squadProjeIdleri);
+            })
+            ->whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Çalışılıyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor']) 
+            ->latest('updated_at')
+            ->get();
+
+        // C) Onay Bekleyen Tamamlanmış
+        $onayBekleyenTamamlanmisProjeler = \App\Models\Iaa::with([
+                'atananTakim', 
+                'musteriSikayeti',
+                'logs' => function ($query) {
+                    $query->whereIn('eylem', ['Revizyon Talep Edildi', 'Proje Tamamlandı (İadesiz)', 'İade Girildi/Güncellendi'])->latest('created_at');
+                }
+            ])
+            ->where(function($query) use ($takimIdleri, $squadProjeIdleri) {
+                $query->whereIn('atanan_takim_id', $takimIdleri)
+                      ->orWhereIn('id', $squadProjeIdleri);
+            })
+            ->whereIn('durum', ['Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor'])
+            ->orderByDesc('updated_at')
+            ->get();
+
+        // D) Tamamlananlar
+        $tamamlananProjeler = \App\Models\Iaa::with(['atananTakim', 'musteriSikayeti'])
+            ->where(function($query) use ($takimIdleri, $squadProjeIdleri) {
+                $query->whereIn('atanan_takim_id', $takimIdleri)
+                      ->orWhereIn('id', $squadProjeIdleri);
+            })
+            ->where('durum', 'Tamamlandı')
+            ->orderByDesc('onaylanma_tarihi')
+            ->take(10)
+            ->get();
+
+        // E) Kişisel Görevler
+        $banaAtananAdimlar = \Illuminate\Support\Facades\DB::table('iaa_step_assignments')
+            ->join('iaas', 'iaa_step_assignments.iaa_id', '=', 'iaas.id')
+            ->join('iaa_talepleri', 'iaas.id', '=', 'iaa_talepleri.iaa_id') 
+            ->join('iaa_workflow_steps', 'iaa_step_assignments.iaa_workflow_step_id', '=', 'iaa_workflow_steps.id')
+            ->leftJoin('iaa_progress_updates', function($join) {
+                $join->on('iaa_talepleri.id', '=', 'iaa_progress_updates.iaa_talep_id')
+                     ->on('iaa_step_assignments.iaa_workflow_step_id', '=', 'iaa_progress_updates.iaa_workflow_step_id');
+            })
+            ->where('iaa_step_assignments.user_id', $user->id)
+            ->where('iaas.durum', '!=', 'Tamamlandı') 
+            ->whereNull('iaa_progress_updates.completed_at') 
+            ->select('iaas.id as iaa_id', 'iaas.baslik', 'iaa_workflow_steps.name as adim_adi', 'iaa_step_assignments.created_at as atama_tarihi')
+            ->get();
+
+        // İstatistikler
+        $stats = [
+            'aktif' => $atanmisProjeler->count(),
+            'talep' => $bekleyenTalepler->count(),
+            'onay_bekleyen_tamamlanmis' => $onayBekleyenTamamlanmisProjeler->count(),
+            'tamamlanan' => $tamamlananProjeler->count(),
+            'toplam_puan' => $user->toplam_puan
+        ];
+
+        return view('iaa.takim-projeleri', compact(
+            'katildigimTakimlar', 
+            'bekleyenTalepler',
+            'atanmisProjeler',
+            'tamamlananProjeler',
+            'onayBekleyenTamamlanmisProjeler',
+            'stats',
+            'banaAtananAdimlar'
+        ));
+    }
 
      /**
      * Kullanıcının proje davetine verdiği yanıtı işler.

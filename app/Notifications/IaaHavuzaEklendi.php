@@ -35,12 +35,14 @@ class IaaHavuzaEklendi extends Notification
     public function toDatabase(object $notifiable): array
     {
         // Rota adını web.php dosyanızdan aldım
-        $link = route('iaa.havuz');
+        $link = route('iaa.show', $this->iaa->id);
 
         return [
             // İstediğiniz mesaj
             'message' => "{$this->iaa->puan} puana sahip '{$this->iaa->baslik}' başlıklı İAA havuza eklendi.",
             'link' => $link,
+            'url' => $link, // JS tarafindaki oncelik icin
+            'action_url' => $link,
             'iaa_id' => $this->iaa->id
         ];
     }

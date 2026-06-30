@@ -30,7 +30,7 @@
             {{-- E-posta Adresi (Readonly) --}}
             <div class="group">
                 <label for="email" class="block font-semibold text-sm text-gray-700 mb-1.5">E-posta Adresiniz</label>
-                <input type="email" name="email" id="email" value="{{ old('email', $sikayet->musteri_iletisim) }}" readonly required
+                <input type="email" name="email" id="email" value="{{ old('email', $sikayet->musteri_iletisim) }}" 
                        class="block w-full border-gray-300 rounded-lg shadow-sm bg-gray-100 cursor-not-allowed focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out text-gray-700">
                  <p class="mt-1 text-xs text-gray-500">Bu e-posta adresi şikayet kaydınızdan alınmıştır.</p>
                  @error('email') <span class="text-red-500 text-xs mt-1">{{ $message }}</span> @enderror

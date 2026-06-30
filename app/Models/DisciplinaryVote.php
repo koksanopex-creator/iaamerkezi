@@ -15,6 +15,7 @@ class DisciplinaryVote extends Model
         'user_id',
         'oy_yonu',
         'yorum',
+        'round',
     ];
 
     // --- İLİŞKİLER ---

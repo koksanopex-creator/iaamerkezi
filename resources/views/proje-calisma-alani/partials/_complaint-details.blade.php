@@ -1,6 +1,6 @@
 @if($iaa->musteriSikayeti)
     {{-- DÜZELTME: Başta @if kontrolü olmalı ki veri yoksa hata vermesin --}}
-    <div x-data="{ open: false }" class="group mb-8">
+    <div x-data="{ open: false, editModal: false }" class="group mb-8">
             
         {{-- Ana Kart Container --}}
         <div class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden">
@@ -30,7 +30,7 @@
                                     #{{ $iaa->musteriSikayeti->id }}
                                 </span>
                             </h3>
-                            
+
                             {{-- Özet Bilgiler (Kapalıyken görünür) --}}
                             <div x-show="!open" class="mt-2 flex flex-wrap items-center gap-3 text-sm">
                                 <div class="flex items-center gap-1.5 text-gray-600">
@@ -59,7 +59,7 @@
                             </p>
                         </div>
                     </div>
-                    
+
                     {{-- Sağ Taraf: Açılır/Kapanır Ok --}}
                     <div class="flex-shrink-0">
                         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center group-hover:from-purple-100 group-hover:to-pink-100 transition-all duration-300">
@@ -193,6 +193,49 @@
                         </div>
                     </div>
                     
+                    {{-- ÜRETİM VE ÜRÜN DETAYLARI (YENİ) --}}
+                    @if($iaa->musteriSikayeti->teknikDetaylar->isNotEmpty())
+                    <div class="mb-6 bg-white rounded-xl p-5 shadow-sm border border-gray-100 relative group/edit">
+                        
+                        <div class="flex items-start gap-3 mb-4">
+                            <div class="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
+                                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                                </svg>
+                            </div>
+                            <h4 class="text-sm font-bold text-gray-900 uppercase tracking-wide">Üretim Bilgileri</h4>
+                        </div>
+                        
+                        <div class="pl-11 space-y-4 divide-y divide-gray-100">
+                            @foreach($iaa->musteriSikayeti->teknikDetaylar as $detay)
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 first:pt-0">
+                                <div class="col-span-1 md:col-span-2">
+                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                        #{{ $loop->iteration }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Lot Numarası</span>
+                                    <span class="text-sm font-semibold text-gray-900">{{ $detay->lot_no ?? '-' }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Makine / Hat</span>
+                                    <span class="text-sm font-semibold text-gray-900">{{ $detay->machine_name ?? ($detay->machine->name ?? '-') }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Hammadde</span>
+                                    <span class="text-sm font-semibold text-gray-900">{{ $detay->genel_hammadde_name ?? ($detay->genelHammadde->ad ?? '-') }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Ürün Versiyonu</span>
+                                    <span class="text-sm font-semibold text-gray-900">{{ $detay->urun_versiyonu_name ?? ($detay->urunVersiyonu->ad ?? '-') }}</span>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+                    
                     {{-- Eklenen Dosyalar --}}
                     @if($iaa->musteriSikayeti->dosyalar->isNotEmpty())
                     <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100" x-data="{ previewModal: false, previewUrl: '', previewType: '', previewName: '' }">
@@ -320,5 +363,7 @@
             </div>
         </div>
     </div>
+    
+
 @endif
 {{-- DÜZELTME: Sondaki @endif eklendi --}}

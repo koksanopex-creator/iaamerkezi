@@ -62,7 +62,8 @@ class PersonelProjeyeDavetEdildi extends Notification implements ShouldQueue
             'action_url' => route('proje.workspace.show', $this->iaa->id),
             'icon' => $icon,
             'color' => $color,
-            'iaa_id' => $this->iaa->id
+            'iaa_id' => $this->iaa->id,
+            'invited_user_id' => $this->personel->id
         ];
     }
 }

@@ -45,10 +45,18 @@
                                         </div>
                                     </button>
                                 </div>
-                                    <div class="mt-3 sm:mt-0 w-full sm:w-auto flex-shrink-0">
-                                        <a href="{{ route('admin.iaa-yonetim.atamaFormu', ['iaa' => $iaa, 'takim' => $takim]) }}" class="inline-block text-center w-full bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-transform hover:scale-105">
+                                    <div class="mt-3 sm:mt-0 w-full sm:w-auto flex-shrink-0 flex items-center space-x-2">
+                                        <a href="{{ route('admin.iaa-yonetim.atamaFormu', ['iaa' => $iaa, 'takim' => $takim]) }}" class="flex-grow sm:flex-grow-0 text-center bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-transform hover:scale-105">
                                             Bu Takıma Ata
                                         </a>
+
+                                        <form action="{{ route('admin.iaa-yonetim.talepReddet', ['iaa' => $iaa, 'takim' => $takim]) }}" method="POST" onsubmit="return confirm('Bu takımın talebini reddetmek istediğinize emin misiniz?');" class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="w-full sm:w-auto bg-red-50 text-red-600 font-semibold py-2 px-3 rounded-lg border border-red-200 hover:bg-red-100 transition-colors shadow-sm" title="Talebi Reddet">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            </button>
+                                        </form>
                                     </div>
                         </div>
                         @empty

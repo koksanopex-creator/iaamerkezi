@@ -30,7 +30,29 @@ class ProjeDurumuDegisti extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ['database', 'mail'];
+    }
+
+    public function toMail(object $notifiable): \Illuminate\Notifications\Messages\MailMessage
+    {
+        $url = route('proje.workspace.show', $this->iaa->id);
+
+        if (str_contains($this->durumText, 'onayınızı beklemektedir')) {
+            $url .= '#yonetici-onay-alani';
+        }
+
+        $line = "'{$this->iaa->baslik}' başlıklı proje {$this->durumText}";
+        if ($this->bilgi) {
+            $line .= " ({$this->bilgi})";
+        }
+
+        return (new \Illuminate\Notifications\Messages\MailMessage)
+            ->subject('Proje Durum Güncellemesi: ' . $this->iaa->baslik)
+            ->greeting("Merhaba {$notifiable->name},")
+            ->line($line)
+            ->action('Projeyi İncele', $url)
+            ->line('Detayları görüntülemek için yukarıdaki butona tıklayabilirsiniz.')
+            ->salutation('Saygılarımızla, Köksan İyileştirmeye Açık Alan');
     }
 
     /**
@@ -40,7 +62,7 @@ class ProjeDurumuDegisti extends Notification
     {
         // 1. LİNK DÜZELTMESİ:
         $url = route('proje.workspace.show', $this->iaa->id);
-        
+
         if (str_contains($this->durumText, 'onayınızı beklemektedir')) {
             $url .= '#yonetici-onay-alani';
         }
@@ -48,7 +70,7 @@ class ProjeDurumuDegisti extends Notification
         // 2. MESAJ DÜZELTMESİ:
         // "Neden:" kelimesini kaldırdık. Parantez içinde şık bir bilgi notu ekledik.
         $message = "'{$this->iaa->baslik}' başlıklı proje {$this->durumText}";
-        
+
         if ($this->bilgi) {
             $message .= " ({$this->bilgi})";
         }
@@ -70,7 +92,7 @@ class ProjeDurumuDegisti extends Notification
             'message' => $message,
             'action_url' => $url, // Blade için
             'link' => $url,       // JavaScript için (ESKİ YAPIYI BOZMAMAK ADINA EKLENDİ)
-            'icon' => $icon,     
+            'icon' => $icon,
             'color' => $color,
             'iaa_id' => $this->iaa->id
         ];

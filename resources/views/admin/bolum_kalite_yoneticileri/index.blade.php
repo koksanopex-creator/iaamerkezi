@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Bölüm Kalite Yöneticisi Atamaları | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
@@ -117,15 +121,24 @@
                                     <h3 class="text-lg font-bold text-gray-900">{{ $yonetici->name }}</h3>
                                     <p class="text-sm text-gray-500">Sorumlu olduğu kalite kategorilerini belirleyin</p>
                                 </div>
-                                <div class="text-right">
+                                <div class="flex flex-col items-end gap-2">
                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                         Bölüm Kalite Yöneticisi
                                     </span>
+                                    {{-- Müdahale Yetkisi Toggle --}}
+                                    <label class="inline-flex items-center cursor-pointer group">
+                                        <div class="mr-3 text-xs font-bold text-gray-600 group-hover:text-indigo-600 transition-colors uppercase tracking-wider">Müdahale Yetkisi</div>
+                                        <div class="relative">
+                                            <input type="hidden" form="update-form-{{ $yonetici->id }}" name="can_intervene_quality" value="0">
+                                            <input type="checkbox" form="update-form-{{ $yonetici->id }}" name="can_intervene_quality" value="1" {{ $yonetici->can_intervene_quality ? 'checked' : '' }} class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
 
                             {{-- Form İçeriği --}}
-                            <form action="{{ route('admin.kalite-yoneticileri.update', $yonetici->id) }}" method="POST" class="flex flex-col flex-1 min-h-0">
+                            <form id="update-form-{{ $yonetici->id }}" action="{{ route('admin.kalite-yoneticileri.update', $yonetici->id) }}" method="POST" class="flex flex-col flex-1 min-h-0">
                                 @csrf
                                 <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

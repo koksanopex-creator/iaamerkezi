@@ -1,64 +1,155 @@
 <x-guest-layout>
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}">
+    <form method="POST" action="{{ route('login') }}" class="space-y-6">
         @csrf
-        
-        <div class="text-center mb-6">
-            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Tekrar Hoş Geldiniz!</h1>
-            <p class="text-gray-600 mt-2">Devam etmek için hesabınıza giriş yapın.</p>
+
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tekrar Hoş Geldiniz</h1>
+            <p class="text-gray-500 mt-2 text-sm">Hesabınıza erişmek için bilgilerinizi giriniz.</p>
         </div>
 
         <div>
-            <label for="email" class="block text-sm font-medium text-gray-700">E-posta Adresi</label>
-            <div class="mt-1">
+            <label for="email" class="block text-sm font-semibold text-gray-700 mb-1">E-posta Adresi</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                    </svg>
+                </div>
                 <input id="email" name="email" type="email" autocomplete="email" required value="{{ old('email') }}"
-                       class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200 bg-gray-50/50 hover:bg-white"
+                    placeholder="ad.soyad@koksan.com">
             </div>
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
-        <div class="mt-4">
-            <label for="password" class="block text-sm font-medium text-gray-700">Şifre</label>
-            <div class="mt-1">
-                <input id="password" name="password" type="password" autocomplete="current-password" required
-                       class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+        <div>
+            <div class="flex items-center justify-between mb-1">
+                <label for="password" class="block text-sm font-semibold text-gray-700">Şifre</label>
+                @if (Route::has('password.request'))
+                    <a class="text-xs font-medium text-blue-600 hover:text-blue-500" href="{{ route('password.request') }}">
+                        Şifrenizi mi unuttunuz?
+                    </a>
+                @endif
             </div>
-             <x-input-error :messages="$errors->get('password')" class="mt-2" />
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                </div>
+                <input id="password" name="password" type="password" autocomplete="current-password" required
+                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all duration-200 bg-gray-50/50 hover:bg-white"
+                    placeholder="••••••••">
+            </div>
+            <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
-        <div class="flex items-center justify-between mt-6">
-            <label for="remember_me" class="inline-flex items-center"><input id="remember_me" type="checkbox" name="remember" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500"><span class="ms-2 text-sm text-gray-700">Beni Hatırla</span></label>
-            @if (Route::has('password.request'))
-                <a class="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline" href="{{ route('password.request') }}">Şifrenizi mi unuttunuz?</a>
-            @endif
+        <div class="flex items-center">
+            <input id="remember_me" name="remember" type="checkbox"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer transition">
+            <label for="remember_me" class="ml-2 block text-xs text-gray-900 cursor-pointer">
+                Beni Hatırla
+            </label>
         </div>
 
-        <div class="mt-6">
-            <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg text-base font-semibold text-white bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 transition-all transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Giriş Yap</button>
-        </div>
-        
-        <div class="mt-6 text-center text-sm text-gray-600">
-            <p>Hesabınız yok mu? <a href="{{ route('register') }}" class="font-semibold text-indigo-600 hover:text-indigo-800 hover:underline">Kayıt Olun</a></p>
+        <div>
+            <button type="submit"
+                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-lg shadow-blue-500/30 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 transform hover:-translate-y-0.5">
+                Giriş Yap
+            </button>
         </div>
 
-        <div class="mt-4 pt-4 border-t border-gray-200">
-            <a href="{{ route('guest.iaa.create') }}" class="w-full inline-flex items-center justify-center bg-gradient-to-r from-green-500 to-emerald-500 text-white font-medium py-3 px-4 rounded-xl shadow-lg transition-transform duration-300 hover:scale-105 hover:shadow-green-500/30 text-sm">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                veya Hızlıca Öneri Bırak
+        <div class="grid grid-cols-1 gap-4 mt-8">
+            <div class="relative">
+                <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                    <div class="w-full border-t border-gray-200"></div>
+                </div>
+                <div class="relative flex justify-center">
+                    <span class="px-2 bg-white text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Hızlı Erişim
+                    </span>
+                </div>
+            </div>
+
+            {{-- Yeni Hesap --}}
+            <a href="{{ route('register') }}"
+                class="group relative w-full flex items-center p-4 border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all duration-200 bg-white">
+                <div
+                    class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z">
+                        </path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-sm font-bold text-gray-900 group-hover:text-blue-700">Yeni Hesap Oluştur</h3>
+                    <p class="text-xs text-gray-500">Sisteme dahil olmak için kayıt olun.</p>
+                </div>
+                <div class="ml-auto">
+                    <svg class="h-5 w-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </a>
+
+            {{-- Hızlı Öneri --}}
+            <a href="{{ route('guest.iaa.create') }}"
+                class="group relative w-full flex items-center p-4 border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-emerald-300 transition-all duration-200 bg-white">
+                <div
+                    class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
+                        </path>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-sm font-bold text-gray-900 group-hover:text-emerald-700">Hızlı Öneri Bırak</h3>
+                    <p class="text-xs text-gray-500">Giriş yapmadan fikrinizi iletin.</p>
+                </div>
+                <div class="ml-auto">
+                    <svg class="h-5 w-5 text-gray-400 group-hover:text-emerald-500" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
+            </a>
+
+            {{-- Şikayet Bildir (Vurgulu) --}}
+            <a href="{{ route('public.sikayet.create') }}"
+                class="group relative w-full flex items-center p-4 border border-orange-200 rounded-xl shadow-sm hover:shadow-lg hover:border-orange-400 transition-all duration-200 bg-orange-50/50 hover:bg-orange-50">
+                <div
+                    class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-lg bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                        </path>
+                    </svg>
+                </div>
+                <div class="ml-4 flex-1">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-gray-900 group-hover:text-orange-800">Müşteri Şikayeti Bildir
+                        </h3>
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                            Üyeliksiz
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-600 mt-0.5">Müşteri şikayetini kayıt olmadan bildirin.</p>
+                </div>
+                <div class="ml-auto pl-2">
+                    <svg class="h-5 w-5 text-gray-400 group-hover:text-orange-500" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </div>
             </a>
         </div>
-
-        {{-- ================== YENİ ŞİKAYET LİNKİ ================== --}}
-                <div class="mt-4 text-center">
-                    <a href="{{ route('public.sikayet.create') }}" class="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 rounded-lg font-semibold text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
-                        Müşteri Şikayeti Bildir
-                    </a>
-                </div>
-            {{-- ================== LİNK SONU ================== --}}
-            
     </form>
 </x-guest-layout>

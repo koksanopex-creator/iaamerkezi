@@ -3,81 +3,100 @@
 namespace App\Observers;
 
 use App\Models\MusteriSikayeti;
-use App\Models\User;
-use Illuminate\Support\Facades\Notification;
-use App\Notifications\YeniMusteriSikayetiBildirimi;
-use App\Notifications\SikayetTakimaAtandiBildirimi;
-use Illuminate\Support\Facades\Log; // Hata ayıklama için
-
-use App\Mail\SikayetAtandiMusteriBildirimi; // <-- MÜŞTERİ MAİLİ İÇİN BUNU EKLEYİN
-use Illuminate\Support\Facades\Mail;      // <-- MÜŞTERİ MAİLİ İÇİN BUNU EKLEYİN
-use App\Models\Takim;                      // <-- MÜŞTERİ MAİLİ İÇİN BUNU EKLEYİN (Eğer zaten yoksa)
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class MusteriSikayetiObserver
 {
-    /**
-     * Handle the MusteriSikayeti "created" event.
-     * SENARYO: Yeni Müşteri Şikayeti Girildi
-     * === GÜNCELLENDİ ===
-     */
-    public function created(MusteriSikayeti $musteriSikayeti): void
+    public function created(MusteriSikayeti $sikayet)
     {
-        try {
-            // İsteğiniz: "Müşteri Şikayeti Çözüm Lideri", "Müşteri Şikayeti Kurulu" + "Superadmin" + "Yönetim"
-            $roller = [
-                "Müşteri Şikayeti Çözüm Lideri", 
-                "Müşteri Şikayeti Kurulu",
-                "Superadmin", // <-- EKLENDİ
-                "Yönetim"     // <-- EKLENDİ (İlerde oluşturacağınız rol)
-            ];
-            
-            $kullanicilar = User::role($roller)->get();
+        $this->syncWithTakvim($sikayet);
+    }
 
-            if ($kullanicilar->isNotEmpty()) {
-                Notification::send($kullanicilar, new YeniMusteriSikayetiBildirimi($musteriSikayeti));
-            }
+    public function updated(MusteriSikayeti $sikayet)
+    {
+        $this->syncWithTakvim($sikayet);
+    }
 
-        } catch (\Exception $e) {
-            Log::error('Yeni şikayet bildirimi gönderilemedi: ' . $e->getMessage());
+    public function deleting(MusteriSikayeti $sikayet)
+    {
+        // SOFT DELETE - Sadece Takvim senkronizasyonunu tetiklemek yeterli
+        Log::info("MusteriSikayetiObserver: deleting (soft) tetiklendi. #{$sikayet->id}");
+    }
+
+    public function deleted(MusteriSikayeti $sikayet)
+    {
+        // Eğer hard delete ise Takvim'e delete action yolla. Soft delete ise de yolla.
+        // Aslında 'action' => 'deleted' yollamak mantıklı
+        if ($sikayet->isForceDeleting()) {
+            $this->syncWithTakvim($sikayet, 'force_deleted');
+        } else {
+            $this->syncWithTakvim($sikayet, 'deleted');
         }
     }
 
-    // ... (updated metodu 1. maddedeki gibi güncellenmiş olmalı) ...
-
-    /**
-     * Handle the MusteriSikayeti "updated" event.
-     * SENARYO: Müşteri Şikayeti Bir Takıma Atandı
-     * (HEM TAKIMA BİLDİRİM HEM MÜŞTERİYE E-POSTA GÖNDERİR)
-     */
-    public function updated(MusteriSikayeti $musteriSikayeti): void
+    public function restored(MusteriSikayeti $sikayet)
     {
-        // Sadece 'atanan_cozum_takimi_id' alanı DEĞİŞTİYSE ve boş DEĞİLSE çalış
-        if ($musteriSikayeti->isDirty('atanan_cozum_takimi_id') && $musteriSikayeti->atanan_cozum_takimi_id) {
-            try {
-                // Modelinizdeki ilişkiyi kullanıyoruz
-                $takim = $musteriSikayeti->cozumTakimi;
+        Log::info("MusteriSikayetiObserver: restored tetiklendi. #{$sikayet->id}");
+        $this->syncWithTakvim($sikayet, 'restored');
+    }
 
+    public function forceDeleting(MusteriSikayeti $sikayet)
+    {
+        // KALICI SİLME - Puanları geri al
+        Log::info("MusteriSikayetiObserver: forceDeleting tetiklendi. #{$sikayet->id}");
+        $puan = $sikayet->kazanilan_puan;
+        if ($puan > 0) {
+            // 1. Oluşturan kişiden geri al
+            if ($sikayet->olusturan_kurul_uyesi_id) {
+                \App\Models\User::where('id', $sikayet->olusturan_kurul_uyesi_id)->decrement('toplam_puan', $puan);
+            }
+
+            // 2. Takım ve takım üyelerinden geri al
+            if ($sikayet->atanan_cozum_takimi_id) {
+                $takim = \App\Models\Takim::find($sikayet->atanan_cozum_takimi_id);
                 if ($takim) {
-                    
-                    // === 1. TAKIM İÇİ BİLDİRİM (SİZİN MEVCUT KODUNUZ) ===
-                    $kullanicilar = $takim->uyeler; 
-                    if ($kullanicilar && $kullanicilar->isNotEmpty()) { 
-                        Notification::send($kullanicilar, new SikayetTakimaAtandiBildirimi($musteriSikayeti));
+                    $takim->decrement('toplam_puan', $puan);
+                    $uyeler = collect();
+                    // Takımın mevcut üyeleri ilişkisi
+                    try {
+                        $uyeler = $takim->uyeler()->wherePivot('durum', 'onaylandi')->get();
+                    } catch (\Exception $e) {}
+                    foreach ($uyeler as $uye) {
+                        $uye->decrement('toplam_puan', $puan);
                     }
-                    // === TAKIM BİLDİRİMİ SONU ===
-
-                    
-                    // === 2. MÜŞTERİYE E-POSTA BİLDİRİMİ (YENİ EKLEME) ===
-                    if ($musteriSikayeti->musteri_iletisim) {
-                        Mail::to($musteriSikayeti->musteri_iletisim)
-                            ->queue(new SikayetAtandiMusteriBildirimi($musteriSikayeti, $takim));
-                    }
-                    // === MÜŞTERİ E-POSTA SONU ===
-
                 }
-            } catch (\Exception $e) {
-                Log::error('Şikayet atama bildirimi/maili gönderilemedi: ' . $e->getMessage());
             }
         }
+
+        // Dosyaları fiziksel diskten sil
+        foreach ($sikayet->dosyalar as $dosya) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($dosya->dosya_yolu);
+        }
+
+        // İlgili IAA projesini sil
+        if ($sikayet->iaa_id) {
+            $iaa = \App\Models\Iaa::find($sikayet->iaa_id);
+            if ($iaa) {
+                $iaa->delete();
+            }
+        }
+
+        // Şikayet loglarını sil
+        \App\Models\MusteriSikayetiLog::where('musteri_sikayeti_id', $sikayet->id)->delete();
+    }
+
+    /**
+     * Sync complaint data with Takvim system.
+     */
+    protected function syncWithTakvim(MusteriSikayeti $sikayet, $action = 'updated')
+    {
+        // Avoid infinite loops
+        if (request()->has('is_syncing')) {
+            return;
+        }
+
+        // Dispatch background job for sync to avoid blocking the user
+        \App\Jobs\SyncComplaintWithTakvim::dispatch($sikayet->id, $action);
     }
 }

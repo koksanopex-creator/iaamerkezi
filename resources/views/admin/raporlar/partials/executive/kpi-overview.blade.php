@@ -1,6 +1,5 @@
-{{-- VERİYİ JS İÇİN HAZIRLAMA --}}
 @php
-    $jsSikayetData = $sonSikayetler->map(function($item) {
+    $jsSikayetData = $listSikayetler->map(function($item) {
         
         $bitis = $item->kurul_onay_tarihi ? \Carbon\Carbon::parse($item->kurul_onay_tarihi) : null;
         $baslangic = \Carbon\Carbon::parse($item->musteri_sikayet_tarihi);

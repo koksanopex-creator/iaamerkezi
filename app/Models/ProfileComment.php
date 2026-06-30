@@ -17,9 +17,15 @@ class ProfileComment extends Model
     }
 
     // Profil sahibi
-    public function profileUser(): BelongsTo
+    public function profilSahibi(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    // Üst yorum (Eğer bu bir cevap ise)
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(ProfileComment::class, 'parent_id');
     }
 
     // Bu yorumun cevapları (Alt Yorumlar)

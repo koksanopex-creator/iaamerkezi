@@ -18,7 +18,7 @@ class IaaPolicy
         if ($user->hasRole('Superadmin')) {
             return true;
         }
- 
+
         return null; // Diğer kuralları kontrol etmeye devam et
     }
 
@@ -42,14 +42,81 @@ class IaaPolicy
             return true;
         }
 
-        // Kural 2: Eğer öneri "Havuzda" veya daha ileri bir aşamadaysa (TAMAMLANDI DAHİL), herkes görebilir.
-        // === GÜNCELLEME BURADA ===
-        if (in_array($iaa->durum, ['Havuzda', 'Talep Edildi', 'Atandı', 'Yönetici Onayı Bekliyor', 'Revize Ediliyor', 'Tamamlandı'])) {
+        // Kural 1.5: Direktör Yetkisi (Maksimum Kapsamlı Erişim)
+        if ($user->hasRole('Direktör')) {
+            $yonetilenBolumIds = $user->yonetilenBolumler()->pluck('id')->toArray();
+
+            // 1. Doğrudan proje bölümü üzerinden
+            if (in_array($iaa->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+
+            // 2. Şikayet kategorisi departmanı üzerinden
+            if ($iaa->musteriSikayeti && $iaa->musteriSikayeti->sikayetKategori && in_array($iaa->musteriSikayeti->sikayetKategori->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+
+            // 3. Proje gönderen kişi üzerinden
+            if ($iaa->gonderen && in_array($iaa->gonderen->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+
+            // 4. Proje ekibi (Squad) üzerinden
+            $teamMembersDeptIds = $iaa->projeEkibi()->pluck('users.bolum_id')->unique()->toArray();
+            if (count(array_intersect($teamMembersDeptIds, $yonetilenBolumIds)) > 0) {
+                return true;
+            }
+
+            // 5. Takım lideri üzerinden
+            if ($iaa->atananTakim && $iaa->atananTakim->lider && in_array($iaa->atananTakim->lider->bolum_id, $yonetilenBolumIds)) {
+                return true;
+            }
+        }
+
+        // --- rules1.md: İAA vs ŞİKAYET AYRIMI (Pattern Matching) ---
+        $isSikayet = str_contains($iaa->oneri ?? '', 'Müşteri şikayetinden');
+        $isIaa = !$isSikayet;
+
+        // Kural 1.6: Bölüm Lideri / Yetkili Yardımcı Yetkisi (Kendi bölümüne ait projeler)
+        $isLeader = $user->hasRole('Bölüm Lideri');
+        $isAuthorizedDeputy = $user->hasRole('Bölüm Lider Yardımcısı') && $user->hasBolumAuthority('bolum.iaa.gor');
+
+        if (($isLeader || $isAuthorizedDeputy) && $user->bolum_id && $iaa->bolum_id == $user->bolum_id) {
             return true;
         }
-        // =========================
-        
-        // Bu koşullar sağlanmazsa (örneğin başkasının "Onay Bekleyen" önerisi), göremez.
+
+        // Kural 1.7: Şikayet Projeleri İçin Ek Roller (Kategori bazlı)
+        if ($isSikayet) {
+            // Bölüm Kalite Yöneticisi (Sadece şikayetlerde vardır)
+            if ($user->hasRole('Bölüm Kalite Yöneticisi')) {
+                if ($iaa->musteriSikayeti) {
+                    $kategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
+                    if ($kategoriId && $user->yonettigiSikayetKategorileri->contains($kategoriId)) {
+                        return true;
+                    }
+                    if ($user->bolum_id && $iaa->musteriSikayeti->sikayetKategori && $iaa->musteriSikayeti->sikayetKategori->bolum_id == $user->bolum_id) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Kural 2: Durum Bazlı Görünürlük (Yalnızca Personel İçin)
+        if ($isIaa && $user->is_personnel) {
+            // Saf İAA'lar Havuzda veya sonrasında tüm personeller tarafından görülebilir
+            if (in_array($iaa->durum, ['Havuzda', 'Talep Edildi', 'Atandı', 'Yönetici Onayı Bekliyor', 'Revize Ediliyor', 'Tamamlandı'])) {
+                return true;
+            }
+        } else {
+            // Şikayet Projeleri: Sadece terminal ve atama durumlarında görünür (Gizlilik gereği onay süreçleri kısıtlı kalır)
+            if (in_array($iaa->durum, ['Atandı', 'Tamamlandı'])) {
+                return true;
+            }
+            // Not: Onay sürecindeki (Bölüm Onayı Bekliyor vb.) şikayetleri 
+            // sadece yukarıdaki Kural 1, 1.5, 1.6'daki yetkililer görebilir.
+        }
+
+        // Bu koşullar sağlanmazsa göremez.
         return false;
     }
 
@@ -67,8 +134,45 @@ class IaaPolicy
      */
     public function update(User $user, Iaa $iaa): bool
     {
-        // Sadece öneriyi gönderen kişi ve sadece "Onay Bekliyor" durumundayken güncelleyebilir.
-        return $user->id === $iaa->gonderen_user_id && $iaa->durum === 'Onay Bekliyor';
+        // 1. Sadece öneriyi gönderen kişi ve sadece "Onay Bekliyor" durumundayken güncelleyebilir. (Saf İAA Akışı)
+        if ($user->id === $iaa->gonderen_user_id && $iaa->durum === 'Onay Bekliyor') {
+            return true;
+        }
+
+        // 2. Müdahale Yetkili Kalite Yöneticisi (Şikayet Projeleri Akışı)
+        if ($user->hasRole('Bölüm Kalite Yöneticisi') && $user->can_intervene_quality) {
+            if ($iaa->musteriSikayeti) {
+                $kategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
+                if ($kategoriId && $user->yonettigiSikayetKategorileri->contains($kategoriId)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Kullanıcının projeye idari müdahale (adım geri alma, atama vb.) yapıp yapamayacağını belirler.
+     */
+    public function intervene(User $user, Iaa $iaa): bool
+    {
+        // 1. Takım Lideri
+        if ($iaa->atananTakim && $iaa->atananTakim->lider_user_id == $user->id) {
+            return true;
+        }
+
+        // 2. Müdahale Yetkili Kalite Yöneticisi
+        if ($user->hasRole('Bölüm Kalite Yöneticisi') && $user->can_intervene_quality) {
+            if ($iaa->musteriSikayeti) {
+                $kategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
+                if ($kategoriId && $user->yonettigiSikayetKategorileri->contains($kategoriId)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

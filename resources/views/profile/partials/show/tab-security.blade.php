@@ -8,10 +8,10 @@
 
     {{-- 1. SON GİRİŞ HAREKETLERİ --}}
     @php
-        $loginLoglari = \App\Models\LoginActivity::where('user_id', $user->id)->latest()->take(5)->get();
+        $loginLoglari = \App\Models\LoginActivity::where('user_id', $user->id)->latest()->take(50)->get();
     @endphp
     
-    <div>
+    <div x-data="{ limit: 5, total: {{ $loginLoglari->count() }} }">
         <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
             <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
             Son Giriş Hareketleri
@@ -27,7 +27,7 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
                     @forelse($loginLoglari as $login)
-                        <tr>
+                        <tr x-show="{{ $loop->index }} < limit" x-transition>
                             <td class="px-4 py-2 text-sm text-gray-700 font-mono">{{ $login->ip_address }}</td>
                             <td class="px-4 py-2 text-xs text-gray-500 truncate max-w-xs" title="{{ $login->user_agent }}">{{ Str::limit($login->user_agent, 50) }}</td>
                             <td class="px-4 py-2 text-right text-sm text-gray-600">{{ $login->created_at->format('d.m.Y H:i:s') }}</td>
@@ -38,6 +38,16 @@
                 </tbody>
             </table>
         </div>
+
+        @if($loginLoglari->count() > 5)
+        <div class="mt-3 flex justify-center">
+            <button @click="limit = (limit === 5 ? total : 5)" 
+                    class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors">
+                <span x-text="limit === 5 ? 'Daha Fazla Göster' : 'Daha Az Göster'"></span>
+                <svg class="w-3 h-3 transform transition-transform" :class="limit !== 5 ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+        </div>
+        @endif
     </div>
 
     {{-- 2. TÜM PROJE HAREKETLERİ (LİMİTLİ VE GRUPLANMIŞ) --}}

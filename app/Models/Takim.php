@@ -12,14 +12,14 @@ class Takim extends Model
     use HasFactory;
 
     protected $table = 'takimlar';
-    protected $fillable = ['ad', 'lider_user_id', 'amac', 'vizyon', 'misyon', 'kurallar', 'tur'];
+    protected $fillable = ['ad', 'lider_user_id', 'amac', 'vizyon', 'misyon', 'kurallar', 'tur', 'toplam_puan'];
 
     /**
      * Takımın liderini (User) getirir.
      */
     public function lider()
     {
-        return $this->belongsTo(User::class, 'lider_user_id');
+        return $this->belongsTo(User::class, 'lider_user_id')->withTrashed();
     }
 
     /**
@@ -28,28 +28,36 @@ class Takim extends Model
     public function uyeler()
     {
         return $this->belongsToMany(User::class, 'takim_user', 'takim_id', 'user_id')
-                    ->withPivot('gorev_tanimi', 'katilma_sekli', 'created_at') // katilma_sekli ve created_at'i ekle
-                    ->withTimestamps();
+            ->withPivot('gorev_tanimi', 'katilma_sekli', 'created_at') // katilma_sekli ve created_at'i ekle
+            ->withTimestamps();
+    }
+
+    /**
+     * Alias for uyeler (Consistency)
+     */
+    public function users()
+    {
+        return $this->uyeler();
     }
 
     public function takimlar()
     {
         return $this->belongsToMany(Takim::class, 'takim_user', 'user_id', 'takim_id')
-                    ->withPivot('gorev_tanimi', 'katilma_sekli', 'created_at') // katilma_sekli ve created_at'i ekle
-                    ->withTimestamps();
+            ->withPivot('gorev_tanimi', 'katilma_sekli', 'created_at') // katilma_sekli ve created_at'i ekle
+            ->withTimestamps();
     }
 
     /**
      * Bu takımın talep ettiği tüm İAA'ları döndürür.
      * (belongsToMany ilişkisi: Bir takım birden çok İAA talep edebilir)
      */
-    
-     public function talepEttigiIaalar()
-     {
-         return $this->belongsToMany(Iaa::class, 'iaa_talepleri', 'takim_id', 'iaa_id')
-                     ->withPivot('id', 'iaa_workflow_id', 'start_date', 'due_date', 'status')
-                     ->withTimestamps();
-     }
+
+    public function talepEttigiIaalar()
+    {
+        return $this->belongsToMany(Iaa::class, 'iaa_talepleri', 'takim_id', 'iaa_id')
+            ->withPivot('id', 'iaa_workflow_id', 'workflow_snapshot', 'start_date', 'due_date', 'status')
+            ->withTimestamps();
+    }
 
     /**
      * Bu takıma atanmış olan tüm projeleri (İAA'ları) döndürür.

@@ -102,16 +102,26 @@ data-bulk-delete-url="{{ route('admin.iaa-yonetim.bulkDestroy') }}">
                                 </td>
                                 
                                 <td class="p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
-                                    <div class="flex flex-col sm:flex-row sm:justify-end sm:space-x-2 space-y-2 sm:space-y-0">
-                                        <a href="{{ route('proje.workspace.show', $iaa) }}" class="px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors text-center" title="İlerleme İzle">İncele</a>
-                                        
-                                        {{-- Butonların içindeki "x-data" kelimeleri SİLİNDİ --}}
-                                            <button type="button" @click="$dispatch('open-modal', 'revize-iste-modal-{{ $iaa->id }}')" class="px-3 py-2 bg-yellow-500 text-white text-sm rounded-lg hover:bg-yellow-600 transition-colors">Revize</button>
+                                        <div class="flex flex-col sm:flex-row sm:justify-end sm:space-x-2 space-y-2 sm:space-y-0 text-center">
+                                            <div class="flex items-center space-x-2">
+                                                <a href="{{ route('proje.workspace.show', $iaa) }}" class="px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors" title="İlerleme İzle">İncele</a>
 
-                                            <button type="button" @click="$dispatch('open-modal', 'reddet-tamamlandi-modal-{{ $iaa->id }}')" class="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors">Reddet</button>
+                                                {{-- YENİ: ÖNERİ BUTONU --}}
+                                                <a href="{{ route('iaa.show', $iaa->id) }}" target="_blank" 
+                                                   class="px-3 py-2 bg-white border border-amber-300 text-amber-700 text-sm rounded-lg hover:bg-amber-50 transition-colors flex items-center shadow-sm"
+                                                   title="Orijinal Öneriye Git">
+                                                    Öneri
+                                                </a>
+                                            </div>
+                                            
+                                            @role('Superadmin')
+                                                <button type="button" @click="$dispatch('open-modal', 'revize-iste-modal-{{ $iaa->id }}')" class="px-3 py-2 bg-yellow-500 text-white text-sm rounded-lg hover:bg-yellow-600 transition-colors">Revize</button>
 
-                                            <button type="button" @click="$dispatch('open-modal', 'onayla-tamamlandi-modal-{{ $iaa->id }}')" class="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">Onayla</button>
-                                    </div>
+                                                <button type="button" @click="$dispatch('open-modal', 'reddet-tamamlandi-modal-{{ $iaa->id }}')" class="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors">Reddet</button>
+
+                                                <button type="button" @click="$dispatch('open-modal', 'onayla-tamamlandi-modal-{{ $iaa->id }}')" class="px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors">Onayla</button>
+                                            @endrole
+                                        </div>
                                 </td>
                             </tr>
                         @empty

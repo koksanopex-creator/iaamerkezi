@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Takımlar | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

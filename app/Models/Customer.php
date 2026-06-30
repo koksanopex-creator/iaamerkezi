@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+// Şikayet modelini kullanacağımız için buraya ekledik
+use App\Models\MusteriSikayeti; 
 
 class Customer extends Model
 {
@@ -13,7 +15,7 @@ class Customer extends Model
     // Mass assignment koruması için doldurulabilir alanlar
     protected $fillable = [
         'name',           // Firma Adı
-        'logo_path', // <--- YENİ EKLENDİ
+        'logo_path',      // Logo
         'tax_number',     // Vergi No
         'tax_office',     // Vergi Dairesi
         'address',        // Adres
@@ -21,22 +23,29 @@ class Customer extends Model
         'email',          // Genel E-posta
         'location_type',  // Yurt İçi / Yurt Dışı
         'is_active',      // Aktif/Pasif Durumu
+        'passive_reason', // Pasife alınma sebebi (BUNU LİSTEYE EKLEDİK)
     ];
 
     /**
      * Bu firmaya bağlı yetkili kişiler (Müşteri Temsilcileri)
-     * Bir firmanın birden fazla yetkilisi olabilir (User tablosunda)
      */
-    public function representatives()
+    public function users()
     {
-        return $this->hasMany(User::class, 'customer_id');
+        return $this->belongsToMany(User::class, 'customer_user')->withPivot('is_active', 'unvan')->withTimestamps();
     }
 
     /**
-     * Bu firmaya ait şikayetler
+     * DÜZELTME BURADA YAPILDI:
+     * Veritabanına göre şikayetler doğrudan 'customer_id' ile firmaya bağlı.
+     * Bu yüzden 'hasManyThrough' yerine 'hasMany' kullanıyoruz.
      */
-    public function complaints()
+    public function sikayetler()
     {
         return $this->hasMany(MusteriSikayeti::class, 'customer_id');
     }
+    
+    // --- ESKİ KODLARIN BOZULMAMASI İÇİN ALIASLAR ---
+    
+    public function representatives() { return $this->users(); }
+    public function complaints() { return $this->sikayetler(); }
 }

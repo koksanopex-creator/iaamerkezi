@@ -31,7 +31,7 @@ class ProjeEkipDaveti extends Notification
             ->subject('Proje Ekibi Daveti: ' . $this->iaa->baslik)
             ->greeting('Merhaba ' . $notifiable->name . ',')
             ->line($this->lider->name . ' sizi "' . $this->iaa->baslik . '" projesinin çalışma ekibine davet etti.')
-            ->action('Daveti İncele', route('dashboard')) // Dashboard'a yönlendiriyoruz, orada görecek
+            ->action('Daveti İncele', route('takimlar.davetlerim')) // Davetlerin olduğu sayfaya yönlendiriyoruz
             ->line('Lütfen panelinizden daveti onaylayın veya reddedin.');
     }
 
@@ -39,11 +39,12 @@ class ProjeEkipDaveti extends Notification
     {
         return [
             'message' => $this->lider->name . ' sizi "' . \Illuminate\Support\Str::limit($this->iaa->baslik, 20) . '" projesine davet etti.',
-            'action_url' => route('dashboard'), // Davetleri dashboard'da göstereceğiz
+            'action_url' => route('takimlar.davetlerim'), // Davetlerim sayfasına yönlendiriyoruz
             'icon' => 'user-add',
             'color' => 'indigo',
             'iaa_id' => $this->iaa->id,
-            'type' => 'proje_daveti' // Bunu dashboard'da yakalayacağız
+            'type' => 'proje_daveti', // Bunu dashboard'da yakalayacağız
+            'invited_user_id' => $notifiable->id
         ];
     }
 }

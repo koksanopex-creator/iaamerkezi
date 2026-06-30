@@ -1,0 +1,648 @@
+<?php
+
+namespace App\Livewire\Project;
+
+use Livewire\Component;
+use App\Models\Iaa;
+use App\Models\IaaProgressUpdate;
+use App\Models\IaaTalep;
+use App\Models\IaaWorkflowStep;
+use App\Models\User;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Livewire\WithFileUploads;
+use Illuminate\Support\Str;
+
+class ActiveStep extends Component
+{
+    use WithFileUploads;
+
+    public $iaa;
+    public $assignment;
+    public $currentStep;
+    public ?IaaProgressUpdate $progressUpdateModel = null;
+
+    public $formData = [];
+    public $toolsData = [
+        'five_whys' => ['why1' => '', 'why2' => '', 'why3' => '', 'why4' => '', 'why5' => ''],
+        'fishbone' => ['problem' => '', 'insan' => '', 'yontem' => '', 'makine' => '', 'malzeme' => '', 'olcum' => '', 'cevre' => ''],
+        'pareto' => [
+            'header1' => 'Problem',
+            'header2' => 'Sıklık',
+            'rows' => [['problem' => '', 'frequency' => '']],
+        ],
+        'bar_chart_data' => [],
+        'line_chart_data' => [],
+        // === YENİ ANALİZ ARAÇLARI ===
+        'swot' => ['strengths' => '', 'weaknesses' => '', 'opportunities' => '', 'threats' => ''],
+        'action_list' => [], // ['items' => [['id' => uniqid(), 'text' => '', 'is_completed' => false]]]
+        'task_list' => [],   // ['tasks' => [['id' => uniqid(), 'description' => '', 'assigned_user_id' => null]]]
+        'prioritization_matrix' => [], // ['items' => [['id' => uniqid(), 'action' => '', 'effort' => 'low', 'impact' => 'high']]]
+        '4m_report' => [], // [$index => ['man' => '', 'machine' => '', 'material' => '', 'method' => '']]
+        // ============================
+    ];
+
+    public $newUploads = [];
+    // Before/After ve özel resim yüklemeleri için yeni yapı
+    public $newImageUploads = [];
+    public array $initialChartData = []; // Blade için ilk veriler
+
+    public function mount($iaa, $assignment, $currentStep, $progressUpdate)
+    {
+        $this->iaa = $iaa;
+        // Modelleri array'e çeviriyoruz çünkü snapshot olanlar Livewire re-hydration'da kaybolabiliyor
+        // stdClass durumunda toArray() metodunun olmamasını kontrol ediyoruz
+        $this->assignment = is_object($assignment) ? (method_exists($assignment, 'toArray') ? $assignment->toArray() : (array)$assignment) : $assignment;
+        $this->currentStep = is_object($currentStep) ? (method_exists($currentStep, 'toArray') ? $currentStep->toArray() : (array)$currentStep) : $currentStep;
+        $this->progressUpdateModel = $progressUpdate;
+
+        // Varsayılan yapıları ve $newUploads'ı widget index'lerine göre başlat
+        if (isset($this->currentStep['widgets']) && is_array($this->currentStep['widgets'])) {
+            foreach ($this->currentStep['widgets'] as $index => $widget) {
+                if (!isset($widget['type']))
+                    continue;
+                $config = $widget['config'] ?? []; // Widget tanımındaki config
+
+                if ($widget['type'] === 'file_upload') {
+                    $this->newUploads[$index] = [];
+                } elseif ($widget['type'] === 'bar_chart') {
+                    $this->toolsData['bar_chart_data'][$index] = [
+                        'title' => $config['title'] ?? 'Sütun Grafiği',
+                        'axis_x_label' => $config['axis_x_label'] ?? 'Kategoriler',
+                        'axis_y_label' => $config['axis_y_label'] ?? 'Değerler',
+                        'rows' => [['label' => '', 'value' => '']]
+                    ];
+                } elseif ($widget['type'] === 'line_chart') {
+                    $this->toolsData['line_chart_data'][$index] = [
+                        'title' => $config['title'] ?? 'Çizgi Grafiği',
+                        'axis_x_label' => $config['axis_x_label'] ?? 'Kategoriler',
+                        'axis_y_label' => $config['axis_y_label'] ?? 'Değerler',
+                        'rows' => [['label' => '', 'value' => '']]
+                    ];
+                } elseif ($widget['type'] === 'checklist') {
+                    // Checklist maddelerini config'den parse et
+                    $items = !empty($config['items']) ? array_filter(array_map('trim', explode("\n", $config['items']))) : [];
+                    $this->formData[$index] = ['checklist' => array_fill(0, count($items), false)];
+                } elseif ($widget['type'] === 'before_after') {
+                    $this->formData[$index] = ['before_text' => '', 'after_text' => '', 'before_image_path' => null, 'after_image_path' => null];
+                    $this->newImageUploads[$index] = ['before' => null, 'after' => null];
+                } elseif ($widget['type'] === 'image_upload') {
+                    $this->formData[$index] = ['files' => []]; // Çoklu desteklerse diye array
+                    $this->newImageUploads[$index] = ['files' => []];
+                } elseif ($widget['type'] === 'risk_matrix') {
+                    $this->formData[$index] = ['risk_row' => '', 'risk_col' => '', 'risk_notes' => ''];
+                } elseif ($widget['type'] === 'action_list') {
+                    $this->toolsData['action_list'][$index] = ['items' => []];
+                } elseif ($widget['type'] === 'task_list') {
+                    $this->toolsData['task_list'][$index] = ['tasks' => []];
+                } elseif ($widget['type'] === 'prioritization_matrix') {
+                    $this->toolsData['prioritization_matrix'][$index] = ['items' => []];
+                } elseif ($widget['type'] === '4m_report') {
+                    $this->toolsData['4m_report'][$index] = ['man' => '', 'machine' => '', 'material' => '', 'method' => ''];
+                }
+            }
+        }
+
+        // Kayıtlı veriyi yükle (varsayılanların üzerine yazacak)
+        if ($this->progressUpdateModel && !empty($this->progressUpdateModel->content)) {
+            $contentData = json_decode($this->progressUpdateModel->content, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $this->formData = $contentData['form_data'] ?? [];
+                if (!empty($contentData['tools'])) {
+                    $savedTools = $contentData['tools'];
+
+                    if (!empty($savedTools['five_whys'])) {
+                        $this->toolsData['five_whys'] = array_merge($this->toolsData['five_whys'], $savedTools['five_whys']);
+                    }
+                    if (!empty($savedTools['fishbone'])) {
+                        $this->toolsData['fishbone'] = array_merge($this->toolsData['fishbone'], $savedTools['fishbone']);
+                    }
+                    if (!empty($savedTools['pareto'])) {
+                        if (isset($savedTools['pareto']['header1'])) {
+                            $this->toolsData['pareto']['header1'] = $savedTools['pareto']['header1'];
+                        }
+                        if (isset($savedTools['pareto']['header2'])) {
+                            $this->toolsData['pareto']['header2'] = $savedTools['pareto']['header2'];
+                        }
+                        if (isset($savedTools['pareto']['rows']) && is_array($savedTools['pareto']['rows'])) {
+                            $this->toolsData['pareto']['rows'] = $savedTools['pareto']['rows'];
+                        }
+                    }
+                    if (!empty($savedTools['bar_chart_data'])) {
+                        foreach ($savedTools['bar_chart_data'] as $idx => $data) {
+                            if (isset($this->toolsData['bar_chart_data'][$idx])) {
+                                $this->toolsData['bar_chart_data'][$idx] = array_merge($this->toolsData['bar_chart_data'][$idx], $data);
+                            }
+                        }
+                    }
+                    if (!empty($savedTools['line_chart_data'])) {
+                        foreach ($savedTools['line_chart_data'] as $idx => $data) {
+                            if (isset($this->toolsData['line_chart_data'][$idx])) {
+                                $this->toolsData['line_chart_data'][$idx] = array_merge($this->toolsData['line_chart_data'][$idx], $data);
+                            }
+                        }
+                    }
+                    // === YENİ ANALİZ ARAÇLARINI YÜKLE ===
+                    if (!empty($savedTools['swot'])) {
+                        $this->toolsData['swot'] = array_merge($this->toolsData['swot'], $savedTools['swot']);
+                    }
+                    if (!empty($savedTools['action_list'])) {
+                        $this->toolsData['action_list'] = $savedTools['action_list'];
+                    }
+                    if (!empty($savedTools['task_list'])) {
+                        $this->toolsData['task_list'] = $savedTools['task_list'];
+                    }
+                    if (!empty($savedTools['prioritization_matrix'])) {
+                        $this->toolsData['prioritization_matrix'] = $savedTools['prioritization_matrix'];
+                    }
+                    if (!empty($savedTools['4m_report'])) {
+                        $this->toolsData['4m_report'] = $savedTools['4m_report'];
+                    }
+                }
+            } else {
+                Log::error('IaaProgressUpdate content JSON decode hatası: ' . json_last_error_msg(), ['id' => $this->progressUpdateModel->id]);
+            }
+        }
+
+        // === İlk grafik verilerini hesapla (Blade için) ===
+        $this->prepareInitialChartData();
+    }
+
+    // İlk grafik verilerini hesaplayıp $initialChartData'ya atar
+    private function prepareInitialChartData()
+    {
+        $this->initialChartData = [];
+        if (isset($this->currentStep['widgets']) && is_array($this->currentStep['widgets'])) {
+            foreach ($this->currentStep['widgets'] as $index => $widget) {
+                if (!isset($widget['type']))
+                    continue;
+                $componentId = $this->getId();
+                $chartKey = $componentId . '-' . $index;
+
+                if ($widget['type'] === 'pareto') {
+                    $this->initialChartData['pareto'][$componentId] = $this->calculateParetoData()->toArray();
+                } elseif ($widget['type'] === 'bar_chart') {
+                    $this->initialChartData['bar_chart'][$chartKey] = $this->calculateGenericChartData('bar_chart_data', $index)->toArray();
+                } elseif ($widget['type'] === 'line_chart') {
+                    $this->initialChartData['line_chart'][$chartKey] = $this->calculateGenericChartData('line_chart_data', $index)->toArray();
+                }
+            }
+        }
+    }
+
+
+    // --- PARETO METODLARI ---
+    public function addParetoRow()
+    {
+        $this->toolsData['pareto']['rows'][] = ['problem' => '', 'frequency' => ''];
+    }
+    public function removeParetoRow($index)
+    {
+        if (isset($this->toolsData['pareto']['rows'][$index]) && count($this->toolsData['pareto']['rows']) > 1) { // Son satır silinmesin
+            unset($this->toolsData['pareto']['rows'][$index]);
+            $this->toolsData['pareto']['rows'] = array_values($this->toolsData['pareto']['rows']);
+        }
+    }
+    private function calculateParetoData(): Collection
+    {
+        $rows = $this->toolsData['pareto']['rows'] ?? [];
+        $data = collect($rows)
+            ->filter(fn($row) => !empty($row['problem']) && isset($row['frequency']) && is_numeric($row['frequency']) && $row['frequency'] > 0)
+            ->sortByDesc('frequency')
+            ->values();
+        $total = $data->sum('frequency');
+        $cumulative = 0;
+        return $data->map(function ($item) use ($total, &$cumulative) {
+            $cumulative += (float) $item['frequency'];
+            $item['cumulative_sum'] = $cumulative;
+            $item['cumulative_percentage'] = $total > 0 ? round(($cumulative / $total) * 100, 2) : 0;
+            return $item;
+        });
+    }
+    public function generateChartData()
+    { // Sadece PARETO
+        try {
+            $processedData = $this->calculateParetoData();
+            $chartData = [
+                'labels' => $processedData->pluck('problem')->toArray(),
+                'frequencies' => $processedData->pluck('frequency')->toArray(),
+                'percentages' => $processedData->pluck('cumulative_percentage')->toArray(),
+                'header2' => $this->toolsData['pareto']['header2'] ?? 'Sıklık',
+            ];
+            $this->dispatch('updateParetoChart-' . $this->getId(), $chartData);
+        } catch (\Exception $e) {
+            Log::error('Pareto grafik hatası: ' . $e->getMessage());
+            $this->dispatch('show-error', 'Grafik hatası.');
+        }
+    }
+    // --- PARETO BİTİŞ ---
+
+    // === GENEL GRAFİK METODLARI ===
+    private function calculateGenericChartData(string $toolKey, int $widgetIndex): Collection
+    {
+        $rows = $this->toolsData[$toolKey][$widgetIndex]['rows'] ?? [];
+        return collect($rows)
+            ->filter(fn($row) => isset($row['label']) && $row['label'] !== '' && isset($row['value']) && is_numeric($row['value']))
+            ->values();
+    }
+
+    // --- Sütun Grafiği ---
+    public function addBarChartRow($widgetIndex)
+    {
+        if (isset($this->toolsData['bar_chart_data'][$widgetIndex])) {
+            $this->toolsData['bar_chart_data'][$widgetIndex]['rows'][] = ['label' => '', 'value' => ''];
+        }
+    }
+    public function removeBarChartRow($widgetIndex, $rowIndex)
+    {
+        if (isset($this->toolsData['bar_chart_data'][$widgetIndex]['rows'][$rowIndex]) && count($this->toolsData['bar_chart_data'][$widgetIndex]['rows']) > 1) {
+            unset($this->toolsData['bar_chart_data'][$widgetIndex]['rows'][$rowIndex]);
+            $this->toolsData['bar_chart_data'][$widgetIndex]['rows'] = array_values($this->toolsData['bar_chart_data'][$widgetIndex]['rows']);
+        }
+    }
+    // Sadece Bar Chart butonu için
+    public function generateBarChartData($widgetIndex)
+    {
+        try {
+            $processedData = $this->calculateGenericChartData('bar_chart_data', $widgetIndex);
+            // Config verisini $toolsData'dan al
+            $config = $this->toolsData['bar_chart_data'][$widgetIndex] ?? [];
+            $chartData = [
+                'labels' => $processedData->pluck('label')->toArray(),
+                'values' => $processedData->pluck('value')->toArray(),
+                'axis_x' => $config['axis_x_label'] ?? 'Kategoriler',
+                'axis_y' => $config['axis_y_label'] ?? 'Değerler',
+                'title' => $config['title'] ?? 'Sütun Grafiği',
+            ];
+            $this->dispatch('updateBarChart-' . $this->getId() . '-' . $widgetIndex, $chartData);
+        } catch (\Exception $e) {
+            Log::error('Sütun grafik hatası: ' . $e->getMessage());
+            $this->dispatch('show-error', 'Grafik hatası.');
+        }
+    }
+
+    // --- Çizgi Grafiği ---
+    public function addLineChartRow($widgetIndex)
+    {
+        if (isset($this->toolsData['line_chart_data'][$widgetIndex])) {
+            $this->toolsData['line_chart_data'][$widgetIndex]['rows'][] = ['label' => '', 'value' => ''];
+        }
+    }
+    public function removeLineChartRow($widgetIndex, $rowIndex)
+    {
+        if (isset($this->toolsData['line_chart_data'][$widgetIndex]['rows'][$rowIndex]) && count($this->toolsData['line_chart_data'][$widgetIndex]['rows']) > 1) {
+            unset($this->toolsData['line_chart_data'][$widgetIndex]['rows'][$rowIndex]);
+            $this->toolsData['line_chart_data'][$widgetIndex]['rows'] = array_values($this->toolsData['line_chart_data'][$widgetIndex]['rows']);
+        }
+    }
+    // Sadece Line Chart butonu için
+    public function generateLineChartData($widgetIndex)
+    {
+        try {
+            $processedData = $this->calculateGenericChartData('line_chart_data', $widgetIndex);
+            $config = $this->toolsData['line_chart_data'][$widgetIndex] ?? [];
+            $chartData = [
+                'labels' => $processedData->pluck('label')->toArray(),
+                'values' => $processedData->pluck('value')->toArray(),
+                'axis_x' => $config['axis_x_label'] ?? 'Kategoriler',
+                'axis_y' => $config['axis_y_label'] ?? 'Değerler',
+                'title' => $config['title'] ?? 'Çizgi Grafiği',
+            ];
+            $this->dispatch('updateLineChart-' . $this->getId() . '-' . $widgetIndex, $chartData);
+        } catch (\Exception $e) {
+            Log::error('Çizgi grafik hatası: ' . $e->getMessage());
+            $this->dispatch('show-error', 'Grafik hatası.');
+        }
+    }
+    // =============================
+
+    // === YENİ LİSTE METODLARI ===
+    // Action List
+    public function addActionListRow($widgetIndex)
+    {
+        $this->toolsData['action_list'][$widgetIndex]['items'][] = ['id' => uniqid(), 'text' => '', 'is_completed' => false];
+    }
+    public function removeActionListRow($widgetIndex, $itemIndex)
+    {
+        unset($this->toolsData['action_list'][$widgetIndex]['items'][$itemIndex]);
+        $this->toolsData['action_list'][$widgetIndex]['items'] = array_values($this->toolsData['action_list'][$widgetIndex]['items']);
+    }
+
+    // Task List
+    public function addTaskListRow($widgetIndex)
+    {
+        $this->toolsData['task_list'][$widgetIndex]['tasks'][] = ['id' => uniqid(), 'description' => '', 'assigned_user_id' => null];
+    }
+    public function removeTaskListRow($widgetIndex, $taskIndex)
+    {
+        unset($this->toolsData['task_list'][$widgetIndex]['tasks'][$taskIndex]);
+        $this->toolsData['task_list'][$widgetIndex]['tasks'] = array_values($this->toolsData['task_list'][$widgetIndex]['tasks']);
+    }
+
+    // Prioritization Matrix
+    public function addPrioritizationMatrixRow($widgetIndex)
+    {
+        $this->toolsData['prioritization_matrix'][$widgetIndex]['items'][] = ['id' => uniqid(), 'action' => '', 'effort' => 'düşük', 'impact' => 'düşük'];
+    }
+    public function removePrioritizationMatrixRow($widgetIndex, $itemIndex)
+    {
+        unset($this->toolsData['prioritization_matrix'][$widgetIndex]['items'][$itemIndex]);
+        $this->toolsData['prioritization_matrix'][$widgetIndex]['items'] = array_values($this->toolsData['prioritization_matrix'][$widgetIndex]['items']);
+    }
+    // =============================
+
+    public function removeNewUpload($widgetIndex, $fileKey)
+    { /* ... */
+        if (isset($this->newUploads[$widgetIndex][$fileKey])) {
+            array_splice($this->newUploads[$widgetIndex], $fileKey, 1);
+        }
+    }
+    public function markFileForDeletion($widgetIndex, $filePath)
+    { /* ... */
+        if (isset($this->formData[$widgetIndex]['files'])) {
+            $this->formData[$widgetIndex]['files'] = array_values(array_filter($this->formData[$widgetIndex]['files'], fn($file) => $file !== $filePath));
+        }
+    }
+
+    public function removePreviewImage($widgetIndex, $type, $index = null)
+    {
+        if ($type === 'before') {
+            $this->newImageUploads[$widgetIndex]['before'] = null;
+        } elseif ($type === 'after') {
+            $this->newImageUploads[$widgetIndex]['after'] = null;
+        } elseif ($type === 'files' && $index !== null) {
+            array_splice($this->newImageUploads[$widgetIndex]['files'], $index, 1);
+        }
+    }
+
+    public function removeExistingImage($widgetIndex, $type, $filePath = null)
+    {
+        if ($type === 'before') {
+            $this->formData[$widgetIndex]['before_image_path'] = null;
+        } elseif ($type === 'after') {
+            $this->formData[$widgetIndex]['after_image_path'] = null;
+        } elseif ($type === 'files' && $filePath !== null) {
+            if (isset($this->formData[$widgetIndex]['files'])) {
+                $this->formData[$widgetIndex]['files'] = array_values(array_filter(
+                    $this->formData[$widgetIndex]['files'],
+                    fn($file) => $file !== $filePath
+                ));
+            }
+        }
+    }
+
+    private function storeUploadedFile($file): ?string
+    { /* ... */
+        if (!$file || !$file->isValid()) {
+            Log::warning('Geçersiz dosya yüklendi.', ['file' => $file?->getClientOriginalName() ?? 'N/A']);
+            return null;
+        }
+        if (!method_exists($file, 'getClientOriginalExtension')) {
+            Log::warning('Dosya uzantısı alınamadı.', ['file' => $file?->getClientOriginalName() ?? 'N/A']);
+            return null;
+        }
+        $extension = strtolower($file->getClientOriginalExtension());
+        $iaaId = is_object($this->iaa) ? $this->iaa->id : (is_array($this->iaa) ? ($this->iaa['id'] ?? 'unknown_iaa') : $this->iaa);
+        $stepId = is_object($this->currentStep) ? $this->currentStep->id : ($this->currentStep['id'] ?? 'unknown_step');
+        
+        $timestamp = now()->format('Ymd-His');
+        $unique2char = strtolower(\Illuminate\Support\Str::random(2));
+        $newName = "{$stepId}_{$timestamp}-{$unique2char}.{$extension}";
+        
+        $path = "proje/{$iaaId}";
+        try {
+            return $file->storeAs($path, $newName, 'public');
+        } catch (\Exception $e) {
+            Log::error("Dosya yüklenemedi: " . $e->getMessage(), ['path' => $path, 'newName' => $newName]);
+            return null;
+        }
+    }
+
+
+    public function save()
+    {
+        try {
+            DB::transaction(function () {
+                $widgetTypesInThisStep = isset($this->currentStep['widgets']) ? collect($this->currentStep['widgets'])->pluck('type') : collect();
+                $processedFormData = is_array($this->formData) ? $this->formData : [];
+                $widgetConfigs = $this->currentStep['widgets'] ?? [];
+
+                // --- Dosya Yükleme ---
+                foreach ($widgetConfigs as $index => $widget) {
+                    if (isset($widget['type']) && $widget['type'] === 'file_upload' && isset($this->newUploads[$index])) {
+                        $existingFilePaths = $processedFormData[$index]['files'] ?? [];
+                        $newFilePaths = [];
+                        $filesToUpload = $this->newUploads[$index];
+                        if (is_array($filesToUpload)) {
+                            foreach ($filesToUpload as $file) {
+                                $storedPath = $this->storeUploadedFile($file);
+                                if ($storedPath) {
+                                    $newFilePaths[] = $storedPath;
+                                } else {
+                                    Log::warning('Dosya yükleme başarısız oldu, atlanıyor.', ['file' => $file?->getClientOriginalName() ?? 'N/A']);
+                                }
+                            }
+                        }
+                        $processedFormData[$index]['files'] = array_merge($existingFilePaths, $newFilePaths);
+                        $this->newUploads[$index] = [];
+                    }
+
+                    // --- Yeni Özel Resim Yüklemeleri (Before/After & Image Upload) ---
+                    if (isset($widget['type']) && $widget['type'] === 'before_after') {
+                        if (!empty($this->newImageUploads[$index]['before'])) {
+                            $storedPath = $this->storeUploadedFile($this->newImageUploads[$index]['before']);
+                            if ($storedPath) {
+                                $processedFormData[$index]['before_image_path'] = $storedPath;
+                            }
+                        }
+                        if (!empty($this->newImageUploads[$index]['after'])) {
+                            $storedPath = $this->storeUploadedFile($this->newImageUploads[$index]['after']);
+                            if ($storedPath) {
+                                $processedFormData[$index]['after_image_path'] = $storedPath;
+                            }
+                        }
+                        // Resetliyoruz
+                        $this->newImageUploads[$index]['before'] = null;
+                        $this->newImageUploads[$index]['after'] = null;
+                    }
+
+                    if (isset($widget['type']) && $widget['type'] === 'image_upload' && isset($this->newImageUploads[$index]['files'])) {
+                        if (!isset($processedFormData[$index]['files']) || !is_array($processedFormData[$index]['files'])) {
+                            $processedFormData[$index]['files'] = [];
+                        }
+                        $existingPaths = $processedFormData[$index]['files'];
+                        $newPaths = [];
+                        if (isset($this->newImageUploads[$index]['files']) && is_array($this->newImageUploads[$index]['files'])) {
+                            foreach ($this->newImageUploads[$index]['files'] as $file) {
+                                $storedPath = $this->storeUploadedFile($file);
+                                if ($storedPath) {
+                                    $newPaths[] = $storedPath;
+                                }
+                            }
+                        }
+                        $processedFormData[$index]['files'] = array_merge($existingPaths, $newPaths);
+                        $this->newImageUploads[$index]['files'] = [];
+                    }
+                }
+                // --- Dosya Yükleme Sonu ---
+
+                // --- Araç Verilerini Kaydet ---
+                $toolsToSave = [];
+                if ($widgetTypesInThisStep->contains('five_whys')) {
+                    $toolsToSave['five_whys'] = $this->toolsData['five_whys'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('fishbone')) {
+                    $toolsToSave['fishbone'] = $this->toolsData['fishbone'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('pareto')) {
+                    $toolsToSave['pareto'] = $this->toolsData['pareto'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('bar_chart')) {
+                    $toolsToSave['bar_chart_data'] = $this->toolsData['bar_chart_data'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('line_chart')) {
+                    $toolsToSave['line_chart_data'] = $this->toolsData['line_chart_data'] ?? null;
+                }
+                // === YENİ ANALİZ ARAÇLARI ===
+                if ($widgetTypesInThisStep->contains('swot')) {
+                    $toolsToSave['swot'] = $this->toolsData['swot'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('action_list')) {
+                    $toolsToSave['action_list'] = $this->toolsData['action_list'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('task_list')) {
+                    $toolsToSave['task_list'] = $this->toolsData['task_list'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('prioritization_matrix')) {
+                    $toolsToSave['prioritization_matrix'] = $this->toolsData['prioritization_matrix'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('4m_report')) {
+                    $toolsToSave['4m_report'] = $this->toolsData['4m_report'] ?? null;
+                }
+                // checklist, before_after, risk_matrix, image_upload formData üzerinden kaydedilir (processedFormData)
+                // --- Araç Verileri Sonu ---
+
+                $contentToSave = json_encode(['form_data' => $processedFormData, 'tools' => $toolsToSave]);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new \Exception('JSON encode hatası: ' . json_last_error_msg());
+                }
+
+                // Bildirim Gönderilecek mi kontrolü (Daha önce tamamlanmamışsa gönderilecek)
+                $isFirstCompletion = !IaaProgressUpdate::where('iaa_talep_id', $this->assignment['id'])
+                    ->where('iaa_workflow_step_id', $this->currentStep['id'])
+                    ->whereNotNull('completed_at')
+                    ->exists();
+
+                IaaProgressUpdate::updateOrCreate(
+                    ['iaa_talep_id' => $this->assignment['id'], 'iaa_workflow_step_id' => $this->currentStep['id']],
+                    ['user_id' => Auth::id(), 'content' => $contentToSave, 'completed_at' => now()]
+                );
+
+                // --- PROJE DURUMU KONTROLÜ VE BİLDİRİM ---
+                $assignmentModel = IaaTalep::find($this->assignment['id']);
+                $iaaModel = is_object($this->iaa) ? $this->iaa : Iaa::find(is_array($this->iaa) ? ($this->iaa['id'] ?? null) : $this->iaa);
+                $stepModel = IaaWorkflowStep::find($this->currentStep['id']);
+
+                if ($assignmentModel && $iaaModel && $stepModel) {
+                    
+                    // Bildirim Gönderimi (Sadece ilk kez tamamlandığında)
+                    if ($isFirstCompletion) {
+                        try {
+                            $stepService = app(\App\Services\ProjectWorkspace\ProjeAdimIslemleriService::class);
+                            $stepService->notifyStakeholdersAboutProgress($iaaModel, $stepModel, $assignmentModel);
+                        } catch (\Exception $e) {
+                            Log::error('Livewire Adım Bildirimi Hatası: ' . $e->getMessage());
+                        }
+                    }
+
+                    $totalSteps = 0;
+                    if (!empty($assignmentModel->workflow_snapshot)) {
+                        $snapshotData = $assignmentModel->workflow_snapshot;
+                        if (is_string($snapshotData)) {
+                            $snapshotData = json_decode($snapshotData, true);
+                        }
+                        $totalSteps = is_array($snapshotData) ? count($snapshotData) : 0;
+                    } elseif ($assignmentModel->workflow) {
+                        $totalSteps = $assignmentModel->workflow->steps()->count();
+                    }
+
+                    $completedSteps = IaaProgressUpdate::where('iaa_talep_id', $this->assignment['id'])->whereNotNull('completed_at')->count();
+
+                    if ($totalSteps > 0 && $completedSteps >= $totalSteps) {
+                        // =================================================================
+                        // DİKKAT: BURADAKİ STATÜ GÜNCELLEMESİNİ İPTAL ETTİK
+                        // Böylece proje "Devam Ediyor" statüsünde kalacak ve
+                        // "Projeyi Tamamla / İade Gir" butonu görünecek.
+                        // =================================================================
+
+                        // $iaaModel->update(['durum' => 'Bölüm Onayı Bekliyor']);  <-- BU SATIR KAPATILDI
+                        // $assignmentModel->update(['status' => 'Bölüm Onayında']); <-- BU SATIR KAPATILDI
+
+                        // İsteğe bağlı: Sadece bildirim gönderebiliriz
+                        // ... (Bildirim kodu buraya gelebilir) ...
+                    }
+                }
+            }); // Transaction sonu (}); burası hatasız olmalı)
+
+            session()->flash('success', '"' . ($this->currentStep['name'] ?? 'Adım') . '" başarıyla tamamlandı!');
+
+            $iaaId = is_object($this->iaa) ? $this->iaa->id : (is_array($this->iaa) ? ($this->iaa['id'] ?? null) : $this->iaa);
+
+            if ($iaaId) {
+                // Scroll işlemi için tamamlanan ID'yi gönderiyoruz
+                return redirect()->route('proje.workspace.show', $iaaId)
+                    ->with('scroll_to_step', $this->currentStep['id']);
+            } else {
+                Log::error('Yönlendirme için iaaId bulunamadı.');
+                return redirect()->route('home');
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Adım kaydedilirken hata oluştu: ' . $e->getMessage(), [
+                'iaa_id' => ($this->iaa instanceof Iaa) ? $this->iaa->id : ($this->iaa['id'] ?? null),
+                'assignment_id' => $this->assignment['id'] ?? null,
+                'step_id' => $this->currentStep['id'] ?? null,
+                'user_id' => Auth::id()
+            ]);
+            session()->flash('error', 'Adım kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.');
+            return null;
+        }
+    }
+
+    public function cancel()
+    { /* ... (önceki gibi) ... */
+        $iaaId = is_object($this->iaa) ? $this->iaa->id : (is_array($this->iaa) ? ($this->iaa['id'] ?? null) : $this->iaa);
+        if ($iaaId) {
+            return redirect()->route('proje.workspace.show', $iaaId);
+        } else {
+            Log::warning('Cancel işleminde yönlendirme için iaaId bulunamadı.');
+            return redirect()->route('home');
+        }
+    }
+
+
+    public function render()
+    {
+        $users = User::where('onaylandi_mi', true)
+            ->where('is_personnel', true)
+            ->whereDoesntHave('roles', function($q) {
+                $q->whereIn('name', ['Superadmin', 'Yonetim']);
+            })
+            ->orderBy('name')
+            ->get();
+
+        return view('livewire.project.active-step', [
+            'initialChartData' => $this->initialChartData,
+            'users' => $users,
+            // === İŞTE ÇÖZÜM BURASI ===
+            // PHP'deki '$progressUpdateModel'i, Blade'e '$progressUpdate' adıyla gönderiyoruz.
+            'progressUpdate' => $this->progressUpdateModel,
+            // ==========================
+
+            'paretoProcessedData' => $this->calculateParetoData()
+        ]);
+    }
+}

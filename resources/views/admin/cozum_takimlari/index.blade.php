@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Çözüm Takımları | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center space-x-3">
@@ -88,7 +92,7 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <span class="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">{{ $takim->ad }}</span> {{-- Hover rengi maviye döndü --}}
+                                        <a href="{{ route('admin.cozum-takimlari.show', ['cozumTakimi' => $takim->id]) }}" class="font-semibold text-gray-900 group-hover:text-blue-700 transition-colors hover:underline block w-full h-full">{{ $takim->ad }}</a>
                                     </td>
                                     <td class="px-6 py-4">
                                         @if($takim->lider)

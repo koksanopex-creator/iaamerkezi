@@ -1,6 +1,10 @@
 @import './notification-bell.css'; /* <-- BU SATIRI EKLEYİN */
 @tailwind base;
 
+html {
+    scroll-behavior: smooth;
+}
+
 [x-cloak] {
     display: none !important;
 }
@@ -8,3 +12,27 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #c7d2fe;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #818cf8;
+    }
+}

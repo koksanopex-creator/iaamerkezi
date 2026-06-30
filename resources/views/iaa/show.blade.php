@@ -1,3 +1,7 @@
+@push('pageTitle')
+    {{ $iaa->baslik }} | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight truncate">
@@ -79,6 +83,132 @@
 
                 {{-- Sağ Sütun --}}
                 <div class="mt-8 lg:mt-0 space-y-8">
+                    {{-- SUPERADMIN AKSİYON PANELİ (YENİ) --}}
+                    @role('Superadmin')
+                        <div class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border-2 border-indigo-100">
+                            <div class="p-6 bg-indigo-50/50">
+                                <h3 class="text-lg font-bold text-indigo-900 mb-4 flex items-center">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    Yönetici İşlemleri
+                                </h3>
+                                
+                                <div class="space-y-3">
+                                    @if($iaa->durum === 'Onay Bekliyor')
+                                        <button x-data @click="$dispatch('open-modal', 'onayla-modal-{{ $iaa->id }}')" 
+                                                class="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                            Öneriyi Onayla
+                                        </button>
+
+                                        <button x-data @click="$dispatch('open-modal', 'reddet-modal-{{ $iaa->id }}')" 
+                                                class="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 transition-all">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            Öneriyi Reddet
+                                        </button>
+
+                                        <form action="{{ route('admin.iaa-yonetim.destroy', $iaa->id) }}" method="POST" onsubmit="return confirm('Bu öneriyi kalıcı olarak silmek istediğinize emin misiniz?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" 
+                                                    class="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-all">
+                                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                Kalıcı Olarak Sil
+                                            </button>
+                                        </form>
+                                    @elseif(in_array($iaa->durum, ['Havuzda', 'Reddedildi']))
+                                        <form action="{{ route('admin.iaa-yonetim.geriAl', $iaa->id) }}" method="POST">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" 
+                                                    class="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all">
+                                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                                                Kararı Geri Al
+                                            </button>
+                                        </form>
+                                    @endif
+                                    
+                                    <p class="text-[10px] text-gray-400 text-center mt-2 italic">* Bu panel sadece Superadmin yetkisine sahip kullanıcılara görünür.</p>
+                                </div>
+                            </div>
+                        </div>
+                    @endrole
+
+                    {{-- PROJE ÇALIŞMA ALANI BİLGİSİ (YENİ) --}}
+                    @if($iaa->atanan_takim_id)
+                        <div class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-emerald-200">
+                             <div class="p-6 bg-emerald-50/30">
+                                <h3 class="text-lg font-bold text-emerald-900 mb-4 flex items-center">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                                    Proje Atama Bilgileri
+                                </h3>
+                                
+                                <div class="space-y-4">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="flex-shrink-0 w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-semibold text-gray-500 uppercase">Sorumlu Takım</p>
+                                            <a href="{{ route('takimlar.show', $iaa->atanan_takim_id) }}" class="text-sm font-bold text-indigo-600 hover:text-indigo-800 hover:underline transition-colors">
+                                                {{ $iaa->atananTakim->ad }}
+                                            </a>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center space-x-3">
+                                        <div class="flex-shrink-0 w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-semibold text-gray-500 uppercase">Atanma Tarihi</p>
+                                            <p class="text-sm font-bold text-gray-900">{{ $iaa->iaaTalebi?->start_date ? \Carbon\Carbon::parse($iaa->iaaTalebi->start_date)->format('d.m.Y') : $iaa->updated_at->format('d.m.Y') }}</p>
+                                        </div>
+                                    </div>
+
+                                    @if(in_array($iaa->durum, ['Tamamlandı', 'talep_olarak_kapatildi', 'hatali_bildirim_olarak_kapatildi']))
+                                        <div class="flex items-center space-x-3">
+                                            <div class="flex-shrink-0 w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-500 uppercase">İşlem Süresi</p>
+                                                <p class="text-sm font-bold text-emerald-700">
+                                                    {{ $iaa->completion_duration_in_days ?? 'Belirlenmedi' }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    @elseif($iaa->iaaTalebi?->due_date)
+                                        <div class="flex items-center space-x-3">
+                                            <div class="flex-shrink-0 w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-semibold text-gray-500 uppercase">Kalan Süre</p>
+                                                @php
+                                                    $dueDate = \Carbon\Carbon::parse($iaa->iaaTalebi->due_date);
+                                                    $diff = ceil(now()->diffInDays($dueDate, false));
+                                                @endphp
+                                                <p class="text-sm font-bold @if($diff < 0) text-red-600 @else text-gray-900 @endif">
+                                                    @if($diff < 0)
+                                                        {{ abs((int)$diff) }} gün gecikti
+                                                    @else
+                                                        {{ (int)$diff }} gün kaldı
+                                                    @endif
+                                                </p>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <a href="{{ route('proje.workspace.show', $iaa->id) }}" 
+                                       class="mt-2 w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition-all transform hover:scale-[1.02]">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                        Proje Çalışma Alanına Git
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- ÖNERİ BİLGİLERİ KARTI --}}
                     <div class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200">
                         <div class="p-6">
@@ -92,7 +222,11 @@
                                     <div class="text-sm">
                                         <p class="font-semibold text-gray-800">Öneren</p>
                                         @if ($iaa->gonderen)
-                                        <p class="text-gray-600">{{ $iaa->gonderen->name }}</p>
+                                        <p class="text-gray-600">
+                                            <a href="{{ route('profile.show', $iaa->gonderen->id) }}" class="text-indigo-600 hover:text-indigo-800 hover:underline transition-colors font-medium">
+                                                {{ $iaa->gonderen->name }}
+                                            </a>
+                                        </p>
                                         @else
                                         <p class="text-gray-600">{{ $iaa->guest_name }} 
                                             <span class="text-xs text-white bg-gray-500 px-1.5 py-0.5 rounded-full ml-1">Misafir</span>
@@ -111,6 +245,7 @@
                                                 <p class="font-semibold text-gray-800">Gönderim Tarihi</p><p class="text-gray-600">{{ $iaa->created_at->format('d.m.Y H:i') }}</p>
                                             </div>
                                     </div>
+                                    
 
                                         {{-- ========================================================================= --}}
                                         {{-- === YENİ VE DİNAMİK DURUM ROZETİNİ TAM OLARAK BURAYA YAPIŞTIRIN === --}}
@@ -125,23 +260,7 @@
                                                 <div class="text-sm flex-grow">
                                                     <div class="flex justify-between items-center">
                                                         <p class="font-semibold text-gray-800">Mevcut Durum</p>
-
-                                                        @php
-                                                            $statusInfo = match($iaa->durum) {
-                                                                'Onay Bekliyor' => ['text' => 'Onay Bekliyor', 'class' => 'bg-yellow-100 text-yellow-800 ring-1 ring-inset ring-yellow-200'],
-                                                                'Havuzda' => ['text' => 'Havuzda', 'class' => 'bg-blue-100 text-blue-800 ring-1 ring-inset ring-blue-200'],
-                                                                'Atandı' => ['text' => 'Atandı', 'class' => 'bg-indigo-100 text-indigo-800 ring-1 ring-inset ring-indigo-200'],
-                                                                'Revize Ediliyor' => ['text' => 'Revizyonda', 'class' => 'bg-orange-100 text-orange-800 ring-1 ring-inset ring-orange-200'],
-                                                                'Tamamlandı' => ['text' => 'Tamamlandı', 'class' => 'bg-green-100 text-green-800 ring-1 ring-inset ring-green-200'],
-                                                                'Reddedildi' => ['text' => 'Reddedildi', 'class' => 'bg-red-100 text-red-800 ring-1 ring-inset ring-red-200'],
-                                                                'Yönetici Onayı Bekliyor' => ['text' => 'Yönetici Onayında', 'class' => 'bg-cyan-100 text-cyan-800 ring-1 ring-inset ring-cyan-200'],
-                                                                default => ['text' => $iaa->durum, 'class' => 'bg-gray-100 text-gray-800 ring-1 ring-inset ring-gray-200'],
-                                                            };
-                                                        @endphp
-
-                                                        <span class="px-2.5 py-0.5 inline-flex text-xs font-medium rounded-full {{ $statusInfo['class'] }}">
-                                                            {{ $statusInfo['text'] }}
-                                                        </span>
+                                                        {!! $iaa->durum_etiketi !!}
                                                     </div>
                                                 </div>
                                             </div>
@@ -151,17 +270,54 @@
                     </div>
 
                     {{-- ÖNERİ SAHİBİNİN TAHMİNLERİ KARTI --}}
-                    @if ($iaa->oneren_kazanc_miktar || $iaa->oneren_butce_miktar)
-                        <div class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200">
-                             <div class="p-6">
-                                <h3 class="text-lg font-semibold text-gray-800 mb-4">Öneri Sahibinin Tahminleri</h3>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center"><p class="text-xs text-green-700 uppercase font-semibold">Tahmini Kazanç</p><p class="text-xl font-bold text-green-800">{{ number_format($iaa->oneren_kazanc_miktar, 0, ',', '.') }} {{ $iaa->oneren_kazanc_birim }}</p></div>
-                                    <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center"><p class="text-xs text-red-700 uppercase font-semibold">Tahmini Bütçe</p><p class="text-xl font-bold text-red-800">{{ number_format($iaa->oneren_butce_miktar, 0, ',', '.') }} {{ $iaa->oneren_butce_birim }}</p></div>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
+@if ($iaa->oneren_kazanc_miktar || $iaa->oneren_butce_miktar)
+    <div class="bg-white overflow-hidden shadow-xl sm:rounded-2xl border border-gray-200">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Öneri Sahibinin Tahminleri</h3>
+            
+            <div class="grid grid-cols-2 gap-4">
+                {{-- TAHMİNİ PUAN ALANI (YENİ EKLENDİ) --}}
+                {{-- Not: Eğer modelinde 'oneren_puan' diye bir attribute yoksa burada hesaplama yapabilir veya null kontrolü koyabilirsin --}}
+                <div class="col-span-2 bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-lg text-center shadow-lg">
+                    <p class="text-sm text-indigo-100 uppercase font-semibold">Öngörülen Puan</p>
+                    <p class="text-4xl font-bold text-white mt-1">
+                        {{-- Buraya Öneren Puanı Gelecek. Eğer veritabanında sütun yoksa, aşağıda geçici bir hesaplama örneği var --}}
+                        {{-- Örnek: $iaa->oneren_puan ?? '-' --}}
+                        
+                        @php
+                            // Basit bir hesaplama mantığı (Senin formülüne göre düzenle)
+                            // Eğer veritabanında kayıtlıysa direkt $iaa->oneren_puan yazabilirsin.
+                            $tahminiPuan = 0;
+                            if($iaa->oneren_butce_miktar > 0) {
+                                // Örnek Formül: (Kazanç / Bütçe) * Risk (Risk öneren girmediği için varsayılan 3 alındı)
+                                $tahminiPuan = ($iaa->oneren_kazanc_miktar / $iaa->oneren_butce_miktar) * 3; 
+                            }
+                        @endphp
+                        
+                        {{-- Puanı Göster (Virgülden sonra sıfırları atarak) --}}
+                        {{ number_format($tahminiPuan, 0, ',', '.') }}
+                    </p>
+                </div>
+
+                {{-- TAHMİNİ KAZANÇ --}}
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                    <p class="text-xs text-green-700 uppercase font-semibold">Tahmini Kazanç</p>
+                    <p class="text-xl font-bold text-green-800">
+                        {{ number_format($iaa->oneren_kazanc_miktar, 0, ',', '.') }} {{ $iaa->oneren_kazanc_birim }}
+                    </p>
+                </div>
+
+                {{-- TAHMİNİ BÜTÇE --}}
+                <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                    <p class="text-xs text-red-700 uppercase font-semibold">Tahmini Bütçe</p>
+                    <p class="text-xl font-bold text-red-800">
+                        {{ number_format($iaa->oneren_butce_miktar, 0, ',', '.') }} {{ $iaa->oneren_butce_birim }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
 
                     {{-- YÖNETİCİ PUANLAMASI KARTI --}}
                     @if(in_array($iaa->durum, ['Havuzda', 'Talep Edildi', 'Atandı']))
@@ -208,9 +364,19 @@
                     <div class="w-full sm:w-auto">
                         @if(auth()->user()->lideriOlduguTakimlar->isNotEmpty())
                             @if($talepEdilenIaaIdleri->contains($iaa->id))
-                                <button class="w-full inline-flex justify-center text-sm font-semibold text-gray-500 bg-gray-200 border border-transparent rounded-md shadow-sm px-4 py-2 cursor-not-allowed" disabled>
-                                    Talep Edildi
-                                </button>
+                                <div class="space-y-2">
+                                    <button class="w-full inline-flex justify-center text-sm font-semibold text-gray-500 bg-gray-200 border border-transparent rounded-md shadow-sm px-4 py-2 cursor-not-allowed" disabled>
+                                        Talep Edildi
+                                    </button>
+                                    
+                                    <form action="{{ route('iaa.talebiGeriCek', $iaa->id) }}" method="POST" onsubmit="return confirm('Talebinizi geri çekmek istediğinize emin misiniz?');">
+                                        @csrf
+                                        <button type="submit" class="w-full inline-flex justify-center text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-md shadow-sm px-4 py-2 hover:bg-red-100 transition-colors">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            Talebi Geri Çek
+                                        </button>
+                                    </form>
+                                </div>
                             @else
                                 <button x-data @click="$dispatch('open-modal', 'talep-et-modal-{{ $iaa->id }}')" class="w-full inline-flex justify-center text-sm font-semibold text-white bg-indigo-600 border border-transparent rounded-md shadow-sm px-4 py-2 hover:bg-indigo-700">
                                     Takımın Adına Talep Et
@@ -235,5 +401,7 @@
     @endif
 
     @include('admin.iaa-yonetim.partials.onayla-modal', ['iaa' => $iaa, 'paraBirimleri' => $paraBirimleri])
+    @include('admin.iaa-yonetim.partials.reddet-modal', ['iaa' => $iaa])
+
 
 </x-app-layout>

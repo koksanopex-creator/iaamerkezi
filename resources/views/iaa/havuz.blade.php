@@ -1,3 +1,7 @@
+@push('pageTitle')
+    İAA Havuzu | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -57,7 +61,17 @@
                                                     
                                                     {{-- Eğer liderin takımlarından biri bu İAA için daha önce talepte bulunmuşsa, butonu pasif yap --}}
                                                     @if($talepEdilenIaaIdleri->contains($iaa->id))
+                                                        {{-- TALEP EDİLDİ BUTONU (PASİF) --}}
                                                         <button class="w-full sm:w-auto inline-flex justify-center text-sm font-semibold text-gray-500 bg-gray-200 border border-transparent rounded-md shadow-sm px-3 py-2 cursor-not-allowed" disabled>Talep Edildi</button>
+                                                        
+                                                        {{-- YENİ: GERİ ÇEK BUTONU (AKTİF) --}}
+                                                        <form action="{{ route('iaa.talebiGeriCek', $iaa->id) }}" method="POST" onsubmit="return confirm('Talebinizi geri çekmek istediğinize emin misiniz?');" class="inline">
+                                                            @csrf
+                                                            <button type="submit" class="w-full sm:w-auto inline-flex justify-center text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-md shadow-sm px-3 py-2 hover:bg-red-100 transition-colors" title="Talebi Geri Çek">
+                                                                <svg class="w-4 h-4 mr-1 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                                Geri Çek
+                                                            </button>
+                                                        </form>
                                                     {{-- Talep edilmemişse, modal'ı açan "Talep Et" butonunu göster --}}
                                                     @else
                                                         <button x-data @click="$dispatch('open-modal', 'talep-et-modal-{{ $iaa->id }}')" class="w-full sm:w-auto inline-flex justify-center text-sm font-semibold text-white bg-indigo-600 border border-transparent rounded-md shadow-sm px-3 py-2 hover:bg-indigo-700">Talep Et</button>

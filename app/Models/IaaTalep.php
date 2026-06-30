@@ -22,6 +22,11 @@ class IaaTalep extends Model
         'start_date',
         'due_date',
         'status',
+        'workflow_snapshot',
+    ];
+
+    protected $casts = [
+        'workflow_snapshot' => 'array',
     ];
 
     /**

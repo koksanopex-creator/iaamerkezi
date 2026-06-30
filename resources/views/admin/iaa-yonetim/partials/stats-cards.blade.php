@@ -27,7 +27,7 @@
     {{-- 4. BÖLÜM ONAYI (Yeni Kart - Herkes Görür) --}}
     @if(auth()->user()->hasRole('Superadmin') || $stats['bolumOnayi'] > 0)
     <div onclick="switchTab('onay-bekleyenler')" class="cursor-pointer hover:scale-105 transition-transform p-4 bg-purple-100 rounded-lg shadow-sm border-2 border-purple-300">
-        <p class="text-sm font-medium text-purple-800">Bölüm Onayı</p>
+        <p class="text-sm font-medium text-purple-800">Bölüm Kalite Onayı</p>
         <p class="mt-1 text-3xl font-bold text-purple-900">{{ $stats['bolumOnayi'] }}</p>
     </div>
     @endif

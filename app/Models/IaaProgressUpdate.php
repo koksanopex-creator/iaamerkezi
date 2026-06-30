@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\IaaWorkflowStep; // Bunu 'use' satırlarına ekle
+use App\Models\IaaWorkflowStep;
 
 class IaaProgressUpdate extends Model
 {
@@ -21,6 +21,7 @@ class IaaProgressUpdate extends Model
         'user_id',
         'content',
         'completed_at',
+        'is_hidden_from_customer',
     ];
 
     /**
@@ -29,5 +30,13 @@ class IaaProgressUpdate extends Model
     public function step()
     {
         return $this->belongsTo(IaaWorkflowStep::class, 'iaa_workflow_step_id');
+    }
+
+    /**
+     * Adımı tamamlayan kullanıcıyı getirir.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id')->withTrashed();
     }
 }

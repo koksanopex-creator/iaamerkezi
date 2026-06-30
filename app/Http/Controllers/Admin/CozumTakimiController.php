@@ -19,9 +19,9 @@ class CozumTakimiController extends Controller
     public function index()
     {
         $cozumTakimlari = Takim::where('tur', 'sikayet')
-                                ->with('lider') // Lider bilgisini de al
-                                ->latest()
-                                ->get();
+            ->with('lider') // Lider bilgisini de al
+            ->latest()
+            ->get();
 
         return view('admin.cozum_takimlari.index', compact('cozumTakimlari'));
     }
@@ -33,9 +33,9 @@ class CozumTakimiController extends Controller
     public function create()
     {
         $liderler = User::role('Müşteri Şikayeti Çözüm Lideri')
-                        ->where('onaylandi_mi', true) // Onaylı kullanıcıları al
-                        ->orderBy('name')
-                        ->get();
+            ->where('onaylandi_mi', true) // Onaylı kullanıcıları al
+            ->orderBy('name')
+            ->get();
 
         return view('admin.cozum_takimlari.create', compact('liderler'));
     }
@@ -66,8 +66,8 @@ class CozumTakimiController extends Controller
                     }
                 },
             ],
-             // Gizli alandan tür bilgisini alıyoruz, create view'de eklenmeli
-             'tur' => 'required|in:sikayet'
+            // Gizli alandan tür bilgisini alıyoruz, create view'de eklenmeli
+            'tur' => 'required|in:sikayet'
         ]);
 
         $takim = Takim::create([
@@ -80,6 +80,78 @@ class CozumTakimiController extends Controller
         $takim->uyeler()->syncWithoutDetaching([$request->lider_user_id => ['katilma_sekli' => 'Kurucu Lider']]);
 
         return redirect()->route('admin.cozum-takimlari.index')->with('success', 'Çözüm takımı başarıyla oluşturuldu.');
+    }
+
+    /**
+     * Belirtilen çözüm takımının detaylarını gösterir.
+     */
+    public function show(Request $request, Takim $cozumTakimi)
+    {
+        // Tür kontrolü
+        if ($cozumTakimi->tur !== 'sikayet') {
+            abort(404, 'İlgili çözüm takımı bulunamadı.');
+        }
+
+        // İlişkileri yükle
+        $cozumTakimi->load(['lider', 'uyeler']);
+
+        // --- FİLTRELEME PARAMETRELERİ ---
+        $statusFilter = $request->input('durum'); // 'aktif', 'cozulmus', 'hepsi' veya spesifik bir durum
+        $customerFilter = $request->input('musteri_id');
+        $dateStart = $request->input('baslangic_tarihi');
+        $dateEnd = $request->input('bitis_tarihi');
+
+        // Temel Sorgu
+        $query = MusteriSikayeti::where('atanan_cozum_takimi_id', $cozumTakimi->id)
+            ->with(['customer', 'yetkili_user', 'sikayetKategori']);
+
+        // 1. Durum Filtresi
+        if ($statusFilter) {
+            if ($statusFilter === 'cozulmus') {
+                $query->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı', 'Tamamlandı', 'Talep Olarak Kapatıldı']);
+            } elseif ($statusFilter === 'devam_eden') {
+                $query->whereNotIn('musteri_durum', ['Çözümlendi', 'Kapatıldı', 'Tamamlandı', 'Talep Olarak Kapatıldı']);
+            } elseif ($statusFilter !== 'hepsi') {
+                $query->where('musteri_durum', $statusFilter);
+            }
+        }
+
+        // 2. Müşteri Filtresi
+        if ($customerFilter) {
+            $query->where('customer_id', $customerFilter);
+        }
+
+        // 3. Tarih Filtresi
+        if ($dateStart) {
+            $query->whereDate('created_at', '>=', $dateStart);
+        }
+        if ($dateEnd) {
+            $query->whereDate('created_at', '<=', $dateEnd);
+        }
+
+        $sikayetler = $query->latest()->paginate(20)->withQueryString();
+
+        // --- İSTATİSTİKLER (Filtreden Bağımsız) ---
+        // Kartlara tıklanınca filtreleme yapması için sabit kalmalı
+        $toplamSikayet = MusteriSikayeti::where('atanan_cozum_takimi_id', $cozumTakimi->id)->count();
+        $cozulmusSikayet = MusteriSikayeti::where('atanan_cozum_takimi_id', $cozumTakimi->id)
+            ->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı', 'Tamamlandı', 'Talep Olarak Kapatıldı'])
+            ->count();
+        $devamEdenSikayet = $toplamSikayet - $cozulmusSikayet;
+
+        // Filtre Seçenekleri İçin Müşteri Listesi (Sadece bu takımın şikayetlerinde geçen müşteriler)
+        $musteriler = \App\Models\Customer::whereHas('sikayetler', function ($q) use ($cozumTakimi) {
+            $q->where('atanan_cozum_takimi_id', $cozumTakimi->id);
+        })->orderBy('name')->get();
+
+        return view('admin.cozum_takimlari.show', compact(
+            'cozumTakimi',
+            'sikayetler',
+            'toplamSikayet',
+            'cozulmusSikayet',
+            'devamEdenSikayet',
+            'musteriler'
+        ));
     }
 
     /**
@@ -96,9 +168,9 @@ class CozumTakimiController extends Controller
         // ============================
 
         $liderler = User::role('Müşteri Şikayeti Çözüm Lideri')
-                        ->where('onaylandi_mi', true) // Onaylı kullanıcıları al
-                        ->orderBy('name')
-                        ->get();
+            ->where('onaylandi_mi', true) // Onaylı kullanıcıları al
+            ->orderBy('name')
+            ->get();
 
         // View'e 'takim' anahtarıyla gönderiyoruz
         return view('admin.cozum_takimlari.edit', [
@@ -113,7 +185,7 @@ class CozumTakimiController extends Controller
      */
     public function update(Request $request, Takim $cozumTakimi)
     {
-       // === KONTROL BURADA DA OLMALI ===
+        // === KONTROL BURADA DA OLMALI ===
         if ($cozumTakimi->tur !== 'sikayet') { // <-- DEĞİŞTİ
             abort(404);
         }
@@ -125,9 +197,9 @@ class CozumTakimiController extends Controller
                 'required',
                 'string',
                 'max:255',
-                 Rule::unique('takimlar', 'ad')->where(function ($query) {
-                     return $query->where('tur', 'sikayet');
-                 })->ignore($cozumTakimi->id) // <-- DEĞİŞTİ: Kendisi hariç kontrol et
+                Rule::unique('takimlar', 'ad')->where(function ($query) {
+                    return $query->where('tur', 'sikayet');
+                })->ignore($cozumTakimi->id) // <-- DEĞİŞTİ: Kendisi hariç kontrol et
             ],
             'lider_user_id' => [
                 'required',
@@ -141,7 +213,7 @@ class CozumTakimiController extends Controller
                 },
             ],
             // Gizli alandan tür bilgisini alıyoruz, edit view'de eklenmeli
-             'tur' => 'required|in:sikayet'
+            'tur' => 'required|in:sikayet'
         ]);
 
         $eskiLiderId = $cozumTakimi->lider_user_id; // <-- DEĞİŞTİ
@@ -150,7 +222,7 @@ class CozumTakimiController extends Controller
         $cozumTakimi->update([ // <-- DEĞİŞTİ
             'ad' => $request->ad,
             'lider_user_id' => $yeniLiderId,
-             // 'tur' alanı zaten hidden input ile geliyor ve değişmiyor.
+            // 'tur' alanı zaten hidden input ile geliyor ve değişmiyor.
         ]);
 
         // Eğer lider değiştiyse, takım üyeliğini güncelle
@@ -164,6 +236,31 @@ class CozumTakimiController extends Controller
 
             // Yeni lideri ekle veya pivot bilgisini 'Kurucu Lider' olarak güncelle
             $cozumTakimi->uyeler()->syncWithoutDetaching([$yeniLiderId => ['katilma_sekli' => 'Kurucu Lider']]); // <-- DEĞİŞTİ
+
+            // === PROJE SQUAD SENKRONİZASYONU ===
+            // Lider değiştiğinde, tamamlanmamış projelerdeki iaa_user pivot tablosunu güncelle.
+            // Bu sayede yeni lider projelerde görünür ve puan alabilir.
+            $tamamlanmamisDurumlar = ['Tamamlandı', 'Reddedildi', 'talep_olarak_kapatildi', 'hatali_bildirim_olarak_kapatildi'];
+            $tamamlanmamisProjeler = \App\Models\Iaa::where('atanan_takim_id', $cozumTakimi->id)
+                ->whereNotIn('durum', $tamamlanmamisDurumlar)
+                ->get();
+
+            foreach ($tamamlanmamisProjeler as $proje) {
+                // Eski lideri Squad'dan çıkar (sadece 'Lider' rolüyle eklenmişse)
+                $proje->projeEkibi()->wherePivot('rol', 'Lider')->where('user_id', $eskiLiderId)->detach();
+
+                // Yeni lideri Squad'a ekle
+                $proje->projeEkibi()->syncWithoutDetaching([
+                    $yeniLiderId => [
+                        'rol' => 'Lider',
+                        'kazanilan_puan' => $proje->puan ?? 0,
+                        'durum' => 'onaylandi'
+                    ]
+                ]);
+            }
+
+            \Illuminate\Support\Facades\Log::info("Çözüm Takımı lider değişikliği: Takım #{$cozumTakimi->id}, Eski Lider: #{$eskiLiderId} → Yeni Lider: #{$yeniLiderId}. " . $tamamlanmamisProjeler->count() . " projenin Squad'ı güncellendi.");
+            // === PROJE SQUAD SENKRONİZASYONU SONU ===
         }
 
         return redirect()->route('admin.cozum-takimlari.index')->with('success', 'Çözüm takımı başarıyla güncellendi.');

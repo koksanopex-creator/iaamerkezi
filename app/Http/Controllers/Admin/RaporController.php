@@ -3,99 +3,33 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Iaa;
-use App\Models\Takim;
-use App\Models\User;
-use Carbon\Carbon;
-use Illuminate\Http\Request;
+use App\Models\MusteriSikayeti;
 use Illuminate\Support\Facades\DB;
-use App\Exports\ProfesyonelIaalarExport;
-use Maatwebsite\Excel\Facades\Excel;
-use Barryvdh\DomPDF\Facade\Pdf;
-use App\Models\MusteriSikayeti; // <-- 1. BU SATIRI EKLEYİN
-
 
 class RaporController extends Controller
 {
     /**
-     * Raporlama ana sayfasını gösterir.
-     * KPI kartları ve YENİ GRAFİKLER için gerekli tüm istatistikleri hesaplar.
+     * İAA Raporları Ana Sayfası
      */
     public function index()
     {
-
-        // === DÜZELTME BURADA: YETKİ KONTROLÜNE 'Yonetim' EKLENDİ ===
-        // Artık Yönetim rolü de bu sayfayı görebilecek.
         if (!auth()->user()->hasRole(['Superadmin', 'Yonetim'])) {
             abort(403, 'Bu sayfaya erişim yetkiniz yok.');
         }
-        // ========================================================
-        // === KPI KARTLARI İÇİN VERİLER (Mevcut Kodunuz) ===
-        $stats = [
-            'toplam_oneri'          => Iaa::count(),
-            'onay_bekleyen_oneri'   => Iaa::where('durum', 'Onay Bekliyor')->count(),
-            'havuzdaki_oneri'       => Iaa::where('durum', 'Havuzda')->count(),
-            'reddedilen_oneri'      => Iaa::whereIn('durum', ['Reddedildi', 'Tamamlanması Reddedildi'])->count(),
-            'atanmis_proje'         => Iaa::whereIn('durum', ['Atandı', 'Revize Ediliyor', 'Yönetici Onayı Bekliyor'])->count(),
-            'tamamlanan_proje'      => Iaa::where('durum', 'Tamamlandı')->count(),
-            'misafir_onerileri'     => Iaa::whereNull('gonderen_user_id')->count(),
-            'kullanici_onerileri'   => Iaa::whereNotNull('gonderen_user_id')->count(),
-            'toplam_kullanici'      => User::count(),
-            'toplam_takim'          => Takim::count(),
-        ];
 
-        // ==========================================================
-        // === YENİ APEXCHARTS GRAFİKLERİ İÇİN TÜM VERİLER ===========
-        // ==========================================================
-        
-        // 1. Başarı Oranı Grafiği
-        $oranChartData = [$stats['tamamlanan_proje'], $stats['toplam_oneri'] - $stats['tamamlanan_proje']];
-
-        // 2. Puan Liderlik Tablosu
-        $topKullanicilar = User::where('toplam_puan', '>', 0)->select('users.*')->addSelect(DB::raw('(SELECT count(*) FROM iaas WHERE iaas.durum = "Tamamlandı" AND iaas.atanan_takim_id IN (SELECT takim_id FROM takim_user WHERE takim_user.user_id = users.id)) as proje_sayisi'))->orderBy('toplam_puan', 'desc')->take(5)->get();
-        $puanChartLabels = $topKullanicilar->pluck('name');
-        $puanChartData = $topKullanicilar->pluck('toplam_puan');
-        $projeChartData = $topKullanicilar->pluck('proje_sayisi');
-
-        // 3. Aylık Trend Grafiği (Başlangıç verisi)
-        $chartLabels = []; $chartData = [];
-        for ($i = 11; $i >= 0; $i--) { $ay = now()->subMonths($i); $chartLabels[] = $ay->translatedFormat('F Y'); $chartData[] = Iaa::whereYear('created_at', $ay->year)->whereMonth('created_at', $ay->month)->count(); }
-
-        // 4. En Çok Takıma Üye Olanlar
-        $cokluUyelik = DB::table('takim_user')->join('users', 'takim_user.user_id', '=', 'users.id')->select('users.name', DB::raw('COUNT(takim_user.takim_id) as takim_sayisi'))->groupBy('users.name')->orderBy('takim_sayisi', 'desc')->limit(5)->pluck('takim_sayisi', 'name');
-        $cokluUyelikData = ['labels' => $cokluUyelik->keys(), 'series' => $cokluUyelik->values()];
-
-        // 5. En Yüksek Puanlı 5 Proje (Havuzda)
-        $havuzPuan = Iaa::where('durum', 'Havuzda')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
-        $havuzPuanData = ['labels' => $havuzPuan->keys(), 'series' => $havuzPuan->values()];
-
-        // 6. En Yüksek Puanlı 5 Proje (Tamamlanan)
-        $tamamlananPuan = Iaa::where('durum', 'Tamamlandı')->whereNotNull('puan')->orderBy('puan', 'desc')->limit(5)->pluck('puan', 'baslik');
-        $tamamlananPuanData = ['labels' => $tamamlananPuan->keys(), 'series' => $tamamlananPuan->values()];
-            
-        // 7. En Kısa Sürede Biten 5 Proje (Tamamlanan)
-        $hizliProjeler = Iaa::where('durum', 'Tamamlandı')->whereNotNull('onaylanma_tarihi')->select('baslik', DB::raw('DATEDIFF(updated_at, onaylanma_tarihi) as sure_gun'))->orderBy('sure_gun', 'asc')->limit(5)->pluck('sure_gun', 'baslik');
-        $hizliProjeData = ['labels' => $hizliProjeler->keys(), 'series' => $hizliProjeler->values()];
-
-        // --- TÜM VERİLERİ ANA VIEW'E GÖNDER ---
-        return view('admin.raporlar.index', compact(
-            'stats', 'oranChartData', 'puanChartLabels', 'puanChartData', 'projeChartData', 'chartLabels', 'chartData',
-            'cokluUyelikData', 'havuzPuanData', 'tamamlananPuanData', 'hizliProjeData'
-        ));
+        return view('admin.raporlar.index');
     }
 
-/**
-     * Müşteri Şikayetleri için canlı raporlama sayfasını gösterir.
+    /**
+     * Müşteri Şikayetleri İstatistik Sayfası
      */
     public function sikayetRaporlari()
     {
-        // 1. Müşteri Geri Bildirim Oranları (Pasta Grafik)
         $feedbackCounts = MusteriSikayeti::whereNotNull('musteri_feedback')
             ->selectRaw('musteri_feedback, count(*) as total')
             ->groupBy('musteri_feedback')
             ->pluck('total', 'musteri_feedback');
 
-        // 2. Bölüm Bazlı Memnuniyet (Sütun Grafik)
         $bolumMemnuniyeti = MusteriSikayeti::whereNotNull('musteri_feedback')
             ->join('iaas', 'musteri_sikayetleri.iaa_id', '=', 'iaas.id')
             ->join('bolumler', 'iaas.bolum_id', '=', 'bolumler.id')
@@ -110,163 +44,120 @@ class RaporController extends Controller
     }
 
     /**
-     * YENİ METOT: Tüm şikayetleri listeleyen sayfa.
-     * (GÜNCELLENDİ: Yeni KPI'lar eklendi)
+     * Tüm Şikayet Listesi
      */
-    public function tumSikayetListesi()
+    public function tumSikayetListesi(\Illuminate\Http\Request $request)
     {
-        // === 1. YENİ KPI'LARI HESAPLA ===
-        // Not: Bu sorgular tüm tabloyu sayar, sayfalama öncesi
         $stats = [
             'yeni' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
             'islemde' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
-            'cozulen' => MusteriSikayeti::whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])->count(),
+            'cozulen' => MusteriSikayeti::whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])
+                ->whereDoesntHave('iaaProjesi', function ($q) {
+                    $q->whereIn('durum', [
+                        'hatali_bildirim_olarak_kapatildi',
+                        'talep_olarak_kapatildi',
+                        'talep_onayi_bekliyor_kalite',
+                        'talep_onayi_bekliyor_superadmin'
+                    ]);
+                })
+                ->whereNotIn('musteri_durum', [
+                    'Talep Olarak Kapatıldı',
+                    'Hatalı Bildirim Olarak Kapatıldı',
+                    'talep_olarak_kapatildi',
+                    'hatali_bildirim_olarak_kapatildi'
+                ])->count(),
+
+            'talep_kapatilan' => MusteriSikayeti::where(function ($q) {
+                $q->whereIn('musteri_durum', ['Talep Olarak Kapatıldı', 'talep_olarak_kapatildi'])
+                    ->orWhereHas('iaaProjesi', function ($sq) {
+                        $sq->whereIn('durum', ['talep_olarak_kapatildi', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_superadmin']);
+                    });
+            })->count(),
+
+            'hatali_bildirim' => MusteriSikayeti::where(function ($q) {
+                $q->whereIn('musteri_durum', ['Hatalı Bildirim Olarak Kapatıldı', 'hatali_bildirim_olarak_kapatildi'])
+                    ->orWhereHas('iaaProjesi', function ($sq) {
+                        $sq->whereIn('durum', ['hatali_bildirim_olarak_kapatildi', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor']);
+                    });
+            })->count(),
+
+
             'enCokKategori' => MusteriSikayeti::join('sikayet_kategorileri', 'musteri_sikayetleri.sikayet_kategorisi_id', '=', 'sikayet_kategorileri.id')
                 ->select('sikayet_kategorileri.ad', DB::raw('count(*) as total'))
                 ->groupBy('sikayet_kategorileri.ad')
                 ->orderBy('total', 'desc')
                 ->first(),
         ];
-        // === KPI HESAPLAMA SONU ===
 
+        // Filtreleme
+        $query = MusteriSikayeti::with('sikayetKategori', 'dosyalar', 'iadeler')
+            ->withCount(['projeYorumlari', 'musteriProjeYorumlari', 'iadeler']);
 
-        // === 2. SAYFALANMIŞ VERİYİ ÇEK ===
-        $sikayetler = MusteriSikayeti::with('sikayetKategori', 'dosyalar')
-            // Yorum sayılarını da yükle
-            ->withCount(['projeYorumlari', 'musteriProjeYorumlari'])
-            ->latest() // created_at'e göre en yeniden eskiye sıralar
-            ->paginate(50); // Sayfa başına 50 kayıt
+        if ($request->filled('start_date')) {
+            $query->whereDate('created_at', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('created_at', '<=', $request->end_date);
+        }
+        if ($request->filled('kategori_id')) {
+            $query->where('sikayet_kategorisi_id', $request->kategori_id);
+        }
+        if ($request->filled('durum')) {
+            $query->where('musteri_durum', $request->durum);
+        }
 
-        // Veriyi yeni oluşturacağımız view'a gönder
-        return view('admin.raporlar.tum-sikayet-listesi', compact('sikayetler', 'stats'));
+        $sikayetler = $query->latest()->paginate(10);
+        $kategoriler = \App\Models\SikayetKategori::orderBy('ad')->get();
+
+        return view('admin.raporlar.tum-sikayet-listesi', compact('sikayetler', 'stats', 'kategoriler'));
     }
 
     /**
-     * Excel dışa aktarma metodu
+     * İAA (Öneri Sistemi) Detaylı Rapor Sayfası
      */
-    public function exportExcel(Request $request)
+    public function iaaRaporlari()
     {
-        try {
-            $fileName = 'İAA Raporu - ' . now()->format('d-m-Y') . '.xlsx';
-            
-            Log::info('📥 Excel export başlatıldı', [
-                'filters' => $request->all(),
-                'fileName' => $fileName
-            ]);
-            
-            return Excel::download(new ProfesyonelIaalarExport($request->all()), $fileName);
-        } catch (\Exception $e) {
-            Log::error('❌ Excel export hatası: ' . $e->getMessage());
-            return back()->with('error', 'Excel dışa aktarma sırasında bir hata oluştu.');
-        }
+        // 1. Durum Dağılımı
+        $durumDagilimi = \App\Models\Iaa::doesntHave('musteriSikayeti')
+            ->select('durum', DB::raw('count(*) as total'))
+            ->groupBy('durum')
+            ->get();
+
+        // 2. Bölüm Performansı (Toplam Öneri Sayısı)
+        $bolumPerformansi = \App\Models\Iaa::doesntHave('musteriSikayeti')
+            ->join('users', 'iaas.gonderen_user_id', '=', 'users.id')
+            ->join('bolumler', 'users.bolum_id', '=', 'bolumler.id')
+            ->select('bolumler.ad as bolum_adi', DB::raw('count(*) as toplam'))
+            ->groupBy('bolumler.ad')
+            ->orderByDesc('toplam')
+            ->take(10)
+            ->get();
+
+        // 3. Kazanç/Tasarruf Raporu (Onaylanan projelerden)
+        $kazancRaporu = \App\Models\Iaa::doesntHave('musteriSikayeti')
+            ->whereNotNull('kazanc_miktar')
+            ->select(
+                DB::raw('SUM(kazanc_miktar) as toplam_kazanc'),
+                'kazanc_birim'
+            )
+            ->groupBy('kazanc_birim')
+            ->get();
+
+        // 4. Son Eklenen Projeler (Liste için)
+        $sonProjeler = \App\Models\Iaa::doesntHave('musteriSikayeti')
+            ->with(['gonderen', 'bolum'])
+            ->latest()
+            ->take(20)
+            ->get();
+
+        return view('admin.raporlar.iaa-raporlari', compact('durumDagilimi', 'bolumPerformansi', 'kazancRaporu', 'sonProjeler'));
     }
 
     /**
-     * PDF dışa aktarma metodu
+     * Şikayet Rapor Sayfası (Livewire Bileşenli Liste)
      */
-    public function exportPdf(Request $request)
+    public function sikayetRaporTablosu()
     {
-        try {
-            $filters = $request->all();
-            $query = Iaa::query()->with(['gonderen', 'bolum', 'atananTakim'])->latest();
-
-            // Filtreleri uygula
-            $query->when($filters['search'] ?? null, function($q, $search) {
-                return $q->where('baslik', 'like', '%' . $search . '%');
-            });
-            
-            $query->when($filters['durum'] ?? null, function ($q, $durum) {
-                if ($durum === 'Talep Alan') {
-                    return $q->where('durum', 'Havuzda')->has('talepEdenTakimlar');
-                }
-                return $q->where('durum', $durum);
-            });
-            
-            $query->when($filters['kullaniciTipi'] ?? null, function ($q, $kullaniciTipi) {
-                if ($kullaniciTipi === 'kayitli') {
-                    return $q->whereNotNull('gonderen_user_id');
-                }
-                if ($kullaniciTipi === 'misafir') {
-                    return $q->whereNull('gonderen_user_id');
-                }
-            });
-            
-            $query->when($filters['baslangicTarihi'] ?? null, function($q, $tarih) {
-                return $q->whereDate('created_at', '>=', $tarih);
-            });
-            
-            $query->when($filters['bitisTarihi'] ?? null, function($q, $tarih) {
-                return $q->whereDate('created_at', '<=', $tarih);
-            });
-
-            $iaas = $query->get();
-            
-            Log::info('📄 PDF export başlatıldı', [
-                'filters' => $filters,
-                'total_records' => $iaas->count()
-            ]);
-            
-            $pdf = Pdf::loadView('admin.raporlar.partials.rapor-pdf', compact('iaas'));
-            
-            return $pdf->download('İAA Raporu - ' . now()->format('d-m-Y') . '.pdf');
-        } catch (\Exception $e) {
-            Log::error('❌ PDF export hatası: ' . $e->getMessage());
-            return back()->with('error', 'PDF dışa aktarma sırasında bir hata oluştu.');
-        }
-    }
-
-
-    public function grafikTest()
-    {
-        // === YENİ GRAFİK 1: En Çok Takıma Üye Olanlar ===
-        $cokluUyelik = DB::table('takim_user')
-            ->join('users', 'takim_user.user_id', '=', 'users.id')
-            ->select('users.name', DB::raw('COUNT(takim_user.takim_id) as takim_sayisi'))
-            ->groupBy('users.name')
-            ->orderBy('takim_sayisi', 'desc')
-            ->limit(5)
-            ->pluck('takim_sayisi', 'name');
-        $cokluUyelikData = ['labels' => $cokluUyelik->keys(), 'series' => $cokluUyelik->values()];
-
-        // === YENİ GRAFİK 2: En Yüksek Puanlı 5 Proje (Havuzda) ===
-        $havuzPuan = Iaa::where('durum', 'Havuzda')
-            ->whereNotNull('puan')
-            ->orderBy('puan', 'desc')
-            ->limit(5)
-            ->pluck('puan', 'baslik');
-        $havuzPuanData = ['labels' => $havuzPuan->keys(), 'series' => $havuzPuan->values()];
-
-        // === YENİ GRAFİK 3: En Yüksek Puanlı 5 Proje (Tamamlanan) ===
-        $tamamlananPuan = Iaa::where('durum', 'Tamamlandı')
-            ->whereNotNull('puan')
-            ->orderBy('puan', 'desc')
-            ->limit(5)
-            ->pluck('puan', 'baslik');
-        $tamamlananPuanData = ['labels' => $tamamlananPuan->keys(), 'series' => $tamamlananPuan->values()];
-            
-        // === YENİ GRAFİK 4: En Kısa Sürede Biten 5 Proje (Tamamlanan) ===
-        $hizliProjeler = Iaa::where('durum', 'Tamamlandı')
-        ->whereNotNull('onaylanma_tarihi') // Projenin bir başlangıç tarihi olmalı
-        ->select('baslik', DB::raw('DATEDIFF(updated_at, onaylanma_tarihi) as sure_gun')) // DOĞRU HESAPLAMA
-        ->orderBy('sure_gun', 'asc')
-        ->limit(5)
-        ->pluck('sure_gun', 'baslik');
-        $hizliProjeData = ['labels' => $hizliProjeler->keys(), 'series' => $hizliProjeler->values()];
-
-        // --- ESKİ GRAFİKLERİN VERİLERİ (Aynen kalacak) ---
-        $tamamlananSayisi = Iaa::where('durum', 'Tamamlandı')->count();
-        $oranChartData = [$tamamlananSayisi, Iaa::count() - $tamamlananSayisi];
-        $topKullanicilar = User::where('toplam_puan', '>', 0)->select('users.*')->addSelect(DB::raw('(SELECT count(*) FROM iaas WHERE iaas.durum = "Tamamlandı" AND iaas.atanan_takim_id IN (SELECT takim_id FROM takim_user WHERE takim_user.user_id = users.id)) as proje_sayisi'))->orderBy('toplam_puan', 'desc')->take(5)->get();
-        $puanChartLabels = $topKullanicilar->pluck('name');
-        $puanChartData = $topKullanicilar->pluck('toplam_puan');
-        $projeChartData = $topKullanicilar->pluck('proje_sayisi');
-        $chartLabels = []; $chartData = [];
-        for ($i = 11; $i >= 0; $i--) { $ay = now()->subMonths($i); $chartLabels[] = $ay->translatedFormat('F Y'); $chartData[] = Iaa::whereYear('created_at', $ay->year)->whereMonth('created_at', $ay->month)->count(); }
-
-        // --- TÜM VERİLERİ VIEW'E GÖNDER ---
-        return view('admin.raporlar.grafik-test', compact(
-            'cokluUyelikData', 'havuzPuanData', 'tamamlananPuanData', 'hizliProjeData', // Yeni Veriler
-            'oranChartData', 'puanChartLabels', 'puanChartData', 'projeChartData', 'chartLabels', 'chartData' // Eski Veriler
-        ));
+        return view('admin.raporlar.yeni-tum-sikayet-listesi');
     }
 }

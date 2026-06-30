@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Projelerim - Taleplerim | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -49,7 +53,7 @@
                                             <a href="{{ route('iaa.show', $talep) }}" class="px-3 py-1 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700">İncele</a>
                                             
                                             @if ($talep->durum == 'Talep Edildi')
-                                                <form method="POST" action="{{ route('iaa.talepIptal', $talep) }}" onsubmit="return confirm('Bu talebi iptal etmek istediğinizden emin misiniz? Öneri tekrar havuza dönecektir.');">
+                                                <form method="POST" action="{{ route('iaa.talebiGeriCek', $talep) }}" onsubmit="return confirm('Bu talebi iptal etmek istediğinizden emin misiniz? Öneri tekrar havuza dönecektir.');">
                                                     @csrf
                                                     <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded-md text-sm hover:bg-red-700">Talebi İptal Et</button>
                                                 </form>

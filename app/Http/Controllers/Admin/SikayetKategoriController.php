@@ -72,20 +72,55 @@ class SikayetKategoriController extends Controller
     // Class'ın içine, en alta ekle:
     public function getAltKategorilerApi($kategori_id)
     {
-        $anaKategori = SikayetKategori::find($kategori_id);
-        
+        $anaKategori = SikayetKategori::with('bolum')->find($kategori_id);
+
         if (!$anaKategori) {
-            return response()->json(['alt_kategoriler' => [], 'diger_goster' => false]);
+            return response()->json([
+                'alt_kategoriler' => [],
+                'diger_goster' => false,
+                'machines' => [],
+                'hammaddeler' => [],
+                'versiyonlar' => [],
+                'bolum_var_mi' => false
+            ]);
         }
 
         $altKategoriler = SikayetAltKategori::where('sikayet_kategori_id', $kategori_id)
-                                            ->orderBy('ad')
-                                            ->get(['id', 'ad']);
-                                            
+            ->orderBy('ad')
+            ->get(['id', 'ad']);
+
+        // Bölüm verilerini çek
+        $machines = [];
+        $hammaddeler = [];
+        $versiyonlar = [];
+        $bolumVarMi = false;
+
+        if ($anaKategori->bolum) {
+            $bolumVarMi = true;
+            $machines = $anaKategori->bolum->machines()
+                ->where('status', '!=', 'inactive') // Pasif olmayanlar
+                ->orderBy('name')
+                ->get(['id', 'name']);
+
+            $hammaddeler = $anaKategori->bolum->genelHammaddeler()
+                ->where('aktif_mi', true)
+                ->orderBy('ad')
+                ->get(['id', 'ad']);
+
+            $versiyonlar = $anaKategori->bolum->urunVersiyonlari()
+                ->where('aktif_mi', true)
+                ->orderBy('ad')
+                ->get(['id', 'ad']);
+        }
+
         return response()->json([
             'alt_kategoriler' => $altKategoriler,
             'diger_goster' => (bool) $anaKategori->diger_secenegi_goster,
-            'diger_baslik' => $anaKategori->diger_aciklama_basligi ?? 'Diğer Açıklama'
+            'diger_baslik' => $anaKategori->diger_aciklama_basligi ?? 'Diğer Açıklama',
+            'machines' => $machines,
+            'hammaddeler' => $hammaddeler,
+            'versiyonlar' => $versiyonlar,
+            'bolum_var_mi' => $bolumVarMi
         ]);
     }
 

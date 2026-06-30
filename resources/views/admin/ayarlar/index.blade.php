@@ -1,4 +1,67 @@
+@push('pageTitle')
+    Sistem Ayarları | 
+@endpush
+
 <x-app-layout>
+    @push('styles')
+        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+        <style>
+            .select2-container--default .select2-selection--multiple {
+                border-color: #d1d5db !important;
+                border-radius: 0.75rem !important;
+                padding: 4px 8px !important;
+                min-height: 44px !important;
+            }
+            .select2-container--default.select2-container--focus .select2-selection--multiple {
+                border-color: #6366f1 !important;
+                ring: 2px !important;
+                outline: none !important;
+            }
+            .select2-container--default .select2-selection--multiple .select2-selection__choice {
+                background-color: #eff6ff !important;
+                border: 1px solid #bfdbfe !important;
+                color: #1e40af !important;
+                border-radius: 0.5rem !important;
+                padding: 2px 10px !important;
+                font-weight: 700 !important;
+                font-size: 0.75rem !important;
+                margin-top: 4px !important;
+            }
+            .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+                border-right: 1px solid #bfdbfe !important;
+                color: #1e40af !important;
+                margin-right: 5px !important;
+            }
+            .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+                background-color: #dbeafe !important;
+                color: #ef4444 !important;
+            }
+            /* Dark mode fix / Dropdown fix */
+            .select2-dropdown {
+                border-radius: 0.75rem !important;
+                border-color: #e5e7eb !important;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+                z-index: 9999 !important;
+            }
+        </style>
+    @endpush
+
+    @push('scripts')
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                $('.select2-searchable').select2({
+                    placeholder: "Seçim yapınız...",
+                    allowClear: true,
+                    width: '100%',
+                    language: {
+                        noResults: function() { return "Sonuç bulunamadı"; }
+                    }
+                });
+            });
+        </script>
+    @endpush
     <x-slot name="header">
         <div class="flex flex-col gap-2">
             <h2 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
@@ -8,7 +71,8 @@
         </div>
     </x-slot>
 
-    <div class="py-8" x-data="{ activeTab: 'genel' }">
+    {{-- Session'dan 'activeTab' gelirse onu kullan, yoksa 'genel' yap --}}
+    <div class="py-8" x-data="{ activeTab: '{{ session('activeTab', 'genel') }}' }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
             {{-- BAŞARI MESAJI --}}
@@ -26,7 +90,7 @@
 
             <form action="{{ route('admin.sistem-ayarlari.update') }}" method="POST" enctype="multipart/form-data">
                 @csrf
-
+                <input type="hidden" name="active_tab_input" x-model="activeTab">
                 {{-- MODERN SEKME (TAB) MENÜSÜ --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 mb-8 overflow-hidden">
                     <nav class="flex overflow-x-auto scrollbar-hide">
@@ -47,12 +111,12 @@
                             Puanlama
                         </button>
 
-                        {{-- Tab 3: Disiplin --}}
-                        <button type="button" @click="activeTab = 'disiplin'" 
-                            :class="activeTab === 'disiplin' ? 'bg-red-50 text-red-700 border-b-2 border-red-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                        {{-- Tab 3: Hukuk & KVKK (YENİ - Konsolide Edilmiş) --}}
+                        <button type="button" @click="activeTab = 'hukuk'" 
+                            :class="activeTab === 'hukuk' ? 'bg-red-50 text-red-700 border-b-2 border-red-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
-                            Disiplin Yetki
+                            Hukuk & KVKK
                         </button>
 
                         {{-- Tab 4: Müşteri --}}
@@ -70,6 +134,24 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                             İç Bildirimler
                         </button>
+
+                        {{-- Tab 7: Otomatik Raporlar (YENİ) --}}
+                        <button type="button" @click="activeTab = 'rapor'" 
+                            :class="activeTab === 'rapor' ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                            class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Otomatik Raporlar
+                        </button>
+
+                        {{-- Tab 8: Hatırlatıcılar (YENİ) --}}
+                        <button type="button" @click="activeTab = 'dogumGunu'" 
+                            :class="activeTab === 'dogumGunu' ? 'bg-pink-50 text-pink-700 border-b-2 border-pink-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                            class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Hatırlatıcılar
+                        </button>
+
+
                     </nav>
                 </div>
 
@@ -113,14 +195,39 @@
                                                 <span class="text-xs text-gray-500">Manuel yönetici onayı</span>
                                             </div>
                                         </label>
-                                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 w-full transition {{ $kayitOnay && $kayitOnay->value == 0 ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : '' }}">
-                                            <input type="radio" name="kayit_onay_sistemi" value="0" {{ $kayitOnay && $kayitOnay->value == 0 ? 'checked' : '' }} class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                                            <div>
-                                                <span class="block text-sm font-bold text-gray-900">Pasif (Otomatik)</span>
-                                                <span class="text-xs text-gray-500">Anında erişim</span>
-                                            </div>
-                                        </label>
                                     </div>
+
+                                     {{-- DİREKTÖR ONAYI YAPILANDIRMASI --}}
+                                    <div class="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                                         <div class="flex items-center">
+                                             <input type="checkbox" id="sikayet_direktor_onayi_aktif" name="sikayet_direktor_onayi_aktif" value="1"
+                                                 class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 transition cursor-pointer"
+                                                 @if(isset($direktorOnayiAktif) && $direktorOnayiAktif == '1') checked @endif>
+                                             <div class="ml-3">
+                                                 <label for="sikayet_direktor_onayi_aktif" class="text-sm font-bold text-gray-900">
+                                                     Müşteri Şikayeti Projeleri Direktör Onayına Tabi Olsun
+                                                 </label>
+                                                 <p class="text-xs text-gray-500 mt-1">İşaretlenirse, şikayet projeleri bölüm onayından sonra Direktör onayına gönderilir. İşaretlenmezse doğrudan Üst Yönetim onayına sunulur.</p>
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                    {{-- ZİYARET DİREKTÖR ONAYI YAPILANDIRMASI --}}
+                                    <div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                                         <div class="flex items-center">
+                                             <input type="checkbox" id="ziyaret_direktor_onayi_aktif" name="ziyaret_direktor_onayi_aktif" value="1"
+                                                 class="w-5 h-5 text-amber-600 border-gray-300 rounded focus:ring-amber-500 transition cursor-pointer"
+                                                 @if(isset($ziyaretDirektorOnayiAktif) && $ziyaretDirektorOnayiAktif == '1') checked @endif>
+                                             <div class="ml-3">
+                                                 <label for="ziyaret_direktor_onayi_aktif" class="text-sm font-bold text-gray-900">
+                                                     Müşteri Ziyaretleri Direktör Onayına Tabi Olsun
+                                                 </label>
+                                                 <p class="text-xs text-gray-500 mt-1">İşaretlenirse, müşteri ziyaret planları Direktör onayına gönderilir. İşaretlenmezse Bölüm Kalite Yöneticisi onayına düşer.</p>
+                                             </div>
+                                         </div>
+                                     </div>
+
+
                                 </div>
                             </div>
                         </div>
@@ -144,6 +251,17 @@
                                             <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Standart Öneri Puanı</label>
                                             <p class="text-xs text-gray-400 mb-2">Onay sırasında varsayılan puan değeri</p>
                                             <input type="number" name="standart_puan" value="{{ old('standart_puan', $standartPuan->value ?? 100) }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
+                                        </div>
+
+                                        {{-- [YENİ EKLENEN] İAA Öneri Kabul Puanı --}}
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">İAA Öneri Kabul Puanı</label>
+                                            <p class="text-xs text-gray-400 mb-2">Öneri onaylanıp havuza düştüğünde kazanılacak puan.</p>
+                                            <input type="number" 
+                                                name="iaa_oneri_puani" 
+                                                {{-- Eğer controller'dan özel değişken gelmiyorsa $settings koleksiyonunu veya null kontrolünü kullanıyoruz --}}
+                                                value="{{ old('iaa_oneri_puani', isset($iaaOneriPuani) ? ($iaaOneriPuani->value ?? 0) : ($settings->get('iaa_oneri_puani')->value ?? 0)) }}" 
+                                                class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 font-mono font-bold text-gray-700 p-3">
                                         </div>
 
                                         {{-- 2. Şikayet Giriş --}}
@@ -183,34 +301,123 @@
                                     <input type="text" name="para_birimleri" value="{{ old('para_birimleri', $paraBirimleri->value ?? 'TL,USD,EUR') }}" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-emerald-500 focus:border-emerald-500" placeholder="TL,USD,EUR">
                                 </div>
                             </div>
+
+                            {{-- SISTEM BAKIM / PUAN SENKRONIZASYONU (YENI) --}}
+                            <div class="lg:col-span-2">
+                                <div class="bg-amber-50 rounded-xl p-5 border border-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                                    <div class="flex items-start gap-4">
+                                        <div class="p-3 bg-white rounded-xl text-amber-600 shadow-sm">
+                                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-lg font-black text-amber-900 leading-tight">Puan Veritabanı Senkronizasyonu</h4>
+                                            <p class="text-sm text-amber-700 mt-1 leading-relaxed max-w-2xl">Önemli: Veritabanına manuel müdahale (kayıt silme/ekleme) yapıldığında puanlar tutarsızlaşabilir. Bu buton, tüm çalışanların ve takımların puanlarını mevcut gerçek kayıtlara göre baştan hesaplayarak veritabanına işler.</p>
+                                        </div>
+                                    </div>
+                                    <a href="{{ route('admin.puan.sync') }}" 
+                                       onclick="return confirm('Tüm sistem puanları yeniden hesaplanacaktır. Bu işlem büyük veritabanlarında birkaç saniye sürebilir. Emin misiniz?')"
+                                       class="whitespace-nowrap inline-flex items-center px-8 py-4 bg-amber-600 hover:bg-amber-700 text-white text-sm font-black uppercase tracking-widest rounded-xl transition duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                        Şimdi Senkronize Et
+                                    </a>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {{-- TAB 3: DİSİPLİN YETKİLERİ --}}
-                    <div x-show="activeTab === 'disiplin'" style="display: none;">
+                    {{-- TAB 3: HUKUK & KVKK (YENİ - Konsolide Edilmiş) --}}
+                    <div x-show="activeTab === 'hukuk'" style="display: none;" class="space-y-6">
+                        
+                        {{-- 1. KVKK METNİ & PDF --}}
+                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-red-600 px-6 py-4 flex items-center gap-2">
+                                <div class="w-2 h-2 bg-white rounded-full"></div>
+                                <h3 class="text-base font-bold text-white">KVKK & Aydınlatma Metni</h3>
+                            </div>
+                            <div class="p-6 space-y-6">
+                                
+                                {{-- Zengin Metin Editörü --}}
+                                <div wire:ignore>
+                                    <label for="kvkk_text" class="block text-sm font-bold text-gray-700 mb-2">Aydınlatma Metni İçeriği</label>
+                                    <p class="text-xs text-gray-500 mb-3">Bu metin, dış modüllerde (onay kutucuklarında) gösterilir. (Eğer aşağıdan PDF yüklerseniz, PDF öncelikli gösterilir.)</p>
+                                    <textarea name="kvkk_text" id="kvkk_text" class="w-full border-gray-300 rounded-lg text-sm">{{ old('kvkk_text', isset($kvkkText) ? $kvkkText->value : '') }}</textarea>
+                                </div>
+
+                                {{-- PDF Yükleme Alanı --}}
+                                <div>
+                                    <label for="kvkk_pdf" class="block text-sm font-bold text-gray-700 mb-2">Aydınlatma Metni PDF Dosyası (Opsiyonel)</label>
+                                    
+                                    @php
+                                        // Retrieve the PDF setting dynamically if not passed directly, but we passed $kvkkPdf
+                                        $pdfSetting = isset($settings) ? $settings->get('kvkk_pdf') : null;
+                                    @endphp
+                                    
+                                    @if($pdfSetting && $pdfSetting->value)
+                                        <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4Zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1Zm1 3a1 1 0 100 2h6a1 1 0 100-2H7Z" clip-rule="evenodd"/></svg>
+                                                <div>
+                                                    <p class="text-sm font-bold text-gray-800">Mevcut PDF Dosyası Yüklü</p>
+                                                    <a href="{{ asset('storage/' . $pdfSetting->value) }}" target="_blank" class="text-xs text-blue-600 hover:underline">Görüntüle / İncele</a>
+                                                </div>
+                                            </div>
+                                            <label class="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 cursor-pointer">
+                                                <input type="checkbox" name="remove_kvkk_pdf" value="1" class="rounded border-red-300 text-red-600 focus:ring-red-500">
+                                                Mevcut Dosyayı Sil
+                                            </label>
+                                        </div>
+                                    @endif
+                                    
+                                    <input type="file" name="kvkk_pdf" id="kvkk_pdf" accept="application/pdf" class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 border border-gray-300 rounded-lg cursor-pointer">
+                                    <p class="text-xs text-gray-400 mt-2">Sadece PDF dosyası yüklenebilir. (Maks 5MB)</p>
+                                </div>
+
+                                {{-- CKEditor Script --}}
+                                <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+                                <script>
+                                    document.addEventListener("DOMContentLoaded", function() {
+                                        CKEDITOR.replace('kvkk_text', {
+                                            language: 'tr',
+                                            height: 250,
+                                            versionCheck: false,
+                                            toolbar: [
+                                                { name: 'document', items: ['Source'] },
+                                                { name: 'clipboard', items: ['Undo', 'Redo'] },
+                                                { name: 'basicstyles', items: ['Bold', 'Italic', 'Underline', 'Strike'] },
+                                                { name: 'paragraph', items: ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'Blockquote'] },
+                                                { name: 'links', items: ['Link', 'Unlink'] },
+                                                { name: 'styles', items: ['Format'] }
+                                            ]
+                                        });
+                                    });
+                                </script>
+                            </div>
+                        </div>
+
+                        {{-- 2. GLOBAL DİSİPLİN YETKİSİ --}}
                         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                            <div class="bg-gradient-to-r from-red-600 to-rose-700 px-6 py-5 flex items-center justify-between">
+                            <div class="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                                    <div class="p-2 bg-white border border-red-200 rounded-lg">
+                                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                                     </div>
                                     <div>
-                                        <h3 class="text-xl font-bold text-white">Global Disiplin Yetkisi</h3>
-                                        <p class="text-xs text-rose-100 opacity-90">Hangi bölümler tüm fabrikaya tutanak tutabilir?</p>
+                                        <h3 class="text-base font-bold text-gray-900">Disiplin Yetki Matrisi</h3>
+                                        <p class="text-xs text-gray-500">Hangi bölümler tüm fabrikaya tutanak tutabilir?</p>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="p-6">
                                 <div class="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                                    <div class="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                                    <div class="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
                                         @foreach($bolumler as $bolum)
                                             <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-red-300 transition-all">
                                                 <div class="flex items-center gap-3">
-                                                    {{-- Checkbox array yapısı değişti: disciplinary_auth[ID][global] --}}
+                                                    {{-- Checkbox array yapısı: disciplinary_auth[ID][global] --}}
                                                     <input type="checkbox" name="disciplinary_auth[{{ $bolum->id }}][global]" value="1" 
                                                         {{ $bolum->is_disciplinary_global ? 'checked' : '' }}
-                                                        class="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500 transition cursor-pointer">
+                                                        class="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 transition cursor-pointer">
                                                     <span class="text-sm font-bold text-gray-700">{{ $bolum->ad }}</span>
                                                 </div>
                                                 
@@ -226,13 +433,102 @@
                                             </div>
                                         @endforeach
                                     </div>
-                                    
-                                    <div class="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 flex gap-2">
-                                        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        <div>
-                                            <strong>Bilgi:</strong> "Tüm Fabrika" yetkisi verilen bölümler (Örn: İSG), herhangi bir personele tutanak tutabilir. Ancak listede <u>sadece kendi birimlerinin oluşturduğu</u> tutanakları görürler. Diğer bölümlerin iç işlerini göremezler.
-                                        </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- 3. ARABULUCULUK YETKİ MATRİSİ --}}
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white border border-indigo-200 rounded-lg">
+                                        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
                                     </div>
+                                    <div>
+                                        <h3 class="text-base font-bold text-gray-900">Arabuluculuk Yetki Matrisi</h3>
+                                        <p class="text-xs text-gray-500">Hangi rolün hangi işlem yetkisine sahip olduğunu buradan yönetebilirsiniz.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4">
+                                {{-- GENİŞLETİLMİŞ Türkçe İsimlendirme Haritası --}}
+                                @php
+                                    $permLabels = [
+                                        'arabuluculuk.view_menu'          => 'Menüde Göster',
+                                        'arabuluculuk.create_ihtiyari'    => 'İhtiyari Başlat',
+                                        'arabuluculuk.create_zorunlu'     => 'Zorunlu Başlat',
+                                        'arabuluculuk.view_zorunlu_files' => 'Zorunlu Dosya Gör',
+                                        'arabuluculuk.view_all_files'     => 'Tüm Arşivi Gör',
+                                        'arabuluculuk.view_all'           => 'Genel Erişim',
+                                        'arabuluculuk.view_assigned'      => 'Sadece Atananı Gör',
+                                        'arabuluculuk.create'             => 'Dosya Oluştur',
+                                        'arabuluculuk.edit'               => 'Düzenleme',
+                                        'arabuluculuk.approve'            => 'Genel Onay',
+                                        'arabuluculuk.approve_legal'      => 'Hukuk Onayı',
+                                        'arabuluculuk.approve_board'      => 'Yönetim Onayı',
+                                        'arabuluculuk.upload_file'        => 'Dosya Yükleme',
+                                        'arabuluculuk.assign_mediator'    => 'Arabulucu Atama',
+                                        'arabuluculuk.finance_pay'        => 'Finans İşlemi & Dekont Yükleme',
+                                        'arabuluculuk.manage_payee'       => 'Alacaklı Tanımla',
+                                        'arabuluculuk.board_vote'         => 'Oy Kullanma',
+                                        'arabuluculuk.settings'           => 'Ayarlara Erişim',
+                                        'arabuluculuk.tab_genel_view'     => 'Sekme: Genel Bakış',
+                                        'arabuluculuk.tab_kurul_view'     => 'Sekme: Kurul',
+                                        'arabuluculuk.tab_log_view'       => 'Sekme: Tarihçe',
+                                        'arabuluculuk.upload_all_files'   => 'Tüm Dosyaları Yükle',
+                                        'arabuluculuk.settings_view'      => 'Tanimlar Menüsü',
+                                        'arabuluculuk.settings_create'    => 'Madde Ekleme',
+                                        'arabuluculuk.settings_delete'    => 'Madde Silme',
+                                        'arabuluculuk.settings_edit'      => 'Madde Düzenleme',
+                                        'arabuluculuk.final_check'        => 'Son Onay ve Kapanış',
+                                    ];
+                                @endphp
+
+                                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                                    <table class="w-full table-fixed border-collapse text-[10px]">
+                                        <thead>
+                                            <tr class="bg-gray-100">
+                                                <th class="p-2 border border-gray-200 text-left w-32 bg-gray-50 align-bottom">
+                                                    <span class="text-gray-800 font-black uppercase text-xs">Rol Adı</span>
+                                                </th>
+                                                @foreach($arabuluculukPermissions as $perm)
+                                                    <th class="border border-gray-200 p-1 align-bottom h-32 hover:bg-gray-200 transition relative group w-8">
+                                                        <div class="flex justify-center items-end h-full w-full pb-2">
+                                                            <span class="font-bold text-gray-600 uppercase whitespace-nowrap tracking-wide" 
+                                                                style="writing-mode: vertical-rl; transform: rotate(180deg);">
+                                                                {{ $permLabels[$perm->name] ?? str_replace(['arabuluculuk.', '_'], ['', ' '], $perm->name) }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-xs p-1 rounded whitespace-nowrap z-50">
+                                                            {{ $permLabels[$perm->name] ?? $perm->name }}
+                                                        </div>
+                                                    </th>
+                                                @endforeach
+                                            </tr>
+                                        </thead>
+                                            <tbody>
+                                                @foreach($roles as $role)
+                                                    @if($role->name != 'Superadmin') 
+                                                        <tr class="hover:bg-indigo-50 transition border-b border-gray-200">
+                                                            <td class="p-2 border-r border-gray-200 font-bold text-gray-700 bg-white truncate" title="{{ $role->name }}">
+                                                                {{ $role->name }}
+                                                            </td>
+                                                            @foreach($arabuluculukPermissions as $perm)
+                                                                <td class="p-1 border-r border-gray-200 text-center">
+                                                                    <div class="flex justify-center">
+                                                                        <input type="checkbox" 
+                                                                            name="role_permissions[{{ $role->id }}][{{ $perm->id }}]" 
+                                                                            class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                                                                            {{ $role->hasPermissionTo($perm->name) ? 'checked' : '' }}>
+                                                                    </div>
+                                                                </td>
+                                                            @endforeach
+                                                        </tr>
+                                                    @endif
+                                                @endforeach
+                                            </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -275,6 +571,27 @@
 
                                 <hr class="border-gray-100">
 
+                                {{-- Hoşgeldiniz / Yeni Kayıt Bildirimi --}}
+                                <div>
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
+                                        <h4 class="font-bold text-gray-800">Hoşgeldiniz (Yeni Kayıt) Bildirimi</h4>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Konu</label>
+                                            <input type="text" name="new_customer_email_subject" value="{{ old('new_customer_email_subject', $newCustomerEmailSubject ?? 'Hoşgeldiniz - Sisteme Giriş Bilgileriniz') }}" class="w-full border-gray-300 rounded-lg text-sm focus:ring-purple-500 focus:border-purple-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">İçerik</label>
+                                            <textarea name="new_customer_email_body" rows="6" class="w-full border-gray-300 rounded-lg text-sm focus:ring-purple-500 focus:border-purple-500">{{ old('new_customer_email_body', $newCustomerEmailBody ?? "Sayın {musteri_adi},\n\nKöksan Müşteri Portalı hesabınız oluşturulmuştur.\n\nE-posta: {email}\nGeçici Şifreniz: {sifre}\n\nGiriş Linki: {giris_linki}\n\nLütfen giriş yaptıktan sonra şifrenizi değiştiriniz.") }}</textarea>
+                                            <p class="text-[10px] text-gray-400 mt-1 font-mono">Variables: {musteri_adi}, {email}, {sifre}, {giris_linki}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="border-gray-100">
+
                                 {{-- Çözüm Bildirimi --}}
                                 <div>
                                     <div class="flex items-center gap-2 mb-3">
@@ -310,9 +627,504 @@
                             </div>
                             <input type="email" name="sikayet_admin_notification_email" value="{{ old('sikayet_admin_notification_email', $settings->get('sikayet_admin_notification_email')->value ?? '') }}" class="w-1/2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="admin@example.com">
                         </div>
+
+                        {{-- MAIL LOG ERİŞİM YETKİ MATRİSİ --}}
+                        <div class="mt-6 bg-white rounded-xl shadow-sm border border-rose-200 overflow-hidden">
+                            <div class="bg-rose-600 px-6 py-4 flex items-center gap-3">
+                                <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-white">Mail Bildirim Logları — Erişim Yetki Matrisi</h3>
+                                    <p class="text-xs text-rose-100 opacity-90">Mail Bildirim Logları sayfasını kimlerin görebileceğini ve otomatik temizleme süresini buradan yönetebilirsiniz.</p>
+                                </div>
+                            </div>
+                            <div class="p-6 space-y-6">
+
+                                {{-- Bilgi Notu --}}
+                                <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                                    <strong>Not:</strong> Superadmin ve Yonetim rolleri otomatik olarak tüm logları görür. Bölüm Lideri sadece kendi bölümünün loglarını, Direktör ise yönettiği bölümlerin loglarını görebilir.
+                                </div>
+
+                                {{-- Ek Roller --}}
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Mail Log Sayfasını Görebilecek Ek Roller</label>
+                                    <p class="text-xs text-gray-500 mb-3">Seçtiğiniz roller tüm logları görebilir.</p>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                                        @foreach($roles as $role)
+                                            @if(!in_array($role->name, ['Superadmin', 'Yonetim']))
+                                                <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-rose-50 transition-colors {{ in_array($role->name, $mailLogAllowedRoles) ? 'border-rose-400 bg-rose-50' : 'border-gray-200' }}">
+                                                    <input type="checkbox" name="mail_log_allowed_roles[]" value="{{ $role->name }}"
+                                                        {{ in_array($role->name, $mailLogAllowedRoles) ? 'checked' : '' }}
+                                                        class="w-4 h-4 text-rose-600 border-gray-300 rounded focus:ring-rose-500">
+                                                    <span class="text-xs font-bold text-gray-700 truncate" title="{{ $role->name }}">{{ $role->name }}</span>
+                                                </label>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                {{-- Ek Kullanıcılar --}}
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Mail Log Sayfasını Görebilecek Ek Kullanıcılar</label>
+                                    <p class="text-xs text-gray-500 mb-3">Seçtiğiniz kullanıcılar tüm logları görebilir (rolleri ne olursa olsun).</p>
+                                    <select name="mail_log_allowed_users[]" multiple class="select2-searchable w-full">
+                                        @foreach($users as $u)
+                                            <option value="{{ $u->id }}" {{ in_array($u->id, $mailLogAllowedUsers) ? 'selected' : '' }}>
+                                                {{ $u->name }} ({{ $u->bolum->ad ?? 'Bölümsüz' }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <hr class="border-gray-100">
+
+                                {{-- Otomatik Temizleme --}}
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Otomatik Log Temizleme</label>
+                                    <p class="text-xs text-gray-500 mb-3">Çözülmüş mail loglarının kaç gün sonra otomatik temizleneceğini belirleyin. 0 = Sonsuza kadar tut.</p>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" name="mail_log_auto_cleanup_days" 
+                                            value="{{ old('mail_log_auto_cleanup_days', $mailLogAutoCleanupDays) }}" 
+                                            min="0" max="365" step="1"
+                                            class="w-28 border-gray-300 rounded-lg text-sm focus:ring-rose-500 focus:border-rose-500 font-mono font-bold text-gray-700 p-3">
+                                        <span class="text-sm text-gray-500 font-bold">gün</span>
+                                        <span class="text-xs text-gray-400 italic">(0 = temizleme yapma, sonsuza kadar tut)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
+                    {{-- TAB 7: OTOMATİK RAPORLAR İÇERİĞİ --}}
+                    <div x-show="activeTab === 'rapor'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-purple-600 px-6 py-5 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-xl font-bold text-white">Raporlama Otomasyonu</h3>
+                                        <p class="text-xs text-purple-100 opacity-90">Periyodik e-posta rapor kurallarını buradan yönetebilirsiniz.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-6">
+                                {{-- Livewire Bileşeni Buraya Çağırılıyor --}}
+                                @livewire('admin.ayarlar.rapor-kurallari')
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- TAB 8: HATIRLATICILAR İÇERİĞİ --}}
+                    <div x-show="activeTab === 'dogumGunu'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;" x-data="{ reminderType: 'birthday' }">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible">
+                            <div class="bg-gradient-to-r from-gray-800 to-gray-700 px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-xl font-bold text-white">Hatırlatıcı Ayarları</h3>
+                                        <p class="text-xs text-gray-200 opacity-90">Doğum günü ve iş yıldönümü sistemlerini buradan yönetin.</p>
+                                    </div>
+                                </div>
+                                {{-- SubTabs --}}
+                                <div class="flex bg-white/10 p-1 rounded-xl backdrop-blur-sm">
+                                    <button type="button" @click="reminderType = 'birthday'" :class="reminderType === 'birthday' ? 'bg-white text-gray-900 shadow-sm' : 'text-white hover:bg-white/10'" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition-all duration-300">🎂 Doğum Günleri</button>
+                                    <button type="button" @click="reminderType = 'anniversary'" :class="reminderType === 'anniversary' ? 'bg-white text-gray-900 shadow-sm' : 'text-white hover:bg-white/10'" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition-all duration-300">🎊 İş Yıldönümleri</button>
+                                </div>
+                            </div>
+                            
+                            {{-- 1. DOĞUM GÜNÜ AYARLARI --}}
+                            <div class="p-8 space-y-8" x-show="reminderType === 'birthday'" x-transition>
+                                <div class="flex items-center justify-between p-4 bg-pink-50 rounded-2xl border border-pink-100">
+                                    <div>
+                                        <h4 class="text-sm font-bold text-gray-900">Doğum Günü Paneli Durumu</h4>
+                                        <p class="text-xs text-gray-500 mt-1">Bu ayar kapatılırsa, dashboard üzerindeki hatırlatıcı paneli tamamen gizlenir.</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="birthday_is_active" value="1" class="sr-only peer" {{ $birthdayIsActive == '1' ? 'checked' : '' }}>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                    </label>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {{-- 2. Yaklaşan Gün Sayısı --}}
+                                    <div class="space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Yaklaşan Doğum Günleri Aralığı</label>
+                                        </div>
+                                        <div class="flex items-center gap-4">
+                                            <input type="range" name="birthday_upcoming_days" min="1" max="31" step="1" 
+                                                   value="{{ $birthdayUpcomingDays }}" 
+                                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                                   oninput="this.nextElementSibling.value = this.value">
+                                            <output class="w-12 h-10 flex items-center justify-center bg-indigo-50 text-indigo-700 font-black rounded-xl border border-indigo-100">{{ $birthdayUpcomingDays }}</output>
+                                            <span class="text-xs text-gray-400 font-bold uppercase">GÜN</span>
+                                        </div>
+                                        <p class="text-[11px] text-gray-400 italic">Dashboard'da "Yaklaşan" sütununda kaç gün sonrasına kadar olan doğum günleri görünsün?</p>
+                                    </div>
+
+                                    {{-- 3. Geçmiş Gün Sayısı --}}
+                                    <div class="space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-rose-500 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Geçmiş Doğum Günleri Aralığı</label>
+                                        </div>
+                                        <div class="flex items-center gap-4">
+                                            <input type="range" name="birthday_past_days" min="1" max="14" step="1" 
+                                                   value="{{ $birthdayPastDays }}" 
+                                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-rose-600"
+                                                   oninput="this.nextElementSibling.value = this.value">
+                                            <output class="w-12 h-10 flex items-center justify-center bg-rose-50 text-rose-700 font-black rounded-xl border border-rose-100">{{ $birthdayPastDays }}</output>
+                                            <span class="text-xs text-gray-400 font-bold uppercase">GÜN</span>
+                                        </div>
+                                        <p class="text-[11px] text-gray-400 italic">Dashboard'da "Geçmiş" sütununda kaç gün öncesine kadar olan doğum günleri görünsün?</p>
+                                    </div>
+                                </div>
+
+                                <hr class="border-gray-100">
+
+                                <hr class="border-gray-100">
+
+                                {{-- 4. Otomatik Mesaj Taslakları --}}
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {{-- Personele Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-pink-50/30 rounded-2xl border border-pink-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-pink-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Personele Gidecek Kutlama Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="birthday_email_subject" value="{{ $birthdayEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-pink-500 focus:border-pink-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="birthday_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-pink-500 focus:border-pink-500 shadow-sm">{{ $birthdayEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {personel_adi}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Yöneticiye Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-indigo-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Yönetici Bilgilendirme Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2">
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="birthday_notify_leader" value="1" {{ $birthdayNotifyLeader == '1' ? 'checked' : '' }} class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-600">Lider</span>
+                                                </label>
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="birthday_notify_director" value="1" {{ $birthdayNotifyDirector == '1' ? 'checked' : '' }} class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-600">Direktör</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="birthday_leader_email_subject" value="{{ $birthdayLeaderEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="birthday_leader_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">{{ $birthdayLeaderEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {yonetici_adi}, {personel_adi}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Bölüm Arkadaşlarına Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-emerald-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Arkadaş Bilgilendirme Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="flex items-center gap-4 mb-2">
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="birthday_notify_colleagues" value="1" {{ $birthdayNotifyColleagues == '1' ? 'checked' : '' }} class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-emerald-600">Bölüm Arkadaşlarına Gitsin</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="birthday_colleague_email_subject" value="{{ $birthdayColleagueEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="birthday_colleague_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">{{ $birthdayColleagueEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {personel_adi}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="border-gray-100">
+
+                                {{-- 5. Muafiyet Listesi (Bulut Sistemi) --}}
+                                <div class="space-y-4" x-data="birthdayBlockListManager({
+                                    initialSelected: @js($birthdayBlockList),
+                                    allUsers: @js($allUsers->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'bolum' => $u->bolum->ad ?? 'Genel']))
+                                })">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-gray-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-900">Doğum Günü Muafiyet Listesi</label>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Toplam <span x-text="selected.length"></span> Kişi Muaf</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Arama yaparak listeye ekleyeceğiniz personellere doğum günlerinde **otomatik kutlama mesajı gitmeyecektir**.</p>
+                                    
+                                    {{-- Seçili Tag Bulutu --}}
+                                    <div class="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-2xl border border-gray-100 min-h-[60px]">
+                                        <template x-if="selected.length === 0">
+                                            <span class="text-xs text-gray-300 italic">Henüz muafiyet eklenmedi...</span>
+                                        </template>
+                                        <template x-for="userId in selected" :key="userId">
+                                            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl shadow-sm hover:border-rose-300 transition-all group">
+                                                <span x-text="getUserName(userId)"></span>
+                                                <button type="button" @click="removeUser(userId)" class="text-gray-300 group-hover:text-rose-500 transition-colors">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                </button>
+                                                {{-- Gizli Inputlar (Post için) --}}
+                                                <input type="hidden" name="birthday_block_list[]" :value="userId">
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    {{-- Arama Kutusu ve Dropdown --}}
+                                    <div class="relative">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                            </div>
+                                            <input type="text" x-model="search" @focus="showResults = true" @click.away="showResults = false" 
+                                                   placeholder="Personel ara..." 
+                                                   class="w-full pl-10 pr-4 py-3 bg-white border-gray-200 rounded-xl text-sm focus:ring-gray-500 focus:border-gray-500 shadow-sm">
+                                        </div>
+
+                                        {{-- Arama Sonuçları --}}
+                                        <div x-show="showResults && filteredUsers.length > 0" 
+                                             class="absolute z-[100] w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar p-2"
+                                             x-transition:enter="transition ease-out duration-200"
+                                             x-transition:enter-start="opacity-0 translate-y-2">
+                                            <template x-for="user in filteredUsers" :key="user.id">
+                                                <button type="button" @click="addUser(user.id)" 
+                                                        class="w-full text-left px-4 py-2.5 hover:bg-gray-50 rounded-xl transition-all flex items-center justify-between group">
+                                                    <div>
+                                                        <div class="text-sm font-bold text-gray-700" x-text="user.name"></div>
+                                                        <div class="text-[10px] text-gray-400" x-text="user.bolum"></div>
+                                                    </div>
+                                                    <svg class="w-4 h-4 text-gray-200 group-hover:text-green-500 opacity-0 group-hover:opacity-100 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- 2. İŞ YILDÖNÜMÜ AYARLARI --}}
+                            <div class="p-8 space-y-8" x-show="reminderType === 'anniversary'" x-transition style="display:none;">
+                                {{-- 1. Genel Durum --}}
+                                <div class="flex items-center justify-between p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                    <div>
+                                        <h4 class="text-sm font-bold text-gray-900">İş Yıldönümü Sistemi Durumu</h4>
+                                        <p class="text-xs text-gray-500 mt-1">İşe giriş tarihine göre yıllık otomatik kutlama ve bildirimleri yönetir.</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="anniversary_is_active" value="1" class="sr-only peer" {{ $anniversaryIsActive == '1' ? 'checked' : '' }}>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {{-- Personele Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-blue-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Personele Gidecek Kutlama Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="anniversary_email_subject" value="{{ $anniversaryEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="anniversary_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm">{{ $anniversaryEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {personel_adi}, {yil}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Yöneticiye Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-indigo-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Yönetici Bilgilendirme Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2">
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="anniversary_notify_leader" value="1" {{ $anniversaryNotifyLeader == '1' ? 'checked' : '' }} class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-600">Lider</span>
+                                                </label>
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="anniversary_notify_director" value="1" {{ $anniversaryNotifyDirector == '1' ? 'checked' : '' }} class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-600">Direktör</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="anniversary_leader_email_subject" value="{{ $anniversaryLeaderEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="anniversary_leader_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">{{ $anniversaryLeaderEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {yonetici_adi}, {personel_adi}, {yil}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Bölüm Arkadaşlarına Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-emerald-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Arkadaş Bilgilendirme Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="flex items-center gap-4 mb-2">
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="anniversary_notify_colleagues" value="1" {{ $anniversaryNotifyColleagues == '1' ? 'checked' : '' }} class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-emerald-600">Bölüm Arkadaşlarına Gitsin</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="anniversary_colleague_email_subject" value="{{ $anniversaryColleagueEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="anniversary_colleague_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">{{ $anniversaryColleagueEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {personel_adi}, {yil}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="border-gray-100">
+
+                                {{-- 5. Muafiyet Listesi (Yıldönümü) --}}
+                                <div class="space-y-4" x-data="birthdayBlockListManager({
+                                    initialSelected: @js($anniversaryBlockList),
+                                    allUsers: @js($allUsers->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'bolum' => $u->bolum->ad ?? 'Genel']))
+                                })">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-gray-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-900">Yıldönümü Muafiyet Listesi</label>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Toplam <span x-text="selected.length"></span> Kişi Muaf</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Listeye eklediğiniz personellerin iş yıldönümleri otomatik olarak **kutlanmayacaktır**.</p>
+                                    
+                                    {{-- Seçili Tag Bulutu --}}
+                                    <div class="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-2xl border border-gray-100 min-h-[60px]">
+                                        <template x-if="selected.length === 0">
+                                            <span class="text-xs text-gray-300 italic">Henüz muafiyet eklenmedi...</span>
+                                        </template>
+                                        <template x-for="userId in selected" :key="userId">
+                                            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl shadow-sm hover:border-blue-300 transition-all group">
+                                                <span x-text="getUserName(userId)"></span>
+                                                <button type="button" @click="removeUser(userId)" class="text-gray-300 group-hover:text-blue-500 transition-colors">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                </button>
+                                                <input type="hidden" name="anniversary_block_list[]" :value="userId">
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    {{-- Arama Kutusu ve Dropdown --}}
+                                    <div class="relative">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                            </div>
+                                            <input type="text" x-model="search" @focus="showResults = true" @click.away="showResults = false" 
+                                                   placeholder="Personel ara..." 
+                                                   class="w-full pl-10 pr-4 py-3 bg-white border-gray-200 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                                        </div>
+
+                                        {{-- Arama Sonuçları --}}
+                                        <div x-show="showResults && filteredUsers.length > 0" 
+                                             class="absolute z-[100] w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar p-2"
+                                             x-transition:enter="transition ease-out duration-200"
+                                             x-transition:enter-start="opacity-0 translate-y-2">
+                                            <template x-for="user in filteredUsers" :key="user.id">
+                                                <button type="button" @click="addUser(user.id)" 
+                                                        class="w-full text-left px-4 py-2.5 hover:bg-gray-50 rounded-xl transition-all flex items-center justify-between group">
+                                                    <div>
+                                                        <div class="text-sm font-bold text-gray-700" x-text="user.name"></div>
+                                                        <div class="text-[10px] text-gray-400" x-text="user.bolum"></div>
+                                                    </div>
+                                                    <svg class="w-4 h-4 text-gray-200 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                        </div>
+                    </div>
                 </div>
+
+                @push('scripts')
+                <script>
+                    document.addEventListener('alpine:init', () => {
+                        Alpine.data('birthdayBlockListManager', (config) => ({
+                            search: '',
+                            showResults: false,
+                            selected: config.initialSelected,
+                            allUsers: config.allUsers,
+
+                            get filteredUsers() {
+                                if (this.search === '') return [];
+                                return this.allUsers.filter(u => {
+                                    return !this.selected.includes(u.id.toString()) && 
+                                           !this.selected.includes(u.id) &&
+                                           u.name.toLowerCase().includes(this.search.toLowerCase());
+                                }).slice(0, 5);
+                            },
+
+                            addUser(id) {
+                                if (!this.selected.includes(id.toString()) && !this.selected.includes(id)) {
+                                    this.selected.push(id.toString());
+                                }
+                                this.search = '';
+                                this.showResults = false;
+                            },
+
+                            removeUser(id) {
+                                this.selected = this.selected.filter(item => item != id);
+                            },
+
+                            getUserName(id) {
+                                const user = this.allUsers.find(u => u.id == id);
+                                return user ? user.name : 'Unknown';
+                            }
+                        }));
+                    });
+                </script>
+                @endpush
+
+                {{-- BU BOŞLUK DİV'İNİ EKLE (İçeriğin butonun altında kalmasını engeller) --}}
+                <div class="h-32 md:h-24"></div> 
 
                 {{-- SABİT KAYDET BUTONU (ALT BAR) --}}
                 <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50 md:sticky md:bottom-4 md:rounded-xl md:mx-auto md:max-w-7xl md:mb-4">

@@ -14,6 +14,7 @@ class ProjeYorumu extends Model
 
     // Veritabanına hangi alanların kaydedilebileceğini belirtiyoruz
     protected $fillable = [
+        'parent_id',
         'iaa_id',
         'iaa_workflow_step_id',
         'user_id',
@@ -24,6 +25,22 @@ class ProjeYorumu extends Model
         'dosya_yolu',
         'dosya_adi',
     ];
+
+    /**
+     * Üst yorum (cevap veriliyorsa).
+     */
+    public function parent()
+    {
+        return $this->belongsTo(ProjeYorumu::class, 'parent_id');
+    }
+
+    /**
+     * Alt yorumlar (cevaplar).
+     */
+    public function children()
+    {
+        return $this->hasMany(ProjeYorumu::class, 'parent_id')->orderBy('created_at', 'asc');
+    }
 
     /**
      * Yorumu yapan kullanıcı (eğer misafir değilse).

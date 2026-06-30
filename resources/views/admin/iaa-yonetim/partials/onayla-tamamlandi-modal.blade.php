@@ -1,6 +1,5 @@
-{{-- Bu modal, tamamlanmış bir projeyi onaylamak ve puanını takıma eklemek için kullanılır --}}
 <x-modal name="onayla-tamamlandi-modal-{{ $iaa->id }}" focusable>
-    <form method="post" action="{{ route('admin.iaa-yonetim.onaylaTamamlandi', $iaa) }}" class="p-6">
+    <form method="POST" action="{{ route('admin.iaa.approveCompleted', $iaa) }}" class="p-6">
         @csrf
         @method('patch')
 

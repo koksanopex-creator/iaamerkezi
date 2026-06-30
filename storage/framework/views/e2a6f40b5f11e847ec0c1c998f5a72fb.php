@@ -1,0 +1,355 @@
+<?php $__env->startPush('pageTitle'); ?>
+    <?php echo e($user->name); ?> - Puan Detayı | 
+<?php $__env->stopPush(); ?>
+
+<?php if (isset($component)) { $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54 = $attributes; } ?>
+<?php $component = App\View\Components\AppLayout::resolve([] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('app-layout'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\App\View\Components\AppLayout::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes([]); ?>
+     <?php $__env->slot('header', null, []); ?> 
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center gap-4">
+                
+                <a href="<?php echo e(url()->previous() == url()->current() ? route('profile.show', $user->id) : url()->previous()); ?>" 
+                   class="group flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300">
+                    <svg class="w-5 h-5 text-gray-500 group-hover:text-indigo-600 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </a>
+
+                <h2 class="font-bold text-2xl text-gray-800 leading-tight flex items-center gap-3">
+                    <?php echo e($user->name); ?>
+
+                    <?php if(method_exists($user, 'trashed') && $user->trashed()): ?>
+                        <span class="px-3 py-1 bg-red-600 text-white text-xs font-black rounded-lg shadow-sm border border-red-400">
+                            PASİF / İŞTEN AYRILDI
+                        </span>
+                    <?php endif; ?>
+                </h2>
+            </div>
+
+            <div class="text-left md:text-right">
+                <span class="text-xs text-gray-500 block uppercase tracking-wider font-bold">Son Görülme</span>
+                <span class="text-sm font-medium <?php echo e($user->isOnline() ? 'text-green-600' : 'text-gray-600'); ?>">
+                    <?php echo e($user->last_seen_at ? \Carbon\Carbon::parse($user->last_seen_at)->diffForHumans() : 'Giriş Yapmadı'); ?>
+
+                </span>
+            </div>
+        </div>
+     <?php $__env->endSlot(); ?>
+
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            
+            <?php if(method_exists($user, 'trashed') && $user->trashed()): ?>
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-bold text-red-800">BU PERSONEL SİSTEMDEN AYRILMIŞTIR</h3>
+                            <div class="mt-1 text-sm text-red-700">
+                                <p>Bu profil pasif durumdadır. Aşağıdaki puanlar personelin görev süresi boyunca kazandığı ve dondurulmuş verilerdir.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
+            
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
+                <form action="<?php echo e(route('profile.puanlar', $user->id)); ?>" method="GET" class="flex flex-col sm:flex-row items-end gap-4">
+                    <div>
+                        <label for="start_date" class="block text-sm font-medium text-gray-700">Başlangıç Tarihi</label>
+                        <input type="date" name="start_date" id="start_date" value="<?php echo e($startDate); ?>" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div>
+                        <label for="end_date" class="block text-sm font-medium text-gray-700">Bitiş Tarihi</label>
+                        <input type="date" name="end_date" id="end_date" value="<?php echo e($endDate); ?>" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                    </div>
+                    <div class="flex gap-2">
+                         <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Filtrele
+                        </button>
+                        <?php if($startDate || $endDate): ?>
+                            <a href="<?php echo e(route('profile.puanlar', $user->id)); ?>" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                Temizle
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+
+            
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 flex justify-between items-center bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+                <div>
+                    <p class="text-sm opacity-80 uppercase tracking-widest font-bold">
+                        <?php if($startDate || $endDate): ?>
+                            Seçili Tarih Aralığı Toplamı
+                        <?php else: ?>
+                            Genel Toplam Puan
+                        <?php endif; ?>
+                    </p>
+                    <p class="text-5xl font-black mt-2"><?php echo e(number_format($toplam_puan, 0)); ?></p>
+                </div>
+                <div class="text-right hidden sm:block">
+                    <p class="text-sm opacity-80">Son Güncelleme</p>
+                    <p class="font-bold"><?php echo e(now()->format('d.m.Y H:i')); ?></p>
+                </div>
+            </div>
+
+            
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6 bg-white border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                        <span class="bg-blue-100 text-blue-800 p-2 rounded-lg mr-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        </span>
+                        Tamamlanan Projelerden Kazanılan Puanlar
+                    </h3>
+                    <?php if($tum_projeler->isEmpty()): ?>
+                        <p class="text-gray-500 italic">Bu kritere uygun tamamlanmış proje bulunamadı.</p>
+                    <?php else: ?>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proje</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tür</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol / Sebep</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Onaya Gönderme Tarihi</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Puan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <?php $__currentLoopData = $tum_projeler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $proje): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                <a href="<?php echo e(route('proje.workspace.show', $proje->id)); ?>" class="hover:text-blue-600 hover:underline">
+                                                    <?php echo e($proje->baslik); ?>
+
+                                                </a>
+                                            </td>
+                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <?php if($proje->musteriSikayeti): ?>
+                                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-rose-100 text-rose-800">
+                                                        Müşteri Şikayeti
+                                                    </span>
+                                                <?php else: ?>
+                                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                                        İAA Projesi
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?php echo e($proje->kazanma_sebebi == 'Takım Lideri' ? 'bg-purple-100 text-purple-800' : ($proje->kazanma_sebebi == 'Proje Ekibi (Squad)' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800')); ?>" title="<?php echo e($proje->kazanma_sebebi == 'Takım Üyesi' ? 'Bu projeye doğrudan atanmadınız ancak üyesi olduğunuz takım bu projeyi tamamladığı için puan kazandınız.' : ''); ?>">
+                                                    <?php echo e($proje->kazanma_sebebi); ?>
+
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <?php echo e(\Carbon\Carbon::parse($proje->onaya_gonderilme_tarihi ?? $proje->onaylanma_tarihi ?? $proje->created_at)->format('d.m.Y')); ?>
+
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600">
+                                                +<?php echo e(number_format($proje->puan, 0)); ?>
+
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            
+            <?php if($sikayet_girisleri->isNotEmpty()): ?>
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6 bg-white border-b border-gray-200">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                            <span class="bg-rose-100 text-rose-800 p-2 rounded-lg mr-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            </span>
+                            Şikayet Bildirim Puanları
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-4">Toplam <?php echo e($sikayet_girisleri->count()); ?> adet şikayet bildirimi yapıldı. (Adet Başına: <?php echo e($sikayet_giris_puani); ?> Puan)</p>
+                        
+                        <div class="overflow-x-auto mb-4">
+                             <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Şikayet Başlığı</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Puan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <?php $__currentLoopData = $sikayet_girisleri; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $sikayet): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <tr>
+                                            <td class="px-6 py-4 text-sm text-gray-900">
+                                                <a href="<?php echo e(route('admin.sikayetler.show', $sikayet->id)); ?>" class="hover:underline hover:text-rose-600">
+                                                     <?php echo e($sikayet->musteri_sikayet_konusu); ?>
+
+                                                </a>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <?php echo e($sikayet->created_at->format('d.m.Y')); ?>
+
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600">
+                                                +<?php echo e($sikayet_giris_puani); ?>
+
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </tbody>
+                             </table>
+                        </div>
+
+                        <div class="text-right font-bold text-green-600 text-xl border-t pt-2">
+                            Toplam: +<?php echo e(number_format($sikayet_girisleri->count() * $sikayet_giris_puani, 0)); ?> Puan
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            
+             <?php if($oneriler->isNotEmpty()): ?>
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div class="p-6 bg-white border-b border-gray-200">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                           <span class="bg-yellow-100 text-yellow-800 p-2 rounded-lg mr-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                            </span>
+                            İAA Öneri Puanları
+                        </h3>
+                        
+                        <div class="overflow-x-auto mb-4">
+                             <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Öneri Başlığı</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Puan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <?php $__currentLoopData = $oneriler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $oneri): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <tr>
+                                            <td class="px-6 py-4 text-sm text-gray-900">
+                                                <a href="<?php echo e(route('proje.workspace.show', $oneri->id)); ?>" class="hover:underline hover:text-yellow-600">
+                                                     <?php echo e($oneri->baslik); ?>
+
+                                                </a>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <?php echo e($oneri->created_at->format('d.m.Y')); ?>
+
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600">
+                                                +<?php echo e($oneri_puani); ?>
+
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </tbody>
+                             </table>
+                        </div>
+
+                        <div class="text-right font-bold text-green-600 text-xl">
+                            +<?php echo e(number_format($oneriler->count() * $oneri_puani, 0)); ?> Puan
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            
+            <?php if($cezalar->isNotEmpty()): ?>
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border-l-4 border-red-500">
+                    <div class="p-6 bg-white border-b border-gray-200">
+                        <h3 class="text-lg font-bold text-red-700 mb-4 flex items-center">
+                            <span class="bg-red-100 text-red-800 p-2 rounded-lg mr-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            </span>
+                            Disiplin Cezaları (Kesintiler)
+                        </h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Olay</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Karar Tarihi</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Karar</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ceza Puanı</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <?php $__currentLoopData = $cezalar; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $ceza): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                        <tr>
+                                            <td class="px-6 py-4 text-sm text-gray-900">
+                                                <?php
+                                                    $canView = false;
+                                                    // 1. Kullanıcının kendisi
+                                                    if (auth()->id() == $user->id) $canView = true;
+                                                    // 2. Üst Düzey Roller
+                                                    elseif (auth()->user()->hasRole(['Superadmin', 'Yonetim', 'Hukuk Admini', 'Hukuk Yöneticisi', 'Disiplin Kurulu Üyesi'])) $canView = true;
+                                                    // 3. Kendi Bölümünün Lideri (Farklı bölüm liderleri göremez)
+                                                    elseif (auth()->user()->hasRole('Bölüm Lideri') && auth()->user()->bolum_id == $user->bolum_id) $canView = true;
+                                                ?>
+
+                                                <?php if($canView): ?>
+                                                    <a href="<?php echo e(route('disiplin.show', $ceza->id)); ?>" class="hover:underline hover:text-red-600 font-medium">
+                                                        <?php echo e($ceza->olay_basligi ?? $ceza->olay_aciklamasi); ?>
+
+                                                    </a>
+                                                    <?php if(isset($ceza->olay_basligi)): ?>
+                                                        <p class="text-xs text-gray-500 mt-1"><?php echo e(Str::limit($ceza->olay_aciklamasi, 50)); ?></p>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="italic text-gray-400 select-none blur-sm hover:blur-none transition-all duration-300">Gizli İçerik (Disiplin Cezası)</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <?php echo e(\Carbon\Carbon::parse($ceza->karar_tarihi)->format('d.m.Y')); ?>
+
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <?php echo e($ceza->final_karar); ?>
+
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-red-600">
+                                                -<?php echo e(number_format($ceza->hesaplanan_puan, 0)); ?>
+
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+        </div>
+    </div>
+ <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $attributes = $__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>
+<?php $component = $__componentOriginal9ac128a9029c0e4701924bd2d73d7f54; ?>
+<?php unset($__componentOriginal9ac128a9029c0e4701924bd2d73d7f54); ?>
+<?php endif; ?><?php /**PATH /var/www/kys_koksan/iaa/resources/views/profile/puanlar.blade.php ENDPATH**/ ?>

@@ -7,6 +7,8 @@ use App\Models\Iaa;
 use App\Policies\IaaPolicy;
 use App\Models\MusteriSikayeti;      // <-- YENİ EKLENDİ
 use App\Policies\MusteriSikayetiPolicy; // <-- YENİ EKLENDİ
+use App\Models\SikayetHatirlatma;
+use App\Policies\SikayetHatirlatmaPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AuthServiceProvider extends ServiceProvider
@@ -18,7 +20,8 @@ class AuthServiceProvider extends ServiceProvider
      */
     protected $policies = [
         Iaa::class => IaaPolicy::class, // MEVCUT POLİTİKAN (KALIYOR)
-        MusteriSikayeti::class => MusteriSikayetiPolicy::class, // <-- YENİ POLİTİKA EKLENDİ
+        MusteriSikayeti::class => MusteriSikayetiPolicy::class, 
+        SikayetHatirlatma::class => SikayetHatirlatmaPolicy::class,
     ];
 
     /**

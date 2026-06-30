@@ -4,36 +4,72 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission; // Gerekirse Permission da ekleyebilirsiniz
-// === YENİ ===
-use Illuminate\Database\Console\Seeds\WithoutModelEvents; // Bu satır eklendi
+use Spatie\Permission\Models\Permission;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
-class RolesSeeder extends Seeder // Class adı RolesSeeder olarak değiştirildi
+class RolesSeeder extends Seeder
 {
-    use WithoutModelEvents; // Bu satır eklendi
+    use WithoutModelEvents;
 
     /**
-     * Veritabanını temel rollerle tohumlar.
+     * Veritabanını temel roller ve dinamik yetkilerle tohumlar.
      */
     public function run(): void
     {
-        // Temiz başlangıç için mevcut rolleri silmek isterseniz yorumu kaldırın:
-        // Role::query()->delete(); 
-        // Dikkat: Bu, mevcut tüm rolleri ve ilişkili izinleri siler!
+        // 1. TEMEL ROLLERİN OLUŞTURULMASI
+        $roles = [
+            'Superadmin',
+            'Yonetim',
+            'Bölüm Lideri',
+            'Bölüm Lider Yardımcısı', // Yeni rol
+            'Kullanıcı',
+            'Müşteri Şikayeti Kurulu',
+            'Müşteri Şikayeti Çözüm Lideri',
+            'Müşteri Temsilcisi',
+            'Bölüm Kalite Yöneticisi',
+            'Direktör',
+            'Hukuk Admini',
+            'Hukuk Yöneticisi',
+            'Arabuluculuk Personel',
+            'Disiplin Kurulu Başkanı',
+            'Disiplin Kurulu Üyesi',
+        ];
 
-        // === DEĞİŞTİ: Tümü firstOrCreate ile değiştirildi ===
-        Role::firstOrCreate(['name' => 'Superadmin']);
-        Role::firstOrCreate(['name' => 'Bölüm Lideri']);
-        Role::firstOrCreate(['name' => 'Kullanıcı']);
-        Role::firstOrCreate(['name' => 'Müşteri Şikayeti Kurulu']);
-        Role::firstOrCreate(['name' => 'Müşteri Şikayeti Çözüm Lideri']);
-        Role::firstOrCreate(['name' => 'Bölüm Kalite Yöneticisi']);
-        // ===============================================
+        foreach ($roles as $roleName) {
+            Role::firstOrCreate(['name' => $roleName]);
+        }
 
-        // İzinler eklemek isterseniz örnek:
-        // Permission::firstOrCreate(['name' => 'şikayetleri çöz']);
-        // $cozumLideriRole = Role::findByName('Müşteri Şikayeti Çözüm Lideri');
-        // $cozumLideriRole?->givePermissionTo('şikayetleri çöz'); // ?-> null kontrolü ekler
+        // 2. DİNAMİK YETKİLERİN (PERMISSIONS) OLUŞTURULMASI
+        // config/bolum_permissions.php dosyasından yetkileri çekiyoruz
+        $bolumPermissions = config('bolum_permissions');
+
+        if ($bolumPermissions) {
+            foreach ($bolumPermissions as $category => $permissions) {
+                foreach ($permissions as $permissionKey => $description) {
+                    Permission::firstOrCreate([
+                        'name' => $permissionKey,
+                        'guard_name' => 'web'
+                    ]);
+                }
+            }
+        }
+
+        // 3. ROLLER VE YETKİLERİN EŞLEŞTİRİLMESİ (OPSİYONEL - TEMEL ATAMALAR)
+        
+        // Superadmin'e tüm yetkileri ver (Spatie genellikle 'gate::before' ile yapar ama manuel de eklenebilir)
+        $superAdmin = Role::findByName('Superadmin');
+        // $superAdmin->syncPermissions(Permission::all()); // Gerekirse
+
+        // Yönetim ve Direktör gibi rollere genel görüntüleme yetkileri verilebilir
+        $yonetimRole = Role::findByName('Yonetim');
+        if ($yonetimRole) {
+            $yonetimRole->givePermissionTo([
+                'bolum.sikayet.gor',
+                'bolum.iaa.gor',
+                'bolum.dashboard.ozet'
+            ]);
+        }
+
+        $this->command->info('Roller ve yetkiler başarıyla senkronize edildi.');
     }
 }
-

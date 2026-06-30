@@ -1,19 +1,24 @@
-@props(['progressUpdate', 'step'])
+@props(['progressUpdate', 'step', 'isAssignedToSomeoneElse' => false, 'assignments' => collect(), 'canEdit' => false])
 
 <div x-show="open" x-transition class="mt-4 border-t-2 border-gray-100 pt-4 space-y-6">
     
     {{-- Üst Bilgi Çubuğu (Tarih ve Buton) --}}
     <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-200">
         
-        {{-- Sol Taraf: Tamamlanma Tarihi --}}
+        {{-- Sol Taraf: Tamamlanma Tarihi ve Kullanıcı --}}
         <div class="flex items-center gap-2 text-sm text-gray-600">
             <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
-            <span class="font-medium">Tamamlanma:</span>
-            <span class="font-bold text-gray-800">
-                {{ $progressUpdate->completed_at ? \Carbon\Carbon::parse($progressUpdate->completed_at)->format('d.m.Y H:i') : '-' }}
-            </span>
+            <div>
+                <span class="font-medium">Tamamlanma:</span>
+                <span class="font-bold text-gray-800">
+                    {{ $progressUpdate->completed_at ? \Carbon\Carbon::parse($progressUpdate->completed_at)->format('d.m.Y H:i') : '-' }}
+                </span>
+                <span class="mx-1 font-medium text-gray-400">|</span>
+                <span class="font-medium text-gray-600">Tamamlayan:</span>
+                <span class="font-bold text-indigo-600">{{ $progressUpdate->user->name ?? 'Bilinmeyen Kullanıcı' }}</span>
+            </div>
         </div>
 
         {{-- Sağ Taraf: Yeniden Düzenle Butonu (KİLİT KONTROLÜ İLE) --}}
@@ -34,20 +39,31 @@
                     ->value('iaas.durum');
             }
 
-            $kilitliDurumlar = ['Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlandı'];
+            $kilitliDurumlar = ['Bölüm Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlandı'];
             $isLocked = in_array($iaaDurum, $kilitliDurumlar);
         @endphp
 
-        @if(!$isLocked)
-            <form action="{{ route('proje.workspace.reopenStep', $progressUpdate) }}" method="POST" onsubmit="return confirm('Dikkat: Bu adımı yeniden açmak, onay sürecini sıfırlayabilir. Devam etmek istiyor musunuz?');">
-                @csrf
-                <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
-                    <svg class="w-4 h-4 mr-1.5 text-gray-500 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                    Düzenle / Aç
-                </button>
-            </form>
+        @if(!$isLocked && $canEdit)
+            @if(!$isAssignedToSomeoneElse)
+                <form action="{{ route('proje.workspace.reopenStep', $progressUpdate) }}" method="POST" onsubmit="return confirm('Dikkat: Bu adımı yeniden açmak, onay sürecini sıfırlayabilir. Devam etmek istiyor musunuz?');">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
+                        <svg class="w-4 h-4 mr-1.5 text-gray-500 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Düzenle / Aç
+                    </button>
+                </form>
+            @else
+                @php 
+                    $sorumluUserIds = $assignments->pluck('user_id')->toArray();
+                    $sorumluNames = \App\Models\User::whereIn('id', $sorumluUserIds)->pluck('name')->implode(', ');
+                @endphp
+                <span class="inline-flex items-center px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md font-semibold text-xs text-blue-500 uppercase tracking-widest cursor-help" title="Bu adım '{{ $sorumluNames ?: 'ekibe' }}' atanmıştır. Sadece sorumlu kişiler veya lider düzenleyebilir.">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    Sorumlu: {{ $sorumluNames ? Str::limit($sorumluNames, 20) : 'Atanmış' }}
+                </span>
+            @endif
         @else
-            <span class="inline-flex items-center px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-md font-semibold text-xs text-gray-400 uppercase tracking-widest cursor-not-allowed" title="Proje onay aşamasında olduğu için düzenleme yapılamaz.">
+            <span class="inline-flex items-center px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-md font-semibold text-xs text-gray-400 uppercase tracking-widest cursor-not-allowed" title="{{ $iaaDurum == 'Direktör Onayı Bekliyor' ? 'Proje direktör onayında. Müdahale için önce onayınızı geri çekmelisiniz.' : 'Proje onay aşamasında veya tamamlandığı için düzenleme yapılamaz.' }}">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                 Kilitli
             </span>
@@ -62,7 +78,16 @@
     @endphp
 
     @if(!$reportData)
-         <div class="text-sm text-red-600 italic">Bu adım için veri bulunamadı veya veri formatı bozuk.</div>
+        {{-- JSON Değilse: Düz Metin İçerik Göster (Standart textarea içeriği) --}}
+        <div class="p-4 bg-white border border-gray-200 rounded-xl text-gray-800 text-sm whitespace-pre-wrap shadow-sm ring-1 ring-black/5">
+            <div class="flex items-center gap-2 font-bold text-gray-400 uppercase text-[10px] mb-3 tracking-widest border-b border-gray-100 pb-2">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                ADIM RAPORU / İÇERİK
+            </div>
+            <div class="leading-relaxed text-gray-700">
+                {{ $progressUpdate->content ?: 'Herhangi bir not girilmemiş.' }}
+            </div>
+        </div>
     @else
         {{-- === DİNAMİK WIDGET SONUÇ GÖSTERİMİ === --}}
         @foreach($step->widgets as $index => $widget)
@@ -78,7 +103,10 @@
                  elseif ($widgetType === 'pareto') $toolValue = $toolsData['pareto'] ?? null;
                  elseif ($widgetType === 'bar_chart') $toolValue = $toolsData['bar_chart_data'][$index] ?? null;
                  elseif ($widgetType === 'line_chart') $toolValue = $toolsData['line_chart_data'][$index] ?? null;
+                 elseif ($widgetType === 'swot') $toolValue = $toolsData['swot'] ?? null;
+                 elseif ($widgetType === '4m_report') $toolValue = $toolsData['4m_report'][$index] ?? null;
 
+                $widgetTitle = $widgetConfigDefaults['title'] ?? Str::ucfirst(str_replace(['_', 'chart', 'data'], [' ', '', ''], $widgetType));
             @endphp
 
             <div class="mb-6"> {{-- Her widget arasına boşluk --}}
@@ -93,7 +121,7 @@
                     </div>
 
                 {{-- Normal Form Alanları (Grafikler ve Analiz Araçları Hariç) --}}
-                 @elseif(!in_array($widgetType, ['five_whys', 'fishbone', 'pareto', 'bar_chart', 'line_chart']))
+                 @elseif(!in_array($widgetType, ['five_whys', 'fishbone', 'pareto', 'bar_chart', 'line_chart', 'swot', 'checklist', 'before_after', 'risk_matrix', '4m_report', 'task_list', 'action_list', 'prioritization_matrix', 'image_upload']))
                      <div class="text-sm max-w-none">
                          {{-- Başlığı widget tanımından al --}}
                          <h5 class="text-base font-semibold text-gray-800 mb-2">{{ $widgetConfigDefaults['title'] ?? Str::ucfirst(str_replace('_', ' ', $widgetType)) }}</h5>
@@ -191,8 +219,299 @@
                         <div class="border rounded-lg p-2 bg-white mb-4" style="height: 300px;"> <canvas id="{{ $chartId }}"></canvas> </div> 
                     </div> 
                     @push('scripts') <script> document.addEventListener('DOMContentLoaded', function () { const canvas = document.getElementById('{{ $chartId }}'); const chartData = @json($chartDataForJs); if (canvas && chartData && typeof Chart !== 'undefined') { new Chart(canvas.getContext('2d'), { type: 'line', data: { labels: chartData.labels, datasets: [{ label: chartData.axis_y, data: chartData.values, borderColor: 'rgba(75, 192, 192, 1)', tension: 0.1, fill: false }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: chartData.title }, legend: { display: false } }, scales: { x: { title: { display: true, text: chartData.axis_x } }, y: { beginAtZero: true, title: { display: true, text: chartData.axis_y } } } } }); } }); </script> @endpush
+
+
+                {{-- Action List --}}
+                @elseif($widgetType === 'action_list')
+                    @php
+                        $actionItems = $toolsData['action_list'][$index]['items'] ?? [];
+                    @endphp
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-2">{{ $widgetTitle }}</h5>
+                        @if(!empty($actionItems))
+                            <div class="space-y-2">
+                                @foreach($actionItems as $item)
+                                    <div class="flex items-center gap-3 p-3 rounded-lg border {{ $item['is_completed'] ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200' }}">
+                                        @if($item['is_completed'])
+                                            <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        @else
+                                            <div class="w-5 h-5 rounded border-2 border-gray-300 flex-shrink-0"></div>
+                                        @endif
+                                        <span class="{{ $item['is_completed'] ? 'line-through text-gray-500' : 'text-gray-800' }}">{{ $item['text'] }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Aksiyon listesi boş.</p>
+                        @endif
+                    </div>
+
+                {{-- Task List --}}
+                @elseif($widgetType === 'task_list')
+                    @php
+                        $tasks = $toolsData['task_list'][$index]['tasks'] ?? [];
+                    @endphp
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-2">{{ $widgetTitle }}</h5>
+                        @if(!empty($tasks))
+                            <div class="overflow-x-auto border rounded-xl">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Görev Tanımı</th>
+                                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Sorumlu</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        @foreach($tasks as $task)
+                                            <tr>
+                                                <td class="px-4 py-3 text-sm text-gray-900">{{ $task['description'] }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-600">
+                                                    @php $assignedUser = \App\Models\User::find($task['assigned_user_id']); @endphp
+                                                    {{ $assignedUser->name ?? '-' }}
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <p class="text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Görev listesi boş.</p>
+                        @endif
+                    </div>
+
+                {{-- Prioritization Matrix --}}
+                @elseif($widgetType === 'prioritization_matrix')
+                    @php
+                        $matrixItems = $toolsData['prioritization_matrix'][$index]['items'] ?? [];
+                    @endphp
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-2">{{ $widgetTitle }}</h5>
+                        @if(!empty($matrixItems))
+                            <div class="overflow-x-auto border rounded-xl">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Aksiyon</th>
+                                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Efor</th>
+                                            <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase">Etki</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        @foreach($matrixItems as $item)
+                                            <tr>
+                                                <td class="px-4 py-3 text-sm text-gray-900">{{ $item['action'] }}</td>
+                                                <td class="px-4 py-3 text-center">
+                                                    <span class="px-2 py-1 rounded-full text-xs font-medium 
+                                                        {{ $item['effort'] === 'yüksek' ? 'bg-red-100 text-red-700' : ($item['effort'] === 'orta' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700') }}">
+                                                        {{ Str::ucfirst($item['effort']) }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-4 py-3 text-center">
+                                                    <span class="px-2 py-1 rounded-full text-xs font-medium 
+                                                        {{ $item['impact'] === 'düşük' ? 'bg-red-100 text-red-700' : ($item['impact'] === 'orta' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700') }}">
+                                                        {{ Str::ucfirst($item['impact']) }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <p class="text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Önceliklendirme matrisi boş.</p>
+                        @endif
+                    </div>
+
+                {{-- Image Upload (Gallery View) --}}
+                @elseif($widgetType === 'image_upload')
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-2">{{ $widgetTitle }}</h5>
+                        @if(!empty($widgetValue['files']) && is_array($widgetValue['files']))
+                            <div class="mt-1 flex flex-wrap gap-3">
+                                @foreach($widgetValue['files'] as $filePath)
+                                    <a href="{{ asset('storage/' . $filePath) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="{{ basename($filePath) }}" class="block">
+                                        <img src="{{ asset('storage/' . $filePath) }}" alt="{{ basename($filePath) }}" class="h-28 w-28 object-cover rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                    </a>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="mt-1 text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Resim yüklenmemiş.</p>
+                        @endif
+                    </div>
+
+                {{-- SWOT Analizi --}}
+                @elseif($widgetType === 'swot' && !empty($toolValue) && count(array_filter($toolValue)) > 0)
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-3">{{ $widgetTitle }}</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            @if(!empty($toolValue['strengths']))
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+                                <div class="flex items-center gap-2 mb-2"><span class="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center text-xs font-black">S</span><span class="text-sm font-bold text-green-700">Güçlü Yönler</span></div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $toolValue['strengths'] }}</p>
+                            </div>
+                            @endif
+                            @if(!empty($toolValue['weaknesses']))
+                            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+                                <div class="flex items-center gap-2 mb-2"><span class="w-7 h-7 rounded-lg bg-red-500 text-white flex items-center justify-center text-xs font-black">W</span><span class="text-sm font-bold text-red-700">Zayıf Yönler</span></div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $toolValue['weaknesses'] }}</p>
+                            </div>
+                            @endif
+                            @if(!empty($toolValue['opportunities']))
+                            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                                <div class="flex items-center gap-2 mb-2"><span class="w-7 h-7 rounded-lg bg-blue-500 text-white flex items-center justify-center text-xs font-black">O</span><span class="text-sm font-bold text-blue-700">Fırsatlar</span></div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $toolValue['opportunities'] }}</p>
+                            </div>
+                            @endif
+                            @if(!empty($toolValue['threats']))
+                            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                                <div class="flex items-center gap-2 mb-2"><span class="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs font-black">T</span><span class="text-sm font-bold text-amber-700">Tehditler</span></div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $toolValue['threats'] }}</p>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+
+                {{-- Kontrol Listesi --}}
+                @elseif($widgetType === 'checklist')
+                    @php
+                        $items = !empty($widgetConfigDefaults['items']) ? array_values(array_filter(array_map('trim', explode("\n", $widgetConfigDefaults['items'])))) : [];
+                        $checkedItems = $widgetValue['checklist'] ?? [];
+                        $checkedCount = count(array_filter($checkedItems));
+                        $totalItems = count($items);
+                    @endphp
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-2">{{ $widgetConfigDefaults['title'] ?? 'Kontrol Listesi' }}</h5>
+                        @if($totalItems > 0)
+                            <div class="mb-2 text-xs font-medium text-gray-500">{{ $checkedCount }}/{{ $totalItems }} tamamlandı</div>
+                            <div class="space-y-1">
+                                @foreach($items as $itemIndex => $item)
+                                    @php $isChecked = !empty($checkedItems[$itemIndex]); @endphp
+                                    <div class="flex items-center gap-2 px-3 py-2 rounded-lg {{ $isChecked ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200' }}">
+                                        @if($isChecked)
+                                            <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        @else
+                                            <svg class="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        @endif
+                                        <span class="{{ $isChecked ? 'line-through text-gray-400' : 'text-gray-700' }}">{{ $item }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Kontrol listesi maddeleri tanımlanmamış.</p>
+                        @endif
+                    </div>
+
+                {{-- Önce/Sonra Karşılaştırma --}}
+                @elseif($widgetType === 'before_after')
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-3">{{ $widgetConfigDefaults['title'] ?? 'Önce/Sonra Karşılaştırma' }}</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+                                <div class="flex flex-col gap-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">ÖNCE</span>
+                                    </div>
+                                    @if(!empty($widgetValue['before_image_path']))
+                                        <a href="{{ asset('storage/' . $widgetValue['before_image_path']) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="ÖNCESİ">
+                                            <img src="{{ asset('storage/' . $widgetValue['before_image_path']) }}" alt="Önce" class="w-full h-48 object-cover rounded-lg border border-red-300 shadow-sm">
+                                        </a>
+                                    @endif
+                                    @if(!empty($widgetValue['before_text']))
+                                        <p class="text-gray-700 whitespace-pre-wrap">{{ $widgetValue['before_text'] }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+                                <div class="flex flex-col gap-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2.5 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full">SONRA</span>
+                                    </div>
+                                    @if(!empty($widgetValue['after_image_path']))
+                                        <a href="{{ asset('storage/' . $widgetValue['after_image_path']) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="SONRASI">
+                                            <img src="{{ asset('storage/' . $widgetValue['after_image_path']) }}" alt="Sonra" class="w-full h-48 object-cover rounded-lg border border-green-300 shadow-sm">
+                                        </a>
+                                    @endif
+                                    @if(!empty($widgetValue['after_text']))
+                                        <p class="text-gray-700 whitespace-pre-wrap">{{ $widgetValue['after_text'] }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                {{-- Risk Matrisi --}}
+                @elseif($widgetType === 'risk_matrix')
+                    @php
+                        $matrixSize = intval($widgetConfigDefaults['size'] ?? 5);
+                        if (!in_array($matrixSize, [3, 5])) $matrixSize = 5;
+                        $selRow = intval($widgetValue['risk_row'] ?? 0);
+                        $selCol = intval($widgetValue['risk_col'] ?? 0);
+                        $riskScore = $selRow * $selCol;
+                        $maxScore = $matrixSize * $matrixSize;
+                    @endphp
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-3">{{ $widgetConfigDefaults['title'] ?? 'Risk Matrisi' }}</h5>
+                        @if($selRow > 0 && $selCol > 0)
+                            <div class="flex items-center gap-3 mb-3">
+                                <span class="text-sm font-bold text-gray-700">Seçilen Risk:</span>
+                                @php
+                                    $pct = $riskScore / $maxScore;
+                                    if ($pct >= 0.6) $badgeColor = 'bg-red-400 text-white';
+                                    elseif ($pct >= 0.35) $badgeColor = 'bg-amber-300 text-amber-900';
+                                    elseif ($pct >= 0.15) $badgeColor = 'bg-yellow-200 text-yellow-800';
+                                    else $badgeColor = 'bg-green-200 text-green-800';
+                                @endphp
+                                <span class="px-3 py-1 rounded-full text-sm font-bold {{ $badgeColor }}">Olasılık: {{ $selRow }} × Etki: {{ $selCol }} = {{ $riskScore }}</span>
+                            </div>
+                            @if(!empty($widgetValue['risk_notes']))
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                    <span class="font-bold text-gray-600">Notlar:</span>
+                                    <p class="text-gray-700 mt-1 whitespace-pre-wrap">{{ $widgetValue['risk_notes'] }}</p>
+                                </div>
+                            @endif
+                        @else
+                            <p class="text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-gray-200">Risk değerlendirmesi yapılmamış.</p>
+                        @endif
+                    </div>
+
+                {{-- 4M Raporu Gözterimi --}}
+                @elseif($widgetType === '4m_report' && !empty($toolValue) && count(array_filter($toolValue)) > 0)
+                    <div class="text-sm max-w-none">
+                        <h5 class="text-base font-semibold text-gray-800 mb-3">{{ $widgetTitle }}</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                                    <span class="text-xs font-bold text-indigo-700 uppercase">İnsan (Man)</span>
+                                </div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $toolValue['man'] ?? '' }}</p>
+                            </div>
+                            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                                    <span class="text-xs font-bold text-indigo-700 uppercase">Makine (Machine)</span>
+                                </div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $toolValue['machine'] ?? '' }}</p>
+                            </div>
+                            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                                    <span class="text-xs font-bold text-indigo-700 uppercase">Malzeme (Material)</span>
+                                </div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $toolValue['material'] ?? '' }}</p>
+                            </div>
+                            <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                                    <span class="text-xs font-bold text-indigo-700 uppercase">Metot (Method)</span>
+                                </div>
+                                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ $toolValue['method'] ?? '' }}</p>
+                            </div>
+                        </div>
+                    </div>
                 {{-- Boş Araç/Grafik Gösterimi --}}
-                 @elseif(in_array($widgetType, ['five_whys', 'fishbone', 'pareto', 'bar_chart', 'line_chart']))
+                 @elseif(in_array($widgetType, ['five_whys', 'fishbone', 'pareto', 'bar_chart', 'line_chart', 'swot']))
                       <div class="text-sm max-w-none">
                          {{-- Başlığı widget tanımından al --}}
                          <h5 class="text-base font-semibold text-gray-800 mb-2">{{ $widgetConfigDefaults['title'] ?? Str::ucfirst(str_replace(['_', 'chart', 'data'], [' ', '', ''], $widgetType)) }}</h5>

@@ -1,3 +1,7 @@
+@push('pageTitle')
+    İAA Önerilerim | 
+@endpush
+
 <x-app-layout>
     {{-- ======================== SAYFA BAŞLIĞI (HEADER) ======================== --}}
     <x-slot name="header">
@@ -5,6 +9,7 @@
             {{ __('İyileştirmeye Açık Alan Önerilerim') }}
         </h2>
     </x-slot>
+    
 
     {{-- ======================== ANA SAYFA İÇERİĞİ ======================== --}}
     <div class="py-12">

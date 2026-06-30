@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Takım Yönetimi | 
+@endpush
+
 <x-app-layout>
     {{-- ======================== SAYFA BAŞLIĞI (HEADER) ======================== --}}
     <x-slot name="header">

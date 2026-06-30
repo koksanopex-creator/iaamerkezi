@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\NewCustomerUserCreated;
+use App\Notifications\NewUserAddedNotification;
 
 class MusteriYonetimi extends Component
 {
@@ -43,7 +44,14 @@ class MusteriYonetimi extends Component
     public $editingRepId = null, $edit_rep_name, $edit_rep_email, $edit_rep_phone;
     public $logo, $rep_title, $new_rep_title, $edit_rep_title;
 
-    // Şifre Gösterimi
+    // Sıralama Değişkenleri
+    public $sortField = 'name';
+    public $sortDirection = 'asc';
+
+    // En Çok Şikayet Alanlar Filtreleri
+    public $topFilterStartDate = '';
+    public $topFilterEndDate = '';
+    public $showTopComplaints = false;
     public $createdUserPassword = null;
 
     protected function rules()
@@ -56,7 +64,7 @@ class MusteriYonetimi extends Component
             'phone' => 'nullable|numeric|digits_between:10,15',
             'location_type' => 'required|in:Yurt İçi,Yurt Dışı',
             'rep_name' => $this->isEditMode ? 'nullable' : 'required|min:3|max:50|string',
-            'rep_email' => [$this->isEditMode ? 'nullable' : 'required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')],
+            'rep_email' => [$this->isEditMode ? 'nullable' : 'required', 'email'], // Unique kontrolü manuel yapılacak
             'rep_title' => 'nullable|string|max:100',
             'rep_phone' => 'nullable|numeric|digits_between:10,15',
         ];
@@ -72,12 +80,22 @@ class MusteriYonetimi extends Component
         }
 
         // 2. YETKİ BELİRLEME ($isAdmin burada set ediliyor)
-        // Bu roller tam yetkilidir.
-        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Bölüm Lideri', 'Direktör'])) {
+        // Organik bağ yoksa sayfayı hiç göremez (Hukuk, Direktör vb. tüm roller dahil)
+        if (!$user->hasSikayetOrganikBagi()) {
+            abort(403, 'Müşteri yönetimi sayfasına erişim yetkiniz (organik bağ) bulunmamaktadır.');
+        }
+
+        // BUTON YETKİSİ: Hukuk rolleri kesinlikle yeni müşteri/şikayet EKLEYEMEZ (sadece görebilirler - organik bağ varsa)
+        if ($user->hasAnyRole(['Hukuk Admini', 'Hukuk Yöneticisi', 'Yonetim', 'Yönetim'])) {
+            $this->isAdmin = false;
+        } else if ($user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Bölüm Lideri', 'Direktör', 'Bölüm Kalite Yöneticisi'])) {
+            // Bu roller ekleme yapabilir (isAdmin = true)
             $this->isAdmin = true;
+        } else if ($user->hasRole('Müşteri Saha Temsilcisi')) {
+            $this->isAdmin = false;
         } else {
             $this->isAdmin = false;
-
+            
             // GÖREV KONTROLÜ (Sinan gibi personeller için)
             $gorevVarMi = \App\Models\MusteriSikayeti::where(function ($q) use ($user) {
                 $q->whereHas('cozumTakimi', function ($t) use ($user) {
@@ -103,8 +121,11 @@ class MusteriYonetimi extends Component
         $user = Auth::user();
         $query = Customer::query();
 
-        // FİLTRELEME MANTIĞI
-        if (!$this->isAdmin) {
+        // 1. YETKİ TABANLI FİLTRELEME (Scoping)
+        if ($user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
+            // Tam yetkili ve yönetim rolleri tüm müşterileri filtresiz görür
+        } elseif (!$this->isAdmin && !$user->hasAnyRole(['Hukuk Admini', 'Hukuk Yöneticisi', 'Müşteri Saha Temsilcisi'])) {
+            // Tam yetkili olmayan (Düz personel vb.) sadece dahil olduğu şikayetlerin müşterilerini görür
             $query->whereHas('sikayetler', function ($q) use ($user) {
                 $q->where(function ($sub) use ($user) {
                     $sub->whereHas('cozumTakimi', function ($t) use ($user) {
@@ -112,43 +133,140 @@ class MusteriYonetimi extends Component
                             $u->where('users.id', $user->id);
                         });
                     })
-                        ->orWhereHas('iaa', function ($p) use ($user) {
-                            $p->whereHas('users', function ($u) use ($user) {
-                                $u->where('users.id', $user->id);
-                            });
+                    ->orWhereHas('iaa', function ($p) use ($user) {
+                        $p->whereHas('users', function ($u) use ($user) {
+                            $u->where('users.id', $user->id);
                         });
-                });
-            });
-        } elseif (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
-            $allowedBolumIds = $user->getAllowedBolumIds();
-            if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
-                $query->whereHas('sikayetler', function ($q) use ($allowedBolumIds) {
-                    $q->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) {
-                        $k->whereIn('bolum_id', $allowedBolumIds);
                     });
                 });
-            }
+            });
+        } else {
+            // Bölüm Lideri, Direktör ve Hukuk rolleri (Kendi bölümü + Ekibinin dahil olduğu işler)
+            $allowedBolumIds = $user->getAllowedBolumIds();
+            $query->whereHas('sikayetler', function ($q) use ($user, $allowedBolumIds) {
+                $q->where(function($sub) use ($user, $allowedBolumIds) {
+                    // Kriter A: Şikayet Kategorisi Kendi Bölümüne Ait
+                    if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
+                        $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) {
+                            $k->whereIn('bolum_id', $allowedBolumIds);
+                        });
+                    }
+                    
+                    // Kriter B: Kendi Bölümünden Bir Personeli İşin İçinde (Takım veya Proje)
+                    if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
+                        $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) {
+                            $u->where('users.bolum_id', $user->bolum_id);
+                        })
+                        ->orWhereHas('iaa.projeEkibi', function($u) use ($user) {
+                            $u->where('users.bolum_id', $user->bolum_id);
+                        });
+                    }
+                });
+            });
         }
 
+        // 2. İSTATİSTİKLER (Filtrelenmiş Query Üzerinden)
+        $stats = [
+            'total' => (clone $query)->count(),
+            'domestic' => (clone $query)->where('location_type', 'Yurt İçi')->count(),
+            'international' => (clone $query)->where('location_type', 'Yurt Dışı')->count(),
+        ];
+
+        // 3. MÜŞTERİ LİSTESİ ÇEKİMİ
         $customers = $query
             ->withCount([
                 'representatives',
-                'sikayetler as toplam_sikayet',
-                'sikayetler as cozulmus_sikayet' => function ($q) {
+                'sikayetler as toplam_sikayet' => function($q) use ($user) {
+                    // Toplam şikayet sayısını da yetkiye göre kısıtlıyoruz (Eğer Bölüm Lideri ise sadece kendi ilgilendiklerini saymalı)
+                    if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
+                        $allowedBolumIds = $user->getAllowedBolumIds();
+                        $q->where(function($sub) use ($user, $allowedBolumIds) {
+                            if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
+                                $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
+                            }
+                            if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
+                                $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
+                                    ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
+                            }
+                        });
+                    }
+                },
+                'sikayetler as cozulmus_sikayet' => function ($q) use ($user) {
                     $q->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı']);
+                    if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
+                        $allowedBolumIds = $user->getAllowedBolumIds();
+                        $q->where(function($sub) use ($user, $allowedBolumIds) {
+                            if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
+                                $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
+                            }
+                            if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
+                                $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
+                                    ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
+                            }
+                        });
+                    }
+                },
+                'sikayetler as total_returns' => function ($q) {
+                    $q->has('iadeler');
                 }
+            ])
+            ->addSelect([
+                'total_visits' => \App\Models\IaaZiyaretPlani::whereIn('iaa_id', function($q) {
+                    $q->select('iaa_id')->from('musteri_sikayetleri')
+                      ->whereColumn('customer_id', 'customers.id')
+                      ->whereNotNull('iaa_id');
+                })->whereIn('status', ['Onaylandı', 'Tamamlandı'])
+                  ->selectRaw('COALESCE(count(*), 0)'),
             ])
             ->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->search . '%')
                     ->orWhere('tax_number', 'like', '%' . $this->search . '%');
             })
-            ->orderBy('is_active', 'desc')
-            ->orderBy('created_at', 'desc')
+            ->orderBy($this->sortField, $this->sortDirection)
             ->paginate(10);
 
-        return view('livewire.admin.musteri-yonetimi', [
-            'customers' => $customers
-        ])->layout('layouts.app');
+        // 4. EN ÇOK ŞİKAYET ALANLAR (Top 5 - Yetkiye Göre Filtrelenmiş)
+        $topComplaints = (clone $query)->withCount(['sikayetler' => function($q) use ($user) {
+            if ($this->topFilterStartDate) $q->whereDate('musteri_sikayet_tarihi', '>=', $this->topFilterStartDate);
+            if ($this->topFilterEndDate) $q->whereDate('musteri_sikayet_tarihi', '<=', $this->topFilterEndDate);
+            
+            // Buradaki sayacı da yetkiye göre kısıtlıyoruz
+            if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
+                $allowedBolumIds = $user->getAllowedBolumIds();
+                $q->where(function($sub) use ($user, $allowedBolumIds) {
+                    if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
+                        $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
+                    }
+                    if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
+                        $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
+                            ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
+                    }
+                });
+            }
+        }])
+        ->reorder() // Tablonun varsayılan sıralamasını temizle
+        ->orderByDesc('sikayetler_count')
+        ->take(5)
+        ->get();
+
+        /** @var \Illuminate\View\View $view */
+        $view = view('livewire.admin.musteri-yonetimi', [
+            'customers' => $customers,
+            'stats' => $stats,
+            'topComplaints' => $topComplaints
+        ]);
+
+        return $view->layout('layouts.app');
+    }
+
+    public function sortBy($field)
+    {
+        if ($this->sortField === $field) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            $this->sortField = $field;
+            $this->sortDirection = 'asc';
+        }
     }
 
     // --- ACTIONS ---
@@ -303,13 +421,26 @@ class MusteriYonetimi extends Component
         if (!$this->isAdmin)
             abort(403);
         abort_if(auth()->user()->hasRole('Direktör'), 403);
+        
         $this->validate([
             'new_rep_name' => 'required|min:3|max:50|string',
-            'new_rep_email' => ['required', 'email', Rule::unique('users', 'email')->whereNull('deleted_at')],
+            'new_rep_email' => 'required|email',
             'new_rep_phone' => 'nullable|numeric|digits_between:10,15',
         ]);
+
+        // Bu firma için zaten ekli mi?
+        $isAlreadyLinked = $this->selectedCustomer->users()
+            ->where('email', $this->new_rep_email)
+            ->exists();
+
+        if ($isAlreadyLinked) {
+            $this->addError('new_rep_email', 'Bu yetkili bu firmaya zaten ekli.');
+            return;
+        }
+
         $this->createUserForCustomer($this->selectedCustomer, $this->new_rep_name, $this->new_rep_email, $this->new_rep_phone, $this->new_rep_title);
-        $this->selectedCustomer->load('representatives');
+        
+        $this->selectedCustomer->load(['users' => function($q) { $q->withTrashed(); }]);
         $this->reset('new_rep_name', 'new_rep_email', 'new_rep_phone', 'new_rep_title');
     }
 
@@ -321,11 +452,11 @@ class MusteriYonetimi extends Component
         abort_if(auth()->user()->hasRole('Direktör'), 403);
         abort_if(auth()->user()->hasRole('Müşteri Şikayeti Kurulu'), 403, 'Silme yetkiniz yok, yetkiliyi pasife alabilirsiniz.');
 
-        $u = User::find($id);
-        if ($u && $u->customer_id == $this->selectedCustomer->id) {
-            $u->delete();
-            $this->selectedCustomer->refresh();
-        }
+        // Kullanıcıyı tamamen silmek yerine firmadan ilişiğini kesiyoruz (detach)
+        $this->selectedCustomer->users()->detach($id);
+        
+        session()->flash('rep_message', 'Yetkili firmadan başarıyla kaldırıldı.');
+        $this->selectedCustomer->load(['users' => function($q) { $q->withTrashed(); }]);
     }
 
     private function createUserForCustomer($c, $n, $e, $p, $t = null): void
@@ -334,49 +465,115 @@ class MusteriYonetimi extends Component
         $pass = Str::random(8);
 
         try {
-            // 2. Kullanıcıyı Bul veya Oluştur (Daha Güvenli Yöntem)
+            // 2. Kullanıcıyı Bul veya Oluştur
+            $isNewUser = false;
             $u = User::withTrashed()->where('email', $e)->first();
 
             if (!$u) {
+                $isNewUser = true;
                 // Yeni kayıt
                 $u = new User();
                 $u->email = $e;
                 $u->password = Hash::make($pass);
+                $u->name = $n;
+                $u->unvan = $t;
+                $u->telefon = $p;
+                $u->is_personnel = false;
+                $u->customer_id = $c->id; // Geriye dönük uyum için ilk firmayı yazıyoruz
+                $u->onaylandi_mi = true;
+                $u->save();
+
+                // SSO Senkronizasyonu
+                try {
+                    app(\App\Services\CentralSsoSyncService::class)->syncUser($u, $pass, 'customer');
+                } catch (\Exception $ssoEx) {
+                    \Illuminate\Support\Facades\Log::error('Central SSO Sync failed for new customer user: ' . $ssoEx->getMessage());
+                }
+
+                $u->notify(new NewUserAddedNotification(
+                    $u,
+                    "{$c->name} firması için müşteri temsilcisi olarak eklendiniz. Giriş yapabilirsiniz.",
+                    "Yeni Firma Yetkilendirmesi"
+                ));
             } else {
-                // Eğer silinmişse geri getir
+                // Mevcut kullanıcıyı geri getir (eğer silinmişse)
                 if ($u->trashed()) {
                     $u->restore();
+                    $isNewUser = true; // Trashed olan biri yeniden eklenirse "yeni" gibi davranıyoruz
+                    
+                    $u->password = Hash::make($pass);
+                    $u->name = $n;
+                    $u->unvan = $t;
+                    $u->telefon = $p;
+                    $u->is_personnel = false;
+                    $u->customer_id = $c->id;
+                    $u->onaylandi_mi = true;
+                    $u->save();
+
+                    // Trashed durumdan döndüğü için şifreyle birlikte SSO senkronizasyonu
+                    try {
+                        app(\App\Services\CentralSsoSyncService::class)->syncUser($u, $pass, 'customer');
+                    } catch (\Exception $ssoEx) {
+                        \Illuminate\Support\Facades\Log::error('Central SSO Sync failed for restored customer user: ' . $ssoEx->getMessage());
+                    }
+
+                    $u->notify(new NewUserAddedNotification(
+                        $u,
+                        "{$c->name} firması için müşteri temsilcisi olarak eklendiniz. Giriş yapabilirsiniz.",
+                        "Yeni Firma Yetkilendirmesi"
+                    ));
+                } else {
+                    // Sadece var olan aktif bir kullanıcı
+                    // Bilgileri güncelle
+                    $u->update([
+                        'name' => $n,
+                        'telefon' => $p
+                    ]);
+
+                    // Aktif kullanıcının bilgilerini (şifresiz) SSO senkronizasyonu
+                    try {
+                        app(\App\Services\CentralSsoSyncService::class)->syncUser($u, null, 'customer');
+                    } catch (\Exception $ssoEx) {
+                        \Illuminate\Support\Facades\Log::error('Central SSO Sync failed for existing customer user: ' . $ssoEx->getMessage());
+                    }
+
+                    $u->notify(new NewUserAddedNotification(
+                        $u,
+                        "{$c->name} firması için de müşteri temsilcisi olarak yetkilendirildiniz.",
+                        "Yeni Firma Yetkilendirmesi"
+                    ));
                 }
-                // Mevcut kullanıcı şifresini yenile
-                $u->password = Hash::make($pass);
             }
 
-            // Ortak alanları set et
-            $u->name = $n;
-            $u->unvan = $t;
-            $u->telefon = $p;
-            $u->is_personnel = false;
-            $u->customer_id = $c->id;
-            $u->onaylandi_mi = true;
-            $u->save(); // Explicit Save
+            // Firmaya bağla (Pivot tablo) - Ünvanı firmaya özel kaydediyoruz
+            $c->users()->syncWithoutDetaching([$u->id => [
+                'is_active' => true,
+                'unvan' => $t
+            ]]);
 
             // Rol Ataması
             if (Role::where('name', 'Müşteri Temsilcisi')->exists()) {
                 $u->syncRoles(['Müşteri Temsilcisi']);
             }
 
-            // 3. Mail Gönder
-            try {
-                Mail::to($u->email)->send(new NewCustomerUserCreated($u, $pass));
-            } catch (\Exception $ex) {
-                \Illuminate\Support\Facades\Log::error('Mail gönderilemedi: ' . $ex->getMessage());
+            // 3. Mail Gönder (Sadece yeni kullanıcılara şifre gönderilir)
+            if ($isNewUser) {
+                try {
+                    Mail::to($u->email)->queue(new NewCustomerUserCreated($u, $pass));
+                } catch (\Exception $e) {
+                    // Log error but don't stop execution
+                }
             }
 
             // 4. Şifreyi Ekranda Göster
-            session()->flash('generated_password', $pass);
-            session()->flash('generated_user_email', $e);
+            if ($isNewUser) {
+                session()->flash('generated_password', $pass);
+                session()->flash('generated_user_email', $e);
+                session()->flash('rep_message', 'Yetkili başarıyla oluşturuldu ve şifre e-posta ile gönderildi.');
+            } else {
+                session()->flash('rep_message', 'Mevcut yetkili bu firmaya başarıyla bağlandı. Mevcut şifresi ile giriş yapabilir.');
+            }
             session()->flash('generated_customer_name', $c->name);
-            session()->flash('message', 'Müşteri oluşturuldu ve şifre e-posta ile gönderildi.');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Yetkili oluşturma hatası: ' . $e->getMessage());
@@ -393,30 +590,65 @@ class MusteriYonetimi extends Component
     {
         if (!$this->isAdmin)
             return;
-        if (auth()->user()->hasRole('Direktör'))
-            return;
-        $u = User::findOrFail($id);
+
+        // Ünvanı bu firmaya özel olan pivot tablodan çekiyoruz
+        $u = $this->selectedCustomer->users()->where('users.id', $id)->firstOrFail();
         $this->editingRepId = $u->id;
         $this->edit_rep_name = $u->name;
         $this->edit_rep_email = $u->email;
         $this->edit_rep_phone = $u->telefon;
-        $this->edit_rep_title = $u->unvan;
+        $this->edit_rep_title = $u->pivot->unvan;
     }
     public function updateRepresentative()
     {
         if (!$this->isAdmin)
             return;
-        if (auth()->user()->hasRole('Direktör'))
-            return;
-        $this->validate(['edit_rep_name' => 'required', 'edit_rep_email' => 'required|email']);
-        User::where('id', $this->editingRepId)->update(['name' => $this->edit_rep_name, 'email' => $this->edit_rep_email, 'telefon' => $this->edit_rep_phone, 'unvan' => $this->edit_rep_title]);
+
+        $this->validate([
+            'edit_rep_name' => 'required|min:3|max:50',
+            'edit_rep_email' => [
+                'required',
+                'email',
+                Rule::unique('users', 'email')->ignore($this->editingRepId)->whereNull('deleted_at')
+            ],
+            'edit_rep_phone' => 'nullable|numeric|digits_between:10,15',
+            'edit_rep_title' => 'nullable|string|max:100',
+        ]);
+
+        $user = User::findOrFail($this->editingRepId);
+        $user->update([
+            'name' => $this->edit_rep_name,
+            'email' => $this->edit_rep_email,
+            'telefon' => $this->edit_rep_phone,
+            // 'unvan' => $this->edit_rep_title // ARTIK GLOBAL ÜNVANI GÜNCELLEMİYORUZ
+        ]);
+
+        // Firmaya özel ünvanı pivot tabloda güncelle
+        $this->selectedCustomer->users()->updateExistingPivot($this->editingRepId, [
+            'unvan' => $this->edit_rep_title
+        ]);
+
+        // Merkezi API'ye senkronize et (şifre boş gönderilir)
+        try {
+            app(\App\Services\CentralSsoSyncService::class)->syncUser($user, null, 'customer');
+        } catch (\Exception $ssoEx) {
+            \Illuminate\Support\Facades\Log::error('Central SSO Sync failed on representative update: ' . $ssoEx->getMessage());
+        }
+
         $this->cancelEditRepresentative();
+        
+        // Refresh selected customer and its relations
         $this->selectedCustomer->refresh();
+        $this->selectedCustomer->load(['users' => function($q) {
+            $q->withTrashed();
+        }]);
+        
+        session()->flash('rep_message', 'Yetkili bilgileri başarıyla güncellendi.');
     }
     public function cancelEditRepresentative()
     {
         $this->editingRepId = null;
-        $this->reset('edit_rep_name', 'edit_rep_email', 'edit_rep_phone');
+        $this->reset('edit_rep_name', 'edit_rep_email', 'edit_rep_phone', 'edit_rep_title');
     }
     public function updatedShowRepModal($v)
     {
@@ -428,18 +660,22 @@ class MusteriYonetimi extends Component
         if (!$this->isAdmin)
             abort(403);
 
-        $rep = User::withTrashed()->findOrFail($repId);
+        $pivot = DB::table('customer_user')
+            ->where('customer_id', $this->selectedCustomer->id)
+            ->where('user_id', $repId)
+            ->first();
 
-        if ($rep->trashed()) {
-            $rep->restore();
-            session()->flash('rep_message', 'Yetkili tekrar aktif edildi (giriş yapabilir).');
-        } else {
-            $rep->delete(); // Soft Delete
-            session()->flash('rep_message', 'Yetkili pasife alındı (giriş yapamaz).');
+        if ($pivot) {
+            DB::table('customer_user')
+                ->where('id', $pivot->id)
+                ->update(['is_active' => !$pivot->is_active]);
+            
+            $statusStr = !$pivot->is_active ? 'aktif edildi' : 'pasife alındı';
+            session()->flash('rep_message', "Yetkili bu firma için {$statusStr}.");
         }
 
-        $this->selectedCustomer->unsetRelation('users');
         $this->selectedCustomer->load(['users' => function ($q) {
-            $q->withTrashed(); }]);
+            $q->withTrashed(); 
+        }]);
     }
 }

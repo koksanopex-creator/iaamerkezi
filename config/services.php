@@ -39,4 +39,23 @@ return [
         'api_key' => env('GEMINI_API_KEY'),
     ],
 
+    'takvim' => [
+        'url' => env('TAKVIM_URL', 'http://localhost:8001'),
+    ],
+
+    // === MICROSOFT GRAPH API (Mail Sistemi) ===
+    'microsoft' => [
+        'tenant_id' => env('MICROSOFT_TENANT_ID'),
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        'from_address' => env('MICROSOFT_FROM_ADDRESS', 'kys@koksan.com'),
+    ],
+
+    // === MERKEZİ SSO SİSTEMİ ===
+    'central_sso' => [
+        'url' => env('CENTRAL_SSO_URL', 'http://localhost:8001'),
+        'app_code' => env('CENTRAL_SSO_APP_CODE', 'iaa-yonetim-sistemi'),
+        'api_key' => env('CENTRAL_SSO_API_KEY'),
+    ],
+
 ];

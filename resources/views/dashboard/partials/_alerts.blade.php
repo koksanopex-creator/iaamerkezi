@@ -1,7 +1,19 @@
 {{-- resources/views/dashboard/partials/_alerts.blade.php --}}
 
 {{-- Sadece 'son_iaa_projelerim' verisi varsa çalışsın (Superadmin'de patlamasın diye) --}}
-@if(isset($stats['son_iaa_projelerim']) && count($stats['son_iaa_projelerim']) > 0)
+@php
+    $gosterilecekUyariVarMi = false;
+    if(isset($stats['son_iaa_projelerim']) && count($stats['son_iaa_projelerim']) > 0) {
+        foreach($stats['son_iaa_projelerim'] as $proje) {
+            if($proje->talep_admin_notu || $proje->talep_kalite_notu || $proje->durum == 'talep_onayi_bekliyor_kalite') {
+                $gosterilecekUyariVarMi = true;
+                break;
+            }
+        }
+    }
+@endphp
+
+@if($gosterilecekUyariVarMi)
     
     <div class="space-y-4 mb-8">
         @foreach($stats['son_iaa_projelerim'] as $proje)

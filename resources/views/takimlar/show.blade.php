@@ -179,11 +179,11 @@
                                             <li class="py-2 flex justify-between items-center">
                                                 <span class="text-sm">{{ $istek->davetEden->name }}</span>
                                                 <div class="flex space-x-1">
-                                                     <form action="{{ route('takimlar.istek-onayla', $istek->id) }}" method="POST">
+                                                     <form action="{{ route('takimlar.istekKabulEt', $istek->id) }}" method="POST">
                                                         @csrf
                                                         <button type="submit" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200">Onayla</button>
                                                     </form>
-                                                    <form action="{{ route('takimlar.istek-reddet', $istek->id) }}" method="POST">
+                                                    <form action="{{ route('takimlar.istekReddet', $istek->id) }}" method="POST">
                                                         @csrf
                                                         <button type="submit" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">Red</button>
                                                     </form>

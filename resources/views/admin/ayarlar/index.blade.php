@@ -1,4 +1,67 @@
+@push('pageTitle')
+    Sistem Ayarları | 
+@endpush
+
 <x-app-layout>
+    @push('styles')
+        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+        <style>
+            .select2-container--default .select2-selection--multiple {
+                border-color: #d1d5db !important;
+                border-radius: 0.75rem !important;
+                padding: 4px 8px !important;
+                min-height: 44px !important;
+            }
+            .select2-container--default.select2-container--focus .select2-selection--multiple {
+                border-color: #6366f1 !important;
+                ring: 2px !important;
+                outline: none !important;
+            }
+            .select2-container--default .select2-selection--multiple .select2-selection__choice {
+                background-color: #eff6ff !important;
+                border: 1px solid #bfdbfe !important;
+                color: #1e40af !important;
+                border-radius: 0.5rem !important;
+                padding: 2px 10px !important;
+                font-weight: 700 !important;
+                font-size: 0.75rem !important;
+                margin-top: 4px !important;
+            }
+            .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+                border-right: 1px solid #bfdbfe !important;
+                color: #1e40af !important;
+                margin-right: 5px !important;
+            }
+            .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+                background-color: #dbeafe !important;
+                color: #ef4444 !important;
+            }
+            /* Dark mode fix / Dropdown fix */
+            .select2-dropdown {
+                border-radius: 0.75rem !important;
+                border-color: #e5e7eb !important;
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+                z-index: 9999 !important;
+            }
+        </style>
+    @endpush
+
+    @push('scripts')
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                $('.select2-searchable').select2({
+                    placeholder: "Seçim yapınız...",
+                    allowClear: true,
+                    width: '100%',
+                    language: {
+                        noResults: function() { return "Sonuç bulunamadı"; }
+                    }
+                });
+            });
+        </script>
+    @endpush
     <x-slot name="header">
         <div class="flex flex-col gap-2">
             <h2 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight">
@@ -80,6 +143,14 @@
                             Otomatik Raporlar
                         </button>
 
+                        {{-- Tab 8: Hatırlatıcılar (YENİ) --}}
+                        <button type="button" @click="activeTab = 'dogumGunu'" 
+                            :class="activeTab === 'dogumGunu' ? 'bg-pink-50 text-pink-700 border-b-2 border-pink-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                            class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Hatırlatıcılar
+                        </button>
+
 
                     </nav>
                 </div>
@@ -126,20 +197,37 @@
                                         </label>
                                     </div>
 
-                                    {{-- DİREKTÖR ONAYI YAPILANDIRMASI --}}
+                                     {{-- DİREKTÖR ONAYI YAPILANDIRMASI --}}
                                     <div class="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
-                                        <div class="flex items-center">
-                                            <input type="checkbox" id="sikayet_direktor_onayi_aktif" name="sikayet_direktor_onayi_aktif" value="1"
-                                                class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 transition cursor-pointer"
-                                                @if(isset($direktorOnayiAktif) && $direktorOnayiAktif == '1') checked @endif>
-                                            <div class="ml-3">
-                                                <label for="sikayet_direktor_onayi_aktif" class="text-sm font-bold text-gray-900">
-                                                    Müşteri Şikayeti Projeleri Direktör Onayına Tabi Olsun
-                                                </label>
-                                                <p class="text-xs text-gray-500 mt-1">İşaretlenirse, şikayet projeleri bölüm onayından sonra Direktör onayına gönderilir. İşaretlenmezse doğrudan Üst Yönetim onayına sunulur.</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                         <div class="flex items-center">
+                                             <input type="checkbox" id="sikayet_direktor_onayi_aktif" name="sikayet_direktor_onayi_aktif" value="1"
+                                                 class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 transition cursor-pointer"
+                                                 @if(isset($direktorOnayiAktif) && $direktorOnayiAktif == '1') checked @endif>
+                                             <div class="ml-3">
+                                                 <label for="sikayet_direktor_onayi_aktif" class="text-sm font-bold text-gray-900">
+                                                     Müşteri Şikayeti Projeleri Direktör Onayına Tabi Olsun
+                                                 </label>
+                                                 <p class="text-xs text-gray-500 mt-1">İşaretlenirse, şikayet projeleri bölüm onayından sonra Direktör onayına gönderilir. İşaretlenmezse doğrudan Üst Yönetim onayına sunulur.</p>
+                                             </div>
+                                         </div>
+                                     </div>
+
+                                    {{-- ZİYARET DİREKTÖR ONAYI YAPILANDIRMASI --}}
+                                    <div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                                         <div class="flex items-center">
+                                             <input type="checkbox" id="ziyaret_direktor_onayi_aktif" name="ziyaret_direktor_onayi_aktif" value="1"
+                                                 class="w-5 h-5 text-amber-600 border-gray-300 rounded focus:ring-amber-500 transition cursor-pointer"
+                                                 @if(isset($ziyaretDirektorOnayiAktif) && $ziyaretDirektorOnayiAktif == '1') checked @endif>
+                                             <div class="ml-3">
+                                                 <label for="ziyaret_direktor_onayi_aktif" class="text-sm font-bold text-gray-900">
+                                                     Müşteri Ziyaretleri Direktör Onayına Tabi Olsun
+                                                 </label>
+                                                 <p class="text-xs text-gray-500 mt-1">İşaretlenirse, müşteri ziyaret planları Direktör onayına gönderilir. İşaretlenmezse Bölüm Kalite Yöneticisi onayına düşer.</p>
+                                             </div>
+                                         </div>
+                                     </div>
+
+
                                 </div>
                             </div>
                         </div>
@@ -240,16 +328,69 @@
                     {{-- TAB 3: HUKUK & KVKK (YENİ - Konsolide Edilmiş) --}}
                     <div x-show="activeTab === 'hukuk'" style="display: none;" class="space-y-6">
                         
-                        {{-- 1. KVKK METNİ --}}
+                        {{-- 1. KVKK METNİ & PDF --}}
                          <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                             <div class="bg-red-600 px-6 py-4 flex items-center gap-2">
                                 <div class="w-2 h-2 bg-white rounded-full"></div>
                                 <h3 class="text-base font-bold text-white">KVKK & Aydınlatma Metni</h3>
                             </div>
-                            <div class="p-6">
-                                <label for="kvkk_text" class="block text-sm font-bold text-gray-700 mb-2">Kayıt Sırasında Gösterilecek Metin</label>
-                                <p class="text-xs text-gray-500 mb-2">Bu metin, kullanıcı kayıt olurken "Okudum, onaylıyorum" kutucuğunun yanındaki linke tıklandığında açılır.</p>
-                                <textarea name="kvkk_text" id="kvkk_text" rows="10" class="w-full border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500 font-mono">{{ old('kvkk_text', isset($kvkkText) ? $kvkkText->value : '') }}</textarea>
+                            <div class="p-6 space-y-6">
+                                
+                                {{-- Zengin Metin Editörü --}}
+                                <div wire:ignore>
+                                    <label for="kvkk_text" class="block text-sm font-bold text-gray-700 mb-2">Aydınlatma Metni İçeriği</label>
+                                    <p class="text-xs text-gray-500 mb-3">Bu metin, dış modüllerde (onay kutucuklarında) gösterilir. (Eğer aşağıdan PDF yüklerseniz, PDF öncelikli gösterilir.)</p>
+                                    <textarea name="kvkk_text" id="kvkk_text" class="w-full border-gray-300 rounded-lg text-sm">{{ old('kvkk_text', isset($kvkkText) ? $kvkkText->value : '') }}</textarea>
+                                </div>
+
+                                {{-- PDF Yükleme Alanı --}}
+                                <div>
+                                    <label for="kvkk_pdf" class="block text-sm font-bold text-gray-700 mb-2">Aydınlatma Metni PDF Dosyası (Opsiyonel)</label>
+                                    
+                                    @php
+                                        // Retrieve the PDF setting dynamically if not passed directly, but we passed $kvkkPdf
+                                        $pdfSetting = isset($settings) ? $settings->get('kvkk_pdf') : null;
+                                    @endphp
+                                    
+                                    @if($pdfSetting && $pdfSetting->value)
+                                        <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <svg class="w-8 h-8 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4Zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1Zm1 3a1 1 0 100 2h6a1 1 0 100-2H7Z" clip-rule="evenodd"/></svg>
+                                                <div>
+                                                    <p class="text-sm font-bold text-gray-800">Mevcut PDF Dosyası Yüklü</p>
+                                                    <a href="{{ asset('storage/' . $pdfSetting->value) }}" target="_blank" class="text-xs text-blue-600 hover:underline">Görüntüle / İncele</a>
+                                                </div>
+                                            </div>
+                                            <label class="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 cursor-pointer">
+                                                <input type="checkbox" name="remove_kvkk_pdf" value="1" class="rounded border-red-300 text-red-600 focus:ring-red-500">
+                                                Mevcut Dosyayı Sil
+                                            </label>
+                                        </div>
+                                    @endif
+                                    
+                                    <input type="file" name="kvkk_pdf" id="kvkk_pdf" accept="application/pdf" class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 border border-gray-300 rounded-lg cursor-pointer">
+                                    <p class="text-xs text-gray-400 mt-2">Sadece PDF dosyası yüklenebilir. (Maks 5MB)</p>
+                                </div>
+
+                                {{-- CKEditor Script --}}
+                                <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+                                <script>
+                                    document.addEventListener("DOMContentLoaded", function() {
+                                        CKEDITOR.replace('kvkk_text', {
+                                            language: 'tr',
+                                            height: 250,
+                                            versionCheck: false,
+                                            toolbar: [
+                                                { name: 'document', items: ['Source'] },
+                                                { name: 'clipboard', items: ['Undo', 'Redo'] },
+                                                { name: 'basicstyles', items: ['Bold', 'Italic', 'Underline', 'Strike'] },
+                                                { name: 'paragraph', items: ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'Blockquote'] },
+                                                { name: 'links', items: ['Link', 'Unlink'] },
+                                                { name: 'styles', items: ['Format'] }
+                                            ]
+                                        });
+                                    });
+                                </script>
                             </div>
                         </div>
 
@@ -430,6 +571,27 @@
 
                                 <hr class="border-gray-100">
 
+                                {{-- Hoşgeldiniz / Yeni Kayıt Bildirimi --}}
+                                <div>
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
+                                        <h4 class="font-bold text-gray-800">Hoşgeldiniz (Yeni Kayıt) Bildirimi</h4>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Konu</label>
+                                            <input type="text" name="new_customer_email_subject" value="{{ old('new_customer_email_subject', $newCustomerEmailSubject ?? 'Hoşgeldiniz - Sisteme Giriş Bilgileriniz') }}" class="w-full border-gray-300 rounded-lg text-sm focus:ring-purple-500 focus:border-purple-500">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">İçerik</label>
+                                            <textarea name="new_customer_email_body" rows="6" class="w-full border-gray-300 rounded-lg text-sm focus:ring-purple-500 focus:border-purple-500">{{ old('new_customer_email_body', $newCustomerEmailBody ?? "Sayın {musteri_adi},\n\nKöksan Müşteri Portalı hesabınız oluşturulmuştur.\n\nE-posta: {email}\nGeçici Şifreniz: {sifre}\n\nGiriş Linki: {giris_linki}\n\nLütfen giriş yaptıktan sonra şifrenizi değiştiriniz.") }}</textarea>
+                                            <p class="text-[10px] text-gray-400 mt-1 font-mono">Variables: {musteri_adi}, {email}, {sifre}, {giris_linki}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="border-gray-100">
+
                                 {{-- Çözüm Bildirimi --}}
                                 <div>
                                     <div class="flex items-center gap-2 mb-3">
@@ -465,6 +627,73 @@
                             </div>
                             <input type="email" name="sikayet_admin_notification_email" value="{{ old('sikayet_admin_notification_email', $settings->get('sikayet_admin_notification_email')->value ?? '') }}" class="w-1/2 border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500" placeholder="admin@example.com">
                         </div>
+
+                        {{-- MAIL LOG ERİŞİM YETKİ MATRİSİ --}}
+                        <div class="mt-6 bg-white rounded-xl shadow-sm border border-rose-200 overflow-hidden">
+                            <div class="bg-rose-600 px-6 py-4 flex items-center gap-3">
+                                <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-white">Mail Bildirim Logları — Erişim Yetki Matrisi</h3>
+                                    <p class="text-xs text-rose-100 opacity-90">Mail Bildirim Logları sayfasını kimlerin görebileceğini ve otomatik temizleme süresini buradan yönetebilirsiniz.</p>
+                                </div>
+                            </div>
+                            <div class="p-6 space-y-6">
+
+                                {{-- Bilgi Notu --}}
+                                <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+                                    <strong>Not:</strong> Superadmin ve Yonetim rolleri otomatik olarak tüm logları görür. Bölüm Lideri sadece kendi bölümünün loglarını, Direktör ise yönettiği bölümlerin loglarını görebilir.
+                                </div>
+
+                                {{-- Ek Roller --}}
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Mail Log Sayfasını Görebilecek Ek Roller</label>
+                                    <p class="text-xs text-gray-500 mb-3">Seçtiğiniz roller tüm logları görebilir.</p>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                                        @foreach($roles as $role)
+                                            @if(!in_array($role->name, ['Superadmin', 'Yonetim']))
+                                                <label class="flex items-center gap-2 p-2 border rounded-lg cursor-pointer hover:bg-rose-50 transition-colors {{ in_array($role->name, $mailLogAllowedRoles) ? 'border-rose-400 bg-rose-50' : 'border-gray-200' }}">
+                                                    <input type="checkbox" name="mail_log_allowed_roles[]" value="{{ $role->name }}"
+                                                        {{ in_array($role->name, $mailLogAllowedRoles) ? 'checked' : '' }}
+                                                        class="w-4 h-4 text-rose-600 border-gray-300 rounded focus:ring-rose-500">
+                                                    <span class="text-xs font-bold text-gray-700 truncate" title="{{ $role->name }}">{{ $role->name }}</span>
+                                                </label>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                {{-- Ek Kullanıcılar --}}
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Mail Log Sayfasını Görebilecek Ek Kullanıcılar</label>
+                                    <p class="text-xs text-gray-500 mb-3">Seçtiğiniz kullanıcılar tüm logları görebilir (rolleri ne olursa olsun).</p>
+                                    <select name="mail_log_allowed_users[]" multiple class="select2-searchable w-full">
+                                        @foreach($users as $u)
+                                            <option value="{{ $u->id }}" {{ in_array($u->id, $mailLogAllowedUsers) ? 'selected' : '' }}>
+                                                {{ $u->name }} ({{ $u->bolum->ad ?? 'Bölümsüz' }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <hr class="border-gray-100">
+
+                                {{-- Otomatik Temizleme --}}
+                                <div>
+                                    <label class="block text-sm font-bold text-gray-700 mb-2">Otomatik Log Temizleme</label>
+                                    <p class="text-xs text-gray-500 mb-3">Çözülmüş mail loglarının kaç gün sonra otomatik temizleneceğini belirleyin. 0 = Sonsuza kadar tut.</p>
+                                    <div class="flex items-center gap-3">
+                                        <input type="number" name="mail_log_auto_cleanup_days" 
+                                            value="{{ old('mail_log_auto_cleanup_days', $mailLogAutoCleanupDays) }}" 
+                                            min="0" max="365" step="1"
+                                            class="w-28 border-gray-300 rounded-lg text-sm focus:ring-rose-500 focus:border-rose-500 font-mono font-bold text-gray-700 p-3">
+                                        <span class="text-sm text-gray-500 font-bold">gün</span>
+                                        <span class="text-xs text-gray-400 italic">(0 = temizleme yapma, sonsuza kadar tut)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {{-- TAB 7: OTOMATİK RAPORLAR İÇERİĞİ --}}
@@ -489,7 +718,410 @@
                         </div>
                     </div>
 
+                    {{-- TAB 8: HATIRLATICILAR İÇERİĞİ --}}
+                    <div x-show="activeTab === 'dogumGunu'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;" x-data="{ reminderType: 'birthday' }">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-visible">
+                            <div class="bg-gradient-to-r from-gray-800 to-gray-700 px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-xl font-bold text-white">Hatırlatıcı Ayarları</h3>
+                                        <p class="text-xs text-gray-200 opacity-90">Doğum günü ve iş yıldönümü sistemlerini buradan yönetin.</p>
+                                    </div>
+                                </div>
+                                {{-- SubTabs --}}
+                                <div class="flex bg-white/10 p-1 rounded-xl backdrop-blur-sm">
+                                    <button type="button" @click="reminderType = 'birthday'" :class="reminderType === 'birthday' ? 'bg-white text-gray-900 shadow-sm' : 'text-white hover:bg-white/10'" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition-all duration-300">🎂 Doğum Günleri</button>
+                                    <button type="button" @click="reminderType = 'anniversary'" :class="reminderType === 'anniversary' ? 'bg-white text-gray-900 shadow-sm' : 'text-white hover:bg-white/10'" class="px-4 py-2 rounded-lg text-xs font-black uppercase transition-all duration-300">🎊 İş Yıldönümleri</button>
+                                </div>
+                            </div>
+                            
+                            {{-- 1. DOĞUM GÜNÜ AYARLARI --}}
+                            <div class="p-8 space-y-8" x-show="reminderType === 'birthday'" x-transition>
+                                <div class="flex items-center justify-between p-4 bg-pink-50 rounded-2xl border border-pink-100">
+                                    <div>
+                                        <h4 class="text-sm font-bold text-gray-900">Doğum Günü Paneli Durumu</h4>
+                                        <p class="text-xs text-gray-500 mt-1">Bu ayar kapatılırsa, dashboard üzerindeki hatırlatıcı paneli tamamen gizlenir.</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="birthday_is_active" value="1" class="sr-only peer" {{ $birthdayIsActive == '1' ? 'checked' : '' }}>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                    </label>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {{-- 2. Yaklaşan Gün Sayısı --}}
+                                    <div class="space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Yaklaşan Doğum Günleri Aralığı</label>
+                                        </div>
+                                        <div class="flex items-center gap-4">
+                                            <input type="range" name="birthday_upcoming_days" min="1" max="31" step="1" 
+                                                   value="{{ $birthdayUpcomingDays }}" 
+                                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                                   oninput="this.nextElementSibling.value = this.value">
+                                            <output class="w-12 h-10 flex items-center justify-center bg-indigo-50 text-indigo-700 font-black rounded-xl border border-indigo-100">{{ $birthdayUpcomingDays }}</output>
+                                            <span class="text-xs text-gray-400 font-bold uppercase">GÜN</span>
+                                        </div>
+                                        <p class="text-[11px] text-gray-400 italic">Dashboard'da "Yaklaşan" sütununda kaç gün sonrasına kadar olan doğum günleri görünsün?</p>
+                                    </div>
+
+                                    {{-- 3. Geçmiş Gün Sayısı --}}
+                                    <div class="space-y-3">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-rose-500 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Geçmiş Doğum Günleri Aralığı</label>
+                                        </div>
+                                        <div class="flex items-center gap-4">
+                                            <input type="range" name="birthday_past_days" min="1" max="14" step="1" 
+                                                   value="{{ $birthdayPastDays }}" 
+                                                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-rose-600"
+                                                   oninput="this.nextElementSibling.value = this.value">
+                                            <output class="w-12 h-10 flex items-center justify-center bg-rose-50 text-rose-700 font-black rounded-xl border border-rose-100">{{ $birthdayPastDays }}</output>
+                                            <span class="text-xs text-gray-400 font-bold uppercase">GÜN</span>
+                                        </div>
+                                        <p class="text-[11px] text-gray-400 italic">Dashboard'da "Geçmiş" sütununda kaç gün öncesine kadar olan doğum günleri görünsün?</p>
+                                    </div>
+                                </div>
+
+                                <hr class="border-gray-100">
+
+                                <hr class="border-gray-100">
+
+                                {{-- 4. Otomatik Mesaj Taslakları --}}
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {{-- Personele Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-pink-50/30 rounded-2xl border border-pink-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-pink-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Personele Gidecek Kutlama Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="birthday_email_subject" value="{{ $birthdayEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-pink-500 focus:border-pink-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="birthday_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-pink-500 focus:border-pink-500 shadow-sm">{{ $birthdayEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {personel_adi}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Yöneticiye Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-indigo-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Yönetici Bilgilendirme Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2">
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="birthday_notify_leader" value="1" {{ $birthdayNotifyLeader == '1' ? 'checked' : '' }} class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-600">Lider</span>
+                                                </label>
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="birthday_notify_director" value="1" {{ $birthdayNotifyDirector == '1' ? 'checked' : '' }} class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-600">Direktör</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="birthday_leader_email_subject" value="{{ $birthdayLeaderEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="birthday_leader_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">{{ $birthdayLeaderEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {yonetici_adi}, {personel_adi}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Bölüm Arkadaşlarına Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-emerald-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Arkadaş Bilgilendirme Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="flex items-center gap-4 mb-2">
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="birthday_notify_colleagues" value="1" {{ $birthdayNotifyColleagues == '1' ? 'checked' : '' }} class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-emerald-600">Bölüm Arkadaşlarına Gitsin</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="birthday_colleague_email_subject" value="{{ $birthdayColleagueEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="birthday_colleague_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">{{ $birthdayColleagueEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {personel_adi}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="border-gray-100">
+
+                                {{-- 5. Muafiyet Listesi (Bulut Sistemi) --}}
+                                <div class="space-y-4" x-data="birthdayBlockListManager({
+                                    initialSelected: @js($birthdayBlockList),
+                                    allUsers: @js($allUsers->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'bolum' => $u->bolum->ad ?? 'Genel']))
+                                })">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-gray-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-900">Doğum Günü Muafiyet Listesi</label>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Toplam <span x-text="selected.length"></span> Kişi Muaf</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Arama yaparak listeye ekleyeceğiniz personellere doğum günlerinde **otomatik kutlama mesajı gitmeyecektir**.</p>
+                                    
+                                    {{-- Seçili Tag Bulutu --}}
+                                    <div class="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-2xl border border-gray-100 min-h-[60px]">
+                                        <template x-if="selected.length === 0">
+                                            <span class="text-xs text-gray-300 italic">Henüz muafiyet eklenmedi...</span>
+                                        </template>
+                                        <template x-for="userId in selected" :key="userId">
+                                            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl shadow-sm hover:border-rose-300 transition-all group">
+                                                <span x-text="getUserName(userId)"></span>
+                                                <button type="button" @click="removeUser(userId)" class="text-gray-300 group-hover:text-rose-500 transition-colors">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                </button>
+                                                {{-- Gizli Inputlar (Post için) --}}
+                                                <input type="hidden" name="birthday_block_list[]" :value="userId">
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    {{-- Arama Kutusu ve Dropdown --}}
+                                    <div class="relative">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                            </div>
+                                            <input type="text" x-model="search" @focus="showResults = true" @click.away="showResults = false" 
+                                                   placeholder="Personel ara..." 
+                                                   class="w-full pl-10 pr-4 py-3 bg-white border-gray-200 rounded-xl text-sm focus:ring-gray-500 focus:border-gray-500 shadow-sm">
+                                        </div>
+
+                                        {{-- Arama Sonuçları --}}
+                                        <div x-show="showResults && filteredUsers.length > 0" 
+                                             class="absolute z-[100] w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar p-2"
+                                             x-transition:enter="transition ease-out duration-200"
+                                             x-transition:enter-start="opacity-0 translate-y-2">
+                                            <template x-for="user in filteredUsers" :key="user.id">
+                                                <button type="button" @click="addUser(user.id)" 
+                                                        class="w-full text-left px-4 py-2.5 hover:bg-gray-50 rounded-xl transition-all flex items-center justify-between group">
+                                                    <div>
+                                                        <div class="text-sm font-bold text-gray-700" x-text="user.name"></div>
+                                                        <div class="text-[10px] text-gray-400" x-text="user.bolum"></div>
+                                                    </div>
+                                                    <svg class="w-4 h-4 text-gray-200 group-hover:text-green-500 opacity-0 group-hover:opacity-100 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- 2. İŞ YILDÖNÜMÜ AYARLARI --}}
+                            <div class="p-8 space-y-8" x-show="reminderType === 'anniversary'" x-transition style="display:none;">
+                                {{-- 1. Genel Durum --}}
+                                <div class="flex items-center justify-between p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                    <div>
+                                        <h4 class="text-sm font-bold text-gray-900">İş Yıldönümü Sistemi Durumu</h4>
+                                        <p class="text-xs text-gray-500 mt-1">İşe giriş tarihine göre yıllık otomatik kutlama ve bildirimleri yönetir.</p>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" name="anniversary_is_active" value="1" class="sr-only peer" {{ $anniversaryIsActive == '1' ? 'checked' : '' }}>
+                                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    {{-- Personele Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-blue-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Personele Gidecek Kutlama Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="anniversary_email_subject" value="{{ $anniversaryEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="anniversary_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm">{{ $anniversaryEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {personel_adi}, {yil}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Yöneticiye Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-indigo-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Yönetici Bilgilendirme Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mb-2">
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="anniversary_notify_leader" value="1" {{ $anniversaryNotifyLeader == '1' ? 'checked' : '' }} class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-600">Lider</span>
+                                                </label>
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="anniversary_notify_director" value="1" {{ $anniversaryNotifyDirector == '1' ? 'checked' : '' }} class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-indigo-600">Direktör</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="anniversary_leader_email_subject" value="{{ $anniversaryLeaderEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="anniversary_leader_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">{{ $anniversaryLeaderEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {yonetici_adi}, {personel_adi}, {yil}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Bölüm Arkadaşlarına Gidecek Mesaj --}}
+                                    <div class="space-y-4 p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100/50">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-emerald-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-700">Arkadaş Bilgilendirme Mesajı</label>
+                                        </div>
+                                        <div class="space-y-4">
+                                            <div class="flex items-center gap-4 mb-2">
+                                                <label class="flex items-center gap-2 cursor-pointer group">
+                                                    <input type="checkbox" name="anniversary_notify_colleagues" value="1" {{ $anniversaryNotifyColleagues == '1' ? 'checked' : '' }} class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500">
+                                                    <span class="text-xs font-bold text-gray-600 group-hover:text-emerald-600">Bölüm Arkadaşlarına Gitsin</span>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">E-posta Konusu</label>
+                                                <input type="text" name="anniversary_colleague_email_subject" value="{{ $anniversaryColleagueEmailSubject }}" class="w-full border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-wider">Mesaj İçeriği</label>
+                                                <textarea name="anniversary_colleague_email_body" rows="4" class="w-full border-gray-200 rounded-xl text-sm focus:ring-emerald-500 focus:border-emerald-500 shadow-sm">{{ $anniversaryColleagueEmailBody }}</textarea>
+                                                <p class="text-[10px] text-gray-400 mt-2 font-mono italic">Kullanılabilir: {personel_adi}, {yil}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <hr class="border-gray-100">
+
+                                {{-- 5. Muafiyet Listesi (Yıldönümü) --}}
+                                <div class="space-y-4" x-data="birthdayBlockListManager({
+                                    initialSelected: @js($anniversaryBlockList),
+                                    allUsers: @js($allUsers->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'bolum' => $u->bolum->ad ?? 'Genel']))
+                                })">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-1 h-4 bg-gray-600 rounded-full"></div>
+                                            <label class="text-sm font-bold text-gray-900">Yıldönümü Muafiyet Listesi</label>
+                                        </div>
+                                        <span class="text-[10px] font-bold text-gray-400 uppercase">Toplam <span x-text="selected.length"></span> Kişi Muaf</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500">Listeye eklediğiniz personellerin iş yıldönümleri otomatik olarak **kutlanmayacaktır**.</p>
+                                    
+                                    {{-- Seçili Tag Bulutu --}}
+                                    <div class="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-2xl border border-gray-100 min-h-[60px]">
+                                        <template x-if="selected.length === 0">
+                                            <span class="text-xs text-gray-300 italic">Henüz muafiyet eklenmedi...</span>
+                                        </template>
+                                        <template x-for="userId in selected" :key="userId">
+                                            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 text-gray-700 text-xs font-bold rounded-xl shadow-sm hover:border-blue-300 transition-all group">
+                                                <span x-text="getUserName(userId)"></span>
+                                                <button type="button" @click="removeUser(userId)" class="text-gray-300 group-hover:text-blue-500 transition-colors">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                </button>
+                                                <input type="hidden" name="anniversary_block_list[]" :value="userId">
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    {{-- Arama Kutusu ve Dropdown --}}
+                                    <div class="relative">
+                                        <div class="relative">
+                                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                            </div>
+                                            <input type="text" x-model="search" @focus="showResults = true" @click.away="showResults = false" 
+                                                   placeholder="Personel ara..." 
+                                                   class="w-full pl-10 pr-4 py-3 bg-white border-gray-200 rounded-xl text-sm focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                                        </div>
+
+                                        {{-- Arama Sonuçları --}}
+                                        <div x-show="showResults && filteredUsers.length > 0" 
+                                             class="absolute z-[100] w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl max-h-60 overflow-y-auto custom-scrollbar p-2"
+                                             x-transition:enter="transition ease-out duration-200"
+                                             x-transition:enter-start="opacity-0 translate-y-2">
+                                            <template x-for="user in filteredUsers" :key="user.id">
+                                                <button type="button" @click="addUser(user.id)" 
+                                                        class="w-full text-left px-4 py-2.5 hover:bg-gray-50 rounded-xl transition-all flex items-center justify-between group">
+                                                    <div>
+                                                        <div class="text-sm font-bold text-gray-700" x-text="user.name"></div>
+                                                        <div class="text-[10px] text-gray-400" x-text="user.bolum"></div>
+                                                    </div>
+                                                    <svg class="w-4 h-4 text-gray-200 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                        </div>
+                    </div>
                 </div>
+
+                @push('scripts')
+                <script>
+                    document.addEventListener('alpine:init', () => {
+                        Alpine.data('birthdayBlockListManager', (config) => ({
+                            search: '',
+                            showResults: false,
+                            selected: config.initialSelected,
+                            allUsers: config.allUsers,
+
+                            get filteredUsers() {
+                                if (this.search === '') return [];
+                                return this.allUsers.filter(u => {
+                                    return !this.selected.includes(u.id.toString()) && 
+                                           !this.selected.includes(u.id) &&
+                                           u.name.toLowerCase().includes(this.search.toLowerCase());
+                                }).slice(0, 5);
+                            },
+
+                            addUser(id) {
+                                if (!this.selected.includes(id.toString()) && !this.selected.includes(id)) {
+                                    this.selected.push(id.toString());
+                                }
+                                this.search = '';
+                                this.showResults = false;
+                            },
+
+                            removeUser(id) {
+                                this.selected = this.selected.filter(item => item != id);
+                            },
+
+                            getUserName(id) {
+                                const user = this.allUsers.find(u => u.id == id);
+                                return user ? user.name : 'Unknown';
+                            }
+                        }));
+                    });
+                </script>
+                @endpush
 
                 {{-- BU BOŞLUK DİV'İNİ EKLE (İçeriğin butonun altında kalmasını engeller) --}}
                 <div class="h-32 md:h-24"></div> 

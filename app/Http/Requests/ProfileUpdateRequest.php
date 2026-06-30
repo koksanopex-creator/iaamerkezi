@@ -16,9 +16,9 @@ class ProfileUpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
             'email' => [
-                'required',
+                'nullable',
                 'string',
                 'lowercase',
                 'email',
@@ -28,6 +28,7 @@ class ProfileUpdateRequest extends FormRequest
             // === YENİ EKLENEN KURALLAR ===
             'telefon' => ['nullable', 'string', 'max:20'], // Boş olabilir, en fazla 20 karakter
             'photo' => ['nullable', 'image', 'max:1024'],  // Boş olabilir, resim dosyası olmalı, max 1MB
+            'dogum_tarihi' => ['nullable', 'date'],  // EKLENDİ
             // =============================
         ];
     }

@@ -1,4 +1,55 @@
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+<?php if(auth()->user()->observers->isNotEmpty()): ?>
+    <div x-data="{ showObserverAlert: true }" 
+         x-show="showObserverAlert" 
+         x-transition:leave="transition ease-in duration-300"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         class="col-span-full animate-slow-pulse border-l-4 border-blue-500 p-4 mb-6 rounded-r-xl shadow-sm relative overflow-hidden group">
+        
+        <style>
+            @keyframes slow-pulse {
+                0%, 100% { background-color: rgba(239, 246, 255, 1); } /* bg-blue-50 */
+                50% { background-color: rgba(219, 234, 254, 1); } /* bg-blue-100 */
+            }
+            .animate-slow-pulse {
+                animation: slow-pulse 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            }
+        </style>
+
+        <div class="absolute right-0 top-0 opacity-10 -mr-8 -mt-8 transition-transform group-hover:scale-110 duration-500">
+            <svg class="w-32 h-32 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+        </div>
+
+        <div class="flex items-center justify-between relative z-10">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="p-2 bg-blue-100/50 rounded-lg backdrop-blur-sm border border-blue-200">
+                        <svg class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                    </div>
+                </div>
+                <div class="ml-4 pr-8">
+                    <p class="text-sm text-blue-800 leading-relaxed">
+                        <span class="font-bold text-blue-900"><?php echo e(auth()->user()->observers->pluck('name')->join(', ')); ?></span> 
+                        personelini <strong class="bg-blue-200/50 px-1.5 py-0.5 rounded text-blue-700">gözlemci</strong> olarak atadınız. Bu kişiler profilinizi sizin yetkilerinizle izleyebilir.
+                        <a href="<?php echo e(route('profile.edit')); ?>" class="inline-flex items-center font-black underline ml-2 hover:text-blue-600 transition-colors group/link">
+                            Ayarları Yönet
+                            <svg class="w-3 h-3 ml-1 group-hover/link:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"></path></svg>
+                        </a>
+                    </p>
+                </div>
+            </div>
+
+            <button @click="showObserverAlert = false" class="text-blue-400 hover:text-blue-600 transition-colors p-1 hover:bg-blue-200/50 rounded-lg" title="Kapat">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+    </div>
+<?php endif; ?>
+
+<div class="grid grid-cols-1 <?php echo e(isset($isSidebar) && $isSidebar ? '' : 'md:grid-cols-2 xl:grid-cols-3'); ?> gap-6 mb-8">
     <a href="<?php echo e(route('iaa.havuz')); ?>"
         class="group relative bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-6 hover:shadow-2xl hover:scale-105 transition-all duration-300 overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-br from-emerald-600/5 to-teal-600/5 rounded-2xl"></div>
@@ -124,7 +175,7 @@
                             <span
                                 class="text-gray-700 font-medium truncate flex-1 mr-2"><?php echo e(Str::limit($proje->baslik, 20)); ?></span>
                             <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">
-                                <?php echo e(optional($proje->onaylanma_tarihi)->format('d.m.Y') ?? '-'); ?>
+                                <?php echo e(optional($proje->onaya_gonderilme_tarihi ?? $proje->onaylanma_tarihi)->format('d.m.Y') ?? '-'); ?>
 
                             </span>
                         </div>
@@ -164,7 +215,7 @@
                             <span
                                 class="text-gray-700 font-medium truncate flex-1 mr-2"><?php echo e(Str::limit($proje->baslik, 20)); ?></span>
                             <span class="text-gray-500 text-xs bg-gray-100 px-2 py-1 rounded-md whitespace-nowrap">
-                                <?php echo e(optional($proje->onaylanma_tarihi)->format('d.m.Y') ?? '-'); ?>
+                                <?php echo e(optional($proje->onaya_gonderilme_tarihi ?? $proje->onaylanma_tarihi)->format('d.m.Y') ?? '-'); ?>
 
                             </span>
                         </div>
@@ -221,6 +272,7 @@
         </a>
     <?php endif; ?>
 
+    
     <?php if(isset($bekleyenAdimGorevleri) && $bekleyenAdimGorevleri->count() > 0): ?>
         <div
             class="group relative bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100 rounded-2xl p-6 hover:shadow-2xl hover:scale-105 transition-all duration-300 overflow-hidden col-span-1 md:col-span-2 xl:col-span-1">
@@ -275,5 +327,10 @@
         </div>
     <?php endif; ?>
 
+</div>
 
-</div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/dashboard/partials/standart-kullanici.blade.php ENDPATH**/ ?>
+
+<?php echo $__env->make('dashboard.partials.top5-performers', ['isSidebar' => $isSidebar ?? false], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+
+
+<?php echo $__env->make('dashboard.partials.birthdays', ['isSidebar' => $isSidebar ?? false], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/dashboard/partials/standart-kullanici.blade.php ENDPATH**/ ?>

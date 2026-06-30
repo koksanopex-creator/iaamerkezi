@@ -38,13 +38,21 @@ class SikayetTakimaAtandiBildirimi extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $data = $this->toDatabase($notifiable);
-
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->subject('Şikayet Ataması: #' . $this->sikayet->id)
             ->greeting("Merhaba {$notifiable->name},")
             ->line(strip_tags(str_replace(['**', '\"'], '', $data['message'])))
-            ->action('Şikayeti İncele', $data['link'])
-            ->salutation('Saygılarımızla, Köksan İyileştirmeye Açık Alan');
+            ->action('Şikayeti İncele', $data['link']);
+
+        // Müşteri tarafına özel şifre notu ekle
+        if (in_array($this->type, ['musteri', 'ek_ilgili'])) {
+            $mail->line('Sisteme mevcut giriş bilgileriniz (şifreniz) ile erişim sağlayabilirsiniz.')
+                 ->line('Şifrenizi hatırlamıyorsanız giriş sayfasından "Şifremi Unuttum" adımını takip edebilirsiniz.');
+        }
+
+        $mail->salutation('Saygılarımızla, Köksan İyileştirmeye Açık Alan');
+
+        return $mail;
     }
 
     /**
@@ -53,13 +61,21 @@ class SikayetTakimaAtandiBildirimi extends Notification
     public function toDatabase(object $notifiable): array
     {
         $link = route('admin.sikayetler.show', $this->sikayet->id);
-        $bolumAd = $this->sikayet->sikayetKategori && $this->sikayet->sikayetKategori->bolum ? $this->sikayet->sikayetKategori->bolum->ad : 'Genel';
-        $baslik = $this->sikayet->musteri_sikayet_konusu;
-        $takimAd = $this->sikayet->cozumTakimi ? $this->sikayet->cozumTakimi->ad : 'Çözüm Takımı';
+        
+        // Null-safe relations
+        $kategori = $this->sikayet->sikayetKategori;
+        $bolum = $kategori ? $kategori->bolum : null;
+        $bolumAd = $bolum ? $bolum->ad : 'Genel';
+        
+        $takim = $this->sikayet->cozumTakimi;
+        $takimAd = $takim ? $takim->ad : 'Çözüm Takımı';
+        
+        $baslik = $this->sikayet->musteri_sikayet_konusu ?? 'Şikayet';
 
         $message = "#{$this->sikayet->id} Nolu **{$baslik}** başlıklı şikayet takımınıza atandı.";
 
         switch ($this->type) {
+
             case 'direktor':
                 $message = "#{$this->sikayet->id} Nolu **{$baslik}** başlıklı şikayet direktörlüğünüze bağlı **{$bolumAd}** bölümün Müşteri şikayet çözüm takımına atandı.";
                 break;
@@ -71,6 +87,13 @@ class SikayetTakimaAtandiBildirimi extends Notification
                 break;
             case 'olusturan':
                 $message = "#{$this->sikayet->id} Nolu **{$baslik}** başlıklı şikayet **{$bolumAd}** bölümünün Müşteri şikayet çözüm takımına atandı.";
+                break;
+            case 'musteri':
+            case 'ek_ilgili':
+                $message = "#{$this->sikayet->id} Nolu **\"{$baslik}\"** başlıklı şikayetiniz çözüm için **\"{$takimAd}\"**'na atanmış ve çalışma başlatılmıştır.";
+                if ($this->sikayet->iaa_id) {
+                    $link = route('proje.workspace.show', $this->sikayet->iaa_id);
+                }
                 break;
         }
 

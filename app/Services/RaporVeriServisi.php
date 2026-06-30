@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 
 class RaporVeriServisi
 {
+    protected $user = null;
+
     // Tarih değişkenlerini sınıf özelliği olarak tanımlıyoruz (Scope hatasını önler)
     protected $bugun;
     protected $buHaftaBasi;
@@ -40,21 +42,79 @@ class RaporVeriServisi
         $this->gecenYilSonu = Carbon::now()->subYear()->endOfYear();
     }
 
+    /**
+     * Filtreleme için kullanıcıyı set eder.
+     */
+    public function setUser($user)
+    {
+        $this->user = $user;
+        return $this;
+    }
+
+    /**
+     * Kullanıcının kısıtlamaya tabi olup olmadığını kontrol eder.
+     */
+    protected function shouldFilter()
+    {
+        return $this->user && !$this->user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu']);
+    }
+
+    /**
+     * MusteriSikayeti sorgusuna yetki bazlı filtre ekler.
+     */
+    protected function applySikayetScope($query)
+    {
+        if ($this->shouldFilter()) {
+            $allowedBolumIds = $this->user->getAllowedBolumIds();
+            $query->where(function($q) use ($allowedBolumIds) {
+                // 1. Şikayet kategorisi kendi bölümüne ait
+                if ($allowedBolumIds !== '*') {
+                    $q->whereHas('sikayetKategori', fn($k) => $k->whereIn('bolum_id', $allowedBolumIds));
+                }
+                // 2. Kendi bölümünden bir personel takımda/projede
+                if ($this->user->bolum_id) {
+                    $q->orWhereHas('cozumTakimi.uyeler', fn($u) => $u->where('users.bolum_id', $this->user->bolum_id))
+                      ->orWhereHas('iaa.projeEkibi', fn($u) => $u->where('users.bolum_id', $this->user->bolum_id));
+                }
+            });
+        }
+        return $query;
+    }
+
+    /**
+     * Iaa sorgusuna yetki bazlı filtre ekler.
+     */
+    protected function applyIaaScope($query)
+    {
+        if ($this->shouldFilter()) {
+            $query->where(function($q) {
+                // Kendi bölümünün projesi
+                if ($this->user->bolum_id) {
+                    $q->where('bolum_id', $this->user->bolum_id)
+                      // Veya personelinin dahil olduğu proje
+                      ->orWhereHas('projeEkibi', fn($u) => $u->where('users.bolum_id', $this->user->bolum_id));
+                }
+            });
+        }
+        return $query;
+    }
+
     public function verileriTopla(array $icerikAyarlari)
     {
         $data = [];
 
         // --- 1. MÜŞTERİ ŞİKAYETLERİ ---
         if (!empty($icerikAyarlari['sikayet_ozet'])) {
+            $baseSikayetQuery = $this->applySikayetScope(MusteriSikayeti::query());
+
             $data['sikayet_genel'] = [
-                'toplam_kayit' => MusteriSikayeti::count(),
-                'bekleyen_yeni' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
-                'islemde_olan' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
-                'cozumlenen' => MusteriSikayeti::whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])->count(),
-                'iptal' => MusteriSikayeti::where('musteri_durum', 'İptal')->count(),
+                'toplam_kayit' => (clone $baseSikayetQuery)->count(),
+                'bekleyen_yeni' => (clone $baseSikayetQuery)->where('musteri_durum', 'Yeni')->count(),
+                'islemde_olan' => (clone $baseSikayetQuery)->where('musteri_durum', 'İşlemde')->count(),
+                'cozumlenen' => (clone $baseSikayetQuery)->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı'])->count(),
+                'iptal' => (clone $baseSikayetQuery)->where('musteri_durum', 'İptal')->count(),
             ];
 
-            // $this->... kullanarak sınıf özelliklerine erişiyoruz
             $data['sikayet_zaman'] = [
                 'bugun' => $this->getSikayetStats(Carbon::today(), Carbon::now()),
                 'bu_hafta' => $this->getSikayetStats($this->buHaftaBasi, Carbon::now()),
@@ -74,18 +134,20 @@ class RaporVeriServisi
         }
 
         if (!empty($icerikAyarlari['sikayet_detay'])) {
-            $data['sikayet_bolumler'] = MusteriSikayeti::join('sikayet_kategorileri', 'musteri_sikayetleri.sikayet_kategorisi_id', '=', 'sikayet_kategorileri.id')
+            $detayQuery = $this->applySikayetScope(MusteriSikayeti::query())
+                ->join('sikayet_kategorileri', 'musteri_sikayetleri.sikayet_kategorisi_id', '=', 'sikayet_kategorileri.id')
                 ->select(
+                    'sikayet_kategorileri.bolum_id',
                     'sikayet_kategorileri.ad as kategori_adi',
                     DB::raw('count(*) as toplam'),
                     DB::raw("sum(case when musteri_durum = 'Yeni' then 1 else 0 end) as yeni"),
                     DB::raw("sum(case when musteri_durum = 'İşlemde' then 1 else 0 end) as islemde"),
                     DB::raw("sum(case when musteri_durum IN ('Kapatıldı', 'Çözümlendi') then 1 else 0 end) as kapali")
                 )
-                ->groupBy('sikayet_kategorileri.ad')
-                ->orderByDesc('toplam')
-                ->get()
-                ->toArray();
+                ->groupBy('sikayet_kategorileri.bolum_id', 'sikayet_kategorileri.ad')
+                ->orderByDesc('toplam');
+
+            $data['sikayet_bolumler'] = $detayQuery->get()->toArray();
         }
 
         // --- 2. İAA SİSTEMİ ---
@@ -93,7 +155,7 @@ class RaporVeriServisi
 
             // FİLTRE: Müşteri Şikayetinden gelenleri hariç tut
             $sikayetIaaIds = MusteriSikayeti::whereNotNull('iaa_id')->pluck('iaa_id')->toArray();
-            $iaaQuery = Iaa::whereNotIn('id', $sikayetIaaIds);
+            $iaaQuery = $this->applyIaaScope(Iaa::whereNotIn('id', $sikayetIaaIds));
 
             $data['iaa_ozet'] = [
                 'toplam' => (clone $iaaQuery)->count(),
@@ -117,39 +179,49 @@ class RaporVeriServisi
                 'gecen_yil' => $this->getIaaStats($this->gecenYilBasi, $this->gecenYilSonu, $sikayetIaaIds),
             ];
 
-            $data['iaa_durum_detay'] = Iaa::whereNotIn('id', $sikayetIaaIds)
+            $data['iaa_durum_detay'] = (clone $iaaQuery)
                 ->select('durum', DB::raw('count(*) as sayi'))
                 ->groupBy('durum')
                 ->orderByDesc('sayi')
                 ->pluck('sayi', 'durum')
                 ->toArray();
 
-            // En Çok Öneri Veren Bölüm
-            $enCokBolum = DB::table('iaas')
+            // En Çok Öneri Veren Bölüm (Scope buraya da uygulanmalı)
+            $enCokBolumQuery = DB::table('iaas')
                 ->whereNotIn('iaas.id', $sikayetIaaIds)
                 ->whereNotNull('gonderen_user_id')
                 ->join('users', 'iaas.gonderen_user_id', '=', 'users.id')
-                ->join('bolumler', 'users.bolum_id', '=', 'bolumler.id')
-                ->select('bolumler.ad', DB::raw('count(*) as toplam'))
+                ->join('bolumler', 'users.bolum_id', '=', 'bolumler.id');
+
+            if ($this->shouldFilter()) {
+                $enCokBolumQuery->where('iaas.bolum_id', $this->user->bolum_id);
+            }
+
+            $enCokBolum = $enCokBolumQuery->select('bolumler.ad', DB::raw('count(*) as toplam'))
                 ->groupBy('bolumler.ad')
                 ->orderByDesc('toplam')
                 ->first();
             $data['iaa_en_cok_bolum'] = $enCokBolum ? $enCokBolum->ad . " (" . $enCokBolum->toplam . ")" : '-';
 
             // En Çok Çözen Takım
-            $enCokTakim = DB::table('iaa_talepleri')
+            $enCokTakimQuery = DB::table('iaa_talepleri')
                 ->join('iaas', 'iaa_talepleri.iaa_id', '=', 'iaas.id')
                 ->whereNotIn('iaas.id', $sikayetIaaIds)
                 ->join('takimlar', 'iaa_talepleri.takim_id', '=', 'takimlar.id')
-                ->where('iaa_talepleri.status', 'Tamamlandı')
-                ->select('takimlar.ad', DB::raw('count(*) as toplam'))
+                ->where('iaa_talepleri.status', 'Tamamlandı');
+
+            if ($this->shouldFilter()) {
+                $enCokTakimQuery->where('iaas.bolum_id', $this->user->bolum_id);
+            }
+
+            $enCokTakim = $enCokTakimQuery->select('takimlar.ad', DB::raw('count(*) as toplam'))
                 ->groupBy('takimlar.ad')
                 ->orderByDesc('toplam')
                 ->first();
             $data['iaa_en_cok_takim'] = $enCokTakim ? $enCokTakim->ad . " (" . $enCokTakim->toplam . ")" : '-';
 
             // Son Gelen Öneri
-            $sonOneri = Iaa::whereNotIn('id', $sikayetIaaIds)->latest()->first();
+            $sonOneri = (clone $iaaQuery)->latest()->first();
             $data['iaa_son'] = $sonOneri ? [
                 'tarih' => $sonOneri->created_at->format('d.m.Y'),
                 'baslik' => $sonOneri->baslik,
@@ -157,7 +229,7 @@ class RaporVeriServisi
             ] : null;
 
             // Hız
-            $avgDays = Iaa::whereNotIn('id', $sikayetIaaIds)
+            $avgDays = (clone $iaaQuery)
                 ->whereIn('durum', ['Tamamlandı', 'Talep Olarak Kapatıldı'])
                 ->select(DB::raw('AVG(DATEDIFF(updated_at, created_at)) as gun'))
                 ->value('gun');
@@ -166,18 +238,30 @@ class RaporVeriServisi
 
         // --- 3. DİSİPLİN & ARABULUCULUK ---
         if (!empty($icerikAyarlari['disiplin_ozet'])) {
+            $disiplinQuery = DisciplinaryCase::query();
+            if ($this->shouldFilter()) {
+                $disiplinQuery->where(function($q) {
+                    $q->whereHas('user', fn($u) => $u->where('bolum_id', $this->user->bolum_id))
+                      ->orWhereHas('reporter', fn($u) => $u->where('bolum_id', $this->user->bolum_id));
+                });
+            }
+
             $data['disiplin'] = [
-                'acik' => DisciplinaryCase::whereNotIn('durum', ['dosya_kapatildi', 'reddedildi'])->count(),
-                'savunma' => DisciplinaryCase::where('durum', 'savunma_bekleniyor')->count(),
-                'bu_ay' => DisciplinaryCase::where('created_at', '>=', $this->buAyBasi)->count(),
+                'acik' => (clone $disiplinQuery)->whereNotIn('durum', ['dosya_kapatildi', 'reddedildi'])->count(),
+                'savunma' => (clone $disiplinQuery)->where('durum', 'savunma_bekleniyor')->count(),
+                'bu_ay' => (clone $disiplinQuery)->where('created_at', '>=', $this->buAyBasi)->count(),
             ];
         }
 
         if (!empty($icerikAyarlari['arabuluculuk_ozet'])) {
+            $arabuluculukQuery = ArabuluculukCase::query();
+            if ($this->shouldFilter()) {
+                $arabuluculukQuery->whereHas('calisan', fn($u) => $u->where('bolum_id', $this->user->bolum_id));
+            }
+
             $data['arabuluculuk'] = [
-                'aktif' => ArabuluculukCase::where('status', '!=', 'kapatildi')->count(),
-                'odeme' => ArabuluculukCase::where('status', 'odeme_bekliyor')->count(),
-                // 'toplanti' => ArabuluculukCase::where('toplanti_tarihi', '>=', now())->where('toplanti_tarihi', '<=', now()->addDays(7))->count(),
+                'aktif' => (clone $arabuluculukQuery)->where('status', '!=', 'kapatildi')->count(),
+                'odeme' => (clone $arabuluculukQuery)->where('status', 'odeme_bekliyor')->count(),
             ];
         }
 
@@ -186,21 +270,24 @@ class RaporVeriServisi
 
     private function getSikayetStats($start, $end)
     {
+        $queryGelen = $this->applySikayetScope(MusteriSikayeti::whereBetween('created_at', [$start, $end]));
+        $queryKapanan = $this->applySikayetScope(MusteriSikayeti::whereIn('musteri_durum', ['Kapatıldı', 'Çözümlendi'])
+                ->whereBetween('updated_at', [$start, $end]));
+
         return [
-            'gelen' => MusteriSikayeti::whereBetween('created_at', [$start, $end])->count(),
-            'kapanan' => MusteriSikayeti::whereIn('musteri_durum', ['Kapatıldı', 'Çözümlendi'])
-                ->whereBetween('updated_at', [$start, $end])->count(),
+            'gelen' => $queryGelen->count(),
+            'kapanan' => $queryKapanan->count(),
         ];
     }
 
     private function getIaaStats($start, $end, $excludeIds = [])
     {
+        $queryGelen = $this->applyIaaScope(Iaa::whereNotIn('id', $excludeIds)->whereBetween('created_at', [$start, $end]));
+        $queryBiten = $this->applyIaaScope(Iaa::whereNotIn('id', $excludeIds)->whereIn('durum', ['Tamamlandı', 'Talep Olarak Kapatıldı'])->whereBetween('updated_at', [$start, $end]));
+
         return [
-            'gelen' => Iaa::whereNotIn('id', $excludeIds)
-                ->whereBetween('created_at', [$start, $end])->count(),
-            'biten' => Iaa::whereNotIn('id', $excludeIds)
-                ->whereIn('durum', ['Tamamlandı', 'Talep Olarak Kapatıldı'])
-                ->whereBetween('updated_at', [$start, $end])->count(),
+            'gelen' => $queryGelen->count(),
+            'biten' => $queryBiten->count(),
         ];
     }
 }

@@ -163,18 +163,37 @@ class SikayetTriyajModal extends Component
                         'baslik' => $sikayet->musteri_sikayet_konusu,
                         'mevcut_durum' => $sikayet->musteri_sikayet_detayi,
                         'oneri' => 'Müşteri şikayetinden (ID: ' . $sikayet->id . ') dönüştürüldü.',
+                        'yonetici_notu' => null,
                         'durum' => 'Atandı',
-                        'puan' => $this->musteri_puan ?? 100, // Triyajda belirlenen puan (default veya hesaplanan)
+                        'puan' => $this->musteri_puan ?? 0, // Triyajda belirlenen puan esas alınır
                         'gonderen_user_id' => null,
                         'guest_name' => $sikayet->musteri_adi,
                         'guest_email' => $sikayet->musteri_iletisim,
                         'onaylayan_user_id' => $user->id,
                         'onaylanma_tarihi' => now(),
-                        'atanan_takim_id' => $this->atanan_cozum_takimi_id
+                        'atanan_takim_id' => $this->atanan_cozum_takimi_id,
+                        'atamadaki_lider_id' => $yeniAtananTakim->lider_user_id ?? null
                     ]);
 
                     // b. Proje Atamasını (iaa_talepleri tablosuna) oluştur
-                    $workflowId = 2;
+                    // YENİ ŞABLON (WORKFLOW) MANTIĞI:
+                    // 1. Önce şikayetin bağlı olduğu bölümün özel bir şablonu var mı bak:
+                    $workflowId = null;
+                    $bolum = $sikayet->sikayetKategori->bolum ?? null;
+
+                    if ($bolum && $bolum->sikayet_workflow_id) {
+                        $workflowId = $bolum->sikayet_workflow_id;
+                    }
+
+                    // 2. Bölüme özel şablon yoksa, sistem varsayılanını bul:
+                    if (!$workflowId) {
+                        $defaultWorkflow = IaaWorkflow::where('is_default', true)->first();
+                        $workflowId = $defaultWorkflow ? $defaultWorkflow->id : 2; // Hiçbiri yoksa fallback ID: 2
+                    }
+
+                    // Snapshot Al
+                    $workflow = IaaWorkflow::with('steps')->find($workflowId);
+                    $stepsSnapshot = $workflow ? $workflow->steps->toArray() : null;
 
                     DB::table('iaa_talepleri')->insert([
                         'iaa_id' => $yeniProje->id,
@@ -182,6 +201,7 @@ class SikayetTriyajModal extends Component
                         'talep_eden_user_id' => $user->id,
                         'durum' => 'onaylandi',
                         'iaa_workflow_id' => $workflowId,
+                        'workflow_snapshot' => $stepsSnapshot ? json_encode($stepsSnapshot) : null,
                         'start_date' => now(),
                         'due_date' => $this->musteri_cozum_son_tarihi ?? now()->addDays(14), // Triyajdaki tarihi (72 saat veya manuel)
                         'status' => 'Devam Ediyor',
@@ -194,7 +214,7 @@ class SikayetTriyajModal extends Component
 
                     // --- EKSİK OLAN PARÇA: LİDERİ SQUAD'A EKLE ---
                     // Atanan takımı bul (Zaten $this->atanan_cozum_takimi_id elimizde var)
-                    $atananTakim = \App\Models\Takim::find($this->atanan_cozum_takimi_id);
+                    $atananTakim = Takim::find($this->atanan_cozum_takimi_id);
 
                     if ($atananTakim && $atananTakim->lider_user_id) {
                         // Lideri, bu projenin özel ekibine (iaa_user) "Lider" rolüyle ekle
@@ -231,8 +251,11 @@ class SikayetTriyajModal extends Component
                             }
                         }
 
-                        // 2. Projenin atanan takımını güncelle
-                        $mevcutProje->update(['atanan_takim_id' => $this->atanan_cozum_takimi_id]);
+                        // 2. Projenin atanan takımını ve o andaki liderini güncelle
+                        $mevcutProje->update([
+                            'atanan_takim_id' => $this->atanan_cozum_takimi_id,
+                            'atamadaki_lider_id' => $yeniAtananTakim->lider_user_id ?? null
+                        ]);
 
                         // 3. Talep kaydını güncelle (iaa_talepleri)
                         DB::table('iaa_talepleri')
@@ -304,13 +327,22 @@ class SikayetTriyajModal extends Component
 
 
             // === VERİ GÜNCELLEME DİZİSİ (GÜNCELLENDİ) ===
+            $etkiPuani = !empty($this->etki_puani) ? (int)$this->etki_puani : null;
+            $karmasiklikPuani = !empty($this->karmasiklik_puani) ? (int)$this->karmasiklik_puani : null;
+            $musteriPuan = $this->musteri_puan;
+
+            // Eğer puanlama alanları boşsa ve puan henüz 0 ise varsayılan puanı uygula
+            if (is_null($etkiPuani) && is_null($karmasiklikPuani) && ($musteriPuan == 0 || empty($musteriPuan))) {
+                $musteriPuan = (int) (Setting::where('key', 'kurul_default_puan')->value('value') ?? 0);
+            }
+
             $updateData = [
                 'atanan_cozum_takimi_id' => $this->atanan_cozum_takimi_id,
                 'musteri_durum' => $yeniDurum,
                 'musteri_cozum_son_tarihi' => $this->musteri_cozum_son_tarihi,
-                'etki_puani' => $this->etki_puani,
-                'karmasiklik_puani' => $this->karmasiklik_puani,
-                'musteri_puan' => $this->musteri_puan,
+                'etki_puani' => $etkiPuani,
+                'karmasiklik_puani' => $karmasiklikPuani,
+                'musteri_puan' => $musteriPuan,
                 'ek_sure_talep_durumu' => $this->ek_sure_talep_durumu,
                 'iaa_id' => $sikayet->iaa_id // <-- YENİ PROJE ID'SİNİ KAYDET
             ];
@@ -325,6 +357,20 @@ class SikayetTriyajModal extends Component
             // !!!!! ÖNCE GÜNCELLEME YAP !!!!!
             $sikayet->update($updateData);
 
+            // === YENİ: PUAN SENKRONİZASYONU ===
+            // Eğer şikayetin puanı güncellendiyse ve bağlı bir proje varsa, proje puanını da eşitle
+            if (!empty($sikayet->iaa_id)) {
+                $proje = \App\Models\Iaa::find($sikayet->iaa_id);
+                if ($proje && $proje->puan != $musteriPuan) {
+                    $proje->update(['puan' => $musteriPuan]);
+                    // Eğer henüz log eklenmediyse senkronizasyon bilgisi ekle
+                    if (!in_array("Bağlı projenin (ID:{$proje->id}) puanı {$musteriPuan} olarak senkronize edildi.", $logAciklamalari)) {
+                        $logAciklamalari[] = "Bağlı projenin (ID:{$proje->id}) puanı {$musteriPuan} olarak senkronize edildi.";
+                    }
+                }
+            }
+            // =================================
+
 
             // !!!!! ŞİMDİ MAİL GÖNDER (ÇÜNKÜ $sikayet->iaa_id ARTIK DOLU) !!!!!
             // === YENİ E-POSTA GÖNDERİM YERİ ===
@@ -336,6 +382,15 @@ class SikayetTriyajModal extends Component
                     $this->notifyTeamAboutAssignment($sikayet, $yeniAtananTakim, null);
                 } catch (\Exception $e) {
                     Log::error('Atama maili gönderilemedi (Triyaj). Hata: ' . $e->getMessage());
+                    \App\Helpers\MailLogHelper::logFailure(
+                        $sikayet,
+                        '"' . $sikayet->musteri_sikayet_konusu . '" şikayetinin takım atamasında bildirim gönderilemedi',
+                        $yeniAtananTakim->uyeler ?? collect(),
+                        $e->getMessage(),
+                        null,
+                        null,
+                        $sikayet->sikayetKategori->bolum_id ?? null
+                    );
                 }
             }
             // === E-POSTA GÖNDERİM SONU ===
@@ -501,6 +556,161 @@ class SikayetTriyajModal extends Component
                     Mail::to(trim($recipient))->queue($mailableInfo);
                 }
             }
+        }
+
+        // 3. Veritabanı ve Zil Bildirimleri (SikayetTakimaAtandiBildirimi)
+        try {
+            $recipients = collect();
+            $snapshotEntries = []; // Snapshot'a eklenecek yeni kayıtlar
+
+            $addToSnapshot = function ($user, $roleLabel) use (&$snapshotEntries) {
+                $snapshotEntries[] = [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->telefon ?? $user->phone ?? null,
+                    'photo' => $user->profile_photo_path,
+                    'role_label' => $roleLabel . ' (Takım Atandı)',
+                    'notified_at' => now()->toDateTimeString(),
+                ];
+            };
+            
+            // a) Takım Lideri
+            try {
+                if ($team && $team->lider_user_id) {
+                    $teamLeader = User::find($team->lider_user_id);
+                    if ($teamLeader) {
+                        $teamLeader->notify(new \App\Notifications\SikayetTakimaAtandiBildirimi($sikayet, 'lider'));
+                        $addToSnapshot($teamLeader, 'Takım Lideri');
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Takım lideri bildirim hatası: ' . $e->getMessage());
+            }
+
+            // b) Direktör, Kalite Yöneticisi ve Bölüm Lideri
+            $kategoriId = $sikayet->sikayet_kategorisi_id;
+            if ($kategoriId) {
+                $kategori = \App\Models\SikayetKategori::find($kategoriId);
+                if ($kategori && $kategori->bolum_id) {
+                    $bolum = $kategori->bolum;
+
+                    // Direktör
+                    try {
+                        if ($bolum && $bolum->director_id) {
+                            $direktor = User::find($bolum->director_id);
+                            if ($direktor) {
+                                $direktor->notify(new \App\Notifications\SikayetTakimaAtandiBildirimi($sikayet, 'direktor'));
+                                $addToSnapshot($direktor, 'Bölüm Direktörü');
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Direktör bildirim hatası: ' . $e->getMessage());
+                    }
+
+                    // Kalite Yöneticileri (Mapping üzerinden)
+                    try {
+                        $kaliteYoneticileriMapping = User::whereHas('yonettigiSikayetKategorileri', function($q) use ($kategoriId) {
+                            $q->where('sikayet_kategori_id', $kategoriId);
+                        })->get();
+                        
+                        // Ek olarak rol bazlı kontrol (Bölüm bazlı kalite yöneticileri varsa)
+                        // ÖNEMLİ: Karakter kodlaması ve rolün varlığı kontrol ediliyor.
+                        $roleName = 'Bölüm Kalite Yöneticisi';
+                        $roleExists = \Spatie\Permission\Models\Role::where('name', $roleName)->exists();
+                        
+                        $kaliteYoneticileriRole = collect();
+                        if ($roleExists) {
+                            $kaliteYoneticileriRole = User::role([$roleName])
+                                ->where('bolum_id', $kategori->bolum_id)
+                                ->get();
+                        }
+
+                        $allKalite = $kaliteYoneticileriMapping->merge($kaliteYoneticileriRole)->unique('id');
+
+                        foreach ($allKalite as $ky) {
+                            $ky->notify(new \App\Notifications\SikayetTakimaAtandiBildirimi($sikayet, 'kalite'));
+                            $addToSnapshot($ky, 'Bölüm Kalite Yöneticisi');
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Kalite yöneticisi bildirimleri hatası: ' . $e->getMessage());
+                    }
+
+                    // Bölüm Liderleri
+                    try {
+                        $roleNameBL = 'Bölüm Lideri';
+                        $roleBLExists = \Spatie\Permission\Models\Role::where('name', $roleNameBL)->exists();
+                        
+                        $bolumLiderleri = collect();
+                        if ($roleBLExists) {
+                            $bolumLiderleri = User::role([$roleNameBL])->where('bolum_id', $kategori->bolum_id)->get();
+                        }
+                        
+                        foreach ($bolumLiderleri as $bl) {
+                            $bl->notify(new \App\Notifications\SikayetTakimaAtandiBildirimi($sikayet, 'bolum_lideri'));
+                            $addToSnapshot($bl, 'Bölüm Lideri');
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('Bölüm lideri bildirimleri hatası: ' . $e->getMessage());
+                    }
+                }
+            }
+
+            // c) Müşteri Temsilcileri ve Ek İlgililer (Tekilleştirilmiş)
+            try {
+                $customerUsers = collect();
+                if ($sikayet->customer_id) {
+                    $customerUsers = User::where('customer_id', $sikayet->customer_id)->get();
+                }
+
+                $ekYetkililer = $sikayet->ekYetkililer ?: collect();
+                
+                // İki grubu birleştir ve ID'ye göre tekilleştir
+                // Öncelik: Eğer kullanıcı her iki listede de varsa, 'Ek İlgili' olarak işaretlenebilir (veya tam tersi)
+                // Burada customerUsers'ı temel alıp ekYetkililer'i üzerine ekliyoruz.
+                $allMusteriRecipients = $customerUsers->merge($ekYetkililer)->unique('id');
+
+                foreach ($allMusteriRecipients as $u) {
+                    // Kullanıcı tipini belirle (Snapshot için)
+                    $isEkYetkili = $ekYetkililer->contains('id', $u->id);
+                    $roleLabel = $isEkYetkili ? 'Ek İlgili' : 'Müşteri Yetkilisi';
+                    $notifyType = $isEkYetkili ? 'ek_ilgili' : 'musteri';
+
+                    $u->notify(new \App\Notifications\SikayetTakimaAtandiBildirimi($sikayet, $notifyType));
+                    $addToSnapshot($u, $roleLabel);
+                }
+            } catch (\Exception $e) {
+                Log::error('Müşteri/Ek İlgili bildirimleri hatası: ' . $e->getMessage());
+            }
+
+
+            // d) Snapshot Güncelleme
+            if (!empty($snapshotEntries)) {
+                $currentSnapshot = json_decode($sikayet->notified_snapshot, true) ?: [];
+                
+                foreach ($snapshotEntries as $entry) {
+                    $currentSnapshot[] = $entry;
+                }
+
+                // Tekilleştirme: Kullanıcı bazlı en son bildirimi tut
+                $uniqueSnapshot = collect($currentSnapshot)->unique(function ($item) {
+                    return $item['user_id'] . $item['role_label'];
+                })->values()->toArray();
+
+                $sikayet->update(['notified_snapshot' => json_encode($uniqueSnapshot)]);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Takım atama zil bildirimleri hatası: ' . $e->getMessage() . ' | Dosya: ' . $e->getFile() . ':' . $e->getLine());
+            \App\Helpers\MailLogHelper::logFailure(
+                $sikayet,
+                '"' . $sikayet->musteri_sikayet_konusu . '" şikayetinin atama zil bildirimleri gönderilemedi',
+                collect(),
+                $e->getMessage(),
+                null,
+                null,
+                $sikayet->sikayetKategori->bolum_id ?? null
+            );
         }
     }
     // === YENİ EKLENEN METODUN SONU ===

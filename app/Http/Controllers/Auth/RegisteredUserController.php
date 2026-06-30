@@ -63,7 +63,7 @@ class RegisteredUserController extends Controller
 
         event(new Registered($user));
 
-        return redirect('/login')->with('status', 'Kaydınız başarıyla oluşturuldu! Hesabınız yönetici tarafından onaylandıktan sonra giriş yapabilirsiniz.');
+        return redirect('/login')->with('status', 'Kaydınız başarıyla oluşturuldu! Lütfen e-posta adresinize gönderilen doğrulama bağlantısına tıklayarak hesabınızı aktifleştirin. (E-posta ulaşmadıysa, yöneticinizin manuel onayını da bekleyebilirsiniz).');
     }
 
 }

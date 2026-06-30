@@ -1,4 +1,5 @@
 <x-app-layout>
+    <x-slot name="title">Takım Puan Detayı | {{ $takim->ad }}</x-slot>
     <x-slot name="header">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <h2 class="text-xl font-semibold leading-tight">
@@ -31,7 +32,7 @@
                             <div class="font-bold text-gray-800 flex items-center justify-center gap-2">
                                 @if($takim->lider && $takim->lider->profile_photo_path)
                                     <img class="h-8 w-8 rounded-full object-cover"
-                                        src="{{ '/storage/' . $takim->lider->profile_photo_path }}" alt="">
+                                        src="{{ asset('storage/' . $takim->lider->profile_photo_path) }}" alt="">
                                 @endif
                                 <a href="{{ route('profile.show', $takim->lider->id) }}"
                                     class="hover:text-indigo-600 underline">
@@ -49,16 +50,15 @@
                             <div class="text-xl font-bold text-blue-600">{{ $uyeler->count() }}</div>
                         </div>
                         <div class="p-4 bg-orange-50 rounded-lg">
-                            <div class="text-xs text-orange-500 uppercase font-bold tracking-wider mb-1">Tamamlanan
-                                Proje</div>
-                            <div class="text-xl font-bold text-orange-600">{{ $tamamlananProjeler->count() }}</div>
+                            <div class="text-xs text-orange-500 uppercase font-bold tracking-wider mb-1">Tamamlanan Proje</div>
+                            <div class="text-xl font-bold text-orange-600">{{ $tamamlananProjeler->count() + (count($cozulenSikayetler)) }}</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Sol Kolon: Takım Üyeleri -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- 1. Kolon: Takım Üyeleri -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg h-full">
                     <div class="p-6 border-b border-gray-100 flex justify-between items-center">
                         <h3 class="font-semibold text-gray-800 flex items-center gap-2">
@@ -73,14 +73,14 @@
                             class="text-xs font-medium bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{{ $uyeler->count() }}
                             Kişi</span>
                     </div>
-                    <div class="divide-y divide-gray-100">
+                    <div class="divide-y divide-gray-100 max-h-[600px] overflow-y-auto custom-scrollbar">
                         @foreach($uyeler as $uye)
                             <div class="p-4 flex items-center justify-between hover:bg-gray-50 transition">
                                 <div class="flex items-center gap-3">
                                     <div class="flex-shrink-0">
                                         @if($uye->profile_photo_path)
                                             <img class="h-10 w-10 rounded-full object-cover border border-gray-200"
-                                                src="{{ '/storage/' . $uye->profile_photo_path }}" alt="">
+                                                src="{{ asset('storage/' . $uye->profile_photo_path) }}" alt="">
                                         @else
                                             <div
                                                 class="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold border border-indigo-200">
@@ -104,18 +104,71 @@
                                 </div>
                             </div>
                         @endforeach
+                    </div>
+                </div>
 
-                        @if($uyeler->isEmpty())
-                            <div class="p-8 text-center text-gray-500 italic">
-                                Henüz üye bulunmuyor.
+                <!-- 2. Kolon: İşlemde Olanlar (Aktif Görevler) -->
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg h-full">
+                    <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-50/30">
+                        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            İşlemde Olan Görevler
+                        </h3>
+                        <span class="text-xs font-medium bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">
+                            {{ $islemdekiSikayetler->count() + $islemdekiProjeler->count() }} Adet
+                        </span>
+                    </div>
+
+                    <div class="divide-y divide-gray-100 max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <!-- İşlemdeki Şikayetler -->
+                        @foreach($islemdekiSikayetler as $sikayet)
+                            <div class="p-4 hover:bg-gray-50 transition border-l-4 border-indigo-400">
+                                <div class="flex justify-between items-start mb-1">
+                                    <a href="{{ route('admin.sikayetler.show', $sikayet->id) }}" class="font-bold text-gray-900 hover:text-indigo-600 text-sm">
+                                        #{{ $sikayet->id }} - {{ Str::limit($sikayet->musteri_sikayet_konusu, 50) }}
+                                    </a>
+                                </div>
+                                <div class="flex justify-between items-center mt-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200 uppercase">Müşteri Şikayeti</span>
+                                        <span class="text-[10px] text-gray-500">{{ $sikayet->updated_at->diffForHumans() }}</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-100">{{ $sikayet->musteri_durum }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+
+                        <!-- İşlemdeki İAA Projeleri -->
+                        @foreach($islemdekiProjeler as $proje)
+                            <div class="p-4 hover:bg-gray-50 transition border-l-4 border-blue-400">
+                                <div class="flex justify-between items-start mb-1">
+                                    <a href="{{ route('iaa.show', $proje->id) }}" class="font-bold text-gray-900 hover:text-indigo-600 text-sm">
+                                        {{ Str::limit($proje->baslik, 50) }}
+                                    </a>
+                                </div>
+                                <div class="flex justify-between items-center mt-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-black bg-blue-100 text-blue-700 border border-blue-200 uppercase">İAA Projesi</span>
+                                        <span class="text-[10px] text-gray-500">{{ $proje->updated_at->diffForHumans() }}</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{{ $proje->durum }}</span>
+                                </div>
+                            </div>
+                        @endforeach
+
+                        @if($islemdekiSikayetler->isEmpty() && $islemdekiProjeler->isEmpty())
+                            <div class="p-8 text-center text-gray-500 italic text-sm">
+                                Takımın üzerinde bekleyen aktif görev bulunmuyor.
                             </div>
                         @endif
                     </div>
                 </div>
 
-                <!-- Sağ Kolon: Puan Kaynağı (Projeler) -->
+                <!-- 3. Kolon: Puan Kaynağı (Tamamlananlar) -->
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg h-full">
-                    <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                    <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-green-50/30">
                         <h3 class="font-semibold text-gray-800 flex items-center gap-2">
                             <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -124,7 +177,7 @@
                             Tamamlanan Projeler (Puan Kaynağı)
                         </h3>
                         <span
-                            class="text-xs font-medium bg-green-100 text-green-700 px-2 py-1 rounded-full">{{ $tamamlananProjeler->count() }}
+                            class="text-xs font-medium bg-green-100 text-green-700 px-2 py-1 rounded-full">{{ $tamamlananProjeler->count() + (count($cozulenSikayetler)) }}
                             Adet</span>
                     </div>
 
@@ -182,7 +235,7 @@
                                             <span class="px-2 py-0.5 rounded text-white font-bold bg-gray-400">
                                                 İAA Projesi
                                             </span>
-                                            <span>Onay: {{ \Carbon\Carbon::parse($proje->onaylanma_tarihi)->format('d.m.Y') }}</span>
+                                            <span>Onaya Gönderme: {{ \Carbon\Carbon::parse($proje->onaya_gonderilme_tarihi ?? $proje->onaylanma_tarihi)->format('d.m.Y') }}</span>
                                         </div>
                                         <a href="{{ route('iaa.show', $proje->id) }}" class="text-indigo-500 hover:underline">Detay</a>
                                     </div>

@@ -8,6 +8,9 @@ use App\Models\IaaResim;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use App\Models\User;
+use App\Notifications\YeniIaaOnerisi;
+use Illuminate\Support\Facades\Notification;
 
 
 class GuestIaaController extends Controller
@@ -44,10 +47,12 @@ class GuestIaaController extends Controller
             'resimler.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
+        $iaaRecord = null;
+
         try {
-            DB::transaction(function () use ($request, $validatedData) {
+            DB::transaction(function () use ($request, $validatedData, &$iaaRecord) {
                 // Veritabanına kaydı güncelliyoruz.
-                $iaa = Iaa::create([
+                $iaaRecord = Iaa::create([
                     'gonderen_user_id' => null,
                     'guest_name' => $validatedData['guest_name'],
                     'guest_email' => $validatedData['guest_email'] ?? null,
@@ -71,7 +76,7 @@ class GuestIaaController extends Controller
                         $path = $resim->storeAs('iaa_resimleri', $filename, 'public');
                         
                         IaaResim::create([
-                            'iaa_id' => $iaa->id,
+                            'iaa_id' => $iaaRecord->id,
                             'dosya_yolu' => $path,
                         ]);
                     }
@@ -79,6 +84,23 @@ class GuestIaaController extends Controller
             });
         } catch (\Exception $e) {
             return back()->withInput()->with('error', 'Öneriniz gönderilirken bir hata oluştu. Lütfen tekrar deneyin.');
+        }
+
+        // === BİLDİRİM: Transaction DIŞINDA — mail hatası kaydı bozmaz ===
+        if ($iaaRecord) {
+            try {
+                $superadmins = User::role('Superadmin')->get();
+                if ($superadmins->isNotEmpty()) {
+                    Notification::send($superadmins, new YeniIaaOnerisi($iaaRecord, $validatedData['guest_name']));
+                }
+            } catch (\Exception $e) {
+                \App\Helpers\MailLogHelper::logFailure(
+                    $iaaRecord,
+                    'Misafir İAA Önerisi Bildirimi',
+                    User::role('Superadmin')->get(),
+                    $e->getMessage()
+                );
+            }
         }
 
         return redirect()->route('guest.iaa.create')->with('success', 'Öneriniz başarıyla alınmıştır! Değerlendirme için teşekkür ederiz.');

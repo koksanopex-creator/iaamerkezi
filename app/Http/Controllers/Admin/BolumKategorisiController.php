@@ -32,6 +32,24 @@ class BolumKategorisiController extends Controller
     }
 
     /**
+     * AJAX tabanlı kategori kaydı.
+     */
+    public function storeAjax(Request $request)
+    {
+        $validated = $request->validate([
+            'ad' => 'required|string|max:255|unique:bolum_kategorileri',
+        ]);
+
+        $kategori = BolumKategorisi::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kategori başarıyla eklendi.',
+            'category' => $kategori
+        ]);
+    }
+
+    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, BolumKategorisi $bolumKategorisi)

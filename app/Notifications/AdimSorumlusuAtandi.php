@@ -4,10 +4,12 @@ namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Notifications\Messages\MailMessage;
 
 class AdimSorumlusuAtandi extends Notification
 {
-    use Queueable;
+    // use Queueable;
 
     protected $iaa;
     protected $step;
@@ -24,7 +26,22 @@ class AdimSorumlusuAtandi extends Notification
 
     public function via($notifiable)
     {
-        return ['database'];
+        return ['database', 'mail'];
+    }
+
+    public function toMail($notifiable)
+    {
+        $date = now()->format('d.m.Y H:i');
+        
+        return (new MailMessage)
+            ->subject('Yeni Proje Adımı Ataması: ' . $this->iaa->baslik)
+            ->greeting('Merhaba ' . $notifiable->name . ',')
+            ->line("'{$this->iaa->baslik}' projesinde yeni bir adım ataması yapıldı.")
+            ->line("Adım: " . $this->step->name)
+            ->line("Atayan: " . $this->lider->name)
+            ->line("Atama Tarihi: " . $date)
+            ->action('Projeye Git', route('proje.workspace.show', $this->iaa->id))
+            ->line('İyi çalışmalar dileriz.');
     }
 
     public function toArray($notifiable)

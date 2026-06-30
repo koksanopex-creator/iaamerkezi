@@ -12,14 +12,14 @@ class Takim extends Model
     use HasFactory;
 
     protected $table = 'takimlar';
-    protected $fillable = ['ad', 'lider_user_id', 'amac', 'vizyon', 'misyon', 'kurallar', 'tur'];
+    protected $fillable = ['ad', 'lider_user_id', 'amac', 'vizyon', 'misyon', 'kurallar', 'tur', 'toplam_puan'];
 
     /**
      * Takımın liderini (User) getirir.
      */
     public function lider()
     {
-        return $this->belongsTo(User::class, 'lider_user_id');
+        return $this->belongsTo(User::class, 'lider_user_id')->withTrashed();
     }
 
     /**
@@ -55,7 +55,7 @@ class Takim extends Model
     public function talepEttigiIaalar()
     {
         return $this->belongsToMany(Iaa::class, 'iaa_talepleri', 'takim_id', 'iaa_id')
-            ->withPivot('id', 'iaa_workflow_id', 'start_date', 'due_date', 'status')
+            ->withPivot('id', 'iaa_workflow_id', 'workflow_snapshot', 'start_date', 'due_date', 'status')
             ->withTimestamps();
     }
 

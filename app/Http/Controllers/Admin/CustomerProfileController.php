@@ -16,18 +16,19 @@ class CustomerProfileController extends Controller
 
         // 1. GENEL SAYFA ERİŞİM YETKİSİ
         $tamYetkiliRoller = [
-            'Superadmin', 'Yonetim', 'Bölüm Lideri', 'Bölüm Kalite Yöneticisi', 
-            'Müşteri Şikayeti Çözüm Lideri', 'Müşteri Şikayeti Kurulu'
+            'Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'
         ];
         
         $yetkisiVarMi = $user->hasRole($tamYetkiliRoller);
         
         if (!$yetkisiVarMi) {
-            if ($user->customer_id === $customer->id) {
+            // Müşteri temsilcisi kendi profilini (yetkili olduğu firmaları) görebilir
+            if ($user->customer_id == $customer->id || $user->customers()->where('customers.id', $customer->id)->exists()) {
                 // İzin ver
             }
+            // Diğer personel rolleri (Bölüm Lideri, Kalite Yöneticisi vb.) görebilir ama verisi kısıtlanacak
             elseif ($user->is_personnel) {
-                // Personel kontrolü (Basit geçiş)
+                // İzin ver
             }
             else {
                 abort(403, 'Bu müşteri profilini görüntüleme yetkiniz yok.');
@@ -40,35 +41,51 @@ class CustomerProfileController extends Controller
         
         $baseQuery = $customer->sikayetler();
 
+        if ($request->has('start_date') || $request->has('end_date')) {
+            $startDate = $request->start_date;
+            $endDate = $request->end_date;
+
+            $baseQuery->where(function ($query) use ($startDate, $endDate) {
+                if ($startDate) {
+                    $query->where(function ($q) use ($startDate) {
+                        $q->whereDate('created_at', '>=', $startDate)
+                          ->orWhereDate('updated_at', '>=', $startDate);
+                    });
+                }
+                if ($endDate) {
+                    $query->where(function ($q) use ($endDate) {
+                        $q->whereDate('created_at', '<=', $endDate)
+                          ->orWhereDate('updated_at', '<=', $endDate);
+                    });
+                }
+            });
+        }
+
+        // Yetkisi kısıtlı roller (Bölüm Lideri, Direktör, Kalite vb. ve Müşteri)
         if (!$yetkisiVarMi) {
-            if ($user->customer_id === $customer->id) {
-                // Müşteri ise kısıtlama yok
+            if ($user->customer_id == $customer->id || $user->customers()->where('customers.id', $customer->id)->exists()) {
+                // Müşteri sadece yetkili olduğu firmanın şikayetlerini görür (baseQuery zaten $customer->sikayetler() olduğu için ek kısıtlamaya gerek yok)
             }
             else {
-                // Personel Kısıtlamaları
+                // PERSONEL VERİ KISITLAMASI (Bölüm Lideri, Direktör vb.)
                 $allowedBolumIds = $user->getAllowedBolumIds(); 
 
                 $baseQuery->where(function($q) use ($user, $allowedBolumIds) {
+                    // Kriter 1: Kendi bölümüne ait şikayetler
                     if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
                         $q->whereHas('sikayetKategori', function($k) use ($allowedBolumIds) {
                             $k->whereIn('bolum_id', $allowedBolumIds);
                         });
                     }
-                    $q->orWhereHas('iaaProjesi', function($iaa) use ($user) {
-                        $iaa->whereHas('atananTakim', function($takim) use ($user) {
-                            $takim->whereHas('uyeler', function($u) use ($user) {
-                                $u->where('users.id', $user->id);
-                            });
+
+                    // Kriter 2: Kendi bölümünden bir personelin dahil olduğu işler (Takım veya Proje)
+                    if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
+                        $q->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) {
+                            $u->where('users.bolum_id', $user->bolum_id);
+                        })
+                        ->orWhereHas('iaa.projeEkibi', function($u) use ($user) {
+                            $u->where('users.bolum_id', $user->bolum_id);
                         });
-                    });
-                    $q->orWhereHas('cozumTakimi', function($takim) use ($user) {
-                        $takim->whereHas('uyeler', function($u) use ($user) {
-                            $u->where('users.id', $user->id);
-                        });
-                    });
-                    if ($user->hasRole('Bölüm Lideri')) {
-                        $staffIds = \App\Models\User::where('bolum_id', $user->bolum_id)->pluck('id');
-                        $q->orWhereIn('olusturan_user_id', $staffIds);
                     }
                 });
             }
@@ -236,11 +253,19 @@ class CustomerProfileController extends Controller
 
         // Rol Ata
         $user->assignRole('Müşteri Temsilcisi');
+
+        // SSO Senkronizasyonu
+        try {
+            app(\App\Services\CentralSsoSyncService::class)->syncUser($user, $password, 'customer');
+        } catch (\Exception $ssoEx) {
+            \Illuminate\Support\Facades\Log::error('Central SSO Sync failed for new customer representative: ' . $ssoEx->getMessage());
+        }
+
         // LOG
         MusteriLog::add($customer->id, 'Yetkili Ekleme', auth()->user()->name . ', yeni yetkili ekledi: ' . $request->name);
 
-            return back()->with('success', "Yetkili eklendi. Şifre: $password (Not edin)");
-        }
+        return back()->with('success', "Yetkili eklendi. Şifre: $password (Not edin)");
+    }
 
     // --- YETKİLİ SİLME ---
     public function destroyRepresentative(\App\Models\User $user)

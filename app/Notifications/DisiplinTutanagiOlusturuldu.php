@@ -21,60 +21,69 @@ class DisiplinTutanagiOlusturuldu extends Notification
         $this->case = $case;
     }
 
-    /**
-     * Get the notification's delivery channels.
-     */
     public function via(object $notifiable): array
     {
-        // Hem veritabanı (zil) hem de e-posta ile bildirim gönder
         return ['database', 'mail'];
     }
 
-    /**
-     * Get the mail representation of the notification.
-     */
     public function toMail(object $notifiable): MailMessage
     {
         $url = '';
-        $line = '';
+        $message = '';
+        $subject = 'Yeni Disiplin Tutanağı Bildirimi';
 
         if ($notifiable->id == $this->case->user_id) {
             $url = route('disiplin.show', $this->case->id);
-            $line = 'Hakkınızda yeni bir disiplin tutanağı oluşturuldu. Savunma vermeniz beklenmektedir.';
+            $message = 'Hakkınızda yeni bir disiplin tutanağı oluşturuldu. Savunma vermeniz beklenmektedir.';
         } else {
             $url = route('admin.disiplin.show', $this->case->id);
-            $line = $this->case->user->name . ' hakkında yeni bir disiplin tutanağı oluşturuldu.';
+            // Organizasyonel Bağ Kontrolleri
+            $isActualDirector = ($this->case->user->bolum && $this->case->user->bolum->director_id == $notifiable->id);
+            $isActualLeader = ($notifiable->hasRole('Bölüm Lideri') && $notifiable->bolum_id == $this->case->user->bolum_id);
+
+            if ($isActualDirector) {
+                $message = "Bölümünüz personeli {$this->case->user->name} hakkında yeni bir disiplin tutanağı oluşturuldu. (Bilgilendirme)";
+            } elseif ($isActualLeader) {
+                $message = "Personeliniz {$this->case->user->name} hakkında yeni bir disiplin tutanağı oluşturuldu.";
+            } elseif ($notifiable->hasRole(['Superadmin', 'Hukuk Admini', 'Hukuk Yöneticisi', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi'])) {
+                $message = "{$this->case->user->name} hakkında yeni bir disiplin tutanağı oluşturuldu. (Bilgilendirme)";
+            } else {
+                $message = "{$this->case->user->name} hakkında yeni bir disiplin tutanağı oluşturuldu.";
+            }
         }
 
         return (new MailMessage)
-            ->subject('Yeni Disiplin Tutanağı Bildirimi')
+            ->subject($subject)
             ->greeting("Merhaba {$notifiable->name},")
-            ->line($line)
+            ->line($message)
             ->action('Tutanağı Görüntüle', $url)
             ->line('Lütfen sistemi kontrol ediniz.')
             ->salutation('Saygılarımızla, Köksan İyileştirmeye Açık Alan');
     }
 
-    /**
-     * Get the array representation of the notification.
-     * VERİTABANI (ZİL) BİLDİRİMİ İÇİN BURASI ÇALIŞIR
-     */
     public function toArray(object $notifiable): array
     {
-        // 1. LINK AYRIMI (Mantık Güncellendi)
         $url = '';
+        $message = '';
 
-        // EĞER bildirim giden kişi (notifiable), tutanak yiyen kişiyle (case->user_id) AYNIYSA:
-        // Bu kişi personel ekranına gitmeli.
         if ($notifiable->id == $this->case->user_id) {
             $url = route('disiplin.show', $this->case->id);
             $message = 'Hakkınızda yeni bir disiplin tutanağı oluşturuldu. Savunma bekleniyor.';
-        }
-        // DEĞİLSE (Demek ki yönetici veya amir):
-        // Yönetici ekranına gitmeli.
-        else {
+        } else {
             $url = route('admin.disiplin.show', $this->case->id);
-            $message = $this->case->user->name . ' hakkında yeni bir disiplin tutanağı oluşturuldu.';
+            // Organizasyonel Bağ Kontrolleri
+            $isActualDirector = ($this->case->user->bolum && $this->case->user->bolum->director_id == $notifiable->id);
+            $isActualLeader = ($notifiable->hasRole('Bölüm Lideri') && $notifiable->bolum_id == $this->case->user->bolum_id);
+
+            if ($isActualDirector) {
+                $message = "Bölümünüz personeli {$this->case->user->name} hakkında yeni tutanak (Bilgilendirme)";
+            } elseif ($isActualLeader) {
+                $message = "Personeliniz {$this->case->user->name} hakkında yeni bir disiplin tutanağı oluşturuldu.";
+            } elseif ($notifiable->hasRole(['Superadmin', 'Hukuk Admini', 'Hukuk Yöneticisi', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi'])) {
+                $message = "{$this->case->user->name} hakkında yeni tutanak (Bilgilendirme)";
+            } else {
+                $message = "{$this->case->user->name} hakkında yeni disiplin tutanağı.";
+            }
         }
 
         return [

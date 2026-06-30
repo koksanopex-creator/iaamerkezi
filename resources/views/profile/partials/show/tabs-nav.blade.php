@@ -1,4 +1,5 @@
 <div class="flex flex-wrap border-b border-gray-200">
+    @if(!isset($isCustomerRep) || !$isCustomerRep)
     <button @click="activeTab = 'performans'"
         :class="activeTab === 'performans' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
         class="whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm flex items-center">
@@ -26,8 +27,9 @@
             @endif
         </button>
     @endif
+    @endif
 
-    @if($sikayetGormeYetkisi)
+    @if($sikayetGormeYetkisi || (isset($isCustomerRep) && $isCustomerRep))
         <button @click="activeTab = 'sikayetler'"
             :class="activeTab === 'sikayetler' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
             class="whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm flex items-center transition-all duration-200 rounded-lg">
@@ -49,6 +51,19 @@
         Yorumlar & Geri Bildirim
     </button>
 
+    {{-- ŞİRKETTEKİ DİĞER ÇALIŞANLAR SEKME BAŞLIĞI (Sadece Müşteriler İçin) --}}
+    @if(isset($isCustomerRep) && $isCustomerRep)
+        <button @click="activeTab = 'DigerCalisanlar'"
+            :class="activeTab === 'DigerCalisanlar' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            class="whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm flex items-center transition-all duration-200">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Şirketteki Diğer Çalışanlar
+        </button>
+    @endif
+
     @role('Superadmin')
     <button @click="activeTab = 'guvenlik'"
         :class="activeTab === 'guvenlik' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
@@ -64,9 +79,10 @@
     {{-- DİSİPLİN SEKMESİ BAŞLIĞI --}}
     @php
         // Yetki: Dosya sahibi, Bölüm Lideri, Üst Yönetim
-        $canViewDiscipline = Auth::id() == $user->id ||
+        $canViewDiscipline = (Auth::id() == $user->id ||
             Auth::user()->hasRole(['Superadmin', 'Hukuk Yöneticisi', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi']) ||
-            (Auth::user()->hasRole('Bölüm Lideri') && Auth::user()->bolum_id == $user->bolum_id);
+            (Auth::user()->hasRole('Bölüm Lideri') && Auth::user()->bolum_id == $user->bolum_id)) && 
+            (!isset($isCustomerRep) || !$isCustomerRep); // Müşteri temsilcisi ise disiplin görmesin
 
         // Sayaç: Yetkisi varsa sayıyı çek, yoksa 0
         $disiplinCount = 0;

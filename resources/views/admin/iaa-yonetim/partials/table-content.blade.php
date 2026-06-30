@@ -25,6 +25,7 @@
 
                         @if(in_array($type, ['havuz', 'atanmis']))<th class="px-6 py-3 text-center">Puan</th>@endif
                         <th class="px-6 py-3">Başlık</th>
+                        <th class="px-6 py-3">Bölüm</th>
                         @if(in_array($type, ['onay', 'havuz', 'reddedilmis']))<th class="px-6 py-3">Öneren</th>@endif
                         @if(in_array($type, ['atanmis']))<th class="px-6 py-3">Atanan Takım</th>@endif
                         <th class="px-6 py-3">Tarih</th>
@@ -75,6 +76,16 @@
                                             </span>
                                         @endif
                                     </p>
+                                </div>
+                            </td>
+
+                            {{-- BÖLÜM ALANI --}}
+                            <td class="flex justify-between items-center p-3 border-t sm:border-0 sm:table-cell sm:p-4 align-middle">
+                                <span class="font-semibold text-sm text-gray-500 sm:hidden">Bölüm:</span>
+                                <div class="text-right sm:text-left">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                                        {{ $iaa->bolum->ad ?? 'Genel' }}
+                                    </span>
                                 </div>
                             </td>
 

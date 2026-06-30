@@ -183,14 +183,25 @@
                                 <h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">
                                     KVKK Aydınlatma Metni
                                 </h3>
-                                <div
-                                    class="mt-4 max-h-96 overflow-y-auto bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                    <div class="prose prose-sm text-gray-600 whitespace-pre-line">
-                                        {{ isset($kvkkText) && !empty($kvkkText) ? $kvkkText : 'KVKK metni henüz sistem
-                                        yöneticisi Celal Karaman tarafından eklenmemiştir. İletişim:
-                                        celal.karaman@koksan.com 0549 678 76 91' }}
+
+                                @php
+                                    $kvkkPdfVal = \App\Models\Setting::where('key', 'kvkk_pdf')->value('value');
+                                    $kvkkTextVal = \App\Models\Setting::where('key', 'kvkk_text')->value('value');
+                                @endphp
+
+                                @if($kvkkPdfVal)
+                                    <div class="mt-4 w-full h-[60vh] rounded-lg overflow-hidden border border-gray-100">
+                                        <embed src="{{ asset('storage/' . $kvkkPdfVal) }}#toolbar=0" type="application/pdf"
+                                            class="w-full h-full">
                                     </div>
-                                </div>
+                                @else
+                                    <div
+                                        class="mt-4 max-h-96 overflow-y-auto bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                        <div class="prose prose-sm text-gray-600">
+                                            {!! !empty($kvkkTextVal) ? $kvkkTextVal : 'KVKK metni henüz sistem yöneticisi tarafından eklenmemiştir.' !!}
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </div>

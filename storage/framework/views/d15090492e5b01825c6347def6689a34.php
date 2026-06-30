@@ -105,14 +105,18 @@
             });
             observer.observe(chatContainer, { childList: true, subtree: true });
 
-            // Context: Mevcut Sayfayı Livewire'a Bildir
+            // Context: Mevcut Sayfayı Livewire'a Bildir (Gözlemci modunda değilse)
             document.addEventListener('livewire:initialized', () => {
-                Livewire.dispatch('updateCurrentUrl', { url: window.location.href });
+                <!--[if BLOCK]><![endif]--><?php if (! (Auth::user()->isShadowing())): ?>
+                    Livewire.dispatch('updateCurrentUrl', { url: window.location.href });
+                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
             });
 
-            // SPA (Single Page Application) geçişlerinde de güncelle (Livewire Navigate kullanılıyorsa)
+            // SPA geçişlerinde de güncelle (Gözlemci modunda değilse)
             document.addEventListener('livewire:navigated', () => {
-                Livewire.dispatch('updateCurrentUrl', { url: window.location.href });
+                <!--[if BLOCK]><![endif]--><?php if (! (Auth::user()->isShadowing())): ?>
+                    Livewire.dispatch('updateCurrentUrl', { url: window.location.href });
+                <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
             });
         </script>
     </div>

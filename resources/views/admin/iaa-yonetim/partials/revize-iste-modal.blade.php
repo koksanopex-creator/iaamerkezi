@@ -1,5 +1,5 @@
 <x-modal name="revize-iste-modal-{{ $iaa->id }}" focusable>
-    <form method="post" action="{{ route('admin.iaa-yonetim.revizeIste', $iaa) }}" class="p-6">
+    <form method="post" action="{{ route('admin.iaa.requestRevision', $iaa) }}" class="p-6">
         @csrf
         @method('patch')
         <h2 class="text-lg font-medium text-gray-900">Projeyi Revize İçin Geri Gönder</h2>

@@ -1,7 +1,19 @@
 
 
 
-<?php if(isset($stats['son_iaa_projelerim']) && count($stats['son_iaa_projelerim']) > 0): ?>
+<?php
+    $gosterilecekUyariVarMi = false;
+    if(isset($stats['son_iaa_projelerim']) && count($stats['son_iaa_projelerim']) > 0) {
+        foreach($stats['son_iaa_projelerim'] as $proje) {
+            if($proje->talep_admin_notu || $proje->talep_kalite_notu || $proje->durum == 'talep_onayi_bekliyor_kalite') {
+                $gosterilecekUyariVarMi = true;
+                break;
+            }
+        }
+    }
+?>
+
+<?php if($gosterilecekUyariVarMi): ?>
     
     <div class="space-y-4 mb-8">
         <?php $__currentLoopData = $stats['son_iaa_projelerim']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $proje): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>

@@ -3,7 +3,38 @@
 <?php
     // Gerekli Değişkenler
     $currentUser = auth()->user();
-    $isLeader = $iaa->atananTakim && $currentUser->id == $iaa->atananTakim->lider_user_id;
+
+    // Varsayılan yetki ve roller (Misafir kullanıcılar için false)
+    $isLeader = false;
+    $isQuality = false;
+    $isDirector = false;
+    $isSuperAdmin = false;
+
+    if ($currentUser) {
+        $isLeader = $iaa->atananTakim && $currentUser->id == $iaa->atananTakim->lider_user_id;
+        // Müdahale yetkisi varsa QM de lider gibi davranabilir (Talep başlatabilir)
+        if ($currentUser->hasRole('Bölüm Kalite Yöneticisi') && ($isQualityManagerInterventionPower ?? false)) {
+            $isLeader = true;
+        }
+
+        $isQuality = $currentUser->hasRole('Bölüm Kalite Yöneticisi');
+        
+        // YENİ: Eğer kullanıcı QM ise, müdahale yetkisi açık olmalı ki operasyonel işlem yapabilsin
+        if ($currentUser->hasRole('Bölüm Kalite Yöneticisi') && !($isQualityManagerInterventionPower ?? false)) {
+            $isQuality = false;
+        }
+        $isDirector = $currentUser->hasRole('Direktör');
+        $isSuperAdmin = $currentUser->hasRole('Superadmin');
+
+        // Direktör Bölüm Kontrolü
+        if ($isDirector && !$isSuperAdmin) {
+            $bolum = $iaa->musteriSikayeti->sikayetKategori->bolum ?? null;
+            $bolumDirectorId = $bolum ? $bolum->director_id : null;
+            if ($bolumDirectorId && $currentUser->id != $bolumDirectorId) {
+                $isDirector = false;
+            }
+        }
+    }
 
     // Durumlar
     $activeStatuses = ['Yeni', 'Atandı', 'calisiliyor', 'Devam Ediyor', 'Revize Ediliyor'];
@@ -12,19 +43,9 @@
     $isRequestPendingSuperadmin = $iaa->durum == 'talep_onayi_bekliyor_superadmin';
     $isRequestClosed = $iaa->durum == 'talep_olarak_kapatildi';
 
-    // Roller
-    $isQuality = $currentUser->hasRole('Bölüm Kalite Yöneticisi');
-    $isDirector = $currentUser->hasRole('Direktör');
-    $isSuperAdmin = $currentUser->hasRole('Superadmin');
-
-    // Direktör Bölüm Kontrolü
-    if ($isDirector && !$isSuperAdmin) {
-        $bolum = $iaa->musteriSikayeti->sikayetKategori->bolum ?? null;
-        $bolumDirectorId = $bolum ? $bolum->director_id : null;
-        if ($bolumDirectorId && $currentUser->id != $bolumDirectorId) {
-            $isDirector = false;
-        }
-    }
+    // Loglardan tarihleri al
+    $talepBaslatLog = $iaa->logs()->where('eylem', 'Talep Başlatıldı')->latest()->first();
+    $talepKaliteLog = $iaa->logs()->whereIn('eylem', ['Kalite Onayı (Talep)', 'Kalite Reddi (Talep)'])->latest()->first();
 ?>
 
 
@@ -91,12 +112,30 @@
                 <span class="text-xs font-black text-indigo-900 uppercase tracking-widest">Talep Dönüşüm Süreci</span>
             </div>
             <?php if($isRequestClosed): ?>
-                <span class="bg-gray-600 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-sm">TALEP OLARAK
-                    KAPATILDI</span>
+                <span
+                    class="bg-emerald-100 text-emerald-800 text-[10px] font-black px-3 py-1 flex items-center gap-1 rounded-full shadow-sm border border-emerald-300">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    ONAYLANDI - TALEP OLARAK KAPATILDI
+                </span>
+            <?php elseif(!Str::startsWith($iaa->durum, 'talep_onayi_bekliyor')): ?>
+                <span
+                    class="bg-red-100 text-red-800 text-[10px] font-black px-3 py-1 flex items-center gap-1 rounded-full shadow-sm border border-red-300">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    REDDEDİLDİ - PROJEYE DÖNÜLDÜ
+                </span>
             <?php else: ?>
                 <span
-                    class="bg-indigo-200 text-indigo-900 text-[10px] font-black px-3 py-1 rounded-full border border-indigo-300">ONAY
-                    SÜRECİNDE</span>
+                    class="bg-indigo-100 text-indigo-900 text-[10px] font-black px-3 py-1 flex items-center gap-1 rounded-full border border-indigo-300 shadow-sm">
+                    <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    ONAY SÜRECİNDE
+                </span>
             <?php endif; ?>
         </div>
 
@@ -111,7 +150,8 @@
                 <div class="flex-1 bg-white/60 p-3 rounded-xl border border-indigo-100 shadow-sm">
                     <div class="flex items-center justify-between mb-1">
                         <span class="text-xs font-bold text-gray-900">Takım Lideri</span>
-                        
+                        <span
+                            class="text-[10px] text-gray-400 font-medium"><?php echo e($talepBaslatLog ? $talepBaslatLog->created_at->format('d.m.Y H:i') : ($iaa->onaya_gonderilme_tarihi ? \Carbon\Carbon::parse($iaa->onaya_gonderilme_tarihi)->format('d.m.Y H:i') : ($iaa->created_at ? $iaa->created_at->format('d.m.Y H:i') : '-'))); ?></span>
                     </div>
                     <p class="text-xs font-bold text-indigo-600 mb-1">TALEP GEREKÇESİ:</p>
                     <p class="text-sm text-gray-700 italic leading-relaxed">"<?php echo e($iaa->talep_gerekcesi); ?>"</p>
@@ -119,7 +159,7 @@
             </div>
 
             
-            <?php if($iaa->talep_kalite_notu): ?>
+            <?php if($iaa->talep_kalite_notu || $talepKaliteLog): ?>
                 <div class="flex gap-4 relative">
                     <div class="absolute left-5 top-10 bottom-0 w-0.5 bg-indigo-200/50"></div>
                     <div class="flex-shrink-0 relative">
@@ -131,11 +171,17 @@
                     </div>
                     <div class="flex-1 bg-white/60 p-3 rounded-xl border border-indigo-100 shadow-sm">
                         <div class="flex items-center justify-between mb-1">
-                            <span class="text-xs font-bold text-gray-900">Kalite Yöneticisi</span>
+                            <span class="text-xs font-bold text-gray-900"><?php echo e($talepKaliteLog->user->name ?? 'Kalite Yöneticisi'); ?></span>
+                            <span
+                                class="text-[10px] text-gray-400 font-medium"><?php echo e($talepKaliteLog ? $talepKaliteLog->created_at->format('d.m.Y H:i') : '-'); ?></span>
                         </div>
-                        <p class="text-xs font-bold text-yellow-600 mb-1">KALİTE ONAYI NOTU:</p>
-                        <p class="text-sm text-gray-700 italic leading-relaxed">
-                            "<?php echo e($iaa->talep_kalite_notu); ?>"</p>
+                        <?php if($iaa->talep_kalite_notu): ?>
+                            <p class="text-xs font-bold text-yellow-600 mb-1">KALİTE ONAYI NOTU:</p>
+                            <p class="text-sm text-gray-700 italic leading-relaxed">
+                                "<?php echo e($iaa->talep_kalite_notu); ?>"</p>
+                        <?php else: ?>
+                             <p class="text-[10px] text-gray-400 italic">Onay notu girilmedi.</p>
+                        <?php endif; ?>
                     </div>
                 </div>
             <?php endif; ?>
@@ -146,8 +192,8 @@
                     <div class="absolute left-5 top-10 bottom-0 w-0.5 bg-indigo-200/50"></div>
                     <div class="flex-shrink-0 relative">
                         <div
-                            class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center border-2 border-white shadow-sm">
-                            <span class="text-xs font-bold text-pink-600">DR</span>
+                            class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center border-2 border-white shadow-sm">
+                            <span class="text-xs font-bold text-purple-600">DR</span>
                         </div>
                     </div>
                     <div class="flex-1 bg-white/60 p-3 rounded-xl border border-indigo-100 shadow-sm">
@@ -156,7 +202,7 @@
                             <span
                                 class="text-[10px] text-gray-400 font-medium"><?php echo e($iaa->talep_direktor_at ? \Carbon\Carbon::parse($iaa->talep_direktor_at)->format('d.m.Y H:i') : '-'); ?></span>
                         </div>
-                        <p class="text-xs font-bold text-pink-600 mb-1">DİREKTÖR ONAY NOTU:</p>
+                        <p class="text-xs font-bold text-purple-600 mb-1">DİREKTÖR ONAY NOTU:</p>
                         <p class="text-sm text-gray-700 italic leading-relaxed">
                             "<?php echo e($iaa->talep_direktor_notu); ?>"</p>
                     </div>
@@ -175,6 +221,7 @@
                     <div class="flex-1 bg-white/60 p-3 rounded-xl border border-indigo-100 shadow-sm">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-xs font-bold text-gray-900">Üst Yönetim</span>
+                            <span class="text-[10px] text-gray-400 font-medium"><?php echo e($talepAdminLog ? $talepAdminLog->created_at->format('d.m.Y H:i') : ($iaa->updated_at ? $iaa->updated_at->format('d.m.Y H:i') : '-')); ?></span>
                         </div>
                         <p class="text-xs font-bold text-red-600 mb-1">YÖNETİM FİNAL NOTU:</p>
                         <p class="text-sm text-gray-700 italic leading-relaxed">
@@ -183,6 +230,29 @@
                 </div>
             <?php endif; ?>
         </div>
+    </div>
+<?php endif; ?>
+
+
+<?php if($isSuperAdmin && $iaa->durum == 'talep_olarak_kapatildi'): ?>
+    <div class="mb-6 bg-indigo-50 border border-indigo-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <p class="text-xs text-indigo-900">Dosya yönetim tarafından kapatıldı. <span class="hidden sm:inline">Onayınızı
+                    yanlışlıkla
+                    verdiyseniz geri alabilirsiniz.</span></p>
+        </div>
+        <form action="<?php echo e(route('proje.recallRequestBySuperadmin', $iaa->id)); ?>" method="POST">
+            <?php echo csrf_field(); ?>
+            <button type="submit"
+                onclick="return confirm('Verdiğiniz yönetim onayını geri almak ve dosyayı yeniden açmak istediğinize emin misiniz?')"
+                class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition shadow-sm">
+                Yönetim Onayını Geri Al
+            </button>
+        </form>
     </div>
 <?php endif; ?>
 

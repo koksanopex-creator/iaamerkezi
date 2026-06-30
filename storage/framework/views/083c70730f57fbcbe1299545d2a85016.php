@@ -31,7 +31,7 @@
 
                                 </span>
                             </h3>
-                            
+
                             
                             <div x-show="!open" class="mt-2 flex flex-wrap items-center gap-3 text-sm">
                                 <div class="flex items-center gap-1.5 text-gray-600">
@@ -61,7 +61,7 @@
                             </p>
                         </div>
                     </div>
-                    
+
                     
                     <div class="flex-shrink-0">
                         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center group-hover:from-purple-100 group-hover:to-pink-100 transition-all duration-300">
@@ -223,15 +223,15 @@
                                 </div>
                                 <div>
                                     <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Makine / Hat</span>
-                                    <span class="text-sm font-semibold text-gray-900"><?php echo e($detay->machine->name ?? '-'); ?></span>
+                                    <span class="text-sm font-semibold text-gray-900"><?php echo e($detay->machine_name ?? ($detay->machine->name ?? '-')); ?></span>
                                 </div>
                                 <div>
                                     <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Hammadde</span>
-                                    <span class="text-sm font-semibold text-gray-900"><?php echo e($detay->genelHammadde->ad ?? '-'); ?></span>
+                                    <span class="text-sm font-semibold text-gray-900"><?php echo e($detay->genel_hammadde_name ?? ($detay->genelHammadde->ad ?? '-')); ?></span>
                                 </div>
                                 <div>
                                     <span class="text-xs font-medium text-gray-500 uppercase block mb-1">Ürün Versiyonu</span>
-                                    <span class="text-sm font-semibold text-gray-900"><?php echo e($detay->urunVersiyonu->ad ?? '-'); ?></span>
+                                    <span class="text-sm font-semibold text-gray-900"><?php echo e($detay->urun_versiyonu_name ?? ($detay->urunVersiyonu->ad ?? '-')); ?></span>
                                 </div>
                             </div>
                             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>

@@ -3,7 +3,11 @@
 <?php
     // Gerekli Değişkenler
     $currentUser = auth()->user();
-    $isLeader = $iaa->atananTakim && $currentUser->id == $iaa->atananTakim->lider_user_id;
+    $isLeader = $currentUser && $iaa->atananTakim && $currentUser->id == $iaa->atananTakim->lider_user_id;
+    // Müdahale yetkisi varsa QM de lider gibi davranabilir (Raporlama yapabilir)
+    if ($currentUser && $currentUser->hasRole('Bölüm Kalite Yöneticisi') && ($isQualityManagerInterventionPower ?? false)) {
+        $isLeader = true;
+    }
 
     // Durumlar
     $activeStatuses = ['Yeni', 'Atandı', 'calisiliyor', 'Devam Ediyor', 'Revize Ediliyor'];
@@ -13,12 +17,17 @@
     $isFaultyClosed = $iaa->durum == 'hatali_bildirim_olarak_kapatildi';
 
     // Roller
-    $isQuality = $currentUser->hasRole('Bölüm Kalite Yöneticisi');
-    $isDirector = $currentUser->hasRole('Direktör');
-    $isSuperAdmin = $currentUser->hasRole('Superadmin');
+    $isQuality = $currentUser && $currentUser->hasRole('Bölüm Kalite Yöneticisi');
+    
+    // YENİ: Eğer kullanıcı QM ise, müdahale yetkisi açık olmalı ki operasyonel işlem yapabilsin
+    if ($currentUser && $currentUser->hasRole('Bölüm Kalite Yöneticisi') && !($isQualityManagerInterventionPower ?? false)) {
+        $isQuality = false;
+    }
+    $isDirector = $currentUser && $currentUser->hasRole('Direktör');
+    $isSuperAdmin = $currentUser && $currentUser->hasRole('Superadmin');
 
     // Direktör Bölüm Kontrolü
-    if ($isDirector && !$isSuperAdmin) {
+    if ($currentUser && $isDirector && !$isSuperAdmin) {
         $bolum = $iaa->musteriSikayeti->sikayetKategori->bolum ?? null;
         $bolumDirectorId = $bolum ? $bolum->director_id : null;
         if ($bolumDirectorId && $currentUser->id != $bolumDirectorId) {
@@ -301,6 +310,7 @@
 <?php endif; ?>
 
 
+
 <?php if($isLeader && ($isFaultyPendingQuality || $isFaultyPendingDirector || $isFaultyPendingSuperadmin)): ?>
     <div class="mb-6 bg-orange-50 border border-orange-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
         <div class="flex items-center gap-2">
@@ -316,6 +326,74 @@
             <button type="submit"
                 class="px-3 py-1.5 bg-white border border-orange-200 text-orange-700 rounded-lg text-[10px] font-bold hover:bg-orange-100 transition shadow-sm">
                 Talebi Geri Al
+            </button>
+        </form>
+    </div>
+<?php endif; ?>
+
+
+<?php if(($isQuality || $isSuperAdmin) && ($isFaultyPendingDirector || $isFaultyPendingSuperadmin)): ?>
+    <div class="mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-yellow-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <p class="text-xs text-yellow-900">Sonraki onayı bekliyor. <span class="hidden sm:inline">Onayınızı yanlışlıkla
+                    verdiyseniz geri alabilirsiniz.</span></p>
+        </div>
+        <form action="<?php echo e(route('proje.recallFaultyByQuality', $iaa->id)); ?>" method="POST">
+            <?php echo csrf_field(); ?>
+            <button type="submit"
+                onclick="return confirm('Verdiğiniz kalite onayını geri almak istediğinize emin misiniz?')"
+                class="px-3 py-1.5 bg-white border border-yellow-200 text-yellow-700 rounded-lg text-[10px] font-bold hover:bg-yellow-100 transition shadow-sm">
+                Kalite Onayını Geri Al
+            </button>
+        </form>
+    </div>
+<?php endif; ?>
+
+
+<?php if(($isDirector || $isSuperAdmin) && $iaa->durum == 'hatali_bildirim_olarak_kapatildi' && ($iaa->hatali_bildirim_direktor_user_id == auth()->id() || $isSuperAdmin) && $iaa->hatali_bildirim_direktor_user_id != null): ?>
+    <div class="mb-6 bg-red-50 border border-red-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-red-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <p class="text-xs text-red-900">Dosya direktör tarafından kapatıldı. <span class="hidden sm:inline">Onayınızı
+                    yanlışlıkla
+                    verdiyseniz geri alabilirsiniz.</span></p>
+        </div>
+        <form action="<?php echo e(route('proje.recallFaultyByDirector', $iaa->id)); ?>" method="POST">
+            <?php echo csrf_field(); ?>
+            <button type="submit"
+                onclick="return confirm('Verdiğiniz direktör onayını geri almak ve dosyayı yeniden açmak istediğinize emin misiniz?')"
+                class="px-3 py-1.5 bg-white border border-red-200 text-red-700 rounded-lg text-[10px] font-bold hover:bg-red-100 transition shadow-sm">
+                Direktör Onayını Geri Al
+            </button>
+        </form>
+    </div>
+<?php endif; ?>
+
+
+<?php if($isSuperAdmin && $iaa->durum == 'hatali_bildirim_olarak_kapatildi' && $iaa->hatali_bildirim_superadmin_user_id == auth()->id() && $iaa->hatali_bildirim_superadmin_user_id != null): ?>
+    <div class="mb-6 bg-indigo-50 border border-indigo-200 rounded-xl p-3 shadow-sm flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <p class="text-xs text-indigo-900">Dosya yönetim tarafından kapatıldı. <span class="hidden sm:inline">Onayınızı
+                    yanlışlıkla
+                    verdiyseniz geri alabilirsiniz.</span></p>
+        </div>
+        <form action="<?php echo e(route('proje.recallFaultyBySuperadmin', $iaa->id)); ?>" method="POST">
+            <?php echo csrf_field(); ?>
+            <button type="submit"
+                onclick="return confirm('Verdiğiniz yönetim onayını geri almak ve dosyayı yeniden açmak istediğinize emin misiniz?')"
+                class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition shadow-sm">
+                Yönetim Onayını Geri Al
             </button>
         </form>
     </div>

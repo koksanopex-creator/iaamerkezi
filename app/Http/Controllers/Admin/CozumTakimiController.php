@@ -236,6 +236,31 @@ class CozumTakimiController extends Controller
 
             // Yeni lideri ekle veya pivot bilgisini 'Kurucu Lider' olarak güncelle
             $cozumTakimi->uyeler()->syncWithoutDetaching([$yeniLiderId => ['katilma_sekli' => 'Kurucu Lider']]); // <-- DEĞİŞTİ
+
+            // === PROJE SQUAD SENKRONİZASYONU ===
+            // Lider değiştiğinde, tamamlanmamış projelerdeki iaa_user pivot tablosunu güncelle.
+            // Bu sayede yeni lider projelerde görünür ve puan alabilir.
+            $tamamlanmamisDurumlar = ['Tamamlandı', 'Reddedildi', 'talep_olarak_kapatildi', 'hatali_bildirim_olarak_kapatildi'];
+            $tamamlanmamisProjeler = \App\Models\Iaa::where('atanan_takim_id', $cozumTakimi->id)
+                ->whereNotIn('durum', $tamamlanmamisDurumlar)
+                ->get();
+
+            foreach ($tamamlanmamisProjeler as $proje) {
+                // Eski lideri Squad'dan çıkar (sadece 'Lider' rolüyle eklenmişse)
+                $proje->projeEkibi()->wherePivot('rol', 'Lider')->where('user_id', $eskiLiderId)->detach();
+
+                // Yeni lideri Squad'a ekle
+                $proje->projeEkibi()->syncWithoutDetaching([
+                    $yeniLiderId => [
+                        'rol' => 'Lider',
+                        'kazanilan_puan' => $proje->puan ?? 0,
+                        'durum' => 'onaylandi'
+                    ]
+                ]);
+            }
+
+            \Illuminate\Support\Facades\Log::info("Çözüm Takımı lider değişikliği: Takım #{$cozumTakimi->id}, Eski Lider: #{$eskiLiderId} → Yeni Lider: #{$yeniLiderId}. " . $tamamlanmamisProjeler->count() . " projenin Squad'ı güncellendi.");
+            // === PROJE SQUAD SENKRONİZASYONU SONU ===
         }
 
         return redirect()->route('admin.cozum-takimlari.index')->with('success', 'Çözüm takımı başarıyla güncellendi.');

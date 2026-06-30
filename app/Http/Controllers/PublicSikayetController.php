@@ -27,6 +27,7 @@ use App\Models\IaaProgressUpdate; // <-- EKLEYİN
 use Illuminate\Support\Facades\Notification; // Bildirim göndermek için
 use App\Notifications\MusteriGeriBildirimBildirimi; // Oluşturduğumuz bildirim sınıfı
 use App\Notifications\YeniMusteriSikayetiBildirimi;
+use App\Traits\ComplaintNotificationTrait;
 
 
 
@@ -39,6 +40,7 @@ use Spatie\Permission\Models\Role; // Rol'e göre kullanıcı çekmek için
 
 class PublicSikayetController extends Controller
 {
+    use ComplaintNotificationTrait;
     /**
      * Public şikayet oluşturma formunu gösterir.
      */
@@ -146,7 +148,9 @@ class PublicSikayetController extends Controller
                 // =================================
 
                 $sikayetData['guest_password_hash'] = Hash::make($plainPassword);
-
+                
+                // Varsayılan Puan Ataması (Misafir için)
+                $sikayetData['musteri_puan'] = (int) (Setting::where('key', 'kurul_default_puan')->value('value') ?? 0);
             } else {
                 // Kayıtlı Kullanıcı Mantığı
                 $sikayetData['olusturan_kurul_uyesi_id'] = Auth::id();
@@ -159,17 +163,37 @@ class PublicSikayetController extends Controller
             // Şikayeti oluştur
             $sikayet = MusteriSikayeti::create($sikayetData);
 
-            // Dosyaları kaydetme (Admin Controller'daki gibi)
+            // Dosyaları kaydetme
             if ($request->hasFile('dosyalar')) {
+                // İsimlendirme verilerini hazırla
+                $kategoriAd = \App\Models\SikayetKategori::find($sikayetData['sikayet_kategorisi_id'])->ad ?? 'kategori';
+                $kategoriAd = \Illuminate\Support\Str::slug($kategoriAd, '_');
+
+                $tarihSaat = now()->format('dmY_Hi');
+
+                $rolAd = $isGuest ? 'kayitsiz_musteri' : (Auth::user()->getRoleNames()->first() ?? (Auth::user()->is_personnel ? 'personel' : 'kayitli_musteri'));
+                $rolAd = \Illuminate\Support\Str::slug($rolAd, '_');
+
+                $musteriAd = $sikayetData['musteri_adi'] ?? 'bilinmiyor';
+                $musteriAd = \Illuminate\Support\Str::slug($musteriAd, '');
+
                 foreach ($request->file('dosyalar') as $dosya) {
-                    // Dosya yolunu şikayet ID'si ile ilişkilendirmek daha düzenli olabilir
-                    // Örn: 'sikayet_dosyalari/' . $sikayet->id . '/' . uniqid() . '.' . $dosya->extension()
-                    // Şimdilik admin controller'daki gibi tutalım:
-                    $path = $dosya->store('sikayet_dosyalari', 'public');
+                    $orijinalUzanti = $dosya->getClientOriginalExtension();
+
+                    $yeniDosyaAdi = "{$kategoriAd}_{$tarihSaat}_{$rolAd}_{$musteriAd}.{$orijinalUzanti}";
+
+                    $sayac = 1;
+                    $geciciDosyaAdi = $yeniDosyaAdi;
+                    while (\Illuminate\Support\Facades\Storage::disk('public')->exists('sikayet_dosyalari/' . $geciciDosyaAdi)) {
+                        $geciciDosyaAdi = "{$kategoriAd}_{$tarihSaat}_{$rolAd}_{$musteriAd}_{$sayac}.{$orijinalUzanti}";
+                        $sayac++;
+                    }
+                    $yeniDosyaAdi = $geciciDosyaAdi;
+
+                    $path = $dosya->storeAs('sikayet_dosyalari', $yeniDosyaAdi, 'public');
 
                     if ($path === false) {
                         Log::error('Public şikayet formu dosya kaydedilemedi: ' . $dosya->getClientOriginalName());
-                        // Hata durumunda işlemi geri alıp hata mesajı verebiliriz ama şimdilik devam etsin
                         continue;
                     }
 
@@ -191,6 +215,14 @@ class PublicSikayetController extends Controller
                 Log::error('Broadcast olayı gönderilemedi: ' . $e->getMessage());
             }
             // === TETİKLEME SONU ===
+            
+            // === BİLDİRİM GÖNDERME ===
+            try {
+                $this->sendNewComplaintNotification($sikayet);
+            } catch (\Exception $e) {
+                Log::error('Misafir şikayeti bildirim (YeniMusteriSikayetiBildirimi) gönderilemedi. Hata: ' . $e->getMessage());
+            }
+            // =========================
 
             // === YÖNETİCİ BİLDİRİMİ GÖNDERME ===
             // Bu işlem artık App\Observers\MusteriSikayetiObserver sınıfında otomatik yapılıyor.
@@ -201,12 +233,47 @@ class PublicSikayetController extends Controller
             if ($isGuest && $token && $plainPassword) {
                 // Misafir ise e-posta gönder ve takip sayfasına yönlendir
                 try {
-                    Mail::to($validated['musteri_iletisim'])->queue(new SikayetOnayMail($sikayet, $plainPassword)); // <-- DÜZELTİLDİ
+                    // 1. Alıcı Listesini Belirle (Çoklu Alıcı Desteği)
+                    $emails = collect([$validated['musteri_iletisim']]);
+
+                    // E-posta adresine sahip kullanıcıyı bul ve bağlı olduğu firmayı al
+                    $userWithEmail = \App\Models\User::where('email', $validated['musteri_iletisim'])->first();
+                    if ($userWithEmail && $userWithEmail->customer_id) {
+                        $customer = $userWithEmail->customer;
+                        
+                        // Firmanın genel mailini ekle
+                        if ($customer->email) {
+                            $emails->push($customer->email);
+                        }
+
+                        // Firmanın diğer tüm yetkililerini ekle
+                        $otherReps = $customer->users()->pluck('email');
+                        $emails = $emails->merge($otherReps);
+                    }
+
+                    // Tekilleştir ve geçersizleri temizle
+                    $uniqueEmails = $emails->unique()->filter()->toArray();
+
+                    // Her birine mail gönder
+                    foreach ($uniqueEmails as $email) {
+                        try {
+                            Mail::to($email)->send(new SikayetOnayMail($sikayet, $plainPassword));
+                        } catch (\Exception $e) {
+                            \Log::error('Şikayet onay e-postası gönderilemedi ('.$email.'): ' . $e->getMessage());
+                            \App\Helpers\MailLogHelper::logFailure(
+                                $sikayet,
+                                'Şikayet Onay E-postası',
+                                $email,
+                                $e->getMessage()
+                            );
+                        }
+                    }
+
                     return redirect()->route('public.sikayet.show', ['token' => $token])
-                        ->with('success', 'Şikayetiniz başarıyla alındı! ...');
+                        ->with('success', 'Şikayetiniz başarıyla alındı! Takip bilgileri ilgili tüm yetkililere iletildi.');
 
                 } catch (\Exception $e) {
-                    Log::error('Şikayet onay e-postası gönderilemedi. Şikayet ID: ' . $sikayet->id . ' Hata: ' . $e->getMessage());
+                    Log::error('Şikayet onay süreci genel hatası. Şikayet ID: ' . $sikayet->id . ' Hata: ' . $e->getMessage());
                     // E-posta gitmese bile şikayet kaydedildi, takip sayfasına yönlendir ama uyarı ver
                     return redirect()->route('public.sikayet.show', ['token' => $token])
                         ->with('warning', 'Şikayetiniz alındı ancak takip bilgileri e-postanıza gönderilirken bir sorun oluştu. Lütfen takip kodunuzu not alın: ' . $token);
@@ -284,9 +351,14 @@ class PublicSikayetController extends Controller
             // Atama kaydı ve workflow ID'si varsa devam et
             if ($assignment && $assignment->iaa_workflow_id) {
                 // Toplam adım sayısını bul
-                $workflow = IaaWorkflow::find($assignment->iaa_workflow_id);
-                if ($workflow) {
-                    $totalSteps = $workflow->steps()->count();
+                if (!empty($assignment->workflow_snapshot)) {
+                    $snapshotData = json_decode($assignment->workflow_snapshot, true);
+                    $totalSteps = count($snapshotData);
+                } else {
+                    $workflow = IaaWorkflow::find($assignment->iaa_workflow_id);
+                    if ($workflow) {
+                        $totalSteps = $workflow->steps()->count();
+                    }
                 }
 
                 // Tamamlanan adım sayısını bul
@@ -317,47 +389,42 @@ class PublicSikayetController extends Controller
      */
     public function guestLogin(Request $request, $token)
     {
-        // TODO: 1. Token ile şikayeti bul (firstOrFail).
-        // TODO: 2. Gelen e-posta ve şifreyi doğrula (Validation).
-        // TODO: 3. Şikayetin musteri_iletisim'i ile gelen e-postanın eşleştiğini kontrol et.
-        // TODO: 4. Gelen şifre ile DB'deki guest_password_hash'i Hash::check() ile kontrol et.
-        // TODO: 5. Eşleşme varsa:
-        // TODO:    a. Session::put('sikayet_logged_in_' . $token, true); // Veya benzeri bir işaretçi
-        // TODO:    b. 'sikayet.show' rotasına yönlendir.
-        // TODO: 6. Eşleşme yoksa:
-        // TODO:    a. Hata mesajıyla login formuna geri yönlendir.
-
-        // Şimdilik boş bırakalım
         // 1. Token ile şikayeti bul
         $sikayet = MusteriSikayeti::where('takip_token', $token)->firstOrFail();
 
         // 2. Gelen veriyi doğrula
         $credentials = $request->validate([
             'email' => 'required|email',
-            'password' => 'required|string|min:6', // Şifremiz 8 karakterdi ama min:6 diyelim
+            'password' => 'required|string|min:6',
         ]);
 
-        // 3. E-posta ve Şifreyi Kontrol Et
-        // a. E-posta adresi, şikayetteki e-posta ile eşleşiyor mu?
-        //    (Büyük/küçük harf duyarlılığını önlemek için strtolower kullanabiliriz)
-        if (strtolower($sikayet->musteri_iletisim) !== strtolower($credentials['email'])) {
-            // E-posta eşleşmiyorsa hata ver
-            return back()->with('error', 'E-posta adresi veya şifre hatalı.');
+        $email = strtolower($credentials['email']);
+        $password = $credentials['password'];
+
+        // 3. ÖNCELİK 1: Yeni sikayet_guest_passwords tablosundan kontrol et
+        $guestPasswords = \App\Models\SikayetGuestPassword::where('musteri_sikayeti_id', $sikayet->id)
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->get();
+
+        foreach ($guestPasswords as $guestPw) {
+            if (Hash::check($password, $guestPw->password_hash)) {
+                // Eşleşme bulundu - Session'a giriş yap
+                Session::put('sikayet_logged_in_' . $sikayet->takip_token, true);
+                return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])
+                    ->with('success', 'Başarıyla giriş yaptınız.');
+            }
         }
 
-        // b. Gelen şifre, hash'lenmiş şifre ile eşleşiyor mu?
-        if (Hash::check($credentials['password'], $sikayet->guest_password_hash)) {
-            // 5. Eşleşme Varsa:
-            // a. Session'a bu şikayet için giriş yaptığını işaretle
-            Session::put('sikayet_logged_in_' . $sikayet->takip_token, true);
-
-            // b. 'sikayet.show' rotasına (detay sayfasına) yönlendir
-            return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])
-                ->with('success', 'Başarıyla giriş yaptınız.');
+        // 4. ÖNCELİK 2: Eski guest_password_hash sütununa fallback
+        if ($sikayet->guest_password_hash && strtolower($sikayet->musteri_iletisim) === $email) {
+            if (Hash::check($password, $sikayet->guest_password_hash)) {
+                Session::put('sikayet_logged_in_' . $sikayet->takip_token, true);
+                return redirect()->route('public.sikayet.show', ['token' => $sikayet->takip_token])
+                    ->with('success', 'Başarıyla giriş yaptınız.');
+            }
         }
 
-        // 6. Eşleşme Yoksa:
-        // a. Hata mesajıyla login formuna geri yönlendir
+        // 5. Eşleşme bulunamadı
         return back()->with('error', 'E-posta adresi veya şifre hatalı.');
     }
 
@@ -465,10 +532,35 @@ class PublicSikayetController extends Controller
                 }
             }
 
-            // c. Yeni dosyaları kaydet (store metoduyla aynı)
+            // c. Yeni dosyaları kaydet
             if ($request->hasFile('dosyalar')) {
+                // İsimlendirme verilerini hazırla (Burası public view üzerinden, auth durdurulmuş olabilir)
+                $kategoriAd = $sikayet->sikayetKategori->ad ?? 'kategori';
+                $kategoriAd = \Illuminate\Support\Str::slug($kategoriAd, '_');
+
+                $tarihSaat = now()->format('dmY_Hi');
+
+                $rolAd = Auth::check() ? (Auth::user()->getRoleNames()->first() ?? (Auth::user()->is_personnel ? 'personel' : 'kayitli_musteri')) : 'kayitsiz_musteri';
+                $rolAd = \Illuminate\Support\Str::slug($rolAd, '_');
+
+                $musteriAd = $sikayet->musteri_adi ?? 'bilinmiyor';
+                $musteriAd = \Illuminate\Support\Str::slug($musteriAd, '');
+
                 foreach ($request->file('dosyalar') as $dosya) {
-                    $path = $dosya->store('sikayet_dosyalari', 'public');
+                    $orijinalUzanti = $dosya->getClientOriginalExtension();
+
+                    $yeniDosyaAdi = "{$kategoriAd}_{$tarihSaat}_{$rolAd}_{$musteriAd}.{$orijinalUzanti}";
+
+                    $sayac = 1;
+                    $geciciDosyaAdi = $yeniDosyaAdi;
+                    while (\Illuminate\Support\Facades\Storage::disk('public')->exists('sikayet_dosyalari/' . $geciciDosyaAdi)) {
+                        $geciciDosyaAdi = "{$kategoriAd}_{$tarihSaat}_{$rolAd}_{$musteriAd}_{$sayac}.{$orijinalUzanti}";
+                        $sayac++;
+                    }
+                    $yeniDosyaAdi = $geciciDosyaAdi;
+
+                    $path = $dosya->storeAs('sikayet_dosyalari', $yeniDosyaAdi, 'public');
+
                     if ($path === false) {
                         Log::error('Public şikayet GÜNCELLEME dosya kaydedilemedi: ' . $dosya->getClientOriginalName());
                         continue;
@@ -562,7 +654,16 @@ class PublicSikayetController extends Controller
             $recipients = $recipients->merge(User::role('Superadmin')->get());
 
             // 2. Bölüm Kalite Yöneticileri
-            $recipients = $recipients->merge(User::role('Bölüm Kalite Yöneticisi')->get());
+            if ($sikayet->sikayet_kategorisi_id) {
+                $kaliteYoneticileri = User::role('Bölüm Kalite Yöneticisi')
+                    ->whereHas('yonettigiSikayetKategorileri', function ($q) use ($sikayet) {
+                        $q->where('sikayet_kategorileri.id', $sikayet->sikayet_kategorisi_id);
+                    })->get();
+
+                if ($kaliteYoneticileri->isNotEmpty()) {
+                    $recipients = $recipients->merge($kaliteYoneticileri);
+                }
+            }
 
             // 3. Müşteri Şikayeti Çözüm Liderleri
             $recipients = $recipients->merge(User::role('Müşteri Şikayeti Çözüm Lideri')->get());
@@ -589,8 +690,24 @@ class PublicSikayetController extends Controller
             ));
 
         } catch (\Exception $e) {
-            // Bildirim hatası kullanıcı deneyimini bozmasın, sadece loglayalım.
+            // Bildirim hatası kullanıcı deneyimini bozmasın, loglayalım ve tekrar deneme verisini kaydedelim.
             \Log::error('Müşteri geri bildirim bildirimi gönderilemedi: ' . $e->getMessage());
+            \App\Helpers\MailLogHelper::logFailure(
+                $sikayet,
+                'Müşteri Çözüm Değerlendirme Bildirimi',
+                $recipients ?? collect(),
+                $e->getMessage(),
+                \App\Notifications\MusteriGeriBildirimBildirimi::class,
+                [
+                    'recipient_ids' => ($recipients ?? collect())->pluck('id')->toArray(),
+                    'params' => [
+                        'sikayet' => $sikayet,
+                        'feedback' => $validated['feedback'],
+                        'note' => $validated['feedback_note']
+                    ]
+                ],
+                $sikayet->sikayetKategori->bolum_id ?? null
+            );
         }
         // =================================================================
 

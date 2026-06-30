@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Tüm Bekleyen İşler | 
+@endpush
+
 <x-app-layout>
     <style>
         .glass-card {
@@ -268,20 +272,30 @@
                             @forelse($bekleyenIsler as $is)
                                 <tr class="hover:bg-indigo-50/20 transition-all group">
                                     <td class="px-8 py-7">
-                                        @if($is['tur'] == 'Müşteri Şikayeti')
-                                            <span
-                                                class="inline-flex px-3 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-black border border-red-100 shadow-sm leading-none uppercase">
-                                                Şikayet
-                                            </span>
-                                        @elseif($is['tur'] == 'İAA')
+                                        @if($is['tur'] == 'İAA')
                                             <span
                                                 class="inline-flex px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black border border-indigo-100 shadow-sm leading-none uppercase">
-                                                İAA Projesi
+                                                İAA
+                                            </span>
+                                        @elseif($is['tur'] == 'Müşteri Şikayeti')
+                                            <span
+                                                class="inline-flex px-3 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black border border-rose-100 shadow-sm leading-none uppercase">
+                                                Şikayet
                                             </span>
                                         @elseif($is['tur'] == 'Arabuluculuk')
                                             <span
                                                 class="inline-flex px-3 py-1 bg-purple-50 text-purple-600 rounded-lg text-[10px] font-black border border-purple-100 shadow-sm leading-none uppercase">
-                                                Dosya
+                                                Arabulucu
+                                            </span>
+                                        @elseif($is['tur'] == 'Disiplin')
+                                            <span
+                                                class="inline-flex px-3 py-1 bg-violet-50 text-violet-600 rounded-lg text-[10px] font-black border border-violet-100 shadow-sm leading-none uppercase">
+                                                Disiplin
+                                            </span>
+                                        @elseif($is['tur'] == 'Kullanıcı Kaydı')
+                                            <span
+                                                class="inline-flex px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black border border-slate-950 shadow-sm leading-none uppercase">
+                                                Yeni Üye
                                             </span>
                                         @else
                                             <span
@@ -323,22 +337,40 @@
                                         </div>
                                     </td>
                                     <td class="px-8 py-7 text-center">
+                                        @php
+                                            $durumColor = match($is['durum']) {
+                                                'Onay Bekliyor', 'Yeni' => 'bg-indigo-50 text-indigo-600 border-indigo-100',
+                                                'Bölüm Onayı Bekliyor', 'İşlemde', 'Devam Ediyor' => 'bg-amber-50 text-amber-600 border-amber-100',
+                                                'Yönetici Onayı Bekliyor', 'Kurulda', 'Kurul İncelemesinde' => 'bg-orange-50 text-orange-600 border-orange-100',
+                                                'Direktör Onayı Bekliyor' => 'bg-rose-50 text-rose-600 border-rose-100',
+                                                'Tamamlandı', 'Havuzda' => 'bg-emerald-50 text-emerald-600 border-emerald-100',
+                                                'Savunma Bekleniyor' => 'bg-amber-50 text-amber-600 border-amber-100',
+                                                'Yönetici Değerlendirmesi' => 'bg-indigo-50 text-indigo-600 border-indigo-100',
+                                                default => 'bg-slate-50 text-slate-600 border-slate-100'
+                                            };
+                                            $roundedGun = ceil($is['gun']);
+                                        @endphp
                                         <span
-                                            class="inline-block px-4 py-1.5 rounded-2xl bg-slate-100 text-slate-600 text-[10px] font-black border border-slate-200 leading-none truncate max-w-full"
+                                            class="inline-block px-4 py-1.5 rounded-2xl {{ $durumColor }} text-[10px] font-black border leading-none truncate max-w-full"
                                             title="{{ $is['durum'] }}">
-                                            {{ strtoupper($is['durum']) }}
+                                            {{ 
+                                                strtoupper(
+                                                    $is['durum'] == 'Bölüm Onayı Bekliyor' ? 'Bölüm Kalite Yöneticisi Onayı Bekliyor' : 
+                                                    ($is['durum'] == 'Yönetici Onayı Bekliyor' ? 'Final Onay Bekliyor' : $is['durum'])
+                                                ) 
+                                            }}
                                         </span>
                                     </td>
                                     <td class="px-8 py-7 text-center">
                                         <div class="inline-flex flex-col items-center">
                                             <span
-                                                class="text-sm font-black {{ $is['gun'] > 7 ? 'text-red-600' : ($is['gun'] > 3 ? 'text-amber-500' : 'text-slate-900') }}">
-                                                {{ $is['gun'] }} <span
+                                                class="text-sm font-black {{ $roundedGun > 7 ? 'text-red-600' : ($roundedGun > 3 ? 'text-amber-500' : 'text-slate-900') }}">
+                                                {{ $roundedGun }} <span
                                                     class="text-[10px] font-black text-slate-400 ml-0.5">GÜN</span>
                                             </span>
                                             <div class="w-10 h-1 bg-slate-100 rounded-full mt-1.5 overflow-hidden">
-                                                <div class="h-full {{ $is['gun'] > 7 ? 'bg-red-500' : ($is['gun'] > 3 ? 'bg-amber-500' : 'bg-emerald-500') }}"
-                                                    style="width: {{ min(($is['gun'] / 15) * 100, 100) }}%"></div>
+                                                <div class="h-full {{ $roundedGun > 7 ? 'bg-red-500' : ($roundedGun > 3 ? 'bg-amber-500' : 'bg-emerald-500') }}"
+                                                    style="width: {{ min(($roundedGun / 15) * 100, 100) }}%"></div>
                                             </div>
                                         </div>
                                     </td>

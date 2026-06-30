@@ -1,8 +1,23 @@
+@push('pageTitle')
+    İAA Yönetimi | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('İyileştirmeye Açık Alan Yönetimi') }}
-        </h2>
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('İyileştirmeye Açık Alan Yönetimi') }}
+            </h2>
+            <div class="flex items-center space-x-3">
+                @hasanyrole('Superadmin|Yonetim')
+                    <a href="{{ route('admin.iaa-yonetim.arsiv') }}" 
+                        class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl font-black text-[11px] text-gray-600 uppercase tracking-widest hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                        İAA Arşivi
+                    </a>
+                @endhasanyrole
+            </div>
+        </div>
     </x-slot>
 
     <div class="py-12">
@@ -208,18 +223,18 @@
                             @include('admin.iaa-yonetim.partials.direktor-onayi-bekleyenler-table', ['iaas' => $direktorOnayiBekleyenler])
                         @endif
 
-                        {{-- C. YÖNETİCİ & DİĞERLERİ (Sadece Admin) --}}
-                        @role('Superadmin')
-                            @if($yoneticiOnayiBekleyenler->isNotEmpty())
-                                @include('admin.iaa-yonetim.partials.yonetici-onayi-bekleyenler-table', ['iaas' => $yoneticiOnayiBekleyenler, 'title' => 'Yönetici Onayı Bekleyen Tamamlanmış Projeler', 'color' => 'purple'])
-                            @endif
-                            @if($onayBekleyenMisafirler->isNotEmpty())
-                                @include('admin.iaa-yonetim.partials.onay-bekleyen-misafirler-table', ['iaas' => $onayBekleyenMisafirler, 'type' => 'onay', 'title' => 'Misafirlerden Gelen Öneriler', 'color' => 'yellow'])
-                            @endif
-                            @if($onayBekleyenKullanicilar->isNotEmpty())
-                                @include('admin.iaa-yonetim.partials.onay-bekleyen-kullanicilar-table', ['iaas' => $onayBekleyenKullanicilar, 'type' => 'onay', 'title' => 'Kayıtlı Kullanıcılardan Gelen Öneriler', 'color' => 'yellow'])
-                            @endif
-                        @endrole
+                        {{-- C. YÖNETİCİ & DİĞERLERİ (Final Onay Bekleyenler) --}}
+                        @if($yoneticiOnayiBekleyenler->isNotEmpty())
+                            @include('admin.iaa-yonetim.partials.yonetici-onayi-bekleyenler-table', ['iaas' => $yoneticiOnayiBekleyenler, 'title' => 'Final Onay Bekleyen Tamamlanmış Projeler', 'color' => 'purple'])
+                        @endif
+
+                        {{-- D. ÖNERİ AŞAMASINDAKİLER (Triyaj) --}}
+                        @if($onayBekleyenMisafirler->isNotEmpty())
+                            @include('admin.iaa-yonetim.partials.onay-bekleyen-misafirler-table', ['iaas' => $onayBekleyenMisafirler, 'type' => 'onay', 'title' => 'Misafirlerden Gelen Öneriler', 'color' => 'yellow'])
+                        @endif
+                        @if($onayBekleyenKullanicilar->isNotEmpty())
+                            @include('admin.iaa-yonetim.partials.onay-bekleyen-kullanicilar-table', ['iaas' => $onayBekleyenKullanicilar, 'type' => 'onay', 'title' => 'Kayıtlı Kullanıcılardan Gelen Öneriler', 'color' => 'yellow'])
+                        @endif
 
                         {{-- Eğer Hiçbir Şey Yoksa --}}
                         @if($onayToplam == 0)

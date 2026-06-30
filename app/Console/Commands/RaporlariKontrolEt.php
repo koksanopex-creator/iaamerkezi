@@ -80,7 +80,7 @@ class RaporlariKontrolEt extends Command
                 
                 // HATA ÇÖZÜMÜ: ID'leri Role isimlerine çeviriyoruz
                 // Çünkü User::role() fonksiyonu ID verildiğinde bazen string sanıp hata verebiliyor.
-                $roleNames = \Spatie\Permission\Models\Role::whereIn('id', $roleIds)->pluck('name')->toArray();
+                $roleNames = \Spatie\Permission\Models\Role::whereIn('id', (array)$roleIds)->pluck('name')->toArray();
                 
                 if (!empty($roleNames)) {
                     $users = User::role($roleNames)->get(); 
@@ -116,7 +116,7 @@ class RaporlariKontrolEt extends Command
 
             foreach ($alicilar as $email) {
                 try {
-                    Mail::to($email)->send(new OtomatikYoneticiRaporu($raporData, $kural->baslik));
+                    Mail::to($email)->queue(new OtomatikYoneticiRaporu($raporData, $kural->baslik));
                     $this->info("      -> Mail Gönderildi: $email");
                 } catch (\Exception $e) {
                     $this->error("      -> HATA: $email - " . $e->getMessage());

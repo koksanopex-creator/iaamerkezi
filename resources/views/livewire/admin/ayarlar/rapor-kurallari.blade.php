@@ -112,17 +112,17 @@
     </div>
 
     {{-- MODAL (Tailwind CSS Overlay) --}}
-    @if($isModalOpen)
-    <div class="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+     @if($isModalOpen)
+    <div class="fixed z-[1060] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             
             {{-- Arka plan karartma --}}
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" wire:click="$set('isModalOpen', false)"></div>
+            <div class="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity" aria-hidden="true" wire:click="$set('isModalOpen', false)"></div>
 
             {{-- Modal İçeriği --}}
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full relative">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 max-h-[75vh] overflow-y-auto">
                     <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
                         {{ $aktifKuralId ? 'Kuralı Düzenle' : 'Yeni Rapor Kuralı Ekle' }}
                     </h3>
@@ -194,22 +194,45 @@
                         <hr>
 
                         {{-- 2. ALICI SEÇİMİ --}}
-                        <div>
+                        <div x-data="{ 
+                            initSelect2() {
+                                $('.select2-livewire').select2({
+                                    placeholder: 'Seçim yapınız...',
+                                    width: '100%',
+                                    allowClear: true
+                                });
+
+                                $('#secili_roller_select').on('change', function (e) {
+                                    @this.set('secili_roller', $(this).val());
+                                });
+
+                                $('#secili_users_select').on('change', function (e) {
+                                    @this.set('secili_users', $(this).val());
+                                });
+
+                                // BACKEND'den (Rol seçimiyle) gelen kullanıcı güncellemelerini yakala
+                                @this.on('users-updated', (event) => {
+                                    $('#secili_users_select').val(event.ids).trigger('change');
+                                });
+                            }
+                        }" x-init="setTimeout(() => initSelect2(), 50)">
                             <h4 class="text-sm font-bold text-gray-700 mb-2">Alıcılar</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-500 uppercase">Roller (Ctrl+Click)</label>
-                                    <select wire:model="secili_roller" multiple class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm h-32 p-2 border">
+                                <div wire:ignore>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase">Roller</label>
+                                    <select id="secili_roller_select" multiple class="select2-livewire mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-2 border">
                                         @foreach($roller as $rol)
-                                            <option value="{{ $rol->id }}">{{ $rol->name }}</option>
+                                            <option value="{{ $rol->id }}" @selected(in_array($rol->id, $secili_roller))>{{ $rol->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-500 uppercase">Kullanıcılar (Ctrl+Click)</label>
-                                    <select wire:model="secili_users" multiple class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm h-32 p-2 border">
+                                <div wire:ignore>
+                                    <label class="block text-xs font-medium text-gray-500 uppercase">Kullanıcılar</label>
+                                    <select id="secili_users_select" multiple class="select2-livewire mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm p-2 border">
                                         @foreach($users as $user)
-                                            <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                            <option value="{{ $user->id }}" @selected(in_array($user->id, $secili_users))>
+                                                {{ $user->name }} ({{ $user->bolum->ad ?? 'Dış Personel' }})
+                                            </option>
                                         @endforeach
                                     </select>
                                 </div>

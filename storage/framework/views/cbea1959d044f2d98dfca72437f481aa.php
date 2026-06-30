@@ -40,13 +40,26 @@
                 </div>
             </div>
 
+            <!-- YENİ: Superadmin Bildirim Sayacı Toggle -->
+            <div class="flex items-center mb-4 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+                <input type="checkbox" id="superadmin_sikayet_panel_sayac_aktif" name="superadmin_sikayet_panel_sayac_aktif" value="1"
+                    class="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    <?php if(isset($superadminSikayetSayacAktif) && $superadminSikayetSayacAktif == '1'): ?> checked <?php endif; ?>>
+                <div class="ml-3">
+                    <label for="superadmin_sikayet_panel_sayac_aktif" class="text-sm font-semibold text-gray-800">Superadmin Tüm Şikayet Bildirimlerini Görsün</label>
+                    <p class="text-xs text-indigo-600">İşaretlenirse, Superadmin kullanıcıları "Müşteri > Şikayet Paneli" menüsünde sistemdeki TÜM aktif şikayetlerin sayısını görür.</p>
+                </div>
+            </div>
+
+
+
 
             <label for="sikayet_notify_role_ids" class="block text-sm font-semibold text-gray-700 mb-1">Bildirim
                 Gönderilecek Roller</label>
             <p class="text-xs md:text-sm text-gray-500 mb-3">Bu rollerdeki tüm kullanıcılara e-posta gider. (Çoklu seçim
                 için Ctrl/Cmd)</p>
             <select multiple
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors text-sm h-32"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors text-sm select2-searchable"
                 id="sikayet_notify_role_ids" name="sikayet_notify_role_ids[]">
                 <?php $__currentLoopData = $roles; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $role): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                     <option value="<?php echo e($role->id); ?>" <?php if(in_array($role->id, $notifyRoleIds)): ?> selected <?php endif; ?>>
@@ -63,7 +76,7 @@
             <p class="text-xs md:text-sm text-gray-500 mb-3">Rollerden bağımsız, spesifik olarak bildirim alacak
                 kullanıcıları seçin. (Çoklu seçim için Ctrl/Cmd)</p>
             <select multiple
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors text-sm h-40"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors text-sm select2-searchable"
                 id="sikayet_notify_user_ids" name="sikayet_notify_user_ids[]">
                 <?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                     <option value="<?php echo e($user->id); ?>" <?php if(in_array($user->id, $notifyUserIds)): ?> selected <?php endif; ?>>
@@ -102,6 +115,39 @@
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-colors text-sm resize-y"
                 id="sikayet_atama_notify_manual_emails" name="sikayet_atama_notify_manual_emails"
                 rows="3"><?php echo e($atamaNotifyManualEmails); ?></textarea>
+        </div>
+
+        <hr class="my-4">
+
+        <h4 class="text-md font-semibold text-gray-800 mb-1 border-b pb-2">3. Yeni Kullanıcı Bildirimleri (Yöneticiler
+            İçin)</h4>
+        <p class="text-xs md:text-sm text-gray-500 -mt-3 mb-3">Admin panelinden yeni bir kullanıcı eklendiğinde
+            yöneticilere e-posta gönderilsin mi?</p>
+        <p class="text-xs text-gray-400 italic mb-3">(Not: Zil bildirimi her zaman gönderilir, bu ayarlar sadece
+            e-postayı kontrol eder.)</p>
+
+        <div class="flex items-center mb-3 bg-green-50 p-3 rounded-lg border border-green-200">
+            <input type="checkbox" id="new_user_notify_bolum_lideri" name="new_user_notify_bolum_lideri" value="1"
+                class="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                <?php if(isset($newUserNotifyLider) && $newUserNotifyLider == '1'): ?> checked <?php endif; ?>>
+            <div class="ml-3">
+                <label for="new_user_notify_bolum_lideri" class="text-sm font-semibold text-gray-800">İlgili Bölüm
+                    Liderine E-posta Gönder</label>
+                <p class="text-xs text-gray-600">Yeni kullanıcının bağlı olduğu bölümün liderine bilgilendirme maili
+                    gider.</p>
+            </div>
+        </div>
+
+        <div class="flex items-center mb-3 bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <input type="checkbox" id="new_user_notify_direktor" name="new_user_notify_direktor" value="1"
+                class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                <?php if(isset($newUserNotifyDirektor) && $newUserNotifyDirektor == '1'): ?> checked <?php endif; ?>>
+            <div class="ml-3">
+                <label for="new_user_notify_direktor" class="text-sm font-semibold text-gray-800">İlgili Direktöre
+                    E-posta Gönder</label>
+                <p class="text-xs text-gray-600">Yeni kullanıcının bağlı olduğu bölümün direktörüne bilgilendirme maili
+                    gider.</p>
+            </div>
         </div>
 
     </div>

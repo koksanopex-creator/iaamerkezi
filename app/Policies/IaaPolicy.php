@@ -73,14 +73,50 @@ class IaaPolicy
             }
         }
 
-        // Kural 2: Eğer öneri "Havuzda" veya daha ileri bir aşamadaysa (TAMAMLANDI DAHİL), herkes görebilir.
-        // === GÜNCELLEME BURADA ===
-        if (in_array($iaa->durum, ['Havuzda', 'Talep Edildi', 'Atandı', 'Yönetici Onayı Bekliyor', 'Revize Ediliyor', 'Tamamlandı'])) {
+        // --- rules1.md: İAA vs ŞİKAYET AYRIMI (Pattern Matching) ---
+        $isSikayet = str_contains($iaa->oneri ?? '', 'Müşteri şikayetinden');
+        $isIaa = !$isSikayet;
+
+        // Kural 1.6: Bölüm Lideri / Yetkili Yardımcı Yetkisi (Kendi bölümüne ait projeler)
+        $isLeader = $user->hasRole('Bölüm Lideri');
+        $isAuthorizedDeputy = $user->hasRole('Bölüm Lider Yardımcısı') && $user->hasBolumAuthority('bolum.iaa.gor');
+
+        if (($isLeader || $isAuthorizedDeputy) && $user->bolum_id && $iaa->bolum_id == $user->bolum_id) {
             return true;
         }
-        // =========================
 
-        // Bu koşullar sağlanmazsa (örneğin başkasının "Onay Bekleyen" önerisi), göremez.
+        // Kural 1.7: Şikayet Projeleri İçin Ek Roller (Kategori bazlı)
+        if ($isSikayet) {
+            // Bölüm Kalite Yöneticisi (Sadece şikayetlerde vardır)
+            if ($user->hasRole('Bölüm Kalite Yöneticisi')) {
+                if ($iaa->musteriSikayeti) {
+                    $kategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
+                    if ($kategoriId && $user->yonettigiSikayetKategorileri->contains($kategoriId)) {
+                        return true;
+                    }
+                    if ($user->bolum_id && $iaa->musteriSikayeti->sikayetKategori && $iaa->musteriSikayeti->sikayetKategori->bolum_id == $user->bolum_id) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // Kural 2: Durum Bazlı Görünürlük (Yalnızca Personel İçin)
+        if ($isIaa && $user->is_personnel) {
+            // Saf İAA'lar Havuzda veya sonrasında tüm personeller tarafından görülebilir
+            if (in_array($iaa->durum, ['Havuzda', 'Talep Edildi', 'Atandı', 'Yönetici Onayı Bekliyor', 'Revize Ediliyor', 'Tamamlandı'])) {
+                return true;
+            }
+        } else {
+            // Şikayet Projeleri: Sadece terminal ve atama durumlarında görünür (Gizlilik gereği onay süreçleri kısıtlı kalır)
+            if (in_array($iaa->durum, ['Atandı', 'Tamamlandı'])) {
+                return true;
+            }
+            // Not: Onay sürecindeki (Bölüm Onayı Bekliyor vb.) şikayetleri 
+            // sadece yukarıdaki Kural 1, 1.5, 1.6'daki yetkililer görebilir.
+        }
+
+        // Bu koşullar sağlanmazsa göremez.
         return false;
     }
 
@@ -98,8 +134,45 @@ class IaaPolicy
      */
     public function update(User $user, Iaa $iaa): bool
     {
-        // Sadece öneriyi gönderen kişi ve sadece "Onay Bekliyor" durumundayken güncelleyebilir.
-        return $user->id === $iaa->gonderen_user_id && $iaa->durum === 'Onay Bekliyor';
+        // 1. Sadece öneriyi gönderen kişi ve sadece "Onay Bekliyor" durumundayken güncelleyebilir. (Saf İAA Akışı)
+        if ($user->id === $iaa->gonderen_user_id && $iaa->durum === 'Onay Bekliyor') {
+            return true;
+        }
+
+        // 2. Müdahale Yetkili Kalite Yöneticisi (Şikayet Projeleri Akışı)
+        if ($user->hasRole('Bölüm Kalite Yöneticisi') && $user->can_intervene_quality) {
+            if ($iaa->musteriSikayeti) {
+                $kategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
+                if ($kategoriId && $user->yonettigiSikayetKategorileri->contains($kategoriId)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Kullanıcının projeye idari müdahale (adım geri alma, atama vb.) yapıp yapamayacağını belirler.
+     */
+    public function intervene(User $user, Iaa $iaa): bool
+    {
+        // 1. Takım Lideri
+        if ($iaa->atananTakim && $iaa->atananTakim->lider_user_id == $user->id) {
+            return true;
+        }
+
+        // 2. Müdahale Yetkili Kalite Yöneticisi
+        if ($user->hasRole('Bölüm Kalite Yöneticisi') && $user->can_intervene_quality) {
+            if ($iaa->musteriSikayeti) {
+                $kategoriId = $iaa->musteriSikayeti->sikayet_kategorisi_id;
+                if ($kategoriId && $user->yonettigiSikayetKategorileri->contains($kategoriId)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

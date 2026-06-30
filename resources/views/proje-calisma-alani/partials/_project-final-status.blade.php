@@ -3,70 +3,52 @@
 @php
     use App\Models\IaaLog;
 
-    // ========================================================================
-    // 1. BÖLÜM YÖNETİCİSİ VERİLERİ
-    // ========================================================================
-    $bolumLog = IaaLog::where('iaa_id', $iaa->id)
-        ->where(function ($q) {
-            $q->where('eylem', 'Bölüm Onayı Verildi')
-                ->orWhere('eylem', 'Revizyon Talep Edildi (Bölüm)')
-                ->orWhere('eylem', 'Proje Reddedildi (Bölüm)')
-                ->orWhere('eylem', 'Bölüm İşlemi Geri Alındı');
-        })
-        ->with('user')
-        ->latest()
-        ->first();
-
+    // 1. BÖLÜM ONAYI MANTIĞI
     $bolumDurum = [
         'tip' => 'waiting',
-        'baslik' => 'Bölüm Onayı Bekleniyor',
-        'mesaj' => 'Proje tamamlandığında bölüm yöneticisi inceleyecektir.',
+        'baslik' => $iaa->musteriSikayeti ? 'Bölüm Kalite Yöneticisi Onayı Bekleniyor' : 'Süreç Onayı Bekleniyor',
+        'mesaj' => $iaa->musteriSikayeti ? 'Proje tamamlandığında bölüm kalite yöneticisi inceleyecektir.' : 'Proje tamamlandığında yönetim inceleyecektir.',
         'tarih' => null,
-        'kisi' => 'Bölüm Yöneticisi'
+        'kisi' => $iaa->musteriSikayeti ? 'Bölüm Kalite Yöneticisi' : 'Süper Yönetici',
+        'locked' => false
     ];
 
-    if ($bolumLog && $bolumLog->eylem !== 'Bölüm İşlemi Geri Alındı') {
-        $bolumDurum['tarih'] = $bolumLog->created_at;
-        $bolumDurum['kisi'] = $bolumLog->user->name ?? 'Bölüm Yöneticisi';
-
-        switch ($bolumLog->eylem) {
-            case 'Bölüm Onayı Verildi':
-                $bolumDurum['tip'] = 'success';
-                $bolumDurum['baslik'] = 'Bölüm Onayı Verildi';
-                $bolumDurum['mesaj'] = 'Bölüm yöneticisi projeyi uygun buldu ve üst yönetime iletti.';
-                break;
-            case 'Revizyon Talep Edildi (Bölüm)':
-                $bolumDurum['tip'] = 'warning';
-                $bolumDurum['baslik'] = 'Revizyon Talebi';
-                $bolumDurum['mesaj'] = $bolumLog->aciklama;
-                break;
-            case 'Proje Reddedildi (Bölüm)':
-                $bolumDurum['tip'] = 'danger';
-                $bolumDurum['baslik'] = 'Bölüm Tarafından Reddedildi';
-                $bolumDurum['mesaj'] = $bolumLog->aciklama;
-                break;
-        }
-    } elseif ($bolumLog) {
-        $bolumDurum['kisi'] = $bolumLog->user->name ?? 'Bölüm Yöneticisi';
-    }
-
-    // ========================================================================
-    // 1.5 DİREKTÖR VERİLERİ (YENİ)
-    // ========================================================================
-
-    // 1. Önce Logu Sorgula (Geçmiş veriyi kaybetmemek için)
-    $direktorLog = IaaLog::where('iaa_id', $iaa->id)
-        ->where(function ($q) {
-            $q->where('eylem', 'Direktör Onayı Verildi')
-                ->orWhere('eylem', 'Revizyon Talep Edildi (Direktör)')
-                ->orWhere('eylem', 'Proje Reddedildi (Direktör)')
-                ->orWhere('eylem', 'Direktör İşlemi Geri Alındı');
-        })
+    $bolumLog = IaaLog::where('iaa_id', $iaa->id)
+        ->whereIn('eylem', ['Bölüm Onayı Verildi', 'Bölüm Onaylandı (Direktör Onayına Sevk)', 'Bölüm Onaylandı (İadeli - Direktör Onayına Sevk)', 'Bölüm İşlemi Geri Alındı'])
         ->with('user')
         ->latest()
         ->first();
 
-    // 2. Direktör onayı aktif mi? (Ayar veya Log Varlığı)
+    // Eğer en son eylem geri alma ise, bu aşama BAŞARILI sayılmaz (bekliyor kalır).
+    $bolumOnayli = $bolumLog && in_array($bolumLog->eylem, ['Bölüm Onayı Verildi', 'Bölüm Onaylandı (Direktör Onayına Sevk)', 'Bölüm Onaylandı (İadeli - Direktör Onayına Sevk)']);
+
+    // FALLBACK: Eğer proje durumu Direktör veya Yönetici onayı aşamasındaysa, log olmasa bile bu aşama geçilmiştir.
+    $bolumGecildi = in_array($iaa->durum, ['Direktör Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlandı', 'Talep Olarak Kapatıldı', 'Tamamlanması Reddedildi']);
+
+    if ($bolumOnayli || $bolumGecildi) {
+        $bolumDurum['tip'] = 'success';
+        $bolumDurum['baslik'] = $iaa->musteriSikayeti ? 'Bölüm Kalite Yöneticisi Onayladı' : 'Süreç Onaylandı';
+        $bolumDurum['mesaj'] = 'Bölüm yöneticisi tarafından projenin tamamlanması onaylandı.';
+        $bolumDurum['tarih'] = $bolumOnayli ? $bolumLog->created_at : $iaa->updated_at;
+        $bolumDurum['kisi'] = $bolumOnayli && $bolumLog->user ? $bolumLog->user->name : ($iaa->musteriSikayeti->sikayetKategori->bolum->qualityManager->name ?? 'Bölüm Yöneticisi');
+    } else {
+        // Revizyon veya Red durumlarını kontrol et (Sadece log varsa)
+        $bolumHataLog = IaaLog::where('iaa_id', $iaa->id)
+            ->whereIn('eylem', ['Revizyon Talep Edildi (Bölüm)', 'Proje Reddedildi (Bölüm)'])
+            ->with('user')
+            ->latest()
+            ->first();
+            
+        if ($bolumHataLog) {
+            $bolumDurum['tip'] = $bolumHataLog->eylem == 'Proje Reddedildi (Bölüm)' ? 'danger' : 'warning';
+            $bolumDurum['baslik'] = $bolumHataLog->eylem == 'Proje Reddedildi (Bölüm)' ? 'Bölüm Tarafından Reddedildi' : 'Revizyon Talebi';
+            $bolumDurum['mesaj'] = $bolumHataLog->aciklama;
+            $bolumDurum['tarih'] = $bolumHataLog->created_at;
+            $bolumDurum['kisi'] = $bolumHataLog->user->name ?? 'Bölüm Yöneticisi';
+        }
+    }
+
+    // 2. DİREKTÖR ONAYI MANTIĞI
     $direktorOnayiAktif = false;
     $globalDirektorSetting = false;
 
@@ -77,21 +59,25 @@
         }
     }
 
-    // Eğer global ayar açıksa, bölüm/direktör ilişki kontrolü yap
-    if ($globalDirektorSetting) {
-        $bolum = $iaa->bolum; // İlişki varsa
-        if (!$bolum && $iaa->musteriSikayeti && $iaa->musteriSikayeti->sikayetKategori) {
-            $bolum = $iaa->musteriSikayeti->sikayetKategori->bolum;
-        }
-
-        if ($bolum && $bolum->director_id) {
-            $direktorOnayiAktif = true;
-        }
+    if ($globalDirektorSetting && $iaa->musteriSikayeti && $iaa->musteriSikayeti->sikayetKategori && $iaa->musteriSikayeti->sikayetKategori->bolum && $iaa->musteriSikayeti->sikayetKategori->bolum->director_id) {
+        $direktorOnayiAktif = true;
     }
 
-    // [KRİTİK DÜZELTME] Eğer geçmişte bir direktör işlemi varsa, ayar kapalı olsa bile kartı göster!
-    if ($direktorLog) {
-        $direktorOnayiAktif = true;
+    $direktorLog = IaaLog::where('iaa_id', $iaa->id)
+        ->whereIn('eylem', ['Direktör Onayı Verildi', 'Revizyon Talep Edildi (Direktör)', 'Proje Reddedildi (Direktör)', 'Direktör İşlemi Geri Alındı'])
+        ->with('user')
+        ->latest()
+        ->first();
+
+    $isProjectCompleted = in_array($iaa->durum, ['Tamamlandı', 'Talep Olarak Kapatıldı', 'Hatalı Bildirim Olarak Kapatıldı', 'hatali_bildirim_olarak_kapatildi']);
+    if ($isProjectCompleted) {
+        if ($direktorLog) {
+            $direktorOnayiAktif = true;
+        }
+    } else {
+        if ($globalDirektorSetting && $direktorLog) {
+            $direktorOnayiAktif = true;
+        }
     }
 
     $direktorDurum = [
@@ -100,191 +86,150 @@
         'mesaj' => 'Bölüm onayından sonra direktör inceleyecektir.',
         'tarih' => null,
         'kisi' => 'Direktör',
-        'locked' => true
+        'locked' => $bolumDurum['tip'] !== 'success'
     ];
 
-    if ($direktorOnayiAktif) {
-        // Bölüm onayı verildiyse kilidi aç
-        if ($bolumDurum['tip'] == 'success') {
-            $direktorDurum['locked'] = false;
-        }
+    // FALLBACK: Eğer proje durumu Yönetici onayı veya Tamamlandı aşamasındaysa, log olmasa bile bu aşama geçilmiştir.
+    $direktorGecildi = in_array($iaa->durum, ['Yönetici Onayı Bekliyor', 'Tamamlandı', 'Talep Olarak Kapatıldı']);
 
-        // $direktorLog zaten yukarıda sorgulandı
+    $direktorOnayli = $direktorLog && $direktorLog->eylem == 'Direktör Onayı Verildi';
+    $direktorHataLog = $direktorLog && in_array($direktorLog->eylem, ['Revizyon Talep Edildi (Direktör)', 'Proje Reddedildi (Direktör)']);
 
-        if ($direktorLog && $direktorLog->eylem !== 'Direktör İşlemi Geri Alındı') {
-            $direktorDurum['locked'] = false; // İşlem yapıldıysa kilt aç
+    if ($direktorOnayli || $direktorHataLog || $direktorGecildi) {
+        $direktorDurum['locked'] = false;
+        if ($direktorOnayli || $direktorGecildi) {
+            $direktorDurum['tip'] = 'success';
+            $direktorDurum['baslik'] = 'Direktör Onayladı';
+            $direktorDurum['mesaj'] = 'Bölüm direktörü tarafından proje sonucu onaylandı.';
+            $direktorDurum['tarih'] = $direktorOnayli ? $direktorLog->created_at : $iaa->updated_at;
+            $direktorDurum['kisi'] = $direktorOnayli && $direktorLog->user ? $direktorLog->user->name : ($iaa->musteriSikayeti->sikayetKategori->bolum->director->name ?? 'Direktör');
+        } else if ($direktorHataLog) {
+            $direktorDurum['tip'] = $direktorLog->eylem == 'Proje Reddedildi (Direktör)' ? 'danger' : 'warning';
+            $direktorDurum['baslik'] = $direktorLog->eylem == 'Proje Reddedildi (Direktör)' ? 'Direktör Tarafından Reddedildi' : 'Revizyon Talebi (Direktör)';
+            $direktorDurum['mesaj'] = $direktorLog->aciklama;
             $direktorDurum['tarih'] = $direktorLog->created_at;
             $direktorDurum['kisi'] = $direktorLog->user->name ?? 'Direktör';
-
-            switch ($direktorLog->eylem) {
-                case 'Direktör Onayı Verildi':
-                    $direktorDurum['tip'] = 'success';
-                    $direktorDurum['baslik'] = 'Direktör Onayı Verildi';
-                    $direktorDurum['mesaj'] = 'Direktör projeyi onayladı ve üst yönetime iletti.';
-                    break;
-                case 'Revizyon Talep Edildi (Direktör)':
-                    $direktorDurum['tip'] = 'warning';
-                    $direktorDurum['baslik'] = 'Revizyon Talebi (Direktör)';
-                    $direktorDurum['mesaj'] = $direktorLog->aciklama;
-                    break;
-                case 'Proje Reddedildi (Direktör)':
-                    $direktorDurum['tip'] = 'danger';
-                    $direktorDurum['baslik'] = 'Direktör Tarafından Reddedildi';
-                    $direktorDurum['mesaj'] = $direktorLog->aciklama;
-                    break;
-            }
         }
     }
 
-
-    // ========================================================================
-    // 2. SÜPER YÖNETİCİ VERİLERİ
-    // ========================================================================
+    // 3. FİNAL (YÖNETİCİ/SÜPERADMİN) ONAYI MANTIĞI
     $adminLog = IaaLog::where('iaa_id', $iaa->id)
-        ->where(function ($q) {
-            $q->where('eylem', 'Proje Onaylandı')
-                ->orWhere('eylem', 'Revizyon Talep Edildi')
-                ->orWhere('eylem', 'Tamamlanmış Projenin Reddi')
-                ->orWhere('eylem', 'İşlem Geri Alındı');
-        })
+        ->whereIn('eylem', ['Proje Onaylandı', 'Revizyon Talep Edildi', 'Tamamlanmış Projenin Reddi'])
         ->with('user')
         ->latest()
         ->first();
 
     $adminDurum = [
         'tip' => 'waiting',
-        'baslik' => 'Yönetici Onayı Bekleniyor',
+        'baslik' => 'Final Onay Bekleniyor',
         'mesaj' => 'Onay süreçleri tamamlandıktan sonra üst yönetim inceleyecektir.',
         'tarih' => null,
         'kisi' => 'Süper Yönetici',
-        'locked' => true // Varsayılan olarak kilitli başlar
+        'locked' => $direktorOnayiAktif ? ($direktorDurum['tip'] !== 'success') : ($bolumDurum['tip'] !== 'success')
     ];
 
-    // Kilit Mantığı: 
-    if ($direktorOnayiAktif) {
-        // Direktör varsa, Direktör onayı beklenir
-        if ($direktorDurum['tip'] == 'success') {
-            $adminDurum['locked'] = false;
-        }
-    } else {
-        // Direktör yoksa, Bölüm onayı yeterli
-        if ($bolumDurum['tip'] == 'success') {
-            $adminDurum['locked'] = false;
-        }
-    }
-
-    // AMMA VE LAKİN: Eğer Admin zaten bir işlem yaptıysa (Onay/Red/Revize), 
-    // Bölüm durumu ne olursa olsun (Yedek Lastik mantığı) kilit AÇIK olmalı ve admin verisi görünmeli.
-    if ($adminLog && $adminLog->eylem !== 'İşlem Geri Alındı') {
-        $adminDurum['locked'] = false; // Kilidi Zorla Aç
-        $adminDurum['tarih'] = $adminLog->created_at;
-        $adminDurum['kisi'] = $adminLog->user->name ?? 'Süper Yönetici';
-
-        switch ($adminLog->eylem) {
-            case 'Proje Onaylandı':
-                $adminDurum['tip'] = 'success';
-                $adminDurum['baslik'] = 'Proje Onaylandı';
-                $adminDurum['mesaj'] = 'Proje onaylanmış ve puan dağıtımı yapılmıştır.';
-                break;
-            case 'Revizyon Talep Edildi':
-                $adminDurum['tip'] = 'warning';
-                $adminDurum['baslik'] = 'Revizyon Talebi';
-                $adminDurum['mesaj'] = $adminLog->aciklama;
-                break;
-            case 'Tamamlanmış Projenin Reddi':
-                $adminDurum['tip'] = 'danger';
-                $adminDurum['baslik'] = 'Proje Reddedildi';
-                $adminDurum['mesaj'] = $adminLog->aciklama;
-                break;
-        }
-    }
-    // YENİ EKLEME: Eğer proje "Tamamlandı" ise ama Admin logu yoksa (ve Direktör onayı varsa),
-    // bu demek oluyor ki Direktör onayıyla proje bitmiştir.
-    elseif ($iaa->durum == 'Tamamlandı' && ($adminLog == null || $adminLog->eylem == 'İşlem Geri Alındı') && $direktorLog && $direktorLog->eylem == 'Direktör Onayı Verildi') {
+    if ($adminLog || in_array($iaa->durum, ['Tamamlandı', 'Talep Olarak Kapatıldı'])) {
         $adminDurum['locked'] = false;
-        $adminDurum['tip'] = 'success';
-        $adminDurum['baslik'] = 'Süreç Tamamlandı';
-        $adminDurum['mesaj'] = 'Direktör onayı ile proje nihai sonuca ulaşmış ve puanlar dağıtılmıştır. İlave yönetici onayına gerek kalmamıştır.';
-        $adminDurum['kisi'] = 'Otomatik İşlem';
-        $adminDurum['tarih'] = $direktorLog->created_at;
+        if (($adminLog && $adminLog->eylem == 'Proje Onaylandı') || in_array($iaa->durum, ['Tamamlandı', 'Talep Olarak Kapatıldı'])) {
+            $adminDurum['tip'] = 'success';
+            $adminDurum['baslik'] = 'Proje Tamamlandı';
+            $adminDurum['mesaj'] = 'Proje tüm onay süreçlerini başarıyla tamamlayarak kapatıldı.';
+            $adminDurum['tarih'] = $adminLog ? $adminLog->created_at : $iaa->onaylanma_tarihi;
+            $adminDurum['kisi'] = $adminLog && $adminLog->user ? $adminLog->user->name : 'Yönetim';
+        } else if ($adminLog) {
+            $adminDurum['tip'] = $adminLog->eylem == 'Tamamlanmış Projenin Reddi' ? 'danger' : 'warning';
+            $adminDurum['baslik'] = $adminLog->eylem == 'Tamamlanmış Projenin Reddi' ? 'Proje Reddedildi' : 'Revizyon Talebi';
+            $adminDurum['mesaj'] = $adminLog->aciklama;
+            $adminDurum['tarih'] = $adminLog->created_at;
+            $adminDurum['kisi'] = $adminLog->user->name ?? 'Süper Yönetici';
+        }
     }
 
-    // === GÜVENLİK KONTROLÜ (OVERRIDE) ===
-    // Eğer proje geri döndüyse, ilerideki kartları temizle.
-    if ($iaa->durum == 'Bölüm Onayı Bekliyor') {
-        // Direktör sıfırla
-        $direktorDurum['tip'] = 'waiting';
-        $direktorDurum['baslik'] = 'Direktör Onayı Bekleniyor';
-        $direktorDurum['mesaj'] = 'Bölüm onayından sonra direktör inceleyecektir.';
-        $direktorDurum['locked'] = true;
-
-        // Admin sıfırla
-        $adminDurum['tip'] = 'waiting';
-        $adminDurum['baslik'] = 'Yönetici Onayı Bekleniyor';
-        $adminDurum['mesaj'] = 'Onay süreçleri tamamlandıktan sonra üst yönetim inceleyecektir.';
-        $adminDurum['locked'] = true;
-    } elseif ($iaa->durum == 'Direktör Onayı Bekliyor') {
-        // Admin sıfırla
-        $adminDurum['tip'] = 'waiting';
-        $adminDurum['baslik'] = 'Yönetici Onayı Bekleniyor';
-        $adminDurum['mesaj'] = 'Onay süreçleri tamamlandıktan sonra üst yönetim inceleyecektir.';
-        $adminDurum['locked'] = true;
+    // Renk Paleti Fonksiyonu
+    if (!function_exists('getFinalStatusColors')) {
+        function getFinalStatusColors($type)
+        {
+            return match ($type) {
+                'success' => ['bg' => 'bg-green-50', 'border' => 'border-green-200', 'icon_bg' => 'bg-green-100', 'icon_text' => 'text-green-600', 'title' => 'text-green-800'],
+                'warning' => ['bg' => 'bg-yellow-50', 'border' => 'border-yellow-200', 'icon_bg' => 'bg-yellow-100', 'icon_text' => 'text-yellow-600', 'title' => 'text-yellow-800'],
+                'danger' => ['bg' => 'bg-red-50', 'border' => 'border-red-200', 'icon_bg' => 'bg-red-100', 'icon_text' => 'text-red-600', 'title' => 'text-red-800'],
+                'waiting' => ['bg' => 'bg-gray-50', 'border' => 'border-gray-200', 'icon_bg' => 'bg-gray-100', 'icon_text' => 'text-gray-400', 'title' => 'text-gray-700'],
+                default => ['bg' => 'bg-gray-50', 'border' => 'border-gray-200', 'icon_bg' => 'bg-gray-100', 'icon_text' => 'text-gray-400', 'title' => 'text-gray-700'],
+            };
+        }
     }
 
+    $bRenk = getFinalStatusColors($bolumDurum['tip']);
+    $dRenk = getFinalStatusColors($direktorDurum['tip']);
+    $aRenk = getFinalStatusColors($adminDurum['tip']);
 
-    // Renk Paleti
-    function getColors($type)
-    {
-        return match ($type) {
-            'success' => ['bg' => 'bg-green-50', 'border' => 'border-green-200', 'icon_bg' => 'bg-green-100', 'icon_text' => 'text-green-600', 'title' => 'text-green-800'],
-            'warning' => ['bg' => 'bg-yellow-50', 'border' => 'border-yellow-200', 'icon_bg' => 'bg-yellow-100', 'icon_text' => 'text-yellow-600', 'title' => 'text-yellow-800'],
-            'danger' => ['bg' => 'bg-red-50', 'border' => 'border-red-200', 'icon_bg' => 'bg-red-100', 'icon_text' => 'text-red-600', 'title' => 'text-red-800'],
-            'waiting' => ['bg' => 'bg-gray-50', 'border' => 'border-gray-200', 'icon_bg' => 'bg-gray-100', 'icon_text' => 'text-gray-400', 'title' => 'text-gray-700'],
-            default => ['bg' => 'bg-gray-50', 'border' => 'border-gray-200', 'icon_bg' => 'bg-gray-100', 'icon_text' => 'text-gray-400', 'title' => 'text-gray-700'],
-        };
-    }
-
-    $bRenk = getColors($bolumDurum['tip']);
-    $dRenk = getColors($direktorDurum['tip']); // Direktör rengi
-    $aRenk = getColors($adminDurum['tip']);
-
-    // Müşteri Şikayeti Değişkeni
-    $sikayet = $iaa->musteriSikayeti;
-
-    // Grid yapısı: Kart sayısına göre dinamik
     $activeCardCount = 1; // Süper Yönetici her zaman var
-    if ($sikayet)
-        $activeCardCount++; // Bölüm Yöneticisi
-    if ($direktorOnayiAktif)
-        $activeCardCount++; // Direktör
+    if ($iaa->musteriSikayeti) $activeCardCount++; // Bölüm Yöneticisi
+    if ($direktorOnayiAktif) $activeCardCount++; // Direktör
 
     $gridClass = match ($activeCardCount) {
         1 => 'grid-cols-1',
         2 => 'grid-cols-1 md:grid-cols-2',
-        3 => 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3', // 3 Kart varsa 3'e böl
+        3 => 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3',
         default => 'grid-cols-1 md:grid-cols-2'
     };
 
-    // [ÖZELLEŞTİRME] Eğer "Müşteri Şikayeti Değilse" (Saf İAA) -> Bölüm Onayı Yoktur
-    // Dolayısıyla Admin Kilidi Doğrudan Açık Olmalı
-    if (!$sikayet) {
-        $adminDurum['locked'] = false;
-
-        // Mesajı güncelle: Bölüm onayından bahsetmesin
-        if ($adminDurum['tip'] == 'waiting') {
-            $adminDurum['mesaj'] = 'Tamamlanan proje üst yönetim onayına sunulmuştur.';
-        }
-    }
+    $sikayet = $iaa->musteriSikayeti;
 @endphp
 
-<div class="mt-10">
-    <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        Onay Durum Paneli
-    </h3>
+<div id="onay-durum-paneli" class="mt-8 mb-8 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md relative">
+    
+    {{-- BAŞLIK ALANI --}}
+    <div class="bg-gradient-to-r from-indigo-50 via-white to-white px-6 py-5 border-b border-indigo-100 flex flex-col md:flex-row justify-between md:items-center gap-4">
+        <div>
+            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <div class="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                Onay Durum Paneli
+            </h3>
+            <p class="text-xs text-indigo-600 mt-1 pl-11">Projenin aşamalarının yöneticiler tarafından onay durumu.</p>
+        </div>
+    </div>
+    
+    <div class="p-6 md:p-8">
+
+    {{-- PROJE ONAYA GÖNDERİLME BİLGİSİ (LOGDAN ÇEKİLİR) --}}
+    @php
+        $submissionLog = IaaLog::where('iaa_id', $iaa->id)
+            ->whereIn('eylem', [
+                'Bölüm Onayına Gönderildi', 
+                'Bölüm Onayına Gönderildi (İadeli)', 
+                'Yönetici Onayına Gönderildi',
+                'Bölüm Onaylandı (Direktör Onayına Sevk)',
+                'Bölüm Onaylandı (İadeli - Direktör Onayına Sevk)'
+            ])
+            ->with('user')
+            ->latest()
+            ->first();
+    @endphp
+
+    @if($submissionLog && !in_array($iaa->durum, ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Çalışılıyor']))
+        <div class="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between animate-fade-in">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                </div>
+                <div>
+                    <p class="text-sm text-indigo-900 font-semibold text-wrap">
+                        Proje, <span class="text-indigo-700 underline decoration-indigo-300 underline-offset-4">{{ $submissionLog->user->name ?? 'Lider' }}</span> tarafından 
+                        <span class="text-indigo-700">{{ $submissionLog->created_at->format('d.m.Y') }}</span> günü 
+                        saat <span class="text-indigo-700">{{ $submissionLog->created_at->format('H:i') }}</span>'de onay sürecine gönderilmiştir.
+                    </p>
+                </div>
+            </div>
+            <div class="hidden md:block shrink-0 px-3 py-1 bg-white/50 rounded-full border border-indigo-200 text-[10px] font-bold text-indigo-500 uppercase tracking-tighter">
+                {{ $iaa->durum == 'Tamamlandı' ? 'Süreç Tamamlandı' : 'Süreç Başlatıldı' }}
+            </div>
+        </div>
+    @endif
 
     <div class="grid grid-cols-1 {{ $gridClass }} gap-6">
 
@@ -382,26 +327,6 @@
                             {{ $direktorDurum['tarih']->format('d.m.Y H:i') }}
                         </span>
                     @endif
-
-                    {{-- DİREKTÖR İŞLEMİ GERİ AL BUTONU --}}
-                    @if($direktorDurum['tip'] == 'success' && $iaa->durum == 'Tamamlandı')
-                        @if(auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Direktör'))
-                            <form action="{{ route('admin.iaa-yonetim.direktorOnayiGeriAl', $iaa->id) }}" method="POST"
-                                class="mr-2 mt-2"
-                                onsubmit="return confirm('Direktör onayını geri çekmek üzeresiniz. Puanlar silinecek ve proje \'Direktör Onayı Bekliyor\' aşamasına dönecek. Emin misiniz?');">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit"
-                                    class="text-[10px] text-red-600 hover:text-red-800 font-bold bg-white/80 hover:bg-white px-2 py-1 rounded border border-red-200 shadow-sm transition-colors flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                    </svg>
-                                    İşlemi Geri Al
-                                </button>
-                            </form>
-                        @endif
-                    @endif
                 </div>
 
                 <div class="flex items-start gap-4 mt-2">
@@ -460,9 +385,29 @@
                             @endif
                         </div>
 
-                        <p class="text-sm text-gray-600 leading-relaxed">
+                        <p class="text-sm text-gray-600 leading-relaxed mb-4">
                             {{ Str::limit($direktorDurum['mesaj'], 150) }}
                         </p>
+
+                        {{-- DİREKTÖR İŞLEMİ GERİ AL BUTONU (YENİ KONUM) --}}
+                        @if($direktorDurum['tip'] == 'success' && $iaa->durum == 'Tamamlandı')
+                            @if(auth()->check() && (auth()->user()->hasRole('Superadmin') || auth()->user()->hasRole('Direktör')))
+                                <form action="{{ route('admin.iaa-yonetim.direktorOnayiGeriAl', $iaa->id) }}" method="POST"
+                                    class="inline-block"
+                                    onsubmit="return confirm('Direktör onayını geri çekmek üzeresiniz. Puanlar silinecek ve proje \'Direktör Onayı Bekliyor\' aşamasına dönecek. Emin misiniz?');">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit"
+                                        class="text-[10px] text-red-600 hover:text-red-800 font-bold bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 shadow-sm transition-all flex items-center gap-1.5 active:scale-95">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        İşlemi Geri Al
+                                    </button>
+                                </form>
+                            @endif
+                        @endif
                     </div>
                 </div>
             </div>
@@ -480,44 +425,13 @@
                 {{-- TARİH ROZETİ --}}
                 @if($adminDurum['tarih'] && !$adminDurum['locked'] && $adminDurum['tip'] != 'waiting')
                     <span
-                        class="inline-flex items-center px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-widest bg-white/60 border-l border-b {{ $aRenk['border'] }} {{ $aRenk['title'] }} shadow-sm mb-2">
+                        class="inline-flex items-center px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase tracking-widest bg-white/60 border-l border-b {{ $aRenk['border'] }} {{ $aRenk['title'] }} shadow-sm">
                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         {{ $adminDurum['tarih']->format('d.m.Y H:i') }}
                     </span>
-                @endif
-
-                {{-- ROZET VE BUTON GRUBU --}}
-                @if($adminDurum['tip'] == 'success')
-                    <div class="flex items-center mr-2 mb-2">
-                        {{-- GERİ AL BUTONU --}}
-                        @if(auth()->user()->hasRole('Superadmin'))
-                            <form action="{{ route('admin.iaa-yonetim.geriAl', $iaa->id) }}" method="POST" class="mr-2"
-                                onsubmit="return confirm('Proje onayını geri almak üzeresiniz. Puanlar geri alınacak ve proje \'Yönetici Onayı Bekliyor\' durumuna dönecek. Emin misiniz?');">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit"
-                                    class="text-[10px] text-red-600 hover:text-red-800 font-bold bg-white/80 hover:bg-white px-2 py-1 rounded border border-red-200 shadow-sm transition-colors flex items-center gap-1">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                    </svg>
-                                    İşlemi Geri Al
-                                </button>
-                            </form>
-                        @endif
-
-                        <span
-                            class="inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-green-100 text-green-800 border border-green-200 shadow-sm">
-                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Kapatıldı
-                        </span>
-                    </div>
                 @endif
             </div>
 
@@ -579,9 +493,41 @@
                         @endif
                     </div>
 
-                    <p class="text-sm text-gray-600 leading-relaxed">
+                    <p class="text-sm text-gray-600 leading-relaxed mb-4">
                         {{ Str::limit($adminDurum['mesaj'], 150) }}
                     </p>
+
+                    {{-- ALT AKSİYON ALANI (YENİ KONUM) --}}
+                    @if($adminDurum['tip'] == 'success')
+                        <div class="flex items-center gap-3">
+                            {{-- GERİ AL BUTONU --}}
+                            @if(auth()->check() && auth()->user()->hasRole('Superadmin'))
+                                <form action="{{ route('admin.iaa-yonetim.geriAl', $iaa->id) }}" method="POST"
+                                    onsubmit="return confirm('Proje onayını geri almak üzeresiniz. Puanlar geri alınacak ve proje \'Yönetici Onayı Bekliyor\' durumuna dönecek. Emin misiniz?');">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit"
+                                        class="text-[10px] text-red-600 hover:text-red-800 font-bold bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 shadow-sm transition-all flex items-center gap-1.5 active:scale-95">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                        İşlemi Geri Al
+                                    </button>
+                                </form>
+                            @endif
+
+                            {{-- DURUM ROZETİ --}}
+                            <span
+                                class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-green-100 text-green-800 border border-green-200 shadow-sm">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Kapatıldı
+                            </span>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -648,20 +594,22 @@
                                     (Ek açıklama girilmedi)
                                 </p>
                             @endif
-                           </div>
+                        </div>
 
-                            {{-- Tarih ve Saat Rozeti --}}
-                            <div
-                                class="flex items-center gap-1.5 text-xs font-medium text-{{ $feedbackColor }}-700 bg-white px-3 py-1 rounded-full shadow-sm border border-{{ $feedbackColor }}-100">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {{ $islemTarihi }}
-                            </div>
+                        {{-- Tarih ve Saat Rozeti --}}
+                        <div
+                            class="flex items-center gap-1.5 text-xs font-medium text-{{ $feedbackColor }}-700 bg-white px-3 py-1 rounded-full shadow-sm border border-{{ $feedbackColor }}-100">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {{ $islemTarihi }}
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
     @endif
+    
+    </div> {{-- End of p-6 md:p-8 --}}
 </div>

@@ -72,12 +72,7 @@
                             <div class="flex-1 min-w-0">
                                 {{-- Rozetler --}}
                                 <div class="flex flex-wrap items-center gap-2 mb-2">
-                                    <span class="text-xs font-semibold px-3 py-1.5 rounded-md {{ 
-                                        $proje->durum == 'Revize Ediliyor' ? 'bg-orange-100 text-orange-700 border border-orange-300' : 
-                                        (Str::contains($proje->durum, 'Onay') ? 'bg-purple-100 text-purple-700 border border-purple-300' : 'bg-blue-100 text-blue-700 border border-blue-300') 
-                                    }}">
-                                        {{ $proje->durum }}
-                                    </span>
+                                    {!! $proje->durum_etiketi !!}
                                     <span class="text-xs font-medium text-gray-600 px-3 py-1.5 bg-gray-100 rounded-md border border-gray-300">
                                         {{ $proje->musteriSikayeti->sikayetKategori->ad ?? 'Genel Kategori' }}
                                     </span>

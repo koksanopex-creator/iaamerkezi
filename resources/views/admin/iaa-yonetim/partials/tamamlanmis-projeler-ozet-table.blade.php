@@ -77,7 +77,7 @@
                                 @if($iaa->completion_duration_in_days !== null)
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
                                         <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                        {{ $iaa->completion_duration_in_days }} gün
+                                        {{ $iaa->completion_duration_in_days }}
                                     </span>
                                 @else
                                     <span class="text-gray-400">-</span>
@@ -94,6 +94,14 @@
                                        title="Proje Detaylarını İncele">
                                         <svg class="w-4 h-4 mr-1.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                         İncele
+                                    </a>
+
+                                    {{-- YENİ: ÖNERİ BUTONU --}}
+                                    <a href="{{ route('iaa.show', $iaa) }}" target="_blank" 
+                                       class="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-amber-700 bg-white hover:bg-amber-50 border border-amber-200 shadow-sm transition-colors whitespace-nowrap"
+                                       title="Orijinal Öneriyi Görüntüle">
+                                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Öneri
                                     </a>
                                     
                                     {{-- 2. SUPERADMIN İŞLEMLERİ (GRİ KUTU) --}}

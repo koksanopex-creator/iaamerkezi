@@ -31,7 +31,7 @@ class Customer extends Model
      */
     public function users()
     {
-        return $this->hasMany(User::class, 'customer_id');
+        return $this->belongsToMany(User::class, 'customer_user')->withPivot('is_active', 'unvan')->withTimestamps();
     }
 
     /**

@@ -1,11 +1,25 @@
 <?php
     $durum = $uye->pivot->durum; // onaylandi, bekliyor, reddedildi
-    $isLider = $uye->pivot->rol == 'Lider';
+    
+    // Kim lider? 
+    // 1. Proje tamamlanmış/onay sürecindeyse ve 'tamamlayan_lider_id' dondurulmuşsa o kişi liderdir.
+    // 2. Proje devam ediyorsa, pivotta rolü 'Lider' olan ve hala aktif (işten ayrılmamış) kişi liderdir.
+    // 3. VEYA projenin atanan takımının güncel lideri bu kişiyse (Halef-Selef durumu için).
+    
+    $isLider = false;
+    if ($iaa->tamamlayan_lider_id) {
+        $isLider = $iaa->tamamlayan_lider_id == $uye->id;
+    } else {
+        $pivotLiderMi = $uye->pivot->rol == 'Lider';
+        $isLider = ($pivotLiderMi && !$uye->trashed()) || ($iaa->atananTakim && $iaa->atananTakim->lider_user_id == $uye->id);
+    }
     
     // Stil Ayarları
     $cardClass = 'bg-white border-gray-200';
     
-    if($isLider) {
+    if($uye->trashed()) {
+        $cardClass = 'bg-gray-50 border-gray-200 opacity-75 grayscale';
+    } elseif($isLider) {
         $cardClass = 'bg-gradient-to-br from-indigo-50 to-white border-indigo-200 shadow-sm ring-1 ring-indigo-100';
     } elseif($durum == 'bekliyor') {
         $cardClass = 'bg-amber-50/50 border-amber-200 border-dashed';
@@ -19,21 +33,21 @@
     
     <a href="<?php echo e(route('profile.show', $uye->id)); ?>" class="flex-shrink-0 relative block">
         <?php if($uye->profile_photo_path): ?>
-            <img class="h-14 w-14 rounded-full object-cover border-2 <?php echo e($isLider ? 'border-indigo-200' : 'border-white'); ?> shadow-sm group-hover:scale-105 transition-transform duration-200 <?php echo e($durum == 'reddedildi' ? 'grayscale' : ''); ?>" 
+            <img class="h-14 w-14 rounded-full object-cover border-2 <?php echo e($isLider ? 'border-indigo-200' : 'border-white'); ?> shadow-sm group-hover:scale-105 transition-transform duration-200 <?php echo e(($durum == 'reddedildi' || $uye->trashed()) ? 'grayscale' : ''); ?>" 
                     src="<?php echo e(asset('storage/'.$uye->profile_photo_path)); ?>" 
                     alt="<?php echo e($uye->name); ?>">
         <?php else: ?>
-            <div class="h-14 w-14 rounded-full border-2 <?php echo e($isLider ? 'border-indigo-200' : 'border-white'); ?> bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-600 shadow-sm group-hover:scale-105 transition-transform duration-200 <?php echo e($durum == 'reddedildi' ? 'grayscale' : ''); ?>">
+            <div class="h-14 w-14 rounded-full border-2 <?php echo e($isLider ? 'border-indigo-200' : 'border-white'); ?> bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-600 shadow-sm group-hover:scale-105 transition-transform duration-200 <?php echo e(($durum == 'reddedildi' || $uye->trashed()) ? 'grayscale' : ''); ?>">
                 <?php echo e(substr($uye->name, 0, 1)); ?>
 
             </div>
         <?php endif; ?>
 
         
-        <?php if($durum == 'bekliyor'): ?>
+        <?php if($durum == 'bekliyor' && !$uye->trashed()): ?>
             <span class="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full ring-2 ring-white bg-amber-400 animate-pulse" title="Yanıt Bekleniyor"></span>
-        <?php elseif($durum == 'reddedildi'): ?>
-            <span class="absolute bottom-0 right-0 flex items-center justify-center h-4 w-4 rounded-full ring-2 ring-white bg-red-500 text-white text-[8px] font-bold" title="Reddetti">X</span>
+        <?php elseif(($durum == 'reddedildi' || $uye->trashed()) && !$isLider): ?>
+            <span class="absolute bottom-0 right-0 flex items-center justify-center h-4 w-4 rounded-full ring-2 ring-white bg-red-500 text-white text-[8px] font-bold" title="<?php echo e($uye->trashed() ? 'İşten Ayrıldı' : 'Reddetti'); ?>">X</span>
         <?php endif; ?>
     </a>
 
@@ -42,9 +56,12 @@
         <div class="flex items-start justify-between">
             <div>
                 
-                <a href="<?php echo e(route('profile.show', $uye->id)); ?>" class="text-sm font-bold text-gray-900 hover:text-indigo-600 transition-colors block leading-tight">
+                <a href="<?php echo e(route('profile.show', $uye->id)); ?>" class="text-sm font-bold text-gray-900 hover:text-indigo-600 transition-colors flex items-center gap-2 leading-tight">
                     <?php echo e($uye->name); ?>
 
+                    <?php if($uye->trashed()): ?>
+                        <span class="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded border border-red-200 whitespace-nowrap">İŞTEN AYRILDI<?php echo e($uye->termination_date ? ' (' . \Carbon\Carbon::parse($uye->termination_date)->format('d.m.Y') . ')' : ''); ?></span>
+                    <?php endif; ?>
                 </a>
                 
                 
@@ -77,7 +94,20 @@
             <?php endif; ?>
 
             <?php if($durum == 'bekliyor'): ?>
-                <span class="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">Yanıt Bekleniyor</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">Yanıt Bekleniyor</span>
+                    
+                    
+                    <?php if(isset($isLeader) && $isLeader && isset($isLocked) && !$isLocked): ?>
+                        <button onclick="if(confirm('Daveti iptal etmek istediğinize emin misiniz?')) { Livewire.dispatch('davetIptalFromOuter', { userId: <?php echo e($uye->id); ?>, iaaId: <?php echo e($iaa->id); ?> }) }" 
+                                class="p-1 rounded-md bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-200 border border-red-100 shadow-sm" 
+                                title="Daveti İptal Et">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    <?php endif; ?>
+                </div>
             <?php elseif($durum == 'reddedildi'): ?>
                 <span class="text-[10px] text-red-600 font-bold bg-red-50 px-1.5 py-0.5 rounded border border-red-100">Reddetti</span>
             <?php endif; ?>

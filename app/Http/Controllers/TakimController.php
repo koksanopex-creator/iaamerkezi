@@ -366,12 +366,17 @@ class TakimController extends Controller
     public function davetlerim()
     {
         $davetler = TakimDavetiyesi::where('davet_edilen_user_id', Auth::id())
-            ->where('type', 'davet') // <--- EKLEME: Sadece 'davet' olanlar
+            ->where('type', 'davet')
             ->where('durum', 'bekliyor')
             ->with('takim.lider')
             ->get();
 
-        return view('takimlar.davetlerim', compact('davetler'));
+        $projeDavetleri = Auth::user()->gorevliOlduguProjeler()
+            ->wherePivot('durum', 'bekliyor')
+            ->with('atananTakim.lider')
+            ->get();
+
+        return view('takimlar.davetlerim', compact('davetler', 'projeDavetleri'));
     }
 
     // 2. TAKIMIMA GELEN KATILMA İSTEKLERİ (Ben Lidersem ve biri girmek istiyorsa)
@@ -569,6 +574,10 @@ class TakimController extends Controller
                 ]
             ]);
 
+            // KATILMA İSTEĞİ KABUL EDİLEN KULLANICIYA BİLDİRİM GÖNDER
+            if ($davetiye->davetEden) {
+                $davetiye->davetEden->notify(new \App\Notifications\TakimIstegiKabulEdildi($davetiye));
+            }
         });
 
         return back()->with('success', $davetiye->davetEden->name . ' takıma başarıyla eklendi.');

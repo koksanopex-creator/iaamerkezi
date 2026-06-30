@@ -1,11 +1,31 @@
+@push('pageTitle')
+    {{ $user->name }} - Puan Detayı | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
-            <h2 class="font-bold text-2xl text-gray-800 leading-tight">
-                {{ $user->name }}
-            </h2>
-            <div class="text-right">
-                <span class="text-xs text-gray-500 block">Son Görülme</span>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="flex items-center gap-4">
+                {{-- AKILLI GERİ DÖN BUTONU --}}
+                <a href="{{ url()->previous() == url()->current() ? route('profile.show', $user->id) : url()->previous() }}" 
+                   class="group flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300">
+                    <svg class="w-5 h-5 text-gray-500 group-hover:text-indigo-600 group-hover:-translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </a>
+
+                <h2 class="font-bold text-2xl text-gray-800 leading-tight flex items-center gap-3">
+                    {{ $user->name }}
+                    @if(method_exists($user, 'trashed') && $user->trashed())
+                        <span class="px-3 py-1 bg-red-600 text-white text-xs font-black rounded-lg shadow-sm border border-red-400">
+                            PASİF / İŞTEN AYRILDI
+                        </span>
+                    @endif
+                </h2>
+            </div>
+
+            <div class="text-left md:text-right">
+                <span class="text-xs text-gray-500 block uppercase tracking-wider font-bold">Son Görülme</span>
                 <span class="text-sm font-medium {{ $user->isOnline() ? 'text-green-600' : 'text-gray-600' }}">
                     {{ $user->last_seen_at ? \Carbon\Carbon::parse($user->last_seen_at)->diffForHumans() : 'Giriş Yapmadı' }}
                 </span>
@@ -15,6 +35,24 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            
+            @if(method_exists($user, 'trashed') && $user->trashed())
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-bold text-red-800">BU PERSONEL SİSTEMDEN AYRILMIŞTIR</h3>
+                            <div class="mt-1 text-sm text-red-700">
+                                <p>Bu profil pasif durumdadır. Aşağıdaki puanlar personelin görev süresi boyunca kazandığı ve dondurulmuş verilerdir.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
             
             {{-- TARİH FİLTRESİ --}}
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
@@ -77,7 +115,7 @@
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proje</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tür</th>
                                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol / Sebep</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Onay Tarihi</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Onaya Gönderme Tarihi</th>
                                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Puan</th>
                                     </tr>
                                 </thead>
@@ -106,7 +144,7 @@
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {{ \Carbon\Carbon::parse($proje->onaylanma_tarihi)->format('d.m.Y') }}
+                                                {{ \Carbon\Carbon::parse($proje->onaya_gonderilme_tarihi ?? $proje->onaylanma_tarihi ?? $proje->created_at)->format('d.m.Y') }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-green-600">
                                                 +{{ number_format($proje->puan, 0) }}

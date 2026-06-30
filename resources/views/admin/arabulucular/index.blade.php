@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Arabulucu Listesi | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">

@@ -14,12 +14,12 @@
         }
 
         // Yetki Kontrolü (Düzenleme butonu için)
-        $isLeader = ($iaa->atananTakim && auth()->id() == $iaa->atananTakim->lider_user_id) || auth()->user()->hasRole('Superadmin');
+        $isLeader = ($iaa->atananTakim && auth()->id() == $iaa->atananTakim->lider_user_id) || (auth()->check() && auth()->user()->hasRole('Superadmin'));
         $isOnayBekliyor = $iaa->durum == 'Bölüm Onayı Bekliyor';
     @endphp
 
     @if($iade)
-    <div class="mt-8 mb-8 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md relative">
+    <div id="iade-hurda-alani" class="mt-8 mb-8 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md relative">
         
         {{-- GERİ AL / DÜZENLE BUTONU (Sadece Lider ve Onay Bekliyorsa) --}}
         @if($isLeader && $isOnayBekliyor)
@@ -46,7 +46,7 @@
                 <p class="text-xs text-red-600 mt-1 pl-11">Bu proje kapsamında müşteri iadesi kesinleşmiştir.</p>
             </div>
             
-            <div class="flex items-center gap-3 md:mr-32"> {{-- mr-32 butona yer açmak için --}}
+            <div class="flex items-center gap-3">
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200 shadow-sm">
                     <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                     KAYDEDİLDİ
@@ -126,8 +126,45 @@
                 </div>
             </div>
 
-            {{-- İKİNCİ SATIR: AÇIKLAMA VE DOSYA --}}
-            <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {{-- İKİNCİ SATIR: AÇIKLAMA VE DOSYA (SADECE PERSONEL VEYA MÜŞTERİYE AÇIKSA GÖREBİLİR) --}}
+            @if((Auth::check() && Auth::user()->is_personnel == 1) || $iade->musteri_gorebilir_mi)
+
+            @if($isLeader || (Auth::check() && (Auth::user()->hasRole('Superadmin') || Auth::user()->hasRole('Yonetim'))))
+                {{-- YETKİLİLER İÇİN YÖNETİM ÇUBUĞU (AJAX İLE AÇ/KAPAT) --}}
+                <div class="mt-8 flex flex-col sm:flex-row items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-4 gap-4 transition-all duration-300" id="customer-visibility-wrapper-{{ $iade->id }}">
+                    <div class="flex items-center gap-3">
+                        <div id="visibility-icon-container-{{ $iade->id }}" class="flex items-center justify-center w-8 h-8 rounded-full {{ $iade->musteri_gorebilir_mi ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500' }}">
+                            @if($iade->musteri_gorebilir_mi)
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            @else
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                            @endif
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-gray-700">Müşteri Görünürlüğü</p>
+                            <p class="text-[10px] text-gray-500" id="visibility-status-text-{{ $iade->id }}">
+                                Aşağıdaki ek notlar ve belgeler şu an müşteri tarafından <strong class="{{ $iade->musteri_gorebilir_mi ? 'text-green-600' : 'text-gray-600' }}">{{ $iade->musteri_gorebilir_mi ? 'GÖRÜLEBİLİYOR' : 'GÖRÜLEMİYOR (GİZLİ)' }}</strong>.
+                            </p>
+                        </div>
+                    </div>
+                    <button type="button" 
+                            id="toggle-vis-btn-{{ $iade->id }}"
+                            onclick="toggleMusteriGorebilirMi({{ $iade->id }}, this)" 
+                            class="flex items-center gap-1.5 px-4 py-2 border rounded-lg shadow-sm text-xs font-bold transition-all shrink-0 {{ $iade->musteri_gorebilir_mi ? 'bg-white border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300' : 'bg-white border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300' }}">
+                        @if($iade->musteri_gorebilir_mi)
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                            Müşteriden Gizle
+                        @else
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            Müşteriye Göster
+                        @endif
+                    </button>
+                </div>
+            @else
+                <div class="mt-8 border-t border-slate-100"></div>
+            @endif
+
+            <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
                 
                 {{-- AÇIKLAMA ALANI --}}
                 <div class="lg:col-span-2">
@@ -188,8 +225,73 @@
                     @endif
                 </div>
             </div>
+            @endif
+
         </div>
     </div>
+
+    <script>
+    function toggleMusteriGorebilirMi(iadeId, buttonEl) {
+        buttonEl.classList.add('opacity-50', 'pointer-events-none');
+        const originalHtml = buttonEl.innerHTML;
+        buttonEl.innerHTML = '<svg class="animate-spin w-4 h-4 mr-1 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> İşleniyor...';
+
+        fetch(`/proje-calisma-alani/iade/${iadeId}/toggle-visibility`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            buttonEl.classList.remove('opacity-50', 'pointer-events-none');
+            
+            if (data.success) {
+                const iconContainer = document.getElementById('visibility-icon-container-' + iadeId);
+                const statusText = document.getElementById('visibility-status-text-' + iadeId);
+                
+                if (data.is_visible) {
+                    buttonEl.className = 'flex items-center gap-1.5 px-4 py-2 border rounded-lg shadow-sm text-xs font-bold transition-all shrink-0 bg-white border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300';
+                    buttonEl.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg> Müşteriden Gizle';
+                    
+                    if (iconContainer) {
+                        iconContainer.className = 'flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600';
+                        iconContainer.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>';
+                    }
+                    if (statusText) {
+                        statusText.innerHTML = 'Aşağıdaki ek notlar ve belgeler şu an müşteri tarafından <strong class="text-green-600">GÖRÜLEBİLİYOR</strong>.';
+                    }
+                    
+                    if (typeof window.showToast === 'function') window.showToast('Başarılı', data.message, 'success');
+                } else {
+                    buttonEl.className = 'flex items-center gap-1.5 px-4 py-2 border rounded-lg shadow-sm text-xs font-bold transition-all shrink-0 bg-white border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300';
+                    buttonEl.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg> Müşteriye Göster';
+                    
+                    if (iconContainer) {
+                        iconContainer.className = 'flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 text-gray-500';
+                        iconContainer.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>';
+                    }
+                    if (statusText) {
+                        statusText.innerHTML = 'Aşağıdaki ek notlar ve belgeler şu an müşteri tarafından <strong class="text-gray-600">GÖRÜLEMİYOR (GİZLİ)</strong>.';
+                    }
+                    
+                    if (typeof window.showToast === 'function') window.showToast('Başarılı', data.message, 'success');
+                }
+            } else {
+                alert(data.message || 'Bir hata oluştu!');
+                buttonEl.innerHTML = originalHtml;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            buttonEl.classList.remove('opacity-50', 'pointer-events-none');
+            buttonEl.innerHTML = originalHtml;
+            alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+        });
+    }
+    </script>
     @endif
 
 @endif

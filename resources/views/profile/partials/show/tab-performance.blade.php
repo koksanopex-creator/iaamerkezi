@@ -39,11 +39,11 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             {{-- Son Aktivite Listesi --}}
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200" x-data="{ limit: 5, total: {{ $sonAktiviteler->count() }} }">
                 <h4 class="text-sm font-bold text-gray-600 uppercase mb-4">Son Aktiviteler</h4>
                 <ul class="space-y-4">
-                    @foreach($sonAktiviteler->take(5) as $log)
-                        <li class="flex items-start space-x-3 text-sm">
+                    @foreach($sonAktiviteler as $log)
+                        <li class="flex items-start space-x-3 text-sm" x-show="{{ $loop->index }} < limit" x-transition>
                             <div class="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-indigo-500"></div>
                             <div>
                                 <span class="font-semibold text-gray-800">{{ $log->eylem }}</span>
@@ -61,6 +61,16 @@
                         </li>
                     @endforeach
                 </ul>
+                
+                @if($sonAktiviteler->count() > 5)
+                <div class="mt-4 pt-4 border-t border-gray-50 flex justify-center">
+                    <button @click="limit = (limit === 5 ? total : 5)" 
+                            class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors">
+                        <span x-text="limit === 5 ? 'Daha Fazla Göster' : 'Daha Az Göster'"></span>
+                        <svg class="w-3 h-3 transform transition-transform" :class="limit !== 5 ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                </div>
+                @endif
             </div>
 
             {{-- Son Proje --}}
@@ -164,10 +174,13 @@
     </div>
 
     {{-- Projeler ve Öneriler --}}
-    <div>
+    <div x-data="{ limit: 5, total: {{ $kullaniciProjeleri->count() }} }">
         <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
             <span class="w-1.5 h-6 bg-green-500 rounded-full"></span>
             Tüm Projeler ve Öneriler
+            <span class="bg-gray-100 text-gray-600 py-0.5 px-2.5 rounded-full text-xs font-bold border border-gray-200">
+                {{ $kullaniciProjeleri->count() }}
+            </span>
         </h3>
 
         @if(isset($kullaniciProjeleri) && $kullaniciProjeleri->count() > 0)
@@ -183,7 +196,7 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($kullaniciProjeleri as $proje)
-                            <tr class="hover:bg-gray-50 transition-colors">
+                            <tr class="hover:bg-gray-50 transition-colors" x-show="{{ $loop->index }} < limit" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform -translate-y-2">
                                 <td class="px-6 py-4">
                                     <div class="flex flex-col">
                                         {{-- TIKLANABİLİR BAŞLIK (İSTEK ÜZERİNE EKLENDİ) --}}
@@ -199,25 +212,45 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    @if($proje->gonderen_user_id == $user->id)
-                                        <span class="text-purple-700 font-medium text-xs">Öneri Sahibi</span>
-                                    @else
-                                        <span class="text-gray-600 text-xs">Takım Üyesi</span>
-                                    @endif
+                                    @php
+                                        $roller = [];
+
+                                        // 1. Öneri Sahibi (projeyi gönderen kişi)
+                                        if ($proje->gonderen_user_id == $user->id) {
+                                            $roller[] = ['text' => 'Öneri Sahibi', 'class' => 'text-purple-700 bg-purple-50 border-purple-200'];
+                                        }
+
+                                        // 2. Takım Lideri (atanan takımın lideri)
+                                        if ($proje->atananTakim && $proje->atananTakim->lider_user_id == $user->id) {
+                                            $roller[] = ['text' => 'Takım Lideri', 'class' => 'text-indigo-700 bg-indigo-50 border-indigo-200'];
+                                        }
+
+                                        // 3. Squad Üyesi (projeEkibi pivot - Müşteri Şikayeti projeleri)
+                                        if ($proje->projeEkibi && $proje->projeEkibi->contains('id', $user->id)) {
+                                            $pivotRol = $proje->projeEkibi->firstWhere('id', $user->id)?->pivot?->rol;
+                                            if ($pivotRol === 'Lider') {
+                                                $roller[] = ['text' => 'Squad Lideri', 'class' => 'text-orange-700 bg-orange-50 border-orange-200'];
+                                            } else {
+                                                $roller[] = ['text' => 'Squad Üyesi', 'class' => 'text-teal-700 bg-teal-50 border-teal-200'];
+                                            }
+                                        }
+
+                                        // 4. Takım Üyesi fallback (sadece hiçbir rol bulunamadıysa)
+                                        if (empty($roller)) {
+                                            $roller[] = ['text' => 'Takım Üyesi', 'class' => 'text-gray-600 bg-gray-50 border-gray-200'];
+                                        }
+                                    @endphp
+
+                                    <div class="flex flex-col gap-1">
+                                        @foreach($roller as $rol)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border {{ $rol['class'] }} w-fit">
+                                                {{ $rol['text'] }}
+                                            </span>
+                                        @endforeach
+                                    </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    @php
-                                        $renk = match($proje->durum) {
-                                            'Tamamlandı' => 'green',
-                                            'Havuzda' => 'yellow',
-                                            'Atandı', 'Devam Ediyor' => 'blue',
-                                            'Tamamlanması Reddedildi' => 'red',
-                                            default => 'gray'
-                                        };
-                                    @endphp
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{{ $renk }}-100 text-{{ $renk }}-800">
-                                        {{ $proje->durum }}
-                                    </span>
+                                    {!! $proje->durum_etiketi !!}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
                                     {{ $proje->updated_at->format('d.m.Y') }}
@@ -227,6 +260,20 @@
                     </tbody>
                 </table>
             </div>
+
+            {{-- DAHA FAZLA GÖSTER BUTONU --}}
+            @if($kullaniciProjeleri->count() > 5)
+                <div class="mt-6 flex justify-center">
+                    <button @click="limit = (limit === 5 ? total : 5)" 
+                            class="inline-flex items-center px-6 py-2.5 bg-white border border-gray-300 rounded-xl font-bold text-sm text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:scale-105 active:scale-95 group">
+                        <svg class="w-5 h-5 mr-2 text-gray-400 group-hover:text-indigo-500 transition-colors transform transition-transform" :class="limit !== 5 ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 13l-7 7-7-7m14-8l-7 7-7-7"></path>
+                        </svg>
+                        <span x-text="limit === 5 ? 'Daha Fazla Göster' : 'Daha Az Göster'"></span>
+                        <span x-if="limit === 5" class="ml-2 px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs" x-text="'(' + (total - 5) + ' kaldı)'"></span>
+                    </button>
+                </div>
+            @endif
         @else
             <div class="bg-gray-50 rounded-lg p-4 text-center border border-gray-200">
                 <p class="text-sm text-gray-500">Kayıtlı proje bulunamadı.</p>

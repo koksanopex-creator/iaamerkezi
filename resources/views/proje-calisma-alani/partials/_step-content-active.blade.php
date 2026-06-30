@@ -1,4 +1,4 @@
-@props(['iaa', 'assignment', 'currentStep', 'progressUpdate', 'isTeamMember', 'takim'])
+@props(['iaa', 'assignment', 'currentStep', 'progressUpdate', 'isTeamMember', 'takim', 'canEdit' => false])
 
 @php
     // KİLİT MANTIĞI: Talep sürecindeyse veya kapandıysa
@@ -6,10 +6,10 @@
         'talep_onayi_bekliyor_kalite', 
         'talep_onayi_bekliyor_superadmin', 
         'talep_olarak_kapatildi',
-        // 'Bölüm Onayı Bekliyor', // Bunlar zaten normal akışta yönetiliyor olabilir
-        // 'Yönetici Onayı Bekliyor',
-        // 'Tamamlandı'
     ];
+    // Müdahale Yetkisi Kontrolü: Eğer müdahale yetkisi varsa kilit bypass edilebilir mi?
+    // Servis tarafında (ProjeAdimIslemleriService) kilitli durumlarda işlem kesinlikle engellendiği için 
+    // UI tarafında da tutarlılık adına kimse (Superadmin dahil) işlem yapamamalıdır.
     $isLocked = in_array($iaa->durum, $kilitliDurumlar);
 @endphp
 
@@ -27,7 +27,7 @@
             </p>
         </div>
     
-    @elseif ($isTeamMember)
+    @elseif ($canEdit)
         {{-- NORMAL AKIŞ --}}
         @livewire('project.active-step', [
             'iaa' => $iaa, 

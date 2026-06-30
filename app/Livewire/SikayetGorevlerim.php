@@ -25,6 +25,9 @@ class SikayetGorevlerim extends Component
             'logs.user'
         ])
             ->has('musteriSikayeti')
+            ->whereDoesntHave('musteriSikayeti', function ($q) {
+                $q->onlyTrashed();
+            })
             ->where(function ($topQ) use ($user) {
 
                 // 1. DURUM: BÖLÜM ONAYI BEKLİYOR

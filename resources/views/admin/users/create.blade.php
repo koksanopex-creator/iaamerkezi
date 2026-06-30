@@ -1,3 +1,6 @@
+@push('pageTitle')
+    Yeni Kullanıcı Oluştur | 
+@endpush
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
@@ -54,6 +57,28 @@
                                 <x-input-error :messages="$errors->get('email')" class="mt-2" />
                             </div>
 
+                            {{-- TC, Sicil ve Ünvan --}}
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                                <div>
+                                    <label for="tc_kimlik_no" class="block text-sm font-medium text-gray-700">TC Kimlik No</label>
+                                    <input type="text" name="tc_kimlik_no" id="tc_kimlik_no" value="{{ old('tc_kimlik_no') }}" maxlength="11"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <x-input-error :messages="$errors->get('tc_kimlik_no')" class="mt-2" />
+                                </div>
+                                <div>
+                                    <label for="sicil_no" class="block text-sm font-medium text-gray-700">Sicil No</label>
+                                    <input type="text" name="sicil_no" id="sicil_no" value="{{ old('sicil_no') }}"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <x-input-error :messages="$errors->get('sicil_no')" class="mt-2" />
+                                </div>
+                                <div>
+                                    <label for="unvan" class="block text-sm font-medium text-gray-700">Ünvan</label>
+                                    <input type="text" name="unvan" id="unvan" value="{{ old('unvan') }}"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <x-input-error :messages="$errors->get('unvan')" class="mt-2" />
+                                </div>
+                            </div>
+
                             {{-- Bölüm Seçimi --}}
                             <div>
                                 <label for="bolum_id" class="block text-sm font-medium text-gray-700">Bölüm</label>
@@ -82,6 +107,28 @@
                                 <p class="mt-1 text-xs text-gray-500 italic">Birden fazla rol seçmek için Ctrl tuşuna
                                     basılı tutun.</p>
                                 <x-input-error :messages="$errors->get('roles')" class="mt-2" />
+                            </div>
+
+                            {{-- İşe Giriş, İşten Çıkış ve Doğum Tarihleri --}}
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                                <div>
+                                    <label for="dogum_tarihi" class="block text-sm font-medium text-gray-700">Doğum Tarihi</label>
+                                    <input type="date" name="dogum_tarihi" id="dogum_tarihi" value="{{ old('dogum_tarihi') }}"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <x-input-error :messages="$errors->get('dogum_tarihi')" class="mt-2" />
+                                </div>
+                                <div>
+                                    <label for="hire_date" class="block text-sm font-medium text-gray-700">İşe Giriş Tarihi</label>
+                                    <input type="date" name="hire_date" id="hire_date" value="{{ old('hire_date') }}"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <x-input-error :messages="$errors->get('hire_date')" class="mt-2" />
+                                </div>
+                                <div>
+                                    <label for="termination_date" class="block text-sm font-medium text-gray-700">İşten Çıkış Tarihi</label>
+                                    <input type="date" name="termination_date" id="termination_date" value="{{ old('termination_date') }}"
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <x-input-error :messages="$errors->get('termination_date')" class="mt-2" />
+                                </div>
                             </div>
 
                             {{-- Şifre ve Şifre Tekrar --}}

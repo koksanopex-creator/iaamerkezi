@@ -14,7 +14,7 @@
             }
         @endphp
 
-        <div x-data="{ openLogs: false }"
+        <div wire:key="card-{{ $sikayet->id }}" x-data="{ openLogs: false }"
             class="rounded-2xl border shadow-sm hover:shadow-xl transition-all duration-300 relative group overflow-hidden
                          {{-- MÜŞTERİ İSE: Koyu Kırmızı Çerçeve ve Açık Kırmızı Arkaplan --}}
                          {{ $isCustomerEntry ? 'bg-red-50 border-red-600 ring-1 ring-red-200' : 'bg-white border-gray-200' }}">
@@ -64,29 +64,25 @@
                         </div>
 
                         <div class="flex-1 min-w-0">
-                            {{-- Firma İsmi --}}
+                            {{-- Şikayet Konusu --}}
                             <div class="mb-2">
                                 <span
-                                    class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Firma
-                                    İsmi:</span>
+                                    class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Şikayet
+                                    Konusu:</span>
                                 <div class="flex items-center gap-2">
-                                    <h2 class="text-xl font-black text-gray-900 leading-tight truncate">
-                                        @if($sikayet->customer)
-                                            {{-- Kayıtlı Müşteri ise Link Ver --}}
-                                            <a href="{{ route('musteri.profil.show', $sikayet->customer->id) }}" target="_blank"
-                                                class="hover:text-indigo-600 hover:underline transition-colors"
-                                                title="Müşteri Profiline Git">
-                                                {{ $sikayet->customer->name }}
-                                            </a>
-                                        @else
-                                            {{-- Kayıtlı değilse düz yazı (Eski usul) --}}
-                                            {{ $sikayet->musteri_adi }}
-                                        @endif
+                                    <h2 class="text-xl font-black text-gray-900 leading-tight truncate hover:underline cursor-pointer
+                                                {{ $isCustomerEntry ? 'text-red-900' : 'text-gray-900' }}">
+                                        <a href="{{ route('admin.sikayetler.show', $sikayet->id) }}">
+                                            {{ $sikayet->musteri_sikayet_konusu }}
+                                        </a>
                                     </h2>
                                     <span
                                         class="px-2 py-0.5 rounded-md text-[10px] font-bold border 
                                                     {{ $isCustomerEntry ? 'bg-red-200 text-red-900 border-red-300' : 'bg-indigo-50 text-indigo-700 border-indigo-100' }}">
                                         #{{ $sikayet->id }}
+                                        @if($sikayet->iaaProjesi && in_array($sikayet->iaaProjesi->durum, ['Bölüm Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_superadmin']))
+                                            <span class="text-amber-500 animate-pulse ml-1" title="Onay Bekliyor">⭐</span>
+                                        @endif
                                     </span>
                                 </div>
                             </div>
@@ -134,24 +130,56 @@
                                 @endif
                             </div>
 
-                            {{-- Şikayet Konusu --}}
+                            {{-- Firma İsmi --}}
                             <div>
                                 <span
-                                    class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Şikayet
-                                    Konusu:</span>
+                                    class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-0.5">Firma
+                                    İsmi:</span>
                                 <h3 class="text-base font-bold leading-snug hover:underline cursor-pointer
                                                 {{ $isCustomerEntry ? 'text-red-900' : 'text-indigo-700' }}">
-                                    <a href="{{ route('admin.sikayetler.show', $sikayet->id) }}">
-                                        {{ $sikayet->musteri_sikayet_konusu }}
-                                    </a>
+                                        @if($sikayet->customer)
+                                            <a href="{{ route('musteri.profil.show', $sikayet->customer->id) }}" target="_blank"
+                                                title="Müşteri Profiline Git">
+                                                {{ $sikayet->customer->name }}
+                                            </a>
+                                        @else
+                                            {{ $sikayet->musteri_adi }}
+                                        @endif
                                 </h3>
                             </div>
                         </div>
                     </div>
 
                     {{-- Durum Badge --}}
-                    <div class="flex-shrink-0">
+                    <div class="flex-shrink-0 flex flex-col items-end gap-1">
                         {!! $sikayet->musteri_durum_badge !!}
+                        
+                        {{-- MAİL DURUMU (SADECE YETKİLİLER GÖRÜR) --}}
+                        @hasanyrole('Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Müşteri Şikayeti Çözüm Lideri')
+                            @if(!$sikayet->mail_sent && $sikayet->mail_error)
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-rose-100 text-rose-600 border border-rose-200 cursor-help animate-pulse" 
+                                      title="BİLDİRİM HATASI: {{ $sikayet->mail_error }}">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2zM18.364 5.636l-12.728 12.728" />
+                                    </svg>
+                                    MAİL GİTMEDİ
+                                </span>
+                            @endif
+                        @endhasanyrole
+
+                        {{-- Ziyaret Planlandı Etiketi --}}
+                        @if($sikayet->iaaProjesi && $sikayet->iaaProjesi->visit_planned)
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-800 border border-blue-200" title="Ziyaret Planlandı">
+                                📅 Ziyaret Planlandı
+                            </span>
+                        @endif
+
+                        {{-- YENİ: İade Var (Onaylı) Etiketi --}}
+                        @if($sikayet->iadeler()->exists() && $sikayet->iaaProjesi && in_array($sikayet->iaaProjesi->durum, ['Tamamlandı', 'Çözümlendi', 'Kapatıldı']))
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-rose-100 text-rose-800 border border-rose-200" title="İade Onaylandı">
+                                ♻️ İade Var
+                            </span>
+                        @endif
                     </div>
                 </div>
 
@@ -168,7 +196,20 @@
                     {{-- 2. Alt Kategori --}}
                     <div>
                         <span class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Alt Kategori</span>
-                        <div class="font-medium text-gray-600">{{ $sikayet->sikayetAltKategori->ad ?? 'N/A' }}</div>
+                        <div class="font-medium text-gray-600">
+                            @if($sikayet->sikayetAltKategori)
+                                {{ $sikayet->sikayetAltKategori->ad }}
+                                @if(Str::lower(trim($sikayet->sikayetAltKategori->ad)) === 'diğer / belirtilmemiş' || Str::lower(trim($sikayet->sikayetAltKategori->ad)) === 'diğer')
+                                    @if($sikayet->sikayet_alt_kategori_diger)
+                                        <br><span class="text-[10px] text-gray-400 italic" title="{{ $sikayet->sikayet_alt_kategori_diger }}">({{ Str::limit($sikayet->sikayet_alt_kategori_diger, 20) }})</span>
+                                    @endif
+                                @endif
+                            @elseif($sikayet->sikayet_alt_kategori_diger)
+                                <span title="{{ $sikayet->sikayet_alt_kategori_diger }}">{{ Str::limit($sikayet->sikayet_alt_kategori_diger, 30) }}</span>
+                            @else
+                                N/A
+                            @endif
+                        </div>
                     </div>
 
                     {{-- 3. Takım --}}
@@ -256,7 +297,27 @@
                                 </svg>
                             </a>
                         @else
-                            <span class="text-gray-600">Sistem</span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-gray-600 font-bold text-sm">Sistem</span>
+                                @php
+                                    $user = auth()->user();
+                                    $canAssign = $user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu']);
+                                    if(!$canAssign && $user->hasRole('Bölüm Kalite Yöneticisi')) {
+                                        $yonetilenKategoriIds = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
+                                        if (empty($yonetilenKategoriIds) && $user->bolum_id) {
+                                            $yonetilenKategoriIds = \App\Models\SikayetKategori::where('bolum_id', $user->bolum_id)->pluck('id')->toArray();
+                                        }
+                                        $canAssign = in_array($sikayet->sikayet_kategorisi_id, $yonetilenKategoriIds);
+                                    }
+                                @endphp
+                                @if($canAssign && !$sikayet->customer_id)
+                                    <button type="button" 
+                                        onclick="Livewire.dispatch('openMusteriAtamaModal', { sikayetId: {{ $sikayet->id }} })"
+                                        class="p-1 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors shadow-sm" title="Müşteri Tanımla / Ata">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                                    </button>
+                                @endif
+                            </div>
                         @endif
                     </div>
 
@@ -289,10 +350,46 @@
 
                         @if($sikayet->iaaProjesi)
 
-                            {{-- DÜZELTME: Modelden gelen akıllı etiketi kullan --}}
-                            <div class="scale-90 origin-left"> {{-- Biraz küçültelim ki sığsın --}}
-                                {!! $sikayet->iaaProjesi->durum_etiketi !!}
+                            {{-- DÜZELTME: Modelden gelen akıllı etiketi kullan + Bekleme Süresi --}}
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <div class="scale-90 origin-left"> {{-- Biraz küçültelim ki sığsın --}}
+                                    {!! $sikayet->iaaProjesi->durum_etiketi !!}
+                                </div>
+                                @if($sikayet->iaaProjesi->bekleme_suresi_metni)
+                                    <span class="inline-flex items-center gap-1 text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100 shadow-sm animate-pulse">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        {{ $sikayet->iaaProjesi->bekleme_suresi_metni }}
+                                    </span>
+                                @endif
                             </div>
+
+                            {{-- === İLERLEME VE KAPANIŞ UYARISI === --}}
+                            @php $ilerleme = $sikayet->iaaProjesi->ilerleme_verisi; @endphp
+
+                            @if($ilerleme['toplam'] > 0)
+                                <div class="flex flex-col gap-1 w-full max-w-[200px] mt-1">
+                                    <div class="flex justify-between items-center text-[9px] font-black uppercase">
+                                        <span class="text-indigo-600 tracking-tighter">İş Akışı ({{ $ilerleme['gecen_gun'] }}. Gün)</span>
+                                        <span class="text-gray-500">{{ $ilerleme['tamamlanan'] }}/{{ $ilerleme['toplam'] }} Adım</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden border border-gray-300 shadow-inner">
+                                        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 h-1.5 rounded-full transition-all duration-1000" 
+                                             style="width: {{ $ilerleme['yuzde'] }}%"></div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            @if($ilerleme['kapanis_bekleniyor'])
+                                <div class="mt-2 flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 border-l-4 border-orange-500 rounded-r shadow-sm animate-bounce">
+                                    <svg class="w-4 h-4 text-orange-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    <span class="text-[10px] font-black uppercase leading-none tracking-tight">Kapanış İşlemleri Bekleniyor!</span>
+                                </div>
+                            @endif
+                            {{-- ========================================= --}}
+
+                            {{-- ========================================= --}}
 
                             {{-- Süre hesabı için değişkeni tanımlayalım --}}
                             @php $pDurum = $sikayet->iaaProjesi->durum; @endphp
@@ -407,10 +504,38 @@
                     </button>
                     @endrole
 
+                    {{-- === YENİ: MÜŞTERİ ATA BUTONU === --}}
+                    @if(!$sikayet->customer_id)
+                        @php
+                            $user = auth()->user();
+                            $canAssign = $user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu']);
+                            if(!$canAssign && $user->hasRole('Bölüm Kalite Yöneticisi')) {
+                                $yonetilenKategoriIds = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
+                                if (empty($yonetilenKategoriIds) && $user->bolum_id) {
+                                    $yonetilenKategoriIds = \App\Models\SikayetKategori::where('bolum_id', $user->bolum_id)->pluck('id')->toArray();
+                                }
+                                $canAssign = in_array($sikayet->sikayet_kategorisi_id, $yonetilenKategoriIds);
+                            }
+                        @endphp
+                        @if($canAssign)
+                            <button type="button" 
+                                onclick="Livewire.dispatch('openMusteriAtamaModal', { sikayetId: {{ $sikayet->id }} })"
+                                class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-sm">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                                Müşteri Ata
+                            </button>
+                        @endif
+                    @endif
+
                     {{-- Detay Butonu --}}
                     <a href="{{ route('admin.sikayetler.show', $sikayet) }}"
-                        class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all">
+                        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all">
                         Detay
+                        @if($sikayet->dosyalar && $sikayet->dosyalar->isNotEmpty())
+                            <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Ekli Dosya Var">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                            </svg>
+                        @endif
                     </a>
 
                     {{-- Düzenle Butonu --}}
@@ -421,12 +546,26 @@
                         </a>
                     @endcan
 
-                    {{-- Sil Butonu --}}
-                    @can('delete', $sikayet)
-                        <button wire:click="delete({{ $sikayet->id }})" wire:confirm="Silmek istediğinize emin misiniz?"
-                            class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all">
-                            Sil
-                        </button>
+                    {{-- Sil / Geri Al Butonları --}}
+                    @can('delete', clone $sikayet)
+                        @if($activeTab === 'cop_kutusu')
+                            <button type="button" wire:click="restoreFromCopKutusu({{ $sikayet->id }})"
+                                class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all" title="Verileri geri listeye alır">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                                </svg>
+                                Geri Al
+                            </button>
+                            <button type="button" wire:click="confirmDelete({{ $sikayet->id }})"
+                                class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all" title="Veritabanından tamamen siler">
+                                Kalıcı Sil
+                            </button>
+                        @else
+                            <button type="button" wire:click="confirmDelete({{ $sikayet->id }})"
+                                class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all">
+                                Sil
+                            </button>
+                        @endif
                     @endcan
 
                     {{-- Projeye Git --}}

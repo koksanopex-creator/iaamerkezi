@@ -1,6 +1,11 @@
 @php
     // Kullanıcıları bir kez çekip cache'leyebiliriz, şimdilik direkt çekiyoruz
-    $users = \App\Models\User::where('onaylandi_mi', true)->orderBy('name')->get();
+    // Sorumlu kişi listesinden Superadmin, Yonetim ve Müşteri rollerini hariç tutuyoruz
+    $users = \App\Models\User::where('onaylandi_mi', true)
+        ->whereDoesntHave('roles', function($q) {
+            $q->whereIn('name', ['Superadmin', 'Yonetim', 'Müşteri', 'Musteri']);
+        })
+        ->orderBy('name')->get();
 @endphp
 <div>
     <label for="widget-{{ $index }}-user" class="block text-lg font-semibold text-gray-800">

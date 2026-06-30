@@ -2,9 +2,11 @@
     @php
         // Yetki Kontrolü: Sadece Lider ve Superadmin düzenleyebilir
         $isLeader = ($iaa->atananTakim && auth()->id() == $iaa->atananTakim->lider_user_id);
-        $isSuperAdmin = auth()->user()->hasRole('Superadmin');
+        $isSuperAdmin = auth()->check() && auth()->user()->hasRole('Superadmin');
+        $isTeamMember = auth()->check() && $iaa->atanan_takim_id && auth()->user()->takimlar->contains('id', $iaa->atanan_takim_id);
 
-        $canEditDetails = $isLeader || $isSuperAdmin;
+        // Saf İAA ise tüm takım üyeleri düzenleyebilir, şikayet kaynaklı ise sadece lider/admin
+        $canEditDetails = $isSuperAdmin || $isLeader || (is_null($iaa->musteri_sikayeti_id) && $isTeamMember);
 
         // Kısıtlama: Onayda veya Tamamlandıysa Lider DÜZENLEYEMEZ (Superadmin hariç)
         $kilitliDurumlar = [
@@ -19,7 +21,7 @@
         }
 
         // TAMAMEN KAPALI DURUMLAR (Superadmin dahil düzenleyemesin isteniyorsa - Opsiyonel ama talep bu yönde)
-        if (in_array($iaa->durum, ['Tamamlandı', 'Talep Olarak Kapatıldı', 'hatali_bildirim_olarak_kapatildi'])) {
+        if (in_array($iaa->durum, ['Tamamlandı', 'Talep Olarak Kapatıldı', 'hatali_bildirim_olarak_kapatildi']) || ($iaa->musteriSikayeti && $iaa->musteriSikayeti->trashed())) {
             $canEditDetails = false;
         }
 
@@ -270,4 +272,187 @@
             @endif
         </div>
     </div>
+
+    {{-- BİLDİRİM DETAYLARI (Müşteri Temsilcisi Talebi) --}}
+    @if($iaa->musteriSikayeti)
+        @php
+            $sikayetSnapshot = $iaa->musteriSikayeti->notified_snapshot ? json_decode($iaa->musteriSikayeti->notified_snapshot, true) : null;
+            
+            // Hover kartı fonksiyonu (Tooltip içeriğini döner)
+            if(!function_exists('renderUserCardTooltip')){
+                function renderUserCardTooltip($userData, $roleLabel) {
+                    if (!$userData) return '';
+                    
+                    $name = is_array($userData) ? ($userData['name'] ?? 'İsimsiz') : ($userData->name ?? 'İsimsiz');
+                    $email = is_array($userData) ? ($userData['email'] ?? null) : ($userData->email ?? null);
+                    $phone = is_array($userData) ? ($userData['phone'] ?? null) : ($userData->telefon ?? $userData->phone ?? null);
+                    $photoPath = is_array($userData) 
+                        ? ($userData['photo'] ?? $userData['profile_photo_path'] ?? null) 
+                        : ($userData->profile_photo_path ?? $userData->photo ?? null);
+                    
+                    $photo = ($photoPath && trim($photoPath) !== '') ? asset('storage/'.$photoPath) : null;
+                    $nameFirstLetter = substr($name, 0, 1);
+                    
+                    $emailHtml = $email ? '
+                        <div class="flex items-center gap-2.5 text-gray-600 font-medium">
+                            <div class="w-5 h-5 rounded bg-gray-50 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                            </div>
+                            <span class="truncate">'.$email.'</span>
+                        </div>' : '';
+
+                    $phoneHtml = $phone ? '
+                        <div class="flex items-center gap-2.5 text-gray-600 font-medium">
+                            <div class="w-5 h-5 rounded bg-gray-50 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                            </div>
+                            <span class="truncate">'.$phone.'</span>
+                        </div>' : '';
+
+                    return '
+                    <div class="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 p-4 bg-white rounded-xl shadow-2xl border border-indigo-100 pointer-events-none">
+                        <div class="flex items-center gap-3 mb-3">
+                            '.($photo ? '<img src="'.$photo.'" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-50 shadow-sm">' : '<div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg shadow-sm">'.$nameFirstLetter.'</div>').'
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-gray-900 leading-tight truncate">'.$name.'</p>
+                                <p class="text-[10px] font-medium text-indigo-600 uppercase tracking-wider">'.$roleLabel.'</p>
+                            </div>
+                        </div>
+                        <div class="space-y-2 border-t border-gray-50 pt-3 text-xs">
+                            '.$emailHtml.'
+                            '.$phoneHtml.'
+                        </div>
+                        <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-r border-b border-indigo-100 rotate-45"></div>
+                    </div>';
+                }
+            }
+        @endphp
+
+        <div x-data="{ showNotifications: false }" class="mt-8 pt-8 border-t border-gray-200">
+            {{-- BAŞLIK VE TOGGLE --}}
+            <div @click="showNotifications = !showNotifications" class="flex items-center justify-between cursor-pointer group/header mb-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100 ring-4 ring-indigo-50 group-hover/header:scale-110 transition-transform">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-black text-gray-900 tracking-tight">Bildirim ve Bilgilendirme Geçmişi</h4>
+                        <p class="text-sm text-gray-500 font-medium">Şikayet ilk açıldığında otomatik bilgilendirilen kişiler</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right hidden sm:block">
+                        <div class="px-3 py-1 bg-gray-100 rounded-lg text-[10px] font-black text-gray-600 uppercase tracking-widest border border-gray-200 shadow-sm leading-none inline-block">
+                            {{ $iaa->musteriSikayeti->notified_snapshot ? 'SNAPSHOT AKTİF' : 'ESKİ KAYIT' }}
+                        </div>
+                        <p class="mt-1 text-[11px] font-bold text-gray-400 tracking-tighter">{{ $iaa->musteriSikayeti->created_at ? \Carbon\Carbon::parse($iaa->musteriSikayeti->created_at)->translatedFormat('d F Y H:i') : '-' }}</p>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover/header:bg-indigo-50 group-hover/header:text-indigo-600 transition-all">
+                        <svg class="w-6 h-6 transform transition-transform duration-300" :class="showNotifications ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            {{-- İÇERİK (AKORDEON) --}}
+            <div x-show="showNotifications" x-cloak x-collapse x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 transform -translate-y-4" x-transition:enter-end="opacity-100 transform translate-y-0" class="pt-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    @if($sikayetSnapshot)
+                        {{-- SNAPSHOT VARSA --}}
+                        @foreach($sikayetSnapshot as $item)
+                            <div class="p-5 bg-white rounded-2xl border-2 border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 transform hover:-translate-y-1 relative group cursor-help">
+                                <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 opacity-60"></div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded shadow-sm">{{ $item['role_label'] }}</span>
+                                    <div class="flex gap-2">
+                                        <div class="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 shadow-sm ring-2 ring-white" title="Zil Bildirimi">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg>
+                                        </div>
+                                        <div class="w-7 h-7 rounded-full bg-green-50 flex items-center justify-center text-green-500 shadow-sm ring-2 ring-white" title="E-Posta">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span class="text-gray-900 font-bold transition-colors group-hover:text-indigo-600 block">{{ $item['name'] ?? 'İsimsiz' }}</span>
+                                {!! renderUserCardTooltip($item, $item['role_label']) !!}
+                            </div>
+                        @endforeach
+                    @else
+                        {{-- SNAPSHOT YOKSA FALLBACK --}}
+                        @php
+                            $director = optional($iaa->musteriSikayeti->sikayetKategori->bolum)->director;
+                            $kategori = $iaa->musteriSikayeti->sikayetKategori;
+                            $kaliteYoneticileri = $kategori ? \App\Models\User::whereHas('yonettigiSikayetKategorileri', function($q) use ($kategori) {
+                                $q->where('sikayet_kategori_id', $kategori->id);
+                            })->get() : collect();
+                            $deptLeaders = $kategori ? \App\Models\User::role('Bölüm Lideri')->where('bolum_id', $kategori->bolum_id)->get() : collect();
+                            
+                            // Tüm diğer temsilcileri ekle
+                            $otherReps = $iaa->musteriSikayeti->customer_id ? 
+                                \App\Models\User::role('Müşteri Temsilcisi')->where('customer_id', $iaa->musteriSikayeti->customer_id)->get() : collect();
+                        @endphp
+
+                        {{-- Direktör --}}
+                        @if($director)
+                            <div class="p-5 bg-white rounded-2xl border-2 border-gray-100 shadow-sm relative group cursor-help transition-all hover:shadow-xl hover:border-blue-200 hover:-translate-y-1">
+                                <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-500 opacity-60"></div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Bölüm Direktörü</span>
+                                </div>
+                                <span class="text-gray-900 font-bold transition-colors group-hover:text-blue-600 block">{{ $director->name }}</span>
+                                {!! renderUserCardTooltip($director, 'Bölüm Direktörü') !!}
+                            </div>
+                        @endif
+
+                        {{-- Bölüm Liderleri (Müdürler) --}}
+                        @foreach($deptLeaders as $dlider)
+                            <div class="p-5 bg-white rounded-2xl border-2 border-gray-100 shadow-sm relative group cursor-help transition-all hover:shadow-xl hover:border-indigo-200 hover:-translate-y-1">
+                                <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 opacity-60"></div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded">Bölüm Müdürü / Lideri</span>
+                                </div>
+                                <span class="text-gray-900 font-bold transition-colors group-hover:text-indigo-600 block">{{ $dlider->name }}</span>
+                                {!! renderUserCardTooltip($dlider, 'Bölüm Lideri') !!}
+                            </div>
+                        @endforeach
+
+                        {{-- Kalite Liderleri --}}
+                        @foreach($kaliteYoneticileri as $kyonetici)
+                            <div class="p-5 bg-white rounded-2xl border-2 border-gray-100 shadow-sm relative group cursor-help transition-all hover:shadow-xl hover:border-purple-200 hover:-translate-y-1">
+                                <div class="absolute top-0 left-0 w-1.5 h-full bg-purple-500 opacity-60"></div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="text-[10px] font-black text-purple-500 uppercase tracking-widest bg-purple-50 px-2 py-0.5 rounded">Kalite Lideri</span>
+                                </div>
+                                <span class="text-gray-900 font-bold transition-colors group-hover:text-purple-600 block">{{ $kyonetici->name }}</span>
+                                {!! renderUserCardTooltip($kyonetici, 'Bölüm Kalite Yöneticisi') !!}
+                            </div>
+                        @endforeach
+
+                        {{-- Müşteri Temsilcileri --}}
+                        @foreach($otherReps as $orep)
+                            <div class="p-5 bg-white rounded-2xl border-2 border-gray-100 shadow-sm relative group cursor-help transition-all hover:shadow-xl hover:border-green-200 hover:-translate-y-1">
+                                <div class="absolute top-0 left-0 w-1.5 h-full bg-green-500 opacity-60"></div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="text-[10px] font-black text-green-500 uppercase tracking-widest bg-green-50 px-2 py-0.5 rounded">Müşteri Temsilcisi</span>
+                                </div>
+                                <span class="text-gray-900 font-bold transition-colors group-hover:text-green-600 block">{{ $orep->name }}</span>
+                                {!! renderUserCardTooltip($orep, 'Müşteri Temsilcisi') !!}
+                            </div>
+                        @endforeach
+                    @endif
+                </div>
+
+                @if(!$sikayetSnapshot)
+                    <div class="mt-6 p-4 bg-amber-50 rounded-2xl border-2 border-dashed border-amber-200 flex items-center gap-4 group">
+                        <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 shadow-sm flex-shrink-0 group-hover:scale-110 transition-transform">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-amber-900 font-black leading-tight">Arşiv Kaydı Bilgilendirmesi</p>
+                            <p class="text-[12px] text-amber-700 font-bold opacity-80 mt-0.5">Bu şikayet, yeni "sabit liste" sistemi aktif edilmeden önce açılmıştır. Bu nedenle yukarıdaki tablo şikayet anındaki kişileri değil, firmanın şu anki güncel yetkililerini göstermektedir.</p>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
 @endif

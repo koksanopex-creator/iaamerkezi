@@ -15,7 +15,8 @@ class SikayetIadesi extends Model
         'birim',
         'iade_sebebi',
         'dosya_yolu',
-        'aciklama'
+        'aciklama',
+        'musteri_gorebilir_mi'
     ];
 
     protected $casts = [

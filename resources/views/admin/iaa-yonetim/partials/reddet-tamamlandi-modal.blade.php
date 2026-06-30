@@ -1,6 +1,5 @@
-{{-- Bu modal, tamamlanmış bir projeyi reddetmek ve havuza geri göndermek için kullanılır --}}
 <x-modal name="reddet-tamamlandi-modal-{{ $iaa->id }}" focusable>
-    <form method="post" action="{{ route('admin.iaa-yonetim.tamamlandiReddet', $iaa) }}" class="p-6">
+    <form method="post" action="{{ route('admin.iaa.rejectCompleted', $iaa) }}" class="p-6">
         @csrf
         @method('patch')
 

@@ -18,11 +18,7 @@
         <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
             <h3 class="text-lg font-semibold text-gray-900 mb-6">Proje Adımları</h3>
 
-            @if(session('success'))
-                <div class="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded" role="alert">
-                    <p>{{ session('success') }}</p>
-                </div>
-            @endif
+
 
             <div class="relative border-l-2 border-gray-200">
                 @php $currentStepFound = false; @endphp
@@ -53,9 +49,9 @@
                             'stepAssignments' => $stepAssignments ?? [],
                             'canEdit' => $canEdit
                         ])
-                                    </div>
+                                            </div>
                 @endforeach
+                        </div>
                     </div>
                 </div>
-            </div>
 @endif

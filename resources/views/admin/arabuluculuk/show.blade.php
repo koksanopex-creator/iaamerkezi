@@ -1,4 +1,5 @@
 <x-app-layout>
+    @push('pageTitle', 'Arabuluculuk Dosya Detayı | ')
     <x-slot name="header">
         {{-- ÜST BAŞLIK, ROZETLER VE AKSİYON BUTONLARI --}}
         @include('admin.arabuluculuk.parcalar.ust-baslik-ve-butonlar')

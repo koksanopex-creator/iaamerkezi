@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
 
 // === EKLENEN: LOGİN VE LOG İŞLEMLERİ İÇİN GEREKLİ SINIFLAR ===
 use Illuminate\Support\Facades\Event;
@@ -23,6 +24,12 @@ use App\Models\Iaa;
 use App\Observers\IaaObserver;
 use App\Models\TakimDavetiyesi;
 use App\Observers\TakimDavetiyesiObserver;
+use App\Models\Customer;
+use App\Models\SikayetIadesi;
+use App\Models\User;
+use App\Observers\CustomerObserver;
+use App\Observers\ContactObserver;
+use App\Observers\SikayetIadesiObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -41,6 +48,11 @@ class AppServiceProvider extends ServiceProvider
     {
         // === GİRİŞ HAREKETLERİNİ KAYDET (LOGIN HISTORY & MUSTERI LOG) ===
         Event::listen(Login::class, function ($event) {
+            // Sistem sağlığı simülasyonu ise loglama yapma
+            if (request()->header('X-Is-Simulation')) {
+                return;
+            }
+
             $user = $event->user;
 
             // 1. Mevcut Sistem Logu (Genel)
@@ -79,6 +91,9 @@ class AppServiceProvider extends ServiceProvider
         MusteriSikayeti::observe(MusteriSikayetiObserver::class);
         Iaa::observe(IaaObserver::class);
         TakimDavetiyesi::observe(TakimDavetiyesiObserver::class);
+        Customer::observe(CustomerObserver::class);
+        User::observe(ContactObserver::class);
+        SikayetIadesi::observe(SikayetIadesiObserver::class);
         // ===============================
 
         // Ayarlar ve View Paylaşımları
@@ -97,5 +112,25 @@ class AppServiceProvider extends ServiceProvider
 
             Carbon::setLocale(config('app.locale'));
         }
+
+        // === GÖZLEMCİ (SHADOWING) BLADE DİREKTİFLERİ ===
+        \Illuminate\Support\Facades\Blade::if('readonly', function () {
+            return auth()->check() && auth()->user()->isShadowing();
+        });
+
+        \Illuminate\Support\Facades\Blade::if('notreadonly', function () {
+            return auth()->check() && !auth()->user()->isShadowing();
+        });
+
+        // === MICROSOFT GRAPH MAIL DRIVER ===
+        Mail::extend('microsoft-graph', function () {
+            return new \App\Mail\Transports\MicrosoftGraphTransport(
+                config('services.microsoft.tenant_id'),
+                config('services.microsoft.client_id'),
+                config('services.microsoft.client_secret'),
+                config('services.microsoft.from_address'),
+            );
+        });
+        // ===================================
     }
 }

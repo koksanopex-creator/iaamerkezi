@@ -16,6 +16,9 @@ use App\Models\Setting;
 use App\Models\IaaLog;
 use App\Models\User; 
 use App\Traits\NotifiesManager;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\IaaProjesineTalepGeldi;
+use App\Notifications\YeniIaaOnerisi;
 
 class IaaController extends Controller
 {
@@ -81,7 +84,9 @@ class IaaController extends Controller
             'oneren_butce_miktar' => 'nullable|numeric|min:0'
         ]);
         
-        DB::transaction(function () use ($validated, $request) {
+        $iaaRecord = null;
+
+        DB::transaction(function () use ($validated, $request, &$iaaRecord) {
 
             $birlestirilmisMevcutDurum = "📍 Lokasyon/Alan: " . $validated['konum_text'] . "\n\n" . $validated['mevcut_durum'];
             
@@ -97,7 +102,7 @@ class IaaController extends Controller
                 'oneren_butce_birim' => $validated['para_birimi'] ?? null,
             ];
 
-            $iaa = Iaa::create($iaaData);
+            $iaaRecord = Iaa::create($iaaData);
 
             if ($request->hasFile('resimler')) {
                 foreach ($request->file('resimler') as $file) {
@@ -107,10 +112,30 @@ class IaaController extends Controller
                     // 2. storeAs() ile dosyayı kendi belirlediğimiz adla kaydediyoruz.
                     $path = $file->storeAs('iaa_resimleri', $filename, 'public'); 
             
-                    $iaa->resimler()->create(['dosya_yolu' => $path]);
+                    $iaaRecord->resimler()->create(['dosya_yolu' => $path]);
                 }
             }
         });
+
+        // === BİLDİRİM: Transaction DIŞINDA — mail hatası kaydı bozmaz ===
+        if ($iaaRecord) {
+            try {
+                $superadmins = User::role('Superadmin')->get();
+                if ($superadmins->isNotEmpty()) {
+                    Notification::send($superadmins, new YeniIaaOnerisi($iaaRecord, Auth::user()));
+                }
+            } catch (\Exception $e) {
+                \App\Helpers\MailLogHelper::logFailure(
+                    $iaaRecord,
+                    'Personel İAA Önerisi Bildirimi',
+                    User::role('Superadmin')->get(),
+                    $e->getMessage(),
+                    null,
+                    null,
+                    $iaaRecord->bolum_id
+                );
+            }
+        }
 
         return redirect()->route('iaa.index')->with('success', 'İAA öneriniz başarıyla gönderildi.');
     }
@@ -147,13 +172,30 @@ class IaaController extends Controller
 
         // Gerekli ilişkili verileri yüklüyoruz
         $iaa->load('resimler', 'gonderen', 'bolum', 'atananTakim');
-        
+
+        // ================== KABUL EDİLEN ÖNERİLER ==================
+        // Öneren kişinin daha önce kabul edilmiş (havuza alınmış/atanmış/tamamlanmış) önerilerini çek
+        $kabul_edilen_oneriler = collect();
+        $kabul_edilen_oneri_sayisi = 0;
+        if ($iaa->gonderen_user_id) {
+            $kabul_edilen_oneriler = Iaa::where('gonderen_user_id', $iaa->gonderen_user_id)
+                ->whereNotNull('oneri')
+                ->whereIn('durum', ['Havuzda', 'Atandı', 'Devam Ediyor', 'Tamamlandı'])
+                ->with('bolum')
+                ->latest('onaylanma_tarihi')
+                ->get(['id', 'baslik', 'durum', 'bolum_id', 'onaylanma_tarihi']);
+            $kabul_edilen_oneri_sayisi = $kabul_edilen_oneriler->count();
+        }
+        // ================== KABUL EDİLEN ÖNERİLER SONU ==================
+
         // Tüm verileri view'e gönderiyoruz
         return view('iaa.show', compact(
             'iaa', 
             'liderOlduguTakimlar', 
             'talepEdilenIaaIdleri',
-            'paraBirimleri'
+            'paraBirimleri',
+            'kabul_edilen_oneriler',
+            'kabul_edilen_oneri_sayisi'
         ));
     }
 
@@ -174,7 +216,7 @@ class IaaController extends Controller
 
         // 2. View için Gerekli Ek Veriler (BUNLARI EKLİYORUZ)
         // Bölümleri çekmezsek select box boş gelir, hata verir.
-        $bolumler = \App\Models\Bolum::orderBy('ad')->get(); 
+        $bolumler = Bolum::orderBy('ad')->get(); 
         $paraBirimleri = ['TL', 'USD', 'EUR', 'GBP'];
 
         // 3. Verileri View'a Gönderiyoruz
@@ -280,7 +322,7 @@ class IaaController extends Controller
         // dd("Rota çalıştı! Gelen ID: " . $id); // Test için yorumu açabilirsiniz
 
         // 2. Kaydı manuel bulalım (Silinmişler dahil baksın diye withTrashed ekleyebiliriz ama şimdilik normal bakalım)
-        $iaa = \App\Models\Iaa::find($id);
+        $iaa = Iaa::find($id);
 
         if (!$iaa) {
             // Eğer kayıt yoksa 404 vermek yerine hatayı biz söyleyelim
@@ -300,7 +342,7 @@ class IaaController extends Controller
             'takim_id' => [
                 'required',
                 'exists:takimlar,id',
-                \Illuminate\Validation\Rule::in($kullanici->lideriOlduguTakimlar->pluck('id')),
+                Rule::in($kullanici->lideriOlduguTakimlar->pluck('id')),
             ],
         ]);
         
@@ -324,7 +366,86 @@ class IaaController extends Controller
             'updated_at' => now(),
         ]);
 
+        // === BİLDİRİM SİSTEMİ (try-catch ile korunuyor) ===
+        try {
+            $takim = Takim::with('uyeler', 'lider')->find($takim_id);
+            
+            // 1. Superadmin'lere Gönder
+            $superadmins = User::role('Superadmin')->get();
+            Notification::send($superadmins, new IaaProjesineTalepGeldi($iaa, $takim, $kullanici, 'superadmin'));
+
+            // 2. Takım Üyelerinin Bölüm Liderleri ve Direktörleri
+            $uyeler = $takim->uyeler->merge([$takim->lider]);
+            $bolumLideriIds = [];
+            $direktorIds = [];
+
+            foreach ($uyeler as $uye) {
+                if ($uye->bolum_id) {
+                    // Bölüm Liderini Bul (Bölüm Lideri rolüne sahip ve o bölüme atanmış olanlar)
+                    $liderler = User::role('Bölüm Lideri')->where('bolum_id', $uye->bolum_id)->get();
+                    foreach($liderler as $l) {
+                        $bolumLideriIds[] = $l->id;
+                    }
+
+                    // Direktörü Bul
+                    $bolum = Bolum::with('director')->find($uye->bolum_id);
+                    if ($bolum && $bolum->director_id) {
+                        $direktorIds[] = $bolum->director_id;
+                    }
+                }
+            }
+
+            // Tekilleştir ve Gönder
+            $bolumLiderleri = User::whereIn('id', array_unique($bolumLideriIds))->get();
+            if ($bolumLiderleri->isNotEmpty()) {
+                Notification::send($bolumLiderleri, new IaaProjesineTalepGeldi($iaa, $takim, $kullanici, 'bolum_lideri'));
+            }
+
+            $direktorler = User::whereIn('id', array_unique($direktorIds))->get();
+            if ($direktorler->isNotEmpty()) {
+                Notification::send($direktorler, new IaaProjesineTalepGeldi($iaa, $takim, $kullanici, 'direktor'));
+            }
+        } catch (\Exception $e) {
+            \App\Helpers\MailLogHelper::logFailure(
+                $iaa,
+                'İAA Takım Talebi Bildirimi',
+                User::role('Superadmin')->get()->merge($bolumLiderleri ?? collect())->merge($direktorler ?? collect()),
+                $e->getMessage(),
+                null,
+                null,
+                $iaa->bolum_id
+            );
+        }
+
         return redirect()->route('iaa.havuz')->with('success', 'Takımınızın talebi başarıyla yönetici onayına gönderildi.');
+    }
+
+    /**
+     * TALEBİ GERİ ÇEKME METODU
+     */
+    public function talebiGeriCek(Iaa $iaa)
+    {
+        $kullanici = auth()->user();
+        
+        // Kullanıcının lider olduğu takımları bul
+        $liderOlduguTakimlar = $kullanici->lideriOlduguTakimlar;
+        
+        if ($liderOlduguTakimlar->isEmpty()) {
+            return back()->with('error', 'Bu işlem için bir takımın lideri olmalısınız.');
+        }
+
+        // Bu İAA için bu kullanıcının takımlarının yaptığı VE DURUMU 'beklemede' OLAN talepleri sil
+        $silinen = DB::table('iaa_talepleri')
+            ->where('iaa_id', $iaa->id)
+            ->whereIn('takim_id', $liderOlduguTakimlar->pluck('id'))
+            ->where('durum', 'beklemede')
+            ->delete();
+
+        if ($silinen) {
+            return redirect()->route('iaa.havuz')->with('success', 'Talebiniz başarıyla geri çekildi.');
+        }
+
+        return back()->with('error', 'Geri çekilecek aktif bir talep bulunamadı.');
     }
     /**
      * ====================================================================
@@ -336,7 +457,7 @@ class IaaController extends Controller
 
      public function takimProjeleri()
     {
-        $user = \Illuminate\Support\Facades\Auth::user();
+        $user = Auth::user();
         
         // 1. KULLANICININ ÜYE OLDUĞU TAKIMLAR (Kartlar için gerekli)
         $katildigimTakimlar = $user->takimlar()
@@ -357,7 +478,7 @@ class IaaController extends Controller
         // 3. VERİLERİ ÇEKME
 
         // A) Bekleyen Talepler (Havuz)
-        $bekleyenTalepler = \Illuminate\Support\Facades\DB::table('iaa_talepleri')
+        $bekleyenTalepler = DB::table('iaa_talepleri')
             ->join('iaas', 'iaa_talepleri.iaa_id', '=', 'iaas.id')
             ->join('takimlar', 'iaa_talepleri.takim_id', '=', 'takimlar.id')
             ->whereIn('iaa_talepleri.takim_id', $takimIdleri)
@@ -368,7 +489,7 @@ class IaaController extends Controller
             ->get();
 
         // B) Aktif Projeler
-        $atanmisProjeler = \App\Models\Iaa::with(['atananTakim', 'musteriSikayeti'])
+        $atanmisProjeler = Iaa::with(['atananTakim', 'musteriSikayeti'])
             ->where(function($query) use ($takimIdleri, $squadProjeIdleri) {
                 $query->whereIn('atanan_takim_id', $takimIdleri)
                       ->orWhereIn('id', $squadProjeIdleri);
@@ -378,7 +499,7 @@ class IaaController extends Controller
             ->get();
 
         // C) Onay Bekleyen Tamamlanmış
-        $onayBekleyenTamamlanmisProjeler = \App\Models\Iaa::with([
+        $onayBekleyenTamamlanmisProjeler = Iaa::with([
                 'atananTakim', 
                 'musteriSikayeti',
                 'logs' => function ($query) {
@@ -394,7 +515,7 @@ class IaaController extends Controller
             ->get();
 
         // D) Tamamlananlar
-        $tamamlananProjeler = \App\Models\Iaa::with(['atananTakim', 'musteriSikayeti'])
+        $tamamlananProjeler = Iaa::with(['atananTakim', 'musteriSikayeti'])
             ->where(function($query) use ($takimIdleri, $squadProjeIdleri) {
                 $query->whereIn('atanan_takim_id', $takimIdleri)
                       ->orWhereIn('id', $squadProjeIdleri);
@@ -405,7 +526,7 @@ class IaaController extends Controller
             ->get();
 
         // E) Kişisel Görevler
-        $banaAtananAdimlar = \Illuminate\Support\Facades\DB::table('iaa_step_assignments')
+        $banaAtananAdimlar = DB::table('iaa_step_assignments')
             ->join('iaas', 'iaa_step_assignments.iaa_id', '=', 'iaas.id')
             ->join('iaa_talepleri', 'iaas.id', '=', 'iaa_talepleri.iaa_id') 
             ->join('iaa_workflow_steps', 'iaa_step_assignments.iaa_workflow_step_id', '=', 'iaa_workflow_steps.id')
@@ -493,21 +614,37 @@ class IaaController extends Controller
             $alicilar = $alicilar->unique('id');
             
             if ($alicilar->isNotEmpty()) {
-                \Illuminate\Support\Facades\Notification::send($alicilar, $bildirim);
+                Notification::send($alicilar, $bildirim);
             }
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Davet yanıtı bildirimi hatası: ' . $e->getMessage());
+            \App\Helpers\MailLogHelper::logFailure(
+                $iaa,
+                'Proje Davet Yanıtı Bildirimi',
+                $alicilar ?? collect(),
+                $e->getMessage(),
+                \App\Notifications\ProjeDavetYaniti::class,
+                [
+                    'recipient_ids' => ($alicilar ?? collect())->pluck('id')->toArray(),
+                    'params' => ['iaa' => $iaa, 'user' => $user, 'yanit' => $yanit]
+                ],
+                $iaa->bolum_id
+            );
         }
         // ===================================
 
         // 3. Yönlendirme
         if ($yanit === 'kabul') {
-            return redirect()->route('proje.workspace.show', $iaa->id)
-                             ->with('success', 'Daveti kabul ettiniz, proje alanına yönlendirildiniz.');
+            return back()->with('success', 'Daveti kabul ettiniz.');
         } else {
-            return redirect()->route('dashboard')
-                             ->with('info', 'Proje davetini reddettiniz.');
+            // Eğer detay sayfasındaysa ve reddedince yetkisi kalmıyorsa davetlerim'e yönlendir
+            $service = app(\App\Services\ProjectWorkspace\ProjeCalismaAlaniService::class);
+            if (!$service->authorizeUser($iaa)) {
+                return redirect()->route('takimlar.davetlerim')
+                                ->with('info', 'Proje davetini reddettiniz.');
+            }
+            return back()->with('info', 'Proje davetini reddettiniz.');
         }
     }
 }

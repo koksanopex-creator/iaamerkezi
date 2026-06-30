@@ -1,0 +1,55 @@
+<?php
+$filePath = 'c:/Users/celal.karaman/Desktop/Projelerim/iaa_projesi/resources/views/layouts/navigation.blade.php';
+$content = file_get_contents($filePath);
+
+$replacements = [
+    'MÃ¼ÅŸteri' => 'Müşteri',
+    'YÃ¶netim' => 'Yönetim',
+    'Ã‡alÄ±ÅŸma' => 'Çalışma',
+    'AlanÄ±' => 'Alanı',
+    'BÃ¶lÃ¼m' => 'Bölüm',
+    'YÃ¶neticisi' => 'Yöneticisi',
+    'DirektÃ¶r' => 'Direktör',
+    'AtamalarÄ±' => 'Atamaları',
+    'Åžikayet' => 'Şikayet',
+    'RaporlarÄ±' => 'Raporları',
+    'Ã‡Ã¶zÃ¼m' => 'Çözüm',
+    'Ãœyeleri' => 'Üyeleri',
+    'GÃ¶rev' => 'Görev',
+    'GÃ¶r' => 'Gör',
+    'ÅžÂžikayet' => 'Şikayet',
+    'Ãœst' => 'Üst',
+    'gÃ¶rÃ¼r' => 'görür',
+    'Ä°ade' => 'İade',
+    'Ä°ÅŸlemde' => 'İşlemde',
+    'TakÄ±m' => 'Takım',
+    'AÃ§Ä±k' => 'Açık',
+    'TÃ¼m' => 'Tüm',
+    'GÃ¶revlerim' => 'Görevlerim',
+    'GÃ¼nlÃ¼k' => 'Günlük',
+    'Lider YardÄ±mcÄ±sÄ±' => 'Lider Yardımcısı',
+    'Ã‡Ã¶kmesini' => 'Çökmesini',
+    'YÃ¶netici' => 'Yönetici',
+    'MÃ¼Å?teri' => 'Müşteri',
+    'Åž' => 'Ş',
+    'Å?' => 'Ş',
+    'Ä°' => 'İ',
+    'Ä±' => 'ı',
+    'Ã‡' => 'Ç',
+    'Ã§' => 'ç',
+    'Ã–' => 'Ö',
+    'Ã¶' => 'ö',
+    'Ãœ' => 'Ü',
+    'Ã¼' => 'ü',
+    'ÄŸ' => 'ğ',
+    'Äž' => 'Ğ',
+    'Mü?teri' => 'Müşteri',
+    'GiriÅ? LoglarÄ±' => 'Giriş Logları',
+    'Makine Ä°Å?lem GeÃ§miÅ?i' => 'Makine İşlem Geçmişi',
+    'Disiplin Kurulu BaÅ?kanÄ±' => 'Disiplin Kurulu Başkanı',
+    'Disiplin Kurulu Ã?yesi' => 'Disiplin Kurulu Üyesi',
+];
+
+$content = strtr($content, $replacements);
+file_put_contents($filePath, $content);
+echo "Fixed using string replacements.\n";

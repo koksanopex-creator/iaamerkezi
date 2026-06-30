@@ -3,6 +3,10 @@
     $isCustomer = !empty($user->customer_id);
 @endphp
 
+@push('pageTitle')
+    Profilimi Düzenle | 
+@endpush
+
 <x-app-layout>
     {{-- Arka Plan --}}
     <div class="relative bg-gradient-to-r from-indigo-900 to-blue-800 pb-32 overflow-hidden shadow-xl">
@@ -146,9 +150,86 @@
             @endif
         </div>
 
+        {{-- === MERKEZİ BİLDİRİM ALANI (BAŞARI VE HATA) === --}}
+        <div class="mb-8">
+            {{-- BAŞARI MESAJLARI --}}
+            @if (in_array(session('status'), ['profile-updated', 'password-updated', 'istek-gonderildi', 'istek-iptal-edildi']))
+                @php
+                    $s = session('status');
+                    $isSuccess = in_array($s, ['profile-updated', 'password-updated', 'istek-gonderildi']);
+                    $title = 'İşlem Başarılı!';
+                    if ($s === 'istek-iptal-edildi') $title = 'İşlem İptal Edildi';
+
+                    $message = '';
+                    if ($s === 'profile-updated') $message = 'Profil bilgileriniz başarıyla güncellendi.';
+                    elseif ($s === 'password-updated') $message = 'Şifreniz başarıyla değiştirildi.';
+                    elseif ($s === 'istek-gonderildi') $message = 'Değişiklik talebiniz başarıyla gönderildi ve yönetici onayına sunuldu.';
+                    elseif ($s === 'istek-iptal-edildi') $message = 'Bekleyen değişiklik talebiniz iptal edildi.';
+
+                    $containerClasses = $isSuccess ? 'bg-emerald-50 border-emerald-200 text-emerald-800 shadow-emerald-100/50' : 'bg-indigo-50 border-indigo-200 text-indigo-800 shadow-indigo-100/50';
+                    $iconBg = $isSuccess ? 'bg-emerald-500' : 'bg-indigo-500';
+                    $closeBtn = $isSuccess ? 'text-emerald-400 hover:text-emerald-600' : 'text-indigo-400 hover:text-indigo-600';
+                @endphp
+                <div 
+                    x-data="{ show: true }"
+                    x-show="show"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 transform translate-y-4"
+                    x-transition:enter-end="opacity-100 transform translate-y-0"
+                    x-transition:leave="transition ease-in duration-300"
+                    x-transition:leave-start="opacity-100 transform translate-y-0"
+                    x-transition:leave-end="opacity-0 transform translate-y-4"
+                    x-init="setTimeout(() => show = false, 10000)"
+                    class="flex items-center gap-4 border px-6 py-4 rounded-2xl font-bold shadow-lg {{ $containerClasses }}"
+                >
+                    <div class="text-white p-2 rounded-xl shadow-inner {{ $iconBg }}">
+                        @if($isSuccess)
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                        @else
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        @endif
+                    </div>
+                    <div>
+                        <p class="text-lg">{{ $title }}</p>
+                        <p class="text-sm font-medium opacity-80">
+                            {{ $message }}
+                        </p>
+                    </div>
+                    <button @click="show = false" class="ml-auto transition-colors {{ $closeBtn }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            @endif
+
+            {{-- HATA MESAJLARI (Tüm Hata Gruplarını Kapsar) --}}
+            @if ($errors->any() || $errors->updatePassword->any())
+                <div class="p-6 bg-red-50 border border-red-200 text-red-800 rounded-2xl font-bold shadow-lg shadow-red-100/50 flex items-center gap-4 animate-pulse">
+                    <div class="bg-red-500 text-white p-2 rounded-xl shadow-inner">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-lg">Güncelleme İşlemi Başarısız!</p>
+                        <ul class="mt-1 list-disc list-inside text-sm font-medium opacity-80">
+                            {{-- Ana Hatalar --}}
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                            {{-- Şifre Güncelleme Hataları (Named Bag) --}}
+                            @foreach ($errors->updatePassword->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+            @endif
+        </div>
+
         {{-- TAB YAPISI --}}
-        {{-- Müşteri ise varsayılan tab 'settings', değilse 'timeline' --}}
-        <div x-data="{ activeTab: '{{ $isCustomer ? 'settings' : 'timeline' }}' }"
+        {{-- Müşteri ise varsayılan tab 'settings', değilse 'timeline'. Gelen 'tab' parametresi varsa önceliklidir. --}}
+        @php
+            $defaultTab = request('tab') ? request('tab') : ($isCustomer ? 'settings' : 'timeline');
+        @endphp
+        <div x-data="{ activeTab: '{{ $defaultTab }}' }"
             class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-1">
                 <nav class="space-y-2 bg-white rounded-xl shadow-sm p-2">
@@ -169,6 +250,18 @@
                             :class="activeTab === 'teams' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
                             class="group px-4 py-3 flex items-center text-sm font-bold w-full transition-all duration-200 rounded-lg">
                             Takımlarım
+                        </button>
+                        <button @click="activeTab = 'observers'"
+                            :class="activeTab === 'observers' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50'"
+                            class="group px-4 py-3 flex items-center justify-between text-sm font-bold w-full transition-all duration-200 rounded-lg">
+                            <div class="flex items-center">
+                                Gözlemcilerim
+                            </div>
+                            @if(auth()->user()->observers->count() > 0)
+                                <span class="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                                    {{ auth()->user()->observers->count() }}
+                                </span>
+                            @endif
                         </button>
                     @endif
 
@@ -203,7 +296,7 @@
             </div>
 
             <div class="lg:col-span-2">
-
+                
                 {{-- SADECE PERSONEL İÇERİKLERİ --}}
                 @if(!$isCustomer)
                     {{-- TAB: SON AKTİVİTELER --}}
@@ -276,6 +369,12 @@
                             @endforelse
                         </div>
                     </div>
+
+                    {{-- TAB: GÖZLEMCİLERİM --}}
+                    <div x-show="activeTab === 'observers'" x-transition style="display: none;"
+                        class="bg-white shadow-sm rounded-xl p-6 border border-gray-100">
+                        @include('profile.partials.manage-observers')
+                    </div>
                 @endif
 
                 {{-- TAB: HESAP AYARLARI (Herkes Görür) --}}
@@ -312,8 +411,8 @@
                         <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
                             @include('profile.partials.update-password-form')
                         </div>
-                        {{-- Hesabı silme yetkisi müşteride olmasın --}}
-                        @if(!$isCustomer)
+                        {{-- Hesabı silme yetkisi sadece Superadmin'de olsun --}}
+                        @if(auth()->user()->hasRole('Superadmin'))
                             <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
                                 @include('profile.partials.delete-user-form')
                             </div>

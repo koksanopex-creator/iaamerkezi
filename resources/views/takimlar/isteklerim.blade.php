@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Katılma İsteklerim | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
@@ -196,7 +200,7 @@
                                             </button>
                                         </form>
 
-                                        <form action="{{ route('takimlar.istegiReddet', $istek->id) }}" method="POST">
+                                        <form action="{{ route('takimlar.istekReddet', $istek) }}" method="POST" class="inline">
                                             @csrf
                                             <button type="submit" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-red-600 border-2 border-red-100 rounded-xl font-bold hover:bg-red-50 hover:border-red-200 transition-colors">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>

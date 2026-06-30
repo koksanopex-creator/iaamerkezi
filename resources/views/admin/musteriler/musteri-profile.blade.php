@@ -1,3 +1,7 @@
+@push('pageTitle')
+    {{ $customer->name }} | 
+@endpush
+
 <x-app-layout>
     {{-- === 1. HEADER (Kompakt & Şık) === --}}
     <div class="relative bg-slate-900 pt-6 pb-16 overflow-hidden">
@@ -52,7 +56,7 @@
                 </div>
 
                 {{-- Şikayet Oluştur Butonu --}}
-                @if((auth()->user()->is_personnel || auth()->user()->customer_id == $customer->id) && !auth()->user()->hasRole('Direktör'))
+                @if((auth()->user()->is_personnel || auth()->user()->customer_id == $customer->id) && !auth()->user()->hasRole(['Direktör', 'Yönetim', 'Yonetim']))
                 <div>
                     <a href="{{ route('admin.sikayetler.create', ['musteri_id' => $customer->id]) }}" 
                        class="group relative inline-flex items-center px-5 py-2.5 bg-white text-indigo-600 font-bold rounded-lg shadow-lg hover:shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5 text-sm">
@@ -67,6 +71,19 @@
 
     {{-- === 2. BİLGİ PANELLERİ (İletişim & Yetkililer) === --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-10">
+        
+        @if(session('success'))
+            <div class="mb-6 bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r shadow-md flex items-start gap-3">
+                <svg class="h-6 w-6 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                    <h3 class="text-sm font-bold text-emerald-800">Başarılı</h3>
+                    <p class="text-sm text-emerald-700 mt-1">{{ session('success') }}</p>
+                </div>
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {{-- İletişim Kartı --}}
@@ -111,7 +128,7 @@
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Firma Yetkilileri</h3>
                     
                     {{-- ADMIN: HIZLI EKLE BUTONU --}}
-                    @role('Superadmin|Yonetim|Bölüm Lideri')
+                    @role('Superadmin|Bölüm Lideri')
                     <button onclick="document.getElementById('addRepModal').classList.remove('hidden')" 
                             class="text-xs flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100 transition">
                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
@@ -124,8 +141,12 @@
                     @forelse($temsilciler as $temsilci)
                         <div class="group flex items-start justify-between p-2 hover:bg-slate-50 rounded-lg transition border border-transparent hover:border-slate-100">
                             <div class="flex items-start gap-3 min-w-0">
-                                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 flex items-center justify-center font-bold text-xs border border-white shadow-sm flex-shrink-0">
-                                    {{ substr($temsilci->name, 0, 1) }}
+                                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 flex items-center justify-center font-bold text-xs border border-white shadow-sm flex-shrink-0 overflow-hidden">
+                                    @if($temsilci->profile_photo_path)
+                                        <img src="{{ asset('storage/' . $temsilci->profile_photo_path) }}" alt="{{ $temsilci->name }}" class="w-full h-full object-cover">
+                                    @else
+                                        {{ substr($temsilci->name, 0, 1) }}
+                                    @endif
                                 </div>
                                 <div class="min-w-0">
                                     <div class="font-bold text-gray-800 text-sm truncate">{{ $temsilci->name }}</div>
@@ -144,7 +165,7 @@
                             </div>
 
                             {{-- ADMIN: SİLME BUTONU --}}
-                            @role('Superadmin|Yonetim')
+                            @role('Superadmin')
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                 <form action="{{ route('musteri.yetkili.destroy', $temsilci->id) }}" method="POST" onsubmit="return confirm('Bu yetkiliyi silmek istediğinize emin misiniz?');">
                                     @csrf
@@ -192,17 +213,50 @@
                 @if(request('filtre') == 'tamamlanan') <div class="absolute bottom-0 left-0 w-full h-1 bg-green-500 rounded-b-xl"></div> @endif
             </a>
 
-            {{-- İade Toplamı (Statik Özet) --}}
-            <div class="relative bg-white rounded-xl shadow-sm border border-red-100 p-4">
-                <p class="text-[10px] font-bold text-red-400 uppercase">Toplam İade (Ton)</p>
-                <p class="text-2xl font-black text-red-600 mt-1">
-                    {{ number_format($iadeToplamlari['Ton'] ?? 0, 0) }} <span class="text-sm font-bold">Ton</span>
-                </p>
+            {{-- İade Toplamı (Dinamik Özet) --}}
+            <div class="relative bg-white rounded-xl shadow-sm border border-red-100 p-4 shrink-0 flex flex-col pt-3">
+                <p class="text-[10px] font-bold text-red-400 uppercase mb-1">Toplam İade Miktarı</p>
+                @if(count($iadeToplamlari) > 0)
+                    <div class="flex flex-wrap items-end gap-x-4 gap-y-1 mt-0.5">
+                    @foreach($iadeToplamlari as $birim => $toplam)
+                        <p class="text-xl font-black text-red-600 leading-none">
+                            {{ is_float($toplam) || strpos((string)$toplam, '.') !== false ? number_format($toplam, 2, ',', '.') : number_format($toplam, 0, '', '.') }} <span class="text-xs font-bold text-red-400">{{ $birim }}</span>
+                        </p>
+                    @endforeach
+                    </div>
+                @else
+                    <p class="text-2xl font-black text-red-600 mt-1 leading-none">
+                        0
+                    </p>
+                @endif
             </div>
         </div>
 
+        {{-- TARİH FİLTRESİ --}}
+        <form method="GET" action="{{ route('musteri.profil.show', $customer->id) }}" class="bg-white rounded-xl p-3 shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+            <div class="flex items-center gap-2 text-sm text-gray-600 font-bold">
+                <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Tarih Aralığı:
+            </div>
+            <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <input type="date" name="start_date" value="{{ request('start_date') }}" title="Başlangıç Tarihi" class="text-xs border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 hover:border-gray-300 transition-colors shadow-sm cursor-pointer p-2">
+                <span class="text-gray-400 text-xs font-bold">-</span>
+                <input type="date" name="end_date" value="{{ request('end_date') }}" title="Bitiş Tarihi" class="text-xs border-gray-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 hover:border-gray-300 transition-colors shadow-sm cursor-pointer p-2">
+                <button type="submit" class="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold text-xs rounded-lg transition-colors border border-indigo-100 flex items-center gap-1 shadow-sm">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                    Uygula
+                </button>
+                @if(request('start_date') || request('end_date'))
+                    <a href="{{ route('musteri.profil.show', $customer->id) }}" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold text-xs rounded-lg transition-colors border border-red-100 flex items-center gap-1 shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        Temizle
+                    </a>
+                @endif
+            </div>
+        </form>
+
         {{-- TEK PENCERE (TABS) --}}
-        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[500px]">
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[500px] mt-6">
             
             {{-- TAB BAŞLIKLARI --}}
             <div class="flex items-center border-b border-gray-100 bg-gray-50/50 px-6">
@@ -238,6 +292,26 @@
             
             {{-- 1. ŞİKAYETLER TABLOSU --}}
             <div x-show="activeTab === 'sikayetler'" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0">
+                
+                @if(request('start_date') || request('end_date'))
+                    <div class="bg-amber-50/90 px-6 py-3 border-b-2 border-amber-300 flex items-center gap-3 relative overflow-hidden">
+                        <div class="absolute inset-0 bg-amber-400 opacity-10 animate-pulse pointer-events-none"></div>
+                        <span class="flex relative h-4 w-4 flex-shrink-0">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-4 w-4 bg-amber-600 border-2 border-amber-200"></span>
+                        </span>
+                        <div class="flex-1 relative z-10">
+                            <span class="text-xs font-black text-amber-900 uppercase tracking-wider">
+                                DİKKAT: Filtrelenmiş Kayıtları Görüntülüyorsunuz
+                            </span>
+                            <span class="text-[11px] font-bold text-amber-800 ml-2">
+                                Tarih Aralığı: <span class="bg-amber-200 px-1.5 py-0.5 rounded ml-1">{{ request('start_date') ? \Carbon\Carbon::parse(request('start_date'))->format('d.m.Y') : 'Başlangıç' }} - {{ request('end_date') ? \Carbon\Carbon::parse(request('end_date'))->format('d.m.Y') : 'Günümüz' }}</span>
+                            </span>
+                            <span class="text-[10px] text-amber-700 block mt-1 font-medium italic">Tabloda göremediğiniz kayıtlar tarih aralığı dışında kaldığı için gizlenmiştir. Tam listeyi görmek için "Temizle" butonuna tıklayınız.</span>
+                        </div>
+                    </div>
+                @endif
+                
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200 uppercase text-[11px] tracking-wider">
@@ -273,12 +347,26 @@
                                                 </div>
                                             @endif
                                         </div>
-                                        <div class="text-[10px] text-gray-400 flex items-center gap-1">
-                                            @if($sikayet->olusturanKurulUyesi)
-                                                <span>{{ $sikayet->olusturanKurulUyesi->name }}</span>
-                                            @else
-                                                <span>Bilinmiyor</span>
-                                            @endif
+                                        <div class="flex flex-wrap items-center gap-2 mt-1">
+                                        @if($sikayet->olusturanKurulUyesi)
+                                            <span class="text-[10px] text-gray-400">{{ $sikayet->olusturanKurulUyesi->name }}</span>
+                                        @else
+                                            <span class="text-[10px] text-gray-400">Bilinmiyor</span>
+                                        @endif
+                                        
+                                        @if(\App\Models\SikayetIadesi::where('musteri_sikayeti_id', $sikayet->id)->exists())
+                                            <span class="inline-flex items-center gap-1 text-[8px] tracking-wider font-bold text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded" title="Bu şikayet için iade kaydı mevcut">
+                                                <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
+                                                İADE
+                                            </span>
+                                        @endif
+                                        
+                                        @if($sikayet->iaa_id && \App\Models\IaaZiyaretPlani::where('iaa_id', $sikayet->iaa_id)->exists())
+                                            <span class="inline-flex items-center gap-1 text-[8px] tracking-wider font-bold text-teal-600 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded" title="Bu şikayet kapsamında planlanmış müşteri ziyareti var">
+                                                <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                                ZİYARET
+                                            </span>
+                                        @endif
                                         </div>
                                     </td>
                                     
@@ -307,9 +395,27 @@
                                             <span class="text-gray-300 text-xs">-</span>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-4 text-gray-500 text-xs">{{ $sikayet->created_at->format('d.m.Y') }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex flex-col gap-0.5">
+                                            <div class="text-[10px] text-gray-500">
+                                                <span class="font-bold">Kayıt:</span> {{ $sikayet->created_at->format('d.m.Y') }}
+                                            </div>
+                                            @php
+                                                $isCompleted = in_array($sikayet->musteri_durum, ['Çözümlendi', 'Kapatıldı', 'Tamamlandı']);
+                                            @endphp
+                                            @if($isCompleted)
+                                                <div class="text-[10px] text-emerald-600 font-bold">
+                                                    <span>Çözüm:</span> {{ $sikayet->updated_at->format('d.m.Y') }}
+                                                </div>
+                                            @else
+                                                <div class="text-[9px] text-gray-400 italic">
+                                                    {{ $sikayet->created_at->diffForHumans() }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </td>
                                     <td class="px-6 py-4 text-right">
-                                        <a href="{{ route('admin.sikayetler.show', $sikayet->id) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-indigo-600 hover:text-white transition-colors">
+                                        <a href="{{ auth()->user()->is_personnel ? route('admin.sikayetler.show', $sikayet->id) : route('iaa.sikayetler.show', $sikayet->id) }}" class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-indigo-600 hover:text-white transition-colors">
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
                                         </a>
                                     </td>
@@ -571,7 +677,7 @@
     @endif
 
     {{-- === 6. YETKİLİ EKLEME MODALI === --}}
-    @role('Superadmin|Yonetim|Bölüm Lideri')
+    @role('Superadmin|Bölüm Lideri')
     <div id="addRepModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="document.getElementById('addRepModal').classList.add('hidden')"></div>

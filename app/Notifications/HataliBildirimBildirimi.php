@@ -43,13 +43,22 @@ class HataliBildirimBildirimi extends Notification
         $sikayetBaslik = $this->iaa->baslik ?? 'Belirtilmemiş';
         $sikayetId = $this->iaa->musteriSikayeti ? $this->iaa->musteriSikayeti->id : '-';
 
+        $isCustomerRep = method_exists($notifiable, 'hasRole') ? $notifiable->hasRole('Müşteri Temsilcisi') : false;
+        
+        $actionUrl = route('iaa.show', $this->iaa->id);
+        if (empty($this->iaa->oneri) && $this->iaa->musteriSikayeti) {
+            $actionUrl = $isCustomerRep 
+                ? route('iaa.sikayetler.show', $this->iaa->musteriSikayeti->id)
+                : route('admin.sikayetler.show', $this->iaa->musteriSikayeti->id);
+        }
+
         return (new MailMessage)
             ->subject('Hatalı Bildirim Süreci: #' . $sikayetId)
             ->greeting('Sayın ' . $notifiable->name . ',')
             ->line($this->mesaj)
             ->line('Şikayet ID: #' . $sikayetId)
             ->line('Şikayet Başlığı: ' . $sikayetBaslik)
-            ->action('Detayları Görüntüle', route('proje.workspace.show', $this->iaa->id))
+            ->action('Detayları Görüntüle', $actionUrl)
             ->line('İyi çalışmalar dileriz.');
     }
 
@@ -58,12 +67,21 @@ class HataliBildirimBildirimi extends Notification
      */
     public function toArray(object $notifiable): array
     {
+        $isCustomerRep = method_exists($notifiable, 'hasRole') ? $notifiable->hasRole('Müşteri Temsilcisi') : false;
+        
+        $actionUrl = route('iaa.show', $this->iaa->id);
+        if (empty($this->iaa->oneri) && $this->iaa->musteriSikayeti) {
+            $actionUrl = $isCustomerRep 
+                ? route('iaa.sikayetler.show', $this->iaa->musteriSikayeti->id)
+                : route('admin.sikayetler.show', $this->iaa->musteriSikayeti->id);
+        }
+
         return [
             'type' => 'hatali_bildirim', // Özel ikon/renk için
             'title' => 'Hatalı Bildirim Güncellemesi',
             'message' => $this->mesaj,
             'iaa_id' => $this->iaa->id,
-            'url' => route('proje.workspace.show', $this->iaa->id),
+            'url' => $actionUrl,
         ];
     }
 }

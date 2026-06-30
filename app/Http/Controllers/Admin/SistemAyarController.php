@@ -17,7 +17,10 @@ class SistemAyarController extends Controller
     public function index()
     {
         $settings = Setting::all()->keyBy('key');
-        $users = User::orderBy('name')->get();
+        $users = User::where('is_personnel', true)
+            ->where('is_mavi_yaka', false)
+            ->orderBy('name')
+            ->get();
         $roles = Role::orderBy('name')->get();
         $bolumler = Bolum::orderBy('ad')->get();
 
@@ -27,6 +30,8 @@ class SistemAyarController extends Controller
         // Ayarlar daha dinamik
         $logo = $settings->get('site_logo');
         $kayitOnay = $settings->get('kayit_onay_sistemi');
+        $reapplyLimitActive = $settings->get('reapply_limit_active')?->value ?? '1';
+        $reapplyLimitHours = $settings->get('reapply_limit_hours')?->value ?? '24';
         $paraBirimleri = $settings->get('para_birimleri');
         $standartPuan = $settings->get('standart_puan');
         $musteriSikayetiPuan = $settings->get('musteri_sikayeti_standart_puan');
@@ -34,8 +39,50 @@ class SistemAyarController extends Controller
         $kurulDefaultPuan = $settings->get('kurul_default_puan');
         $iaaOneriPuani = $settings->get('iaa_oneri_puani');
         $kvkkText = $settings->get('kvkk_text');
+        $kvkkPdf = $settings->get('kvkk_pdf');
         $notifyBolumLideri = $settings->get('sikayet_notify_bolum_lideri')?->value;
-        $direktorOnayiAktif = $settings->get('sikayet_direktor_onayi_aktif')?->value; // <--- YENİ
+        $direktorOnayiAktif = $settings->get('sikayet_direktor_onayi_aktif')?->value;
+        $ziyaretDirektorOnayiAktif = $settings->get('ziyaret_direktor_onayi_aktif')?->value;
+        $superadminSikayetSayacAktif = $settings->get('superadmin_sikayet_panel_sayac_aktif')?->value;
+        $newUserNotifyLider = $settings->get('new_user_notify_bolum_lideri')?->value;
+        $newUserNotifyDirektor = $settings->get('new_user_notify_direktor')?->value;
+        $birthdayIsActive = $settings->get('birthday_is_active')?->value ?? '1';
+        $birthdayUpcomingDays = $settings->get('birthday_upcoming_days')?->value ?? '7';
+        $birthdayPastDays = $settings->get('birthday_past_days')?->value ?? '3';
+        $birthdayEmailSubject = $settings->get('birthday_email_subject')?->value ?? 'İyi Ki Doğdun! 🎂';
+        $birthdayEmailBody = $settings->get('birthday_email_body')?->value ?? 'Sayın {personel_adi}, Doğum gününüzü kutlar, sağlıklı ve mutlu bir yıl dileriz.';
+        $birthdayNotifyLeader = $settings->get('birthday_notify_leader')?->value ?? '1';
+        $birthdayNotifyDirector = $settings->get('birthday_notify_director')?->value ?? '1';
+        $birthdayLeaderEmailSubject = $settings->get('birthday_leader_email_subject')?->value ?? 'Ekibinizde Bir Doğum Günü! 🎂';
+        $birthdayLeaderEmailBody = $settings->get('birthday_leader_email_body')?->value ?? 'Merhaba {yonetici_adi}, bugün ekibinizden {personel_adi} personelin doğum günü.';
+        $birthdayNotifyColleagues = $settings->get('birthday_notify_colleagues')?->value ?? '1';
+        $birthdayColleagueEmailSubject = $settings->get('birthday_colleague_email_subject')?->value ?? 'Bir Ekip Arkadaşınızın Doğum Günü! 🎂';
+        $birthdayColleagueEmailBody = $settings->get('birthday_colleague_email_body')?->value ?? 'Merhaba, bugün bölüm arkadaşınız {personel_adi}\'nın doğum günü.';
+        $birthdayBlockList = json_decode($settings->get('birthday_block_list')?->value ?? '[]', true);
+
+        // Yıldönümü Ayarları
+        $anniversaryIsActive = $settings->get('anniversary_is_active')?->value ?? '1';
+        $anniversaryEmailSubject = $settings->get('anniversary_email_subject')?->value ?? 'Şirketimizdeki {yil}. Yılınız Kutlu Olsun! 🎊';
+        $anniversaryEmailBody = $settings->get('anniversary_email_body')?->value ?? 'Sayın {personel_adi}, şirketimizdeki {yil}. yılınızı kutlar, başarılarınızın devamını dileriz.';
+        $anniversaryNotifyLeader = $settings->get('anniversary_notify_leader')?->value ?? '1';
+        $anniversaryNotifyDirector = $settings->get('anniversary_notify_director')?->value ?? '1';
+        $anniversaryNotifyColleagues = $settings->get('anniversary_notify_colleagues')?->value ?? '1';
+        $anniversaryLeaderEmailSubject = $settings->get('anniversary_leader_email_subject')?->value ?? 'Ekibinizde Bir İş Yıldönümü! 🎊';
+        $anniversaryLeaderEmailBody = $settings->get('anniversary_leader_email_body')?->value ?? 'Merhaba {yonetici_adi}, bugün ekibinizden {personel_adi} personelin şirketimizdeki {yil}. yılı.';
+        $anniversaryColleagueEmailSubject = $settings->get('anniversary_colleague_email_subject')?->value ?? 'Bir Ekip Arkadaşınızın İş Yıldönümü! 🎊';
+        $anniversaryColleagueEmailBody = $settings->get('anniversary_colleague_email_body')?->value ?? 'Merhaba, bugün bölüm arkadaşınız {personel_adi}\'nın şirketimizdeki {yil}. yılı.';
+        $anniversaryBlockList = json_decode($settings->get('anniversary_block_list')?->value ?? '[]', true);
+
+        $allUsers = User::where('is_personnel', true)->orderBy('name')->get();
+
+        // Hoşgeldiniz E-postası
+        $newCustomerEmailSubject = $settings->get('new_customer_email_subject')?->value;
+        $newCustomerEmailBody = $settings->get('new_customer_email_body')?->value;
+
+        // Mail Log Ayarları
+        $mailLogAllowedRoles = json_decode($settings->get('mail_log_allowed_roles')?->value ?? '[]', true);
+        $mailLogAllowedUsers = json_decode($settings->get('mail_log_allowed_users')?->value ?? '[]', true);
+        $mailLogAutoCleanupDays = $settings->get('mail_log_auto_cleanup_days')?->value ?? '0';
 
         return view('admin.ayarlar.index', compact(
             'settings',
@@ -45,6 +92,8 @@ class SistemAyarController extends Controller
             'arabuluculukPermissions',
             'logo',
             'kayitOnay',
+            'reapplyLimitActive',
+            'reapplyLimitHours',
             'paraBirimleri',
             'standartPuan',
             'musteriSikayetiPuan',
@@ -52,8 +101,43 @@ class SistemAyarController extends Controller
             'kurulDefaultPuan',
             'iaaOneriPuani',
             'kvkkText',
+            'kvkkPdf',
             'notifyBolumLideri',
-            'direktorOnayiAktif' // <--- YENİ
+            'direktorOnayiAktif',
+            'ziyaretDirektorOnayiAktif',
+            'superadminSikayetSayacAktif',
+            'newUserNotifyLider',
+            'newUserNotifyDirektor',
+            'newCustomerEmailSubject',
+            'newCustomerEmailBody',
+            'birthdayIsActive',
+            'birthdayUpcomingDays',
+            'birthdayPastDays',
+            'birthdayEmailSubject',
+            'birthdayEmailBody',
+            'birthdayNotifyLeader',
+            'birthdayNotifyDirector',
+            'birthdayLeaderEmailSubject',
+            'birthdayLeaderEmailBody',
+            'birthdayNotifyColleagues',
+            'birthdayColleagueEmailSubject',
+            'birthdayColleagueEmailBody',
+            'birthdayBlockList',
+            'anniversaryIsActive',
+            'anniversaryEmailSubject',
+            'anniversaryEmailBody',
+            'anniversaryNotifyLeader',
+            'anniversaryNotifyDirector',
+            'anniversaryNotifyColleagues',
+            'anniversaryLeaderEmailSubject',
+            'anniversaryLeaderEmailBody',
+            'anniversaryColleagueEmailSubject',
+            'anniversaryColleagueEmailBody',
+            'anniversaryBlockList',
+            'allUsers',
+            'mailLogAllowedRoles',
+            'mailLogAllowedUsers',
+            'mailLogAutoCleanupDays'
         ));
     }
 
@@ -75,6 +159,8 @@ class SistemAyarController extends Controller
             'sikayet_cozum_email_subject' => 'nullable|string|max:255',
             'sikayet_cozum_email_body' => 'nullable|string',
             'sikayet_response_time_hours' => 'nullable|integer|min:1',
+            'new_customer_email_subject' => 'nullable|string|max:255',
+            'new_customer_email_body' => 'nullable|string',
 
             // === YENİ - Admin/İç Bildirim Ayarları ===
             'sikayet_notify_user_ids' => 'nullable|array',
@@ -85,6 +171,33 @@ class SistemAyarController extends Controller
             'sikayet_atama_notify_manual_emails' => 'nullable|string',
             'sikayet_notify_bolum_lideri' => 'nullable|boolean',
             'sikayet_direktor_onayi_aktif' => 'nullable|boolean', // <--- YENİ
+            'ziyaret_direktor_onayi_aktif' => 'nullable|boolean', // <--- Ziyaret Direktör Onayı
+            'superadmin_sikayet_panel_sayac_aktif' => 'nullable|boolean', // <--- YENİ
+            'birthday_is_active' => 'nullable|boolean',
+            'birthday_upcoming_days' => 'nullable|integer|min:1|max:31',
+            'birthday_past_days' => 'nullable|integer|min:1|max:31',
+            'birthday_email_subject' => 'nullable|string|max:255',
+            'birthday_email_body' => 'nullable|string',
+            'birthday_notify_leader' => 'nullable|boolean',
+            'birthday_notify_director' => 'nullable|boolean',
+            'birthday_leader_email_subject' => 'nullable|string|max:255',
+            'birthday_leader_email_body' => 'nullable|string',
+            'birthday_notify_colleagues' => 'nullable|boolean',
+            'birthday_colleague_email_subject' => 'nullable|string|max:255',
+            'birthday_colleague_email_body' => 'nullable|string',
+            'birthday_block_list' => 'nullable|array',
+
+            'anniversary_is_active' => 'nullable|boolean',
+            'anniversary_email_subject' => 'nullable|string|max:255',
+            'anniversary_email_body' => 'nullable|string',
+            'anniversary_notify_leader' => 'nullable|boolean',
+            'anniversary_notify_director' => 'nullable|boolean',
+            'anniversary_notify_colleagues' => 'nullable|boolean',
+            'anniversary_leader_email_subject' => 'nullable|string|max:255',
+            'anniversary_leader_email_body' => 'nullable|string',
+            'anniversary_colleague_email_subject' => 'nullable|string|max:255',
+            'anniversary_colleague_email_body' => 'nullable|string',
+            'anniversary_block_list' => 'nullable|array',
 
             // <--- EKLENDİ: Bölüm Yetkisi Validasyonu
             'global_disciplinary_departments' => 'nullable|array',
@@ -92,6 +205,11 @@ class SistemAyarController extends Controller
 
             // Arabuluculuk Yetki Validasyonu (Opsiyonel ama iyi olur)
             'role_permissions' => 'nullable|array',
+
+            // KVKK Ayarları
+            'kvkk_text' => 'nullable|string',
+            'kvkk_pdf' => 'nullable|file|mimes:pdf|max:5120',
+            'remove_kvkk_pdf' => 'nullable|boolean',
         ]);
 
         // 1-7 arası (Mevcut ayarlarınız) ...
@@ -182,6 +300,18 @@ class SistemAyarController extends Controller
             ['value' => $request->input('sikayet_cozum_email_body', "Sayın {musteri_adi},\n\n'{sikayet_konusu}' konulu şikayetiniz çözümlenmiştir.\nÇözüm Tarihi: {cozum_tarihi}\n\nDetayları incelemek ve geri bildirimde bulunmak için: {takip_linki}\n\nTeşekkür ederiz.")]
         );
 
+        // 11.1 Yeni Kayıt / Hoşgeldiniz E-posta Konusu
+        Setting::updateOrCreate(
+            ['key' => 'new_customer_email_subject'],
+            ['value' => $request->input('new_customer_email_subject', 'Hoşgeldiniz - Sisteme Giriş Bilgileriniz')]
+        );
+
+        // 11.2 Yeni Kayıt / Hoşgeldiniz E-posta İçeriği
+        Setting::updateOrCreate(
+            ['key' => 'new_customer_email_body'],
+            ['value' => $request->input('new_customer_email_body', "Köksan Müşteri Portalı hesabınız {sirket_adi} firması için başarıyla oluşturulmuştur. Aşağıdaki bilgileri kullanarak sisteme giriş yapabilirsiniz.")]
+        );
+
         // 12. Yönetici Bildirim E-postası (Bu ayarı 'sikayet_notify_manual_emails' ile birleştirebiliriz, ama mevcutsa kalsın)
         // Not: Bu 'sikayet_admin_notification_email' alanı sizde vardı ama yeni sistemde 'sikayet_notify_manual_emails' daha esnek.
         // Şimdilik sizdeki kodu koruyorum:
@@ -240,9 +370,142 @@ class SistemAyarController extends Controller
         );
 
         // 19. (YENİ) Direktör Onayı Aktif mi?
+        $oldDirektorOnayi = Setting::where('key', 'sikayet_direktor_onayi_aktif')->value('value') === '1';
+        $newDirektorOnayi = $request->has('sikayet_direktor_onayi_aktif');
+
         Setting::updateOrCreate(
             ['key' => 'sikayet_direktor_onayi_aktif'],
-            ['value' => $request->has('sikayet_direktor_onayi_aktif') ? '1' : '0']
+            ['value' => $newDirektorOnayi ? '1' : '0']
+        );
+
+        // Geçmişteki projelerin durumlarını otomatik değiştirmeyi kaldırdık. 
+        // Böylece Bölüm Kalite Yöneticisi onayı atlanmamış olur.
+
+
+        // Ziyaret Direktör Onayı Ayarı
+        Setting::updateOrCreate(
+            ['key' => 'ziyaret_direktor_onayi_aktif'],
+            ['value' => $request->has('ziyaret_direktor_onayi_aktif') ? '1' : '0']
+        );
+
+        Setting::updateOrCreate(
+            ['key' => 'superadmin_sikayet_panel_sayac_aktif'],
+            ['value' => $request->has('superadmin_sikayet_panel_sayac_aktif') ? '1' : '0']
+        );
+
+
+
+        // 20. Yeni Kullanıcı — Bölüm Liderine Mail
+        Setting::updateOrCreate(
+            ['key' => 'new_user_notify_bolum_lideri'],
+            ['value' => $request->has('new_user_notify_bolum_lideri') ? '1' : '0']
+        );
+
+        // 21. Yeni Kullanıcı — Direktöre Mail
+        Setting::updateOrCreate(
+            ['key' => 'new_user_notify_direktor'],
+            ['value' => $request->has('new_user_notify_direktor') ? '1' : '0']
+        );
+
+        // 22. Doğum Günü Ayarları
+        Setting::updateOrCreate(
+            ['key' => 'birthday_is_active'],
+            ['value' => $request->has('birthday_is_active') ? '1' : '0']
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_upcoming_days'],
+            ['value' => $request->input('birthday_upcoming_days', 7)]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_past_days'],
+            ['value' => $request->input('birthday_past_days', 3)]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_email_subject'],
+            ['value' => $request->input('birthday_email_subject', 'İyi Ki Doğdun! 🎂')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_email_body'],
+            ['value' => $request->input('birthday_email_body')]
+        );
+
+        Setting::updateOrCreate(
+            ['key' => 'birthday_notify_leader'],
+            ['value' => $request->has('birthday_notify_leader') ? '1' : '0']
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_notify_director'],
+            ['value' => $request->has('birthday_notify_director') ? '1' : '0']
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_leader_email_subject'],
+            ['value' => $request->input('birthday_leader_email_subject')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_leader_email_body'],
+            ['value' => $request->input('birthday_leader_email_body')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_notify_colleagues'],
+            ['value' => $request->has('birthday_notify_colleagues') ? '1' : '0']
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_colleague_email_subject'],
+            ['value' => $request->input('birthday_colleague_email_subject')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_colleague_email_body'],
+            ['value' => $request->input('birthday_colleague_email_body')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'birthday_block_list'],
+            ['value' => json_encode($request->input('birthday_block_list', []))]
+        );
+
+        // Yıldönümü Ayarları Kaydetme
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_is_active'],
+            ['value' => $request->has('anniversary_is_active') ? '1' : '0']
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_email_subject'],
+            ['value' => $request->input('anniversary_email_subject')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_email_body'],
+            ['value' => $request->input('anniversary_email_body')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_notify_leader'],
+            ['value' => $request->has('anniversary_notify_leader') ? '1' : '0']
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_notify_director'],
+            ['value' => $request->has('anniversary_notify_director') ? '1' : '0']
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_notify_colleagues'],
+            ['value' => $request->has('anniversary_notify_colleagues') ? '1' : '0']
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_leader_email_subject'],
+            ['value' => $request->input('anniversary_leader_email_subject')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_leader_email_body'],
+            ['value' => $request->input('anniversary_leader_email_body')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_colleague_email_subject'],
+            ['value' => $request->input('anniversary_colleague_email_subject')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_colleague_email_body'],
+            ['value' => $request->input('anniversary_colleague_email_body')]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'anniversary_block_list'],
+            ['value' => json_encode($request->input('anniversary_block_list', []))]
         );
 
         // ================== KAYDETME SONU ==================
@@ -315,6 +578,42 @@ class SistemAyarController extends Controller
                 ['value' => $request->input('kvkk_text')]
             );
         }
+
+        // KVKK PDF İşlemleri
+        if ($request->has('remove_kvkk_pdf')) {
+            $oldPdf = Setting::where('key', 'kvkk_pdf')->first();
+            if ($oldPdf && $oldPdf->value) {
+                Storage::disk('public')->delete($oldPdf->value);
+                $oldPdf->delete();
+            }
+        }
+
+        if ($request->hasFile('kvkk_pdf')) {
+            $oldPdf = Setting::where('key', 'kvkk_pdf')->first();
+            if ($oldPdf && $oldPdf->value) {
+                Storage::disk('public')->delete($oldPdf->value);
+            }
+            $path = $request->file('kvkk_pdf')->store('settings/kvkk', 'public');
+            Setting::updateOrCreate(
+                ['key' => 'kvkk_pdf'],
+                ['value' => $path]
+            );
+        }
+        // ===================================================================
+
+        // ================== 6. MAIL LOG AYARLARI ==================
+        Setting::updateOrCreate(
+            ['key' => 'mail_log_allowed_roles'],
+            ['value' => json_encode($request->input('mail_log_allowed_roles', []))]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'mail_log_allowed_users'],
+            ['value' => json_encode(array_map('intval', $request->input('mail_log_allowed_users', [])))]
+        );
+        Setting::updateOrCreate(
+            ['key' => 'mail_log_auto_cleanup_days'],
+            ['value' => $request->input('mail_log_auto_cleanup_days', '0')]
+        );
         // ===================================================================
 
         // ================== KAYDETME SONU ==================

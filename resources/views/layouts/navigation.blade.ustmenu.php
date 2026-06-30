@@ -109,7 +109,6 @@
                                     </x-dropdown-link>
                                 @endif
                                 {{-- ======================================================= --}}
-                                {{-- 3. Ayarlar (Sadece Superadmin ve Hukuk Admini) --}}
                                 @if(Auth::user()->hasRole(['Superadmin', 'Hukuk Admini']))
                                     <div class="border-t border-gray-100 my-1"></div>
                                     <x-dropdown-link :href="route('admin.disiplin.settings.index')">{{ __('Disiplin Ayarları') }}</x-dropdown-link>
@@ -219,9 +218,15 @@
                         <span id="notification-count-badge" class="notification-badge" style="display: none;">0</span>
                     </a>
                     <div id="notification-dropdown" class="notification-dropdown-menu" style="display: none;">
-                        <div class="notification-header">Bildirimler</div>
+                        <div id="notification-header-container"></div>
                         <ul id="notification-list" class="notification-list-items"></ul>
-                        <div id="notification-empty" class="notification-empty-message" style="display: none;">Yeni bildirim yok.</div>
+                        <div id="notification-empty" class="notification-empty-container" style="display: none;">
+                            <svg class="notification-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <p class="notification-empty-text">Yeni bildiriminiz yok.</p>
+                        </div>
+                        <div id="notification-footer-container"></div>
                     </div>
                 </div>
                 
@@ -358,6 +363,13 @@
                     @if(Auth::user()->hasRole(['Superadmin', 'Hukuk Admini']))
                         <x-responsive-nav-link :href="route('admin.sistem-ayarlari.index')" :active="request()->routeIs('admin.sistem-ayarlari.*')">
                             {{ __('Sistem Ayarları') }}
+                        </x-responsive-nav-link>
+                    @endif
+
+                    {{-- 5. Disiplin Kurulu Portalı --}}
+                    @if(Auth::user()->hasRole(['Superadmin', 'Yonetim', 'Hukuk Admini', 'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi']))
+                        <x-responsive-nav-link :href="route('admin.disiplin.kurul.index')" :active="request()->routeIs('admin.disiplin.kurul.*')">
+                            {{ __('Disiplin Kurulu Portalı') }}
                         </x-responsive-nav-link>
                     @endif
 

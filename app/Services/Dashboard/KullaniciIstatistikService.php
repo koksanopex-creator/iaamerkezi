@@ -20,22 +20,26 @@ class KullaniciIstatistikService
      */
     public function getStats(User $user)
     {
+        // Kullanıcının "SQUAD Üyesi" olarak atandığı veya 
+        // Lideri/Üyesi olduğu bir "Takıma" atanan projeler için ortak sorgu koşulu
+        $userInvolvedClosure = function ($q) use ($user) {
+            $q->whereHas('projeEkibi', fn($sq) => $sq->where('users.id', $user->id))
+                ->orWhereHas('atananTakim', function ($sq) use ($user) {
+                    $sq->where('lider_user_id', $user->id)
+                        ->orWhereHas('uyeler', fn($uq) => $uq->where('users.id', $user->id));
+                });
+        };
+
         // 1. Bekleyen Görev Sayısı
         // A) Takım Lideri olduğu projelerden kendisine düşen onay vb.
         // B) Squad üyesi olduğu projeler
-        // Burada basitçe 'Atandı' durumundaki projeleri sayalım
-        $bekleyenGorevler = Iaa::where(function ($q) use ($user) {
-            $q->whereHas('atananTakim', fn($sq) => $sq->where('lider_user_id', $user->id))
-                ->orWhereHas('projeEkibi', fn($sq) => $sq->where('users.id', $user->id));
-        })
+        // C) Üyesi olduğu takıma atanan projeler
+        $bekleyenGorevler = Iaa::where($userInvolvedClosure)
             ->whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor'])
             ->count();
 
         // 2. Tamamlanan Görevler
-        $tamamlananGorevler = Iaa::where(function ($q) use ($user) {
-            $q->whereHas('atananTakim', fn($sq) => $sq->where('lider_user_id', $user->id))
-                ->orWhereHas('projeEkibi', fn($sq) => $sq->where('users.id', $user->id));
-        })
+        $tamamlananGorevler = Iaa::where($userInvolvedClosure)
             ->where('durum', 'Tamamlandı')
             ->count();
 
@@ -48,9 +52,9 @@ class KullaniciIstatistikService
         // 4. Okunmamış Mesajlar (Şimdilik devre dışı)
         $okunmamisMesaj = 0; // Message modeli bulunamadığı için 0 dönüyoruz.
 
-        // 5. Havuzdaki Öneri Sayısı (Henüz atanmamış, onay bekleyen)
-        $havuzOneriSayisi = Iaa::where('durum', 'Onay Bekliyor')->count();
-        $sonHavuzOnerileri = Iaa::where('durum', 'Onay Bekliyor')->latest()->take(3)->get();
+        // 5. Havuzdaki Öneri Sayısı (Havuzda olanlar)
+        $havuzOneriSayisi = Iaa::where('durum', 'Havuzda')->count();
+        $sonHavuzOnerileri = Iaa::where('durum', 'Havuzda')->latest()->take(3)->get();
 
         // 6. Takımlarım
         $takimlarimSayisi = $user->takimlar()->count();
@@ -65,38 +69,44 @@ class KullaniciIstatistikService
             ->take(3)
             ->get();
 
-        // 8. Devam Eden İAA Projelerim (Sadece SAF İAA - Şikayet Olmayanlar)
-        $iaaProjelerimQuery = $user->gorevliOlduguProjeler()
+        $iaaProjelerimQuery = clone Iaa::query()
+            ->where($userInvolvedClosure)
             ->whereDoesntHave('musteriSikayeti') // Şikayet kaynaklı olmayanlar
-            ->whereNotIn('iaas.durum', ['Tamamlandı', 'İptal Edildi', 'Reddedildi', 'Talep Olarak Kapatıldı', 'hatali_bildirim_olarak_kapatildi', 'talep_olarak_kapatildi']);
+            ->whereNotIn('durum', ['Tamamlandı', 'İptal Edildi', 'Reddedildi', 'Talep Olarak Kapatıldı', 'hatali_bildirim_olarak_kapatildi', 'talep_olarak_kapatildi']);
 
         $iaaProjelerimCount = $iaaProjelerimQuery->count();
         $sonIaaProjelerim = $iaaProjelerimQuery
-            ->latest('iaas.created_at')
+            ->latest('created_at')
             ->take(3)
             ->get();
 
         // 9. Devam Eden Şikayet Projelerim (Gorevli olduğu şikayetler)
-        $sikayetProjelerimQuery = $user->gorevliOlduguProjeler()
-            ->whereHas('musteriSikayeti') // Şikayet kaynaklı olanlar
-            ->whereNotIn('iaas.durum', ['Tamamlandı', 'İptal Edildi', 'Reddedildi', 'Talep Olarak Kapatıldı', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'hatali_bildirim_olarak_kapatildi', 'talep_olarak_kapatildi']); // Onay bekleyenleri ayırıyoruz
+        $sikayetProjelerimQuery = clone Iaa::query()
+            ->where($userInvolvedClosure)
+            ->whereHas('musteriSikayeti', function ($q) {
+                $q->whereNull('deleted_at');
+            }) // Şikayet kaynaklı olanlar ve SİLİNMEMİŞ olanlar
+            ->whereNotIn('durum', ['Tamamlandı', 'İptal Edildi', 'Reddedildi', 'Talep Olarak Kapatıldı', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'hatali_bildirim_olarak_kapatildi', 'talep_olarak_kapatildi']); // Onay bekleyenleri ayırıyoruz
 
         $sikayetProjelerimCount = $sikayetProjelerimQuery->count();
         $sonSikayetProjelerim = $sikayetProjelerimQuery
             ->with('musteriSikayeti') // Eager load
-            ->latest('iaas.created_at')
+            ->latest('created_at')
             ->take(3)
             ->get();
 
         // 10. Onay Bekleyen Şikayet Projelerim (YENİ KART)
-        $onayBekleyenSikayetQuery = $user->gorevliOlduguProjeler()
-            ->whereHas('musteriSikayeti')
-            ->whereIn('iaas.durum', ['Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor']);
+        $onayBekleyenSikayetQuery = clone Iaa::query()
+            ->where($userInvolvedClosure)
+            ->whereHas('musteriSikayeti', function ($q) {
+                $q->whereNull('deleted_at');
+            })
+            ->whereIn('durum', ['Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor']);
 
         $onayBekleyenSikayetCount = $onayBekleyenSikayetQuery->count();
         $sonOnayBekleyenSikayetler = $onayBekleyenSikayetQuery
             ->with('musteriSikayeti')
-            ->latest('iaas.updated_at')
+            ->latest('updated_at')
             ->take(3)
             ->get();
 

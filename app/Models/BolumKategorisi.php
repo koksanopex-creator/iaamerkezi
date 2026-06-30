@@ -16,6 +16,6 @@ class BolumKategorisi extends Model
 
     public function bolumler()
     {
-        return $this->hasMany(Bolum::class, 'bolum_kategori_id');
+        return $this->hasMany(Bolum::class , 'bolum_kategori_id');
     }
 }

@@ -1,4 +1,5 @@
 <x-app-layout>
+    @push('pageTitle', 'Anlaşma Maddeleri Havuzu | ')
     <x-slot name="header">
         <h2 class="font-bold text-xl text-gray-800 leading-tight">
             {{ __('Anlaşma Maddeleri Havuzu') }}

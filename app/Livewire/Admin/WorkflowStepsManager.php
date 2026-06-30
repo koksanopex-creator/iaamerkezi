@@ -32,9 +32,19 @@ class WorkflowStepsManager extends Component
         'date_picker' => ['label' => 'Tarih Seçici', 'options' => ['title' => 'Başlık']],
         'file_upload' => ['label' => 'Dosya Yükleme', 'options' => ['title' => 'Başlık', 'multiple' => 'Çoklu Dosya? (checkbox)']],
         'info_text' => ['label' => 'Bilgi Metni', 'options' => ['title' => 'Başlık', 'content' => 'İçerik (textarea)']],
-        // === YENİ GRAFİK TÜRLERİ ===
+        // === GRAFİK TÜRLERİ ===
         'bar_chart' => ['label' => 'Sütun Grafiği (Dinamik)', 'options' => ['title' => 'Grafik Başlığı', 'axis_x_label' => 'X Ekseni Başlığı', 'axis_y_label' => 'Y Ekseni Başlığı']],
         'line_chart' => ['label' => 'Çizgi Grafiği (Dinamik)', 'options' => ['title' => 'Grafik Başlığı', 'axis_x_label' => 'X Ekseni Başlığı', 'axis_y_label' => 'Y Ekseni Başlığı']],
+        // === YENİ ANALİZ ARAÇLARI ===
+        'swot' => ['label' => 'SWOT Analizi', 'options' => ['title' => 'Başlık']],
+        'checklist' => ['label' => 'Kontrol Listesi', 'options' => ['title' => 'Başlık', 'items' => 'Maddeler (her satır bir madde) (textarea)']],
+        'before_after' => ['label' => 'Önce/Sonra Karşılaştırma', 'options' => ['title' => 'Başlık']],
+        'risk_matrix' => ['label' => 'Risk Matrisi', 'options' => ['title' => 'Başlık', 'size' => 'Matris Boyutu (3 veya 5)']],
+        'image_upload' => ['label' => 'Açıklamalı Resim Yükleme', 'options' => ['title' => 'Başlık', 'description' => 'Açıklama', 'multiple' => 'Çoklu Resim? (checkbox)']],
+        'action_list' => ['label' => 'Aksiyon Listesi', 'options' => ['title' => 'Başlık']],
+        'task_list' => ['label' => 'Görev Listesi (Kişi Atamalı)', 'options' => ['title' => 'Başlık']],
+        'prioritization_matrix' => ['label' => 'Önceliklendirme Matrisi (Efor/Etki)', 'options' => ['title' => 'Başlık']],
+        '4m_report' => ['label' => '4M Gelişim Raporu (İnsan, Makine, Malzeme, Metot)', 'options' => ['title' => 'Rapor Başlığı']],
         // ===========================
     ];
     public $selectedWidgetType = 'textbox';
@@ -60,13 +70,18 @@ class WorkflowStepsManager extends Component
             'widgets.*.config.multiple' => 'nullable|boolean', // FileUpload için
             'widgets.*.config.content' => 'nullable|string', // InfoText için
             // === YENİ GRAFİK VALİDASYONLARI ===
-            'widgets.*.config.axis_x_label' => 'nullable|string|max:100', // Bar/Line Chart için
-            'widgets.*.config.axis_y_label' => 'nullable|string|max:100', // Bar/Line Chart için
+            'widgets.*.config.axis_x_label' => 'nullable|string|max:100',
+            'widgets.*.config.axis_y_label' => 'nullable|string|max:100',
+            // === YENİ ANALİZ ARAÇLARI VALİDASYONLARI ===
+            'widgets.*.config.items' => 'nullable|string', // Checklist maddeleri
+            'widgets.*.config.size' => 'nullable|string|in:3,5', // Risk Matrisi boyutu
+            'widgets.*.config.description' => 'nullable|string', // Açıklamalı Resim Yükleme
+            'widgets.*.config.4m_report_title' => 'nullable|string|max:255', // 4M Raporu başlığı için opsiyonel
             // ==================================
         ];
     }
 
-     protected function editingRules()
+    protected function editingRules()
     {
         // rules() ile aynı validasyonları kullanabiliriz, sadece input adları farklı
         $rules = $this->rules();
@@ -189,7 +204,8 @@ class WorkflowStepsManager extends Component
     // --- WIDGET SIRALAMA (OK TUŞLARI) ---
     public function moveWidgetUp(int $index): void
     {
-        if ($index <= 0 || ! isset($this->widgets[$index])) return;
+        if ($index <= 0 || !isset($this->widgets[$index]))
+            return;
 
         $prev = $index - 1;
         [$this->widgets[$prev], $this->widgets[$index]] = [$this->widgets[$index], $this->widgets[$prev]];
@@ -199,7 +215,8 @@ class WorkflowStepsManager extends Component
 
     public function moveWidgetDown(int $index): void
     {
-        if (! isset($this->widgets[$index]) || ! isset($this->widgets[$index + 1])) return;
+        if (!isset($this->widgets[$index]) || !isset($this->widgets[$index + 1]))
+            return;
 
         $next = $index + 1;
         [$this->widgets[$next], $this->widgets[$index]] = [$this->widgets[$index], $this->widgets[$next]];
@@ -229,30 +246,32 @@ class WorkflowStepsManager extends Component
             if (isset($widget['config']) && is_array($widget['config'])) {
                 foreach ($widget['config'] as $key => &$value) {
                     // Checkbox'lar için boolean'a çevir ('true' -> true, null/'' -> false)
-                     if (isset($this->availableWidgets[$widget['type']]['options'][$key]) &&
-                         str_contains(strtolower($this->availableWidgets[$widget['type']]['options'][$key]), '(checkbox)'))
-                     {
-                         $value = filter_var($value, FILTER_VALIDATE_BOOLEAN);
-                     }
+                    if (
+                        isset($this->availableWidgets[$widget['type']]['options'][$key]) &&
+                        str_contains(strtolower($this->availableWidgets[$widget['type']]['options'][$key]), '(checkbox)')
+                    ) {
+                        $value = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+                    }
                 }
             }
-             // Grafik widget'larının config'inden 'rows' verisini kaldır (bu toolsData'da tutulacak)
-             if (isset($widget['config']['rows']) && in_array($widget['type'], ['bar_chart', 'line_chart', 'pareto'])) {
-                 unset($widget['config']['rows']);
-             }
+            // Grafik widget'larının config'inden 'rows' verisini kaldır (bu toolsData'da tutulacak)
+            if (isset($widget['config']['rows']) && in_array($widget['type'], ['bar_chart', 'line_chart', 'pareto'])) {
+                unset($widget['config']['rows']);
+            }
             return $widget;
         }, $widgets);
     }
 
     // Düzenleme için yüklerken checkbox boolean'larını string'e çevir
-     private function prepareWidgetsForEdit(array $widgets): array
+    private function prepareWidgetsForEdit(array $widgets): array
     {
         return array_map(function ($widget) {
             if (isset($widget['config']) && is_array($widget['config'])) {
                 foreach ($widget['config'] as $key => &$value) {
-                     if (isset($this->availableWidgets[$widget['type']]['options'][$key]) &&
-                         str_contains(strtolower($this->availableWidgets[$widget['type']]['options'][$key]), '(checkbox)'))
-                     {
+                    if (
+                        isset($this->availableWidgets[$widget['type']]['options'][$key]) &&
+                        str_contains(strtolower($this->availableWidgets[$widget['type']]['options'][$key]), '(checkbox)')
+                    ) {
                         // Sadece true ise 'true' string yap, false ise null bırak
                         $value = ($value === true) ? 'true' : null;
                     }
@@ -266,7 +285,26 @@ class WorkflowStepsManager extends Component
     public function deleteStep($stepId)
     {
         // ... (Silme metodu aynı kalabilir) ...
-        DB::beginTransaction(); try { $step = IaaWorkflowStep::find($stepId); if ($step) { $workflowId = $step->iaa_workflow_id; $deletedOrder = $step->order; $step->delete(); IaaWorkflowStep::where('iaa_workflow_id', $workflowId)->where('order', '>', $deletedOrder)->decrement('order'); DB::commit(); session()->flash('success', 'Adım başarıyla silindi.'); $this->loadSteps(); } else { DB::rollBack(); session()->flash('error', 'Silinecek adım bulunamadı.'); } } catch (\Exception $e) { DB::rollBack(); Log::error('Adım silinirken hata: ' . $e->getMessage()); session()->flash('error', 'Adım silinirken bir hata oluştu.'); }
+        DB::beginTransaction();
+        try {
+            $step = IaaWorkflowStep::find($stepId);
+            if ($step) {
+                $workflowId = $step->iaa_workflow_id;
+                $deletedOrder = $step->order;
+                $step->delete();
+                IaaWorkflowStep::where('iaa_workflow_id', $workflowId)->where('order', '>', $deletedOrder)->decrement('order');
+                DB::commit();
+                session()->flash('success', 'Adım başarıyla silindi.');
+                $this->loadSteps();
+            } else {
+                DB::rollBack();
+                session()->flash('error', 'Silinecek adım bulunamadı.');
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Adım silinirken hata: ' . $e->getMessage());
+            session()->flash('error', 'Adım silinirken bir hata oluştu.');
+        }
     }
 
     public function render()

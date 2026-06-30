@@ -1,0 +1,157 @@
+version: "2"
+type: backend
+tech_stack:
+  - PHP 8.2
+  - Laravel 12.0
+  - Vue 3 & Inertia.js 2.0
+  - MySQL / MariaDB
+  - TailwindCSS 3.2, Spatie Laravel Permission 6.25, Vue Flow 1.48
+features:
+  - name: Central SSO Authentication
+    description: Single sign-on authentication through a central identity server with auto-login, callback processing, and global logout.
+    files:
+      - app/Http/Controllers/Auth/SsoController.php
+      - routes/web.php
+    endpoints:
+      - method: GET
+        path: /login
+        description: Redirect to Central SSO identity server login
+        auth_required: false
+        response_schema:
+          "302": Redirect response
+      - method: GET
+        path: /sso/login
+        description: Handle authentication token callback from Central SSO
+        auth_required: false
+        response_schema:
+          "302": Redirect response
+      - method: POST
+        path: /logout
+        description: Local and global logout
+        auth_required: true
+        response_schema:
+          "302": Redirect response
+  - name: Dashboard
+    description: Multi-role main dashboard for tracking user tasks, ongoing processes, and department-level stats.
+    files:
+      - app/Http/Controllers/DashboardController.php
+      - routes/web.php
+    endpoints:
+      - method: GET
+        path: /dashboard
+        description: Render dashboard page with pending tasks and process summaries
+        auth_required: true
+        response_schema:
+          "200": Inertia Render Response
+  - name: Form Templates
+    description: Design and manage dynamic form structures, categories, and field templates.
+    files:
+      - app/Http/Controllers/FormTemplateController.php
+      - routes/web.php
+    endpoints:
+      - method: GET
+        path: /form-templates
+        description: List form templates
+        auth_required: true
+        response_schema:
+          "200": List of form templates
+      - method: POST
+        path: /form-templates
+        description: Create new form template
+        auth_required: true
+        response_schema:
+          "302": Redirect response
+  - name: Workflows
+    description: Graphical design and configuration of workflow processes, stages, transitions, and step assignments using Vue Flow.
+    files:
+      - app/Http/Controllers/WorkflowController.php
+      - routes/web.php
+    endpoints:
+      - method: GET
+        path: /workflows
+        description: List of workflow definitions
+        auth_required: true
+        response_schema:
+          "200": List of workflows
+      - method: POST
+        path: /workflows
+        description: Define and save new workflow structure
+        auth_required: true
+        response_schema:
+          "302": Redirect response
+  - name: Processes
+    description: Initiate, monitor, and inspect ongoing process instances based on workflow definitions.
+    files:
+      - app/Http/Controllers/ProcessController.php
+      - routes/web.php
+    endpoints:
+      - method: GET
+        path: /processes
+        description: View active processes
+        auth_required: true
+        response_schema:
+          "200": List of processes
+      - method: POST
+        path: /processes/{workflow}
+        description: Start a new process instance for a specific workflow
+        auth_required: true
+        response_schema:
+          "302": Redirect response
+      - method: GET
+        path: /processes/{instance}/tracker
+        description: Track process progress visually
+        auth_required: true
+        response_schema:
+          "200": Process tracker view
+  - name: Task Execution
+    description: List, inspect, update, and rollback workflow tasks assigned to users.
+    files:
+      - app/Http/Controllers/TaskController.php
+      - routes/web.php
+    endpoints:
+      - method: GET
+        path: /tasks
+        description: List active tasks assigned to the user
+        auth_required: true
+        response_schema:
+          "200": List of tasks
+      - method: POST
+        path: /tasks/{task}
+        description: Process and complete/submit a task
+        auth_required: true
+        response_schema:
+          "302": Redirect response
+      - method: POST
+        path: /tasks/{task}/undo
+        description: Undo or roll back a previously processed task
+        auth_required: true
+        response_schema:
+          "302": Redirect response
+  - name: Admin Panel
+    description: Sync and manage users, roles, permissions, departments, directorates, settings, and categories.
+    files:
+      - app/Http/Controllers/Admin/UserController.php
+      - app/Http/Controllers/Admin/DepartmentController.php
+      - app/Http/Controllers/Admin/DirectorateController.php
+      - app/Http/Controllers/Admin/SettingsController.php
+      - routes/web.php
+    endpoints:
+      - method: GET
+        path: /admin/users
+        description: Manage users
+        auth_required: true
+        response_schema:
+          "200": List of users
+      - method: POST
+        path: /admin/users/sync-all-apply
+        description: Sync all users from Central identity database
+        auth_required: true
+        response_schema:
+          "302": Redirect response
+      - method: POST
+        path: /admin/settings
+        description: Update global system settings
+        auth_required: true
+        response_schema:
+          "302": Redirect response
+known_limitations: []

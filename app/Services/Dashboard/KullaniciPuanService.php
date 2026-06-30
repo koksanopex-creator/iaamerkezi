@@ -7,6 +7,7 @@ use App\Models\Iaa;
 use App\Models\MusteriSikayeti;
 use App\Models\Setting;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class KullaniciPuanService
 {
@@ -16,42 +17,98 @@ class KullaniciPuanService
      */
     public function calculateTotalScore(User $user)
     {
+        return $this->calculateScoreInRange($user);
+    }
+
+    /**
+     * Kullanıcının toplam puan önbelleğini (cache) günceller.
+     */
+    public function syncUserCache(User $user)
+    {
+        $realScore = $this->calculateTotalScore($user);
+        $user->update(['toplam_puan' => $realScore]);
+        return $realScore;
+    }
+
+    /**
+     * Belirli bir tarih aralığında kullanıcının puanını hesaplar.
+     */
+    public function calculateScoreInRange(User $user, $startDate = null, $endDate = null)
+    {
+        // === MÜŞTERİ VEYA AYRILAN PERSONEL MUAFİYETİ ===
+        if (!$user->is_personnel) {
+            return 0;
+        }
+        // İşten ayrılma tarihi (Effective Departure Date) - En erken olanı al (soft delete veya resmi fesih)
+        $termDate = $user->termination_date ? Carbon::parse($user->termination_date)->endOfDay() : null;
+        $deletedAt = $user->deleted_at ? Carbon::parse($user->deleted_at)->endOfDay() : null;
+
+        if ($termDate && $deletedAt) {
+            $departureDate = $termDate->lt($deletedAt) ? $termDate : $deletedAt;
+        } else {
+            $departureDate = $deletedAt ?? $termDate;
+        }
+
         $toplamPuan = 0;
+
+        // Tarih filtresi fonksiyonu (Reusable)
+        $applyDateFilter = function ($query, $column = 'updated_at') use ($startDate, $endDate) {
+            if ($startDate) {
+                $query->whereDate($column, '>=', $startDate);
+            }
+            if ($endDate) {
+                $query->whereDate($column, '<=', $endDate);
+            }
+        };
 
         // =================================================================
         // 1. PROJELERDEN GELEN PUANLAR (LİDER + SQUAD + PASİF ÜYE)
         // =================================================================
 
-        // A. İlişkileri Hazırla
-        $takimIdleri = $user->takimlar()->pluck('takim_id'); // Üye olduğu takımlar
-
-        // Lider olduğu takımları çekiyoruz
-        $liderOlduguTakimIds = \App\Models\Takim::where('lider_user_id', $user->id)->pluck('id');
-
-        // SQUAD: Bizzat görevli olduğu projeler
-        $squadProjeIds = $user->gorevliOlduguProjeler()->pluck('iaas.id');
-
-        // B. Puanları Topla
-        $projePuani = Iaa::where('durum', 'Tamamlandı')
-            ->where('puan', '>', 0)
-            ->where(function ($query) use ($takimIdleri, $liderOlduguTakimIds, $squadProjeIds) {
-
-                // KURAL A: TAKIM LİDERİ (Her türlü puan alır)
-                $query->whereIn('atanan_takim_id', $liderOlduguTakimIds)
-
-                    // KURAL B: SQUAD / GÖREVLİ (Her türlü puan alır)
-                    ->orWhereIn('id', $squadProjeIds)
-
-                    // KURAL C: NORMAL ÜYE / PASİF (Filtreli Puan)
-                    // Şikayetse ve yukarıdaki Squad listesinde yoksa PUAN ALAMAZ.
-                    ->orWhere(function ($sub) use ($takimIdleri) {
-                    $sub->whereIn('atanan_takim_id', $takimIdleri)
-                        ->doesntHave('musteriSikayeti');
-                });
+        $takimIdleri = $user->takimlar()->pluck('takim_id');
+        $squadProjeIds = $user->gorevliOlduguProjeler()
+            ->wherePivot('durum', 'onaylandi')
+            ->where(function($q) use ($departureDate) {
+                if ($departureDate) {
+                    // İşten ayrılan kişi, sadece ayrılma tarihinden ÖNCE tamamlanmış projelerden puan alabilir.
+                    $q->where(DB::raw('COALESCE(iaas.tamamlanma_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'), '<=', Carbon::parse($departureDate)->endOfDay());
+                }
             })
-            ->sum('puan');
+            ->pluck('iaas.id');
 
-        $toplamPuan += $projePuani;
+        $projeQuery = Iaa::where('durum', 'Tamamlandı')
+            ->where('puan', '>', 0)
+            ->where(function ($query) use ($takimIdleri, $user, $squadProjeIds, $departureDate) {
+                // 1. LİDER (SABİTLENMİŞ)
+        // Liderin puan alması için projenin tamamlayan lideri olması şart.
+                $query->where('tamamlayan_lider_id', $user->id);
+                
+                if ($departureDate) {
+                    $query->where(\Illuminate\Support\Facades\DB::raw('COALESCE(iaas.tamamlanma_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'), '<=', Carbon::parse($departureDate)->endOfDay());
+                }
+
+                // 2. SQUAD / DONDURULMUŞ ÜYELER
+                $query->orWhereIn('id', $squadProjeIds);
+
+                // 3. PASİF TAKIM PUANI (Sadece Öneriler)
+                $query->orWhere(function ($sub) use ($takimIdleri, $user, $departureDate) {
+                    $sub->whereIn('atanan_takim_id', $takimIdleri)
+                        ->sadeceOneriler();
+                    
+                    if ($departureDate) {
+                        $sub->where(\Illuminate\Support\Facades\DB::raw('COALESCE(iaas.tamamlanma_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'), '<=', Carbon::parse($departureDate)->endOfDay());
+                    }
+                    
+                    // ERHAN CESUR KURALI: 
+                    // Eğer kullanıcı artık takım lideri değilse (veya pasifse), 
+                    // o takıma atanmış projelerden (EĞER SQUAD'DA DEĞİLSE) pasif puan almamalıdır.
+                    // Mevcut yapı zaten takımları $user->takimlar() üzerinden aldığı için 
+                    // eğer takımdan çıkarıldıysa puanı kesilecektir.
+                });
+            });
+
+        $applyDateFilter($projeQuery, \Illuminate\Support\Facades\DB::raw('COALESCE(iaas.onaya_gonderilme_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'));
+        $toplamPuan += $projeQuery->sum('puan');
 
         // =================================================================
         // 2. ŞİKAYET OLUŞTURMA PUANI (SADECE GİRİŞ PUANI)
@@ -59,19 +116,18 @@ class KullaniciPuanService
 
         $sikayetGirisPuani = Setting::where('key', 'musteri_sikayeti_standart_puan')->value('value') ?? 0;
 
-        if ($sikayetGirisPuani > 0) {
-            // Şikayet girişlerini sayıyoruz (Talep ve Hatalı Bildirim olarak kapananlar/bekleyenler hariç)
-            $girilenSikayetSayisi = MusteriSikayeti::where('olusturan_kurul_uyesi_id', $user->id)
+        if ($sikayetGirisPuani > 0 && !$user->hasRole(['Superadmin', 'Müşteri'])) {
+            $sikayetQuery = MusteriSikayeti::where('olusturan_kurul_uyesi_id', $user->id)
                 ->where('musteri_durum', '!=', 'Talep')
                 ->whereDoesntHave('iaaProjesi', function ($q) {
                     $q->whereIn('durum', [
                         'talep_olarak_kapatildi',
                         'hatali_bildirim_olarak_kapatildi'
                     ]);
-                })
-                ->count();
+                });
 
-            $toplamPuan += ($girilenSikayetSayisi * $sikayetGirisPuani);
+            $applyDateFilter($sikayetQuery, 'created_at');
+            $toplamPuan += ($sikayetQuery->count() * $sikayetGirisPuani);
         }
 
         // =================================================================
@@ -80,29 +136,77 @@ class KullaniciPuanService
         $iaaOneriPuani = Setting::where('key', 'iaa_oneri_puani')->value('value') ?? 0;
 
         if ($iaaOneriPuani > 0) {
-            $oneriSayisi = Iaa::where('gonderen_user_id', $user->id)
-                ->whereNotIn('durum', ['Taslak', 'Onay Bekliyor', 'Reddedildi'])
-                ->count();
+            $oneriQuery = Iaa::where('gonderen_user_id', $user->id)
+                ->whereNotIn('durum', ['Taslak', 'Onay Bekliyor', 'Reddedildi']);
 
-            $toplamPuan += ($oneriSayisi * $iaaOneriPuani);
+            $applyDateFilter($oneriQuery, 'created_at');
+            $toplamPuan += ($oneriQuery->count() * $iaaOneriPuani);
         }
 
         // =================================================================
         // 4. DİSİPLİN CEZALARI
         // =================================================================
-        $disiplinCezalari = \App\Models\DisciplinaryCase::where('user_id', $user->id)
+        $cezalarQuery = \App\Models\DisciplinaryCase::where('user_id', $user->id)
             ->where('durum', 'Karar Verildi')
-            ->where('final_karar', '!=', 'Savunma Kabul Edildi (Ceza Yok)')
-            ->sum('hesaplanan_puan');
+            ->where('final_karar', '!=', 'Savunma Kabul Edildi (Ceza Yok)');
 
-        $toplamPuan -= $disiplinCezalari;
-
-        if ($toplamPuan < 0) {
-            $toplamPuan = 0;
-        }
+        $applyDateFilter($cezalarQuery, 'updated_at');
+        $toplamPuan -= $cezalarQuery->sum('hesaplanan_puan');
 
         return $toplamPuan;
     }
+
+    /**
+     * Tüm kullanıcılar için tarih bazlı sıralama döndürür.
+     */
+    public function getRankings($startDate = null, $endDate = null, $bolumId = null, $limit = null, $excludeRoles = [])
+    {
+        $query = User::withTrashed()
+            ->where('is_personnel', true)
+            ->where('onaylandi_mi', true);
+
+        if ($bolumId) {
+            $query->where('bolum_id', $bolumId);
+        }
+
+        if (!empty($excludeRoles)) {
+            $query->whereDoesntHave('roles', function ($q) use ($excludeRoles) {
+                $q->whereIn('name', $excludeRoles);
+            });
+        }
+
+        // PERFORMANS OPTİMİZASYONU: Tarih filtresi yoksa cached toplam_puan'ı kullan
+        if (empty($startDate) && empty($endDate)) {
+            $query->orderBy('toplam_puan', 'desc');
+            
+            if ($limit) {
+                $query->limit($limit);
+            }
+            
+            $users = $query->get();
+            
+            foreach ($users as $user) {
+                $user->period_puan = $user->toplam_puan;
+            }
+            
+            return $users;
+        }
+
+        $users = $query->get();
+
+        foreach ($users as $user) {
+            $user->period_puan = $this->calculateScoreInRange($user, $startDate, $endDate);
+        }
+
+        $sorted = $users->sortByDesc('period_puan')->values();
+
+        if ($limit) {
+            return $sorted->take($limit);
+        }
+
+        return $sorted;
+    }
+
 
     /**
      * Kullanıcının detaylı puan verilerini ve geçmişini döndürür.
@@ -110,6 +214,29 @@ class KullaniciPuanService
      */
     public function getDetailedScoreData(User $user, $startDate = null, $endDate = null)
     {
+        // === MÜŞTERİ MUAFİYETİ ===
+        if (!$user->is_personnel) {
+            return [
+                'tum_projeler' => collect(),
+                'sikayet_girisleri' => collect(),
+                'sikayet_giris_puani' => 0,
+                'oneriler' => collect(),
+                'oneri_puani' => 0,
+                'cezalar' => collect(),
+                'toplam_puan' => 0
+            ];
+        }
+
+        // İşten ayrılma tarihi (Effective Departure Date) - En erken olanı al (soft delete veya resmi fesih)
+        $termDate = $user->termination_date ? \Carbon\Carbon::parse($user->termination_date)->endOfDay() : null;
+        $deletedAt = $user->deleted_at;
+
+        if ($termDate && $deletedAt) {
+            $departureDate = $termDate->lt($deletedAt) ? $termDate : $deletedAt;
+        } else {
+            $departureDate = $deletedAt ?? $termDate;
+        }
+
         // Tarih filtresi fonksiyonu (Reusable)
         $applyDateFilter = function ($query, $column = 'updated_at') use ($startDate, $endDate) {
             if ($startDate) {
@@ -122,13 +249,16 @@ class KullaniciPuanService
 
         // 1. PROJELER (Kazanılan Puanlar)
         // A. Lider Olduğu Projeler
-        $liderProjelerQuery = Iaa::whereHas('atananTakim', function ($q) use ($user) {
-            $q->where('lider_user_id', $user->id);
-        })
+        $liderProjelerQuery = Iaa::where('tamamlayan_lider_id', $user->id)
             ->where('durum', 'Tamamlandı')
-            ->where('puan', '>', 0);
+            ->where('puan', '>', 0)
+            ->where(function($q) use ($departureDate) {
+                if ($departureDate) {
+                    $q->where(DB::raw('COALESCE(iaas.tamamlanma_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'), '<=', Carbon::parse($departureDate)->endOfDay());
+                }
+            });
 
-        $applyDateFilter($liderProjelerQuery, 'onaylanma_tarihi'); // Onay tarihine göre filtrele
+        $applyDateFilter($liderProjelerQuery, \Illuminate\Support\Facades\DB::raw('COALESCE(iaas.onaya_gonderilme_tarihi, iaas.onaylanma_tarihi, iaas.created_at)')); 
 
         $liderProjeler = $liderProjelerQuery->get()->map(function ($p) {
             $p->kazanma_sebebi = 'Takım Lideri';
@@ -137,10 +267,16 @@ class KullaniciPuanService
 
         // B. Squad (Görevli) Olduğu Projeler
         $squadProjelerQuery = $user->gorevliOlduguProjeler()
+            ->wherePivot('durum', 'onaylandi') // Sadece onaylayanlar
             ->where('iaas.durum', 'Tamamlandı')
-            ->where('iaas.puan', '>', 0);
+            ->where('iaas.puan', '>', 0)
+            ->where(function($q) use ($departureDate) {
+                if ($departureDate) {
+                    $q->where(DB::raw('COALESCE(iaas.tamamlanma_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'), '<=', Carbon::parse($departureDate)->endOfDay());
+                }
+            });
 
-        $applyDateFilter($squadProjelerQuery, 'onaylanma_tarihi');
+        $applyDateFilter($squadProjelerQuery, \Illuminate\Support\Facades\DB::raw('COALESCE(iaas.onaya_gonderilme_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'));
 
         $squadProjeler = $squadProjelerQuery->get()->map(function ($p) {
             $p->kazanma_sebebi = 'Proje Ekibi (Squad)';
@@ -150,11 +286,16 @@ class KullaniciPuanService
         // C. Pasif Üye Olduğu Projeler (Şikayet Olmayanlar)
         $pasifProjeIds = $user->takimlar()->pluck('takim_id');
         $pasifProjelerQuery = Iaa::whereIn('atanan_takim_id', $pasifProjeIds)
-            ->doesntHave('musteriSikayeti') // Şikayetlerden pasif puan alınmaz
+            ->sadeceOneriler() // Şikayetlerden pasif puan alınmaz
             ->where('durum', 'Tamamlandı')
-            ->where('puan', '>', 0);
+            ->where('puan', '>', 0)
+            ->where(function($q) use ($departureDate) {
+                if ($departureDate) {
+                    $q->where(DB::raw('COALESCE(iaas.tamamlanma_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'), '<=', Carbon::parse($departureDate)->endOfDay());
+                }
+            });
 
-        $applyDateFilter($pasifProjelerQuery, 'onaylanma_tarihi');
+        $applyDateFilter($pasifProjelerQuery, \Illuminate\Support\Facades\DB::raw('COALESCE(iaas.onaya_gonderilme_tarihi, iaas.onaylanma_tarihi, iaas.created_at)'));
 
         $pasifProjeler = $pasifProjelerQuery->get()->map(function ($p) {
             $p->kazanma_sebebi = 'Takım Üyesi'; // "Pasif" kelimesi kaldırıldı
@@ -162,10 +303,17 @@ class KullaniciPuanService
         });
 
         // Hepsini birleştir ve ID'ye göre unique yap
-        $tumProjeler = $liderProjeler->merge($squadProjeler)->merge($pasifProjeler)->unique('id')->sortByDesc('onaylanma_tarihi');
+        $tumProjeler = $liderProjeler->merge($squadProjeler)->merge($pasifProjeler)->unique('id')->sortByDesc(function ($p) {
+            return $p->onaya_gonderilme_tarihi ?? $p->onaylanma_tarihi ?? $p->created_at;
+        });
 
         // 2. ŞİKAYET GİRİŞLERİ
         $sikayetGirisleriQuery = MusteriSikayeti::where('olusturan_kurul_uyesi_id', $user->id)
+            ->whereHas('olusturanKurulUyesi', function($q) {
+                $q->whereDoesntHave('roles', function($rq) {
+                    $rq->whereIn('name', ['Superadmin', 'Müşteri']);
+                });
+            })
             ->where('musteri_durum', '!=', 'Talep')
             ->whereDoesntHave('iaaProjesi', function ($q) {
                 $q->whereIn('durum', [
@@ -245,8 +393,8 @@ class KullaniciPuanService
         $tamamlananProjeler = Iaa::where('atanan_takim_id', $takim->id)
             ->where('durum', 'Tamamlandı')
             ->where('puan', '>', 0)
-            ->doesntHave('musteriSikayeti') // SADECE SAF İAA PROJELERİ GÖZÜKSÜN (Şikayetler şikayet listesinde)
-            ->orderByDesc('onaylanma_tarihi')
+            ->sadeceOneriler() // SADECE SAF İAA PROJELERİ GÖZÜKSÜN (Şikayetler şikayet listesinde)
+            ->orderByRaw('COALESCE(iaas.onaya_gonderilme_tarihi, iaas.onaylanma_tarihi, iaas.created_at) DESC')
             ->get();
 
         // 3. Şikayet Çözümleri (Eğer Şikayet Takımıysa)
@@ -258,6 +406,18 @@ class KullaniciPuanService
                 ->with('iaaProjesi') // Puanı çekmek için gerekli
                 ->get();
         }
+
+        // 4. İşlemde Olanlar (Aktif Görevler)
+        $islemdekiProjeler = Iaa::where('atanan_takim_id', $takim->id)
+            ->whereNotIn('durum', ['Tamamlandı', 'İptal Edildi', 'Reddedildi'])
+            ->sadeceOneriler()
+            ->orderBy('updated_at', 'DESC')
+            ->get();
+
+        $islemdekiSikayetler = MusteriSikayeti::where('atanan_cozum_takimi_id', $takim->id)
+            ->whereNotIn('musteri_durum', ['Kapatıldı', 'Çözümlendi', 'Tamamlandı', 'İptal Edildi', 'Reddedildi'])
+            ->orderBy('updated_at', 'DESC')
+            ->get();
 
         // Puan Hesaplama (DB Score Should Match Calculated)
         $hesaplananPuan = $tamamlananProjeler->sum('puan');
@@ -277,6 +437,8 @@ class KullaniciPuanService
             'uyeler' => $uyeler,
             'tamamlananProjeler' => $tamamlananProjeler,
             'cozulenSikayetler' => $cozulenSikayetler,
+            'islemdekiProjeler' => $islemdekiProjeler,
+            'islemdekiSikayetler' => $islemdekiSikayetler,
             'hesaplananPuan' => $hesaplananPuan
         ];
     }

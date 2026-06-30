@@ -331,9 +331,19 @@
                                         </div>
 
                                         <div class="text-right shrink-0">
+                                            @php
+                                                $durumConfig = match ($vaka->durum) {
+                                                    'Taslak' => 'bg-gray-50 text-gray-700 border-gray-200',
+                                                    'Savunma Bekleniyor' => 'bg-amber-50 text-amber-700 border-amber-200',
+                                                    'Kurul İncelemesinde', 'Kurulda' => 'bg-blue-50 text-blue-700 border-blue-200',
+                                                    'Yönetici Değerlendirmesi' => 'bg-purple-50 text-purple-700 border-purple-200',
+                                                    'Karar Verildi' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                                    'İptal Edildi' => 'bg-rose-50 text-rose-700 border-rose-200',
+                                                    default => 'bg-gray-100 text-gray-600 border-gray-200'
+                                                };
+                                            @endphp
                                             <span
-                                                class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium 
-                                                                {{ $vaka->durum == 'Karar Verildi' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800' }}">
+                                                class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border {{ $durumConfig }}">
                                                 {{ $vaka->durum }}
                                             </span>
                                             <span

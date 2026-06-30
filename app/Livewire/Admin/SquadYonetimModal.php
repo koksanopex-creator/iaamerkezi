@@ -21,7 +21,17 @@ class SquadYonetimModal extends Component
     public $mevcutUyeListesi = [];
     public $liderId; 
 
-    protected $listeners = ['openSquadModal' => 'open'];
+    protected $listeners = [
+        'openSquadModal' => 'open',
+        'davetIptalFromOuter' => 'davetIptalFromOuter'
+    ];
+
+    public function davetIptalFromOuter($userId, $iaaId)
+    {
+        $this->iaaId = $iaaId;
+        $this->loadProjectData(); // Yetki kontrolü için liderId vb. yüklenmeli
+        $this->davetIptal($userId);
+    }
 
     public function open($iaaId)
     {
@@ -93,9 +103,12 @@ class SquadYonetimModal extends Component
         $exists = $iaa->projeEkibi()->where('user_id', $userId)->exists();
 
         if (!$exists) {
+            $isQualityManager = app(\App\Services\ProjectWorkspace\ProjeCalismaAlaniService::class)->isQualityManagerWithInterventionPower(User::find($userId), $iaa);
+            $durum = ($isQualityManager && $userId == Auth::id()) ? 'onaylandi' : 'bekliyor';
+
             $iaa->projeEkibi()->attach($userId, [
                 'rol' => 'Üye',
-                'durum' => 'bekliyor'
+                'durum' => $durum
             ]);
 
             // --- BİLDİRİMLER ---
@@ -159,6 +172,34 @@ class SquadYonetimModal extends Component
 
         $this->loadProjectData();
         session()->flash('success', 'Üye proje ekibinden çıkarıldı.');
+    }
+
+    public function davetIptal($userId)
+    {
+        $iaa = Iaa::find($this->iaaId);
+        
+        // Yetki Kontrolü
+        if (Auth::id() != $this->liderId && !Auth::user()->hasRole('Superadmin')) {
+            return;
+        }
+
+        // 1. Kullanıcıyı ekipten çıkar (Pivot kaydını sil)
+        $iaa->projeEkibi()->detach($userId);
+
+        // 2. Gönderilen bildirimleri temizle (Zil bildirimleri)
+        // Hem kullanıcıya giden daveti hem de müdürüne giden bilgilendirmeyi sileriz
+        \Illuminate\Support\Facades\DB::table('notifications')
+            ->where('data->iaa_id', $this->iaaId)
+            ->where('data->invited_user_id', $userId)
+            ->whereIn('type', [
+                'App\Notifications\ProjeEkipDaveti',
+                'App\Notifications\PersonelProjeyeDavetEdildi'
+            ])
+            ->delete();
+
+        $this->loadProjectData();
+        session()->flash('success', 'Davet iptal edildi ve gönderilen bildirimler temizlendi.');
+        $this->redirect(route('proje.workspace.show', $this->iaaId));
     }
 
     public function close()

@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Yeni Şikayet Oluştur | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center space-x-3">
@@ -51,8 +55,8 @@
                         </div>
                     @endif
 
-                    <form action="{{ route('admin.sikayetler.store') }}" method="POST" enctype="multipart/form-data"
-                        x-data="fileUploadComponent()">
+                    <form action="{{ auth()->user()->is_personnel ? route('admin.sikayetler.store') : route('iaa.sikayetler.store') }}" method="POST" enctype="multipart/form-data"
+                        x-data="Object.assign(fileUploadComponent(), { isSubmitting: false })" x-on:submit="isSubmitting = true">
                         @csrf
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
 
@@ -61,25 +65,37 @@
                             <div class="md:col-span-2 mb-6">
                                 @php
                                     $currentUser = auth()->user();
-                                    $isMusteri = !$currentUser->is_personnel && $currentUser->customer_id;
+                                    
+                                    $validCustomerIds = [];
+                                    if (!$currentUser->is_personnel) {
+                                        $validCustomerIds = $currentUser->customers()->pluck('customers.id')->toArray();
+                                        if ($currentUser->customer_id) {
+                                            $validCustomerIds[] = $currentUser->customer_id;
+                                        }
+                                        $validCustomerIds = array_unique($validCustomerIds);
+                                    }
+                                    
+                                    // Sadece tek bir firması varsa sabit göster, çoklu firması varsa Livewire seçiciyi göster
+                                    $isTekliMusteri = !$currentUser->is_personnel && count($validCustomerIds) === 1;
+                                    $tekFirma = $isTekliMusteri ? \App\Models\Customer::find($validCustomerIds[0]) : null;
                                 @endphp
 
-                                @if($isMusteri)
+                                @if($isTekliMusteri && $tekFirma)
                                     <label class="block text-sm font-semibold text-gray-700 mb-2">Firma</label>
                                     <div class="flex items-center p-4 bg-gray-50 border border-gray-200 rounded-lg">
                                         <div
                                             class="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold mr-3">
-                                            {{ substr($currentUser->customer->name ?? 'F', 0, 1) }}
+                                            {{ substr($tekFirma->name ?? 'F', 0, 1) }}
                                         </div>
                                         <div>
                                             <p class="text-sm font-bold text-gray-900">
-                                                {{ $currentUser->customer->name ?? 'Firmanız' }}
+                                                {{ $tekFirma->name ?? 'Firmanız' }}
                                             </p>
                                             <p class="text-xs text-gray-500">Bu şikayet firmanız adına kaydedilecektir.</p>
                                         </div>
                                     </div>
                                     {{-- Gizli input ile veriyi gönderiyoruz --}}
-                                    <input type="hidden" name="customer_id" value="{{ $currentUser->customer_id }}">
+                                    <input type="hidden" name="customer_id" value="{{ $tekFirma->id }}">
                                     {{-- Livewire bileşenini render etmiyoruz çünkü müşteri seçmeyecek --}}
                                 @else
                                     {{-- Controller'dan gelen ID'yi Livewire bileşenine aktarıyoruz --}}
@@ -158,13 +174,14 @@
                                     style="display: none;">
                                     <label for="sikayet_alt_kategori_id"
                                         class="flex items-center font-semibold text-sm text-gray-700 mb-2">
-                                        Alt Kategori
+                                        Alt Kategori <span class="ml-1 text-red-500">*</span>
                                         <span x-show="isLoading"
                                             class="ml-2 text-xs text-gray-400">(Yükleniyor...)</span>
                                     </label>
                                     <div class="relative">
                                         <select name="sikayet_alt_kategori_id" id="sikayet_alt_kategori_id"
                                             x-model="selectedSubCategory"
+                                            :required="subCategories.length > 0 || showOtherOption"
                                             class="mt-1 block w-full border-gray-300 rounded-lg shadow-sm focus:ring-red-500 focus:border-red-500 transition duration-150 ease-in-out pl-4 pr-10 py-3 text-gray-900 appearance-none bg-white">
                                             <option value="">-- Alt Kategori Seçiniz --</option>
                                             <template x-for="sub in subCategories" :key="sub.id">
@@ -191,10 +208,12 @@
                                 <div class="group md:col-span-2 bg-gray-50 p-4 rounded border border-gray-200"
                                     x-show="selectedSubCategory === 'other'" style="display: none;" x-transition>
                                     <label for="sikayet_alt_kategori_diger"
-                                        class="block text-sm font-medium text-gray-800 mb-1"
-                                        x-text="otherLabel"></label>
+                                        class="block text-sm font-medium text-gray-800 mb-1">
+                                        <span x-text="otherLabel"></span> <span class="ml-1 text-red-500">*</span>
+                                    </label>
                                     <input type="text" name="sikayet_alt_kategori_diger" id="sikayet_alt_kategori_diger"
                                         value="{{ old('sikayet_alt_kategori_diger') }}"
+                                        :required="selectedSubCategory === 'other'"
                                         placeholder="Lütfen sorunu kısaca tanımlayınız..."
                                         class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 py-3">
                                     @error('sikayet_alt_kategori_diger') <span
@@ -448,7 +467,14 @@
 
                         <div
                             class="flex flex-col-reverse sm:flex-row items-center justify-between mt-8 pt-6 border-t border-gray-200 gap-4">
-                            <a href="{{ route('admin.sikayetler.index') }}"
+                            @php
+                                $previousUrl = url()->previous();
+                                $currentUrl = url()->current();
+                                $defaultBack = auth()->user()->hasRole('Müşteri|Müşteri Temsilcisi') ? route('dashboard') : route('admin.sikayetler.index');
+                                $isInternalReferer = $previousUrl && $previousUrl !== $currentUrl && str_contains($previousUrl, request()->getHttpHost());
+                                $backUrl = $isInternalReferer ? $previousUrl : $defaultBack;
+                            @endphp
+                            <a href="{{ $backUrl }}"
                                 class="w-full sm:w-auto inline-flex items-center justify-center px-5 py-2.5 border border-gray-300 rounded-lg font-medium text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150 ease-in-out">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -457,12 +483,23 @@
                                 İptal
                             </a>
                             <button type="submit"
-                                class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-700 border border-transparent rounded-lg font-semibold text-sm text-white hover:from-red-700 hover:to-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition duration-150 ease-in-out">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Şikayeti Kaydet
+                                :disabled="isSubmitting"
+                                @click="if(!isSubmitting) { isSubmitting = true; $nextTick(() => { $el.closest('form').submit(); }); }"
+                                :class="isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:from-red-700 hover:to-red-800 hover:-translate-y-0.5'"
+                                class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-700 border border-transparent rounded-lg font-semibold text-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-lg hover:shadow-xl transform transition duration-150 ease-in-out">
+                                <template x-if="isSubmitting">
+                                    <svg class="animate-spin h-4 w-4 text-white mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                </template>
+                                <template x-if="!isSubmitting">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </template>
+                                <span x-text="isSubmitting ? 'Kaydediliyor...' : 'Şikayeti Kaydet'"></span>
                             </button>
                         </div>
                     </form>

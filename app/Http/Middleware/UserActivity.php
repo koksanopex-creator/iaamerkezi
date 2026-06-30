@@ -12,6 +12,11 @@ class UserActivity
 {
     public function handle(Request $request, Closure $next)
     {
+        // Sistem Sağlığı taraması (simülasyon) ise işlem yapma
+        if ($request->header('X-Is-Simulation')) {
+            return $next($request);
+        }
+
         if (Auth::check()) {
             $user = Auth::user();
 

@@ -40,11 +40,20 @@ class TalepBildirimi extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $isCustomerRep = method_exists($notifiable, 'hasRole') ? $notifiable->hasRole('Müşteri Temsilcisi') : false;
+        
+        $actionUrl = route('iaa.show', $this->iaa->id);
+        if (empty($this->iaa->oneri) && $this->iaa->musteriSikayeti) {
+            $actionUrl = $isCustomerRep 
+                ? route('iaa.sikayetler.show', $this->iaa->musteriSikayeti->id)
+                : route('admin.sikayetler.show', $this->iaa->musteriSikayeti->id);
+        }
+
         return (new MailMessage)
             ->subject('Proje Talep Bildirimi: ' . $this->iaa->baslik)
             ->greeting('Sayın ' . $notifiable->name . ',')
             ->line($this->message)
-            ->action('Projeyi Görüntüle', url('/proje-calisma-alani/' . $this->iaa->id))
+            ->action('Projeyi Görüntüle', $actionUrl)
             ->line('Bilginize sunarız.');
     }
 
@@ -55,13 +64,22 @@ class TalepBildirimi extends Notification
      */
     public function toArray(object $notifiable): array
     {
+        $isCustomerRep = method_exists($notifiable, 'hasRole') ? $notifiable->hasRole('Müşteri Temsilcisi') : false;
+        
+        $actionUrl = route('iaa.show', $this->iaa->id);
+        if (empty($this->iaa->oneri) && $this->iaa->musteriSikayeti) {
+            $actionUrl = $isCustomerRep 
+                ? route('iaa.sikayetler.show', $this->iaa->musteriSikayeti->id)
+                : route('admin.sikayetler.show', $this->iaa->musteriSikayeti->id);
+        }
+
         return [
             'iaa_id' => $this->iaa->id,
             'message' => $this->message,
             'role' => $this->role,
             'type' => 'talep_bildirimi',
-            'url' => route('proje.workspace.show', $this->iaa->id), // Frontend için gerekli
-            'action_url' => route('proje.workspace.show', $this->iaa->id) // Yedek olarak
+            'url' => $actionUrl, // Frontend için gerekli
+            'action_url' => $actionUrl // Yedek olarak
         ];
     }
 }

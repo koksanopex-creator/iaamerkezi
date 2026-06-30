@@ -3,57 +3,23 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Bolum;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class DirectorAssignmentController extends Controller
 {
-    /**
-     * Atama sayfasını gösterir.
-     */
     public function index()
     {
-        // Sadece "Direktör" rolüne sahip kullanıcıları getir
-        $direktorler = User::role('Direktör')->with('yonetilenBolumler')->orderBy('name')->get();
-
-        // Tüm bölümleri getir
-        $bolumler = Bolum::orderBy('ad')->get();
+        // Direktör rollerini getir (Spatie role)
+        $direktorler = User::role('Direktör')->get();
+        // Aktif bölümleri getir
+        $bolumler = Bolum::where('is_active', true)->get();
 
         return view('admin.direktor_atamalari.index', compact('direktorler', 'bolumler'));
     }
 
-    /**
-     * Bir kullanıcıya sorumlu olduğu bölümleri atar/günceller.
-     */
-    public function update(Request $request, User $user)
-    {
-        // Güvenlik: Kullanıcının gerçekten bu rolde olduğundan emin olalım
-        if (!$user->hasRole('Direktör')) {
-            return back()->with('error', 'Bu kullanıcı "Direktör" rolüne sahip değil.');
-        }
-
-        $request->validate([
-            'bolumler' => 'array',
-            'bolumler.*' => 'exists:bolumler,id',
-        ]);
-
-        $bolumIds = $request->input('bolumler', []);
-
-        // 1. Mevcut atamaları temizle (Bu direktöre bağlı tüm bölümleri null yap)
-        Bolum::where('director_id', $user->id)->update(['director_id' => null]);
-
-        // 2. Yeni atamaları yap
-        if (!empty($bolumIds)) {
-            Bolum::whereIn('id', $bolumIds)->update(['director_id' => $user->id]);
-        }
-
-        return back()->with('success', $user->name . ' için bölüm sorumlulukları güncellendi.');
-    }
-
-    /**
-     * Hızlı bir şekilde yeni bir Direktör oluşturur.
-     */
     public function storeDirector(Request $request)
     {
         $request->validate([
@@ -65,14 +31,27 @@ class DirectorAssignmentController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
-            'onaylandi_mi' => true,
+            'password' => Hash::make($request->password),
+            'email_verified_at' => now(),
             'is_personnel' => true,
         ]);
 
-        // "Direktör" rolünü ata
+        // Rol atama
         $user->assignRole('Direktör');
 
-        return back()->with('success', 'Yeni direktör (' . $user->name . ') başarıyla oluşturuldu.');
+        return redirect()->route('admin.direktorler.index')->with('success', 'Direktör başarıyla oluşturuldu.');
+    }
+
+    public function update(Request $request, User $user)
+    {
+        // 1. Önce bu direktörün eski sorumluluklarını temizleyelim
+        Bolum::where('director_id', $user->id)->update(['director_id' => null]);
+
+        // 2. Seçilen bölümleri bu direktöre atayalım
+        if ($request->has('bolumler') && is_array($request->bolumler)) {
+            Bolum::whereIn('id', $request->bolumler)->update(['director_id' => $user->id]);
+        }
+
+        return redirect()->route('admin.direktorler.index')->with('success', 'Bölüm atamaları güncellendi.');
     }
 }

@@ -10,9 +10,12 @@
     </div>
 
     @if(count($activeTasks) > 0)
-        <div class="grid grid-cols-1 gap-4">
+        <div x-data="{ limit: 5, total: {{ count($activeTasks) }} }" class="space-y-4">
             @foreach($activeTasks as $task)
                 <div
+                    x-show="{{ $loop->index }} < limit"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 transform -translate-y-2"
                     class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow relative overflow-hidden group">
                     <div class="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
 
@@ -46,15 +49,19 @@
                         </div>
 
                         {{-- Orta Kısım: Adım Bilgisi --}}
-                        <div class="flex-1 md:text-center">
+                        <div class="flex-shrink-0 w-56 text-center">
                             @if($task->aktifAdim)
-                                <div class="inline-block text-left">
-                                    <span class="text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Mevcut Adım</span>
-                                    <span class="text-sm font-medium text-gray-700 flex items-center gap-1 md:justify-center">
-                                        <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                        {{ $task->aktifAdim->adim_adi ?? 'İşlem Bekleniyor' }}
-                                    </span>
-                                </div>
+                                <span class="text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Mevcut Adım</span>
+                                <span class="text-sm font-medium text-gray-700 inline-flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block"></span>
+                                    {{ $task->aktifAdim->adim_adi ?? 'İşlem Bekleniyor' }}
+                                </span>
+                            @elseif($task->aktif_asama_metni)
+                                <span class="text-[10px] uppercase text-gray-400 font-bold block mb-0.5">Mevcut Adım</span>
+                                <span class="text-sm font-medium text-amber-700 inline-flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse inline-block"></span>
+                                    {{ $task->aktif_asama_metni }}
+                                </span>
                             @endif
                         </div>
 
@@ -78,6 +85,20 @@
                     </div>
                 </div>
             @endforeach
+
+            {{-- DAHA FAZLA GÖSTER BUTONU --}}
+            <template x-if="limit < total">
+                <div class="mt-6 flex justify-center">
+                    <button @click="limit += 5" 
+                            class="inline-flex items-center px-6 py-2.5 bg-white border border-gray-300 rounded-xl font-bold text-sm text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all transform hover:scale-105 active:scale-95 group">
+                        <svg class="w-5 h-5 mr-2 text-gray-400 group-hover:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 13l-7 7-7-7m14-8l-7 7-7-7"></path>
+                        </svg>
+                        Daha Fazla Göster
+                        <span class="ml-2 px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs" x-text="'(' + (total - limit) + ' kaldı)'"></span>
+                    </button>
+                </div>
+            </template>
         </div>
     @else
         <div

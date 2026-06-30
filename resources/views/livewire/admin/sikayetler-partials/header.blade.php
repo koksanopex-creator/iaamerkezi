@@ -13,6 +13,23 @@
         </div>
 
         <div class="flex flex-wrap gap-3 items-center">
+            {{-- Dışa Aktar Butonları (Livewire filtrelerini taşıyan) --}}
+            <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 shadow-inner mr-2">
+                <a href="{{ route('admin.sikayetler.export-excel', $this->exportParams) }}" 
+                   class="inline-flex items-center px-3 py-2 bg-emerald-600 text-white text-[10px] font-black rounded-lg hover:bg-emerald-700 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                   title="Aktif filtrelere göre Excel indir">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    EXCEL
+                </a>
+                <div class="w-px h-5 bg-gray-300 mx-1"></div>
+                <a href="{{ route('admin.sikayetler.export-pdf', $this->exportParams) }}" 
+                   class="inline-flex items-center px-3 py-2 bg-rose-600 text-white text-[10px] font-black rounded-lg hover:bg-rose-700 transition-all hover:scale-105 active:scale-95 shadow-sm"
+                   title="Aktif filtrelere göre PDF indir">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    PDF
+                </a>
+            </div>
+
             {{-- GÖRÜNÜM DEĞİŞTİRİCİ --}}
             <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 shadow-inner mr-2">
                 {{-- Kart Görünümü --}}
@@ -35,7 +52,20 @@
                 </button>
             </div>
 
-            @if(!Auth::user()->hasRole(['Yonetim', 'Direktör']))
+            {{-- TOPLU SİLME BUTONU (Sadece şikayet seçiliyse görünür) --}}
+            @if(count($selectedSikayetler) > 0)
+                @can('deleteAny', \App\Models\MusteriSikayeti::class)
+                    <button type="button" wire:click="confirmBulkDelete"
+                        class="inline-flex items-center px-5 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-red-500/30 transition-all transform hover:-translate-y-0.5 animate-pulse">
+                        <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Seçilenleri Sil ({{ count($selectedSikayetler) }})
+                    </button>
+                @endcan
+            @endif
+
+            @can('create', \App\Models\MusteriSikayeti::class)
                 <a href="{{ route('admin.sikayetler.create') }}"
                     class="inline-flex items-center px-5 py-2.5 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-500/30 transition-all transform hover:-translate-y-0.5">
                     <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -43,7 +73,7 @@
                     </svg>
                     Yeni Şikayet
                 </a>
-            @endif
+            @endcan
             @role('Superadmin|Müşteri Şikayeti Kurulu')
             <a href="{{ route('admin.sikayetler.kurulGirdileri') }}"
                 class="inline-flex items-center px-5 py-2.5 rounded-xl font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 transition-all">

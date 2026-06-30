@@ -21,20 +21,18 @@ class ArabuluculukController extends Controller
     /**
      * LİSTELEME EKRANI
      */
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
         // 1. GENEL ERİŞİM KONTROLÜ (DİNAMİK)
-        // Kalau menüyü görme yetkisi bile yoksa içeri alma.
-        // (Superadmin ve Direktör her zaman girer veya yetki kuralına uyar)
-        $hasAccess = $user->hasRole(['Superadmin', 'Direktör']) || $user->can('arabuluculuk.view_menu');
+        $hasAccess = $user->hasRole(['Superadmin', 'Direktör', 'Yonetim']) || $user->can('arabuluculuk.view_menu');
 
         if (!$hasAccess) {
             abort(403, 'Bu modüle erişim yetkiniz yok.');
         }
 
-        $query = ArabuluculukCase::with(['calisan', 'arabulucu', 'creator']);
+        $query = ArabuluculukCase::with(['calisan', 'arabulucu', 'creator', 'externalLawyer']);
 
         // 2. DİREKTÖR FİLTRESİ
         if ($user->hasRole('Direktör') && !$user->hasRole('Superadmin')) {
@@ -46,22 +44,64 @@ class ArabuluculukController extends Controller
         }
 
         // 3. FİLTRELEME: Zorunlu Dosyaları Görme Yetkisi
-        // Eğer kullanıcı Superadmin değilse ve 'view_zorunlu_files' yetkisi YOKSA -> Sadece İhtiyari
-        // İstisna: Direktör kendi personeli için olan zorunlu dosyayı görebilsin mi? (Plan "Tam Erişim" dediği için evet)
-        if (!$user->hasRole(['Superadmin', 'Direktör']) && !$user->can('arabuluculuk.view_zorunlu_files')) {
+        if (!$user->hasRole(['Superadmin', 'Direktör', 'Bölüm Kalite Yöneticisi', 'Yonetim']) && !$user->can('arabuluculuk.view_zorunlu_files')) {
             $query->where('type', 'ihtiyari');
         }
 
-        // 4. Dış Avukat Filtresi (Mevcut Mantık Korundu)
+        // 4. Dış Avukat Filtresi
         if ($user->hasRole('Dış Avukat')) {
             $query->where('external_lawyer_id', $user->id);
         }
 
-        // 5. Finans Filtresi (Opsiyonel: Sadece ödeme aşamasındakileri görsün dersen açabilirsin)
-        // if ($user->hasRole('Arabuluculuk Finans')) { ... }
+        // === İSTATİSTİKLER (filtreler uygulanmadan önce base query'den) ===
+        $statsQuery = clone $query;
+        $allCases = $statsQuery->get();
+        $stats = [
+            'toplam' => $allCases->count(),
+            'aktif' => $allCases->whereIn('status', ['taslak', 'hukuk_incelemesinde', 'yonetim_onayinda', 'arabulucuda', 'imza_asamasinda', 'odeme_bekliyor'])->count(),
+            'tamamlanan' => $allCases->whereIn('status', ['kapatildi', 'anlasma_saglanamadi'])->count(),
+            'anlasildi' => $allCases->where('mutabakat', 'anlasildi')->count(),
+            'anlasilmadi' => $allCases->where('mutabakat', 'anlasilmadi')->count(),
+            'ihtiyari' => $allCases->where('type', 'ihtiyari')->count(),
+            'zorunlu' => $allCases->where('type', 'zorunlu')->count(),
+            'toplam_tutar' => $allCases->sum('talep_tutari'),
+        ];
 
-        $cases = $query->latest()->paginate(15);
-        return view('admin.arabuluculuk.index', compact('cases'));
+        // === REQUEST FİLTRELERİ ===
+        // Durum filtresi
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Tür filtresi
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        // Çalışan adı araması
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('calisan', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Tarih aralığı filtresi
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Mutabakat filtresi
+        if ($request->filled('mutabakat')) {
+            $query->where('mutabakat', $request->mutabakat);
+        }
+
+        $cases = $query->latest()->paginate(15)->withQueryString();
+        return view('admin.arabuluculuk.index', compact('cases', 'stats'));
     }
 
     /**
@@ -93,7 +133,7 @@ class ArabuluculukController extends Controller
                 }
             }
 
-            if (!$user->hasRole('Superadmin') && !$user->can('arabuluculuk.view_zorunlu_files') && !$isOwnPersonnel) {
+            if (!$user->hasRole(['Superadmin', 'Yonetim']) && !$user->can('arabuluculuk.view_zorunlu_files') && !$isOwnPersonnel) {
                 abort(403, 'Zorunlu arabuluculuk dosyalarına erişim yetkiniz yoktur.');
             }
         }
@@ -553,7 +593,7 @@ class ArabuluculukController extends Controller
     public function deleteFile($fileId) // Tek parametre yeterli
     {
         // 1. Dosya Kaydını Bul
-        $file = \App\Models\ArabuluculukFile::findOrFail($fileId);
+        $file = ArabuluculukFile::findOrFail($fileId);
         $case = $file->case; // İlişkili dosyayı bul
 
         // 2. Yetki Kontrolü (Sadece oluşturan veya Admin, ve sadece Taslak iken)
@@ -603,7 +643,7 @@ class ArabuluculukController extends Controller
 
     public function savePayment(Request $request, $id)
     {
-        $case = \App\Models\ArabuluculukCase::findOrFail($id);
+        $case = ArabuluculukCase::findOrFail($id);
 
         // --- 1. IBAN TEMİZLİĞİ (SENİN KODUN AYNEN KALDI) ---
         if ($request->has('iban')) {

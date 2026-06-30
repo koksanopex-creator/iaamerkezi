@@ -16,13 +16,15 @@
             font-family: 'Outfit', sans-serif;
         }
     </style>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
-<body class="bg-gray-50 min-h-screen flex flex-col font-sans">
+<body class="bg-gray-50 flex flex-col font-sans">
 
     {{-- ======================== HEADER / HERO ======================== --}}
     <div
-        class="bg-gray-900 border-b border-gray-800 text-white relative overflow-hidden flex-1 flex flex-col items-center justify-center py-20 px-6 sm:px-12 lg:px-24">
+        class="bg-gray-900 border-b border-gray-800 text-white relative overflow-hidden flex flex-col items-center justify-center py-20 px-6 sm:px-12 lg:px-24">
 
         {{-- Arka Plan Efekti --}}
         <div class="absolute inset-0 bg-cover bg-center opacity-20 mix-blend-overlay"
@@ -60,7 +62,7 @@
     </div>
 
     {{-- ======================== KARTLAR (HIZLI ERİŞİM) ======================== --}}
-    <div class="bg-gray-50 flex-1 py-16 px-6 relative z-20">
+    <div class="bg-gray-50 py-16 px-6 relative z-20">
         <div class="max-w-7xl mx-auto -mt-32">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 
@@ -135,9 +137,7 @@
             </div>
         </div>
 
-        <footer class="max-w-7xl mx-auto mt-20 text-center text-gray-400 text-sm">
-            <p>&copy; {{ date('Y') }} Köksan A.Ş. Tüm hakları saklıdır. | Köksan Bilgi Teknolojileri</p>
-        </footer>
+        @include('layouts.footer')
     </div>
 </body>
 

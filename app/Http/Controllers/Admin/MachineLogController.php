@@ -14,14 +14,24 @@ class MachineLogController extends Controller
      */
     public function index()
     {
-        // Yetki Kontrolü: Sadece Superadmin ve Yönetim
-        if (!Auth::user()->hasRole('Superadmin') && !Auth::user()->hasRole('Yonetim')) {
+        // Yetki Kontrolü: Superadmin, Yönetim ve Bölüm Liderleri
+        $user = Auth::user();
+        if (!$user->hasRole(['Superadmin', 'Yonetim', 'Bölüm Lideri', 'Direktör'])) {
             abort(403, 'Bu sayfaya erişim yetkiniz yok.');
         }
 
-        $logs = MachineLog::with(['user', 'machine', 'bolum'])
-            ->latest()
-            ->paginate(20);
+        $activeDashboard = session('active_dashboard_' . $user->id);
+        $query = MachineLog::with(['user', 'machine', 'bolum']);
+
+        // Yetki Bazlı Filtreleme
+        if ($activeDashboard === 'bolum_lideri' && $user->bolum_id) {
+            $query->where('bolum_id', $user->bolum_id);
+        } elseif ($activeDashboard === 'direktor') {
+            $managedBolumIds = $user->yonetilenBolumler()->pluck('id')->toArray();
+            $query->whereIn('bolum_id', $managedBolumIds);
+        }
+
+        $logs = $query->latest()->paginate(20);
 
         return view('admin.machine_logs.index', compact('logs'));
     }

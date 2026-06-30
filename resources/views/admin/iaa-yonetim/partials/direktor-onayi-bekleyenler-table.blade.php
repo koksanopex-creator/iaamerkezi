@@ -97,6 +97,13 @@
                                         İncele
                                     </a>
 
+                                    {{-- YENİ: ÖNERİ BUTONU --}}
+                                    <a href="{{ route('iaa.show', $iaa->id) }}" target="_blank" 
+                                    class="inline-flex items-center px-3 py-1.5 bg-white border border-amber-300 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-50 transition-colors"
+                                    title="Orijinal Öneriyi Görüntüle">
+                                        Öneri
+                                    </a>
+
                                     {{-- ONAYLA --}}
                                     <form action="{{ route('admin.iaa-yonetim.direktorOnayiVer', $iaa->id) }}" method="POST"
                                         class="inline-block">

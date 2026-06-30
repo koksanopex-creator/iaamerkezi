@@ -37,6 +37,11 @@
                 // Kullanıcının yönettiği kategoriler arasında var mı?
                 $sorumluMu = $user->yonettigiSikayetKategorileri->contains('id', $sikayetKategoriId);
             }
+            
+            // YENİ: Eğer müdahale yetkisi (isQualityManagerInterventionPower) aktifse, bu kullanıcı sorumlu sayılmalıdır (Bypass/Intervention)
+            if ($isQualityManagerInterventionPower ?? false) {
+                $sorumluMu = true;
+            }
         }
 
         // ---------------------------------------------------------
@@ -86,12 +91,27 @@
     
     
     <?php
-        $isLeader = ($iaa->atananTakim && auth()->id() == $iaa->atananTakim->lider_user_id);
+        $isTeamLeader = $iaa->projeEkibi()->where('user_id', auth()->id())->where('iaa_user.rol', 'Lider')->exists();
+        $isLeader = ($iaa->atananTakim && auth()->id() == $iaa->atananTakim->lider_user_id) || $isTeamLeader;
         $isOwner = $iaa->gonderen_user_id == auth()->id();
-        $canRecall = ($isLeader || $isOwner || $isSuperAdmin);
+        $isInterventionQM = ($isQualityManagerInterventionPower ?? false);
         
-        // Sadece 'Bölüm Onayı Bekliyor' aşamasında geri çekilebilir (Superadmin Yönetici Onayını da çekebilir)
-        $recallableStates = ['Bölüm Onayı Bekliyor'];
+        // Superadmin ise sadece projenin sahibi veya lideri ise "Geri Çekme" (Sarı) butonunu görebilir.
+        // Diğer durumlarda (Serkan Tölek gibi Müdahale Yetkili QM ise) butonu görebilir.
+        $canRecall = ($isLeader || $isOwner || $isInterventionQM);
+        
+        if ($isSuperAdmin && !$isLeader && !$isOwner) {
+            $canRecall = false;
+        }
+        
+        // Onay aşamalarında geri çekilebilir
+        $recallableStates = ['Bölüm Onayı Bekliyor', 'Direktör Onayı Bekliyor'];
+        
+        // Eğer Saf İAA ise ilk onay "Yönetici Onayı Bekliyor" aşamasıdır ve geri çekilebilir
+        if (!$iaa->musteriSikayeti) {
+            $recallableStates[] = 'Yönetici Onayı Bekliyor';
+        }
+
         if ($isSuperAdmin) {
             $recallableStates[] = 'Yönetici Onayı Bekliyor';
         }
@@ -124,7 +144,7 @@
     
     
     
-    <?php if( ($isBolumYoneticisi && $sorumluMu) || $isSuperAdmin ): ?>
+    <?php if( (($isBolumYoneticisi && $sorumluMu) || $isSuperAdmin) && $iaa->musteriSikayeti ): ?>
         
         
         <?php if($iaa->durum == 'Bölüm Onayı Bekliyor'): ?>
@@ -142,7 +162,7 @@
                         <?php echo csrf_field(); ?>
                         <button type="submit" class="inline-flex items-center px-5 py-2.5 bg-green-600 border border-transparent rounded-xl font-semibold text-sm text-white hover:bg-green-700 active:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            Bölüm Onayı Ver
+                            Bölüm Kalite Yöneticisi Onayı Ver
                         </button>
                     </form>
 
@@ -168,16 +188,40 @@
             $geriAlinabilirDurumlar = ['Yönetici Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Revize Ediliyor', 'Tamamlanması Reddedildi'];
         ?>
 
-        <?php if(in_array($iaa->durum, $geriAlinabilirDurumlar) && $isBolumYoneticisi && $sorumluMu && !$isSuperAdmin): ?>
+        <?php if(in_array($iaa->durum, $geriAlinabilirDurumlar) && (($isBolumYoneticisi && $sorumluMu) || $isSuperAdmin)): ?>
             <div class="mt-6 bg-orange-50 p-5 rounded-xl border border-orange-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+                <?php
+                    $bolumLog = \App\Models\IaaLog::where('iaa_id', $iaa->id)
+                        ->whereIn('eylem', [
+                            'Bölüm Onayı Verildi', 
+                            'Bölüm Onaylandı (Direktör Onayına Sevk)', 
+                            'Bölüm Onaylandı (İadeli - Direktör Onayına Sevk)',
+                            'Revizyon Talep Edildi (Bölüm)',
+                            'Proje Reddedildi (Bölüm)'
+                        ])
+                        ->with('user')
+                        ->latest()
+                        ->first();
+                    $qmName = $bolumLog && $bolumLog->user ? $bolumLog->user->name : 'Bölüm Kalite Yöneticisi';
+                ?>
                 <div class="flex items-center gap-4">
                     <div class="bg-orange-100 p-3 rounded-full flex-shrink-0">
                         <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
                     <div>
-                        <p class="text-base font-bold text-orange-900">Karar Verildi</p>
+                        <p class="text-base font-bold text-orange-900">
+                            <?php if($isSuperAdmin): ?>
+                                <?php echo e($qmName); ?> Kararını Geri Al
+                            <?php else: ?>
+                                Karar Verildi
+                            <?php endif; ?>
+                        </p>
                         <p class="text-sm text-orange-700">
-                            Verdiğiniz kararı (Onay, Red veya Revizyon) üst yönetici müdahale etmeden geri alabilirsiniz.
+                            <?php if($isSuperAdmin): ?>
+                                Bölüm kalite yöneticisi <?php echo e($qmName); ?> tarafından verilen kararı (Onay, Red veya Revizyon) geri alabilirsiniz.
+                            <?php else: ?>
+                                Verdiğiniz kararı (Onay, Red veya Revizyon) üst yönetici müdahale etmeden geri alabilirsiniz.
+                            <?php endif; ?>
                         </p>
                     </div>
                 </div>
@@ -201,11 +245,11 @@
 
         
         <?php if($iaa->durum == 'Direktör Onayı Bekliyor'): ?>
-            <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-4 border-pink-500 relative overflow-hidden">
-                <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-pink-50 rounded-full opacity-50 blur-xl"></div>
+            <div class="mt-8 bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-500 relative overflow-hidden">
+                <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-purple-50 rounded-full opacity-50 blur-xl"></div>
                 <h4 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 relative z-10">
-                    <div class="p-2 bg-pink-100 rounded-lg">
-                        <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div class="p-2 bg-purple-100 rounded-lg">
+                        <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
                     Direktör İşlemleri
                 </h4>

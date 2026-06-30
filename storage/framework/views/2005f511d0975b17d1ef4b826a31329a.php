@@ -1,6 +1,6 @@
 <?php if($iaa->musteriSikayeti): ?>
     <?php
-        $isLeader = Auth::check() && ((Auth::id() == $iaa->atananTakim->lider_user_id) || Auth::user()->hasRole('Superadmin'));
+        $isLeader = Auth::check() && ((Auth::id() == $iaa->atananTakim->lider_user_id) || Auth::user()->hasRole('Superadmin') || ($isQualityManagerInterventionPower ?? false));
 
         // KİLİT MANTIĞI: Bu durumlarda ekleme/çıkarma yapılamaz
         $kilitliDurumlar = [
@@ -12,25 +12,24 @@
             'Tamamlandı',
             'hatali_bildirim_olarak_kapatildi'
         ];
-        $isLocked = in_array($iaa->durum, $kilitliDurumlar);
+        $isLocked = in_array($iaa->durum, $kilitliDurumlar) || ($iaa->musteriSikayeti && $iaa->musteriSikayeti->trashed());
 
         // İstatistikler (Aynen korundu)
         $toplamUye = $iaa->projeEkibi->count();
-        $aktifSayisi = $iaa->projeEkibi->filter(fn($uye) => $uye->pivot->rol == 'Lider' || $uye->pivot->durum == 'onaylandi')->count();
-        $bekleyenSayisi = $iaa->projeEkibi->where('pivot.durum', 'bekliyor')->count();
-        $reddedenSayisi = $iaa->projeEkibi->where('pivot.durum', 'reddedildi')->count();
+        $aktifSayisi = $iaa->projeEkibi->filter(fn($uye) => ($uye->pivot->rol == 'Lider' || $uye->pivot->durum == 'onaylandi') && !$uye->trashed())->count();
+        $bekleyenSayisi = $iaa->projeEkibi->where('pivot.durum', 'bekliyor')->filter(fn($u) => !$u->trashed())->count();
+        $reddedenSayisi = $iaa->projeEkibi->filter(fn($u) => $u->pivot->durum == 'reddedildi' || ($u->trashed() && $u->pivot->rol != 'Lider'))->count();
     ?>
 
     
 
-    <div x-data="{ squadOpen: false }"
-        class="bg-white rounded-xl shadow-sm border border-indigo-100 p-6 animate-fade-in-up mb-8">
+    <div class="bg-white rounded-xl shadow-sm border border-indigo-100 p-6 animate-fade-in-up mb-8">
         
         <div
-            class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2 pb-2 border-b border-gray-100 cursor-pointer select-none group">
+            class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2 pb-2 border-b border-gray-100 select-none group">
 
             
-            <div @click="squadOpen = !squadOpen" class="flex items-center gap-4 flex-1">
+            <div class="flex items-center gap-4 flex-1">
                 <div
                     class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 shadow-sm transition-colors group-hover:bg-indigo-100">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,11 +54,6 @@
                                 Kilitli
                             </span>
                         <?php endif; ?>
-
-                        <svg class="w-5 h-5 text-gray-400 transform transition-transform duration-200"
-                            :class="{'rotate-180': squadOpen}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 mt-1.5">
                         <span
@@ -116,9 +110,7 @@ if (isset($__slots)) unset($__slots);
         </div>
 
         
-        <div x-show="squadOpen" x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
-            style="display: none;">
+        <div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
                 <?php $__currentLoopData = $iaa->projeEkibi; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $uye): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                     <?php echo $__env->make('proje-calisma-alani.partials._squad-card', ['uye' => $uye], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>

@@ -1,4 +1,4 @@
-<footer class="bg-white border-t border-gray-100 py-8 mt-auto">
+<footer class="bg-white border-t border-gray-100 py-8">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-2 text-gray-400 text-sm">
@@ -6,7 +6,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
                 </svg>
-                <span>&copy; <?php echo e(date('Y')); ?> <?php echo e(config('app.name')); ?>. Tüm hakları saklıdır.</span>
+                <span>&copy; <?php echo e(date('Y')); ?> Köksan A.Ş. Tüm hakları saklıdır. | Köksan Opex</span>
             </div>
 
             <div x-data="{ open: false }" class="relative">

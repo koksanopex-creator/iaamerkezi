@@ -1,4 +1,5 @@
 <x-app-layout>
+    @push('pageTitle', 'Tutanak Düzenle | ')
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Tutanak Düzenle') }} <span class="text-gray-500 text-sm">#{{ $case->id }}</span>

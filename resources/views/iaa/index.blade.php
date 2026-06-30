@@ -1,3 +1,7 @@
+@push('pageTitle')
+    İAA Önerilerim | 
+@endpush
+
 <x-app-layout>
     {{-- ======================== SAYFA BAŞLIĞI (HEADER) ======================== --}}
     <x-slot name="header">

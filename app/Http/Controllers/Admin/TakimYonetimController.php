@@ -179,6 +179,43 @@ class TakimYonetimController extends Controller
         $iaa->atanan_takim_id = $takim->id;
         $iaa->save();
 
+        // Snapshot Al ve Talebi Oluştur/Güncelle
+        $defaultWorkflow = \App\Models\IaaWorkflow::where('is_default', true)->first();
+        $workflowId = $defaultWorkflow ? $defaultWorkflow->id : 2;
+        $workflow = \App\Models\IaaWorkflow::with('steps')->find($workflowId);
+        $stepsSnapshot = $workflow ? $workflow->steps->toArray() : null;
+
+        // iaa_talepleri tablosunda kayıt var mı kontrol et (Daha önce talep edilmiş olabilir)
+        $mevcutTalep = DB::table('iaa_talepleri')->where('iaa_id', $iaa->id)->where('takim_id', $takim->id)->first();
+
+        if ($mevcutTalep) {
+            DB::table('iaa_talepleri')->where('id', $mevcutTalep->id)->update([
+                'durum' => 'onaylandi',
+                'iaa_workflow_id' => $workflowId,
+                'workflow_snapshot' => $stepsSnapshot ? json_encode($stepsSnapshot) : null,
+                'start_date' => now(),
+                'status' => 'Devam Ediyor',
+                'updated_at' => now()
+            ]);
+        } else {
+             // Diğer tüm talepleri temizle (Başka takımlar talep etmiş olabilir)
+            DB::table('iaa_talepleri')->where('iaa_id', $iaa->id)->delete();
+            
+            DB::table('iaa_talepleri')->insert([
+                'iaa_id' => $iaa->id,
+                'takim_id' => $takim->id,
+                'talep_eden_user_id' => auth()->id(),
+                'durum' => 'onaylandi',
+                'iaa_workflow_id' => $workflowId,
+                'workflow_snapshot' => $stepsSnapshot ? json_encode($stepsSnapshot) : null,
+                'start_date' => now(),
+                'due_date' => now()->addDays(14),
+                'status' => 'Devam Ediyor',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
+
         return back()->with('success', 'Proje başarıyla takıma atandı.');
     }
 

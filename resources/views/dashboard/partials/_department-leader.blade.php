@@ -106,6 +106,30 @@
             </div>
         </div>
 
+        @if(Auth::user()->bolum->has_machines && (Auth::user()->hasRole(['Superadmin', 'Bölüm Lideri']) || Auth::user()->hasBolumAuthority('bolum.makine.yonet')))
+        <!-- Makineler -->
+        <a href="{{ route('admin.bolumler.dashboard', Auth::user()->bolum_id) }}" class="block group">
+            <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition group relative overflow-hidden cursor-pointer">
+                 <div class="absolute right-0 top-0 h-full w-1 bg-slate-500"></div>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Makine Durumu</p>
+                <div class="flex items-end justify-between">
+                    <div class="flex flex-col">
+                        <span class="text-3xl font-extrabold text-gray-800">{{ $stats['machine_stats']['total'] ?? 0 }}</span>
+                        <div class="text-[10px] text-gray-500 font-medium mt-1 flex gap-2">
+                            <span class="text-green-600">{{ $stats['machine_stats']['active'] ?? 0 }} Aktif</span>
+                            @if(($stats['machine_stats']['repair'] ?? 0) > 0 || ($stats['machine_stats']['broken'] ?? 0) > 0)
+                                <span class="text-red-500">{{ ($stats['machine_stats']['repair'] ?? 0) + ($stats['machine_stats']['broken'] ?? 0) }} Arıza</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded-lg text-slate-600 group-hover:scale-110 transition">
+                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                    </div>
+                </div>
+            </div>
+        </a>
+        @endif
+
         <!-- İK -->
         <div class="bg-white p-5 rounded-xl border border-green-100 shadow-sm hover:shadow-md transition group relative overflow-hidden">
              <div class="absolute right-0 top-0 h-full w-1 bg-green-500"></div>
@@ -135,10 +159,14 @@
                     
                     <!-- Tabs -->
                     <div class="flex bg-white rounded-lg p-1 border border-gray-200">
-                        @if($stats['is_responsible_for_sikayet'])
+                        @if($stats['is_responsible_for_sikayet'] && (!Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.sikayet.gor')))
                         <button @click="activeTab = 'sikayet'" :class="{ 'bg-red-50 text-red-700 shadow-sm font-bold': activeTab === 'sikayet', 'text-gray-500 hover:text-gray-700': activeTab !== 'sikayet' }" class="px-4 py-1.5 rounded-md text-sm transition">Müşteri Şikayetleri</button>
                         @endif
+
+                        @if(!Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.iaa.gor'))
                         <button @click="activeTab = 'iaa'" :class="{ 'bg-cyan-50 text-cyan-700 shadow-sm font-bold': activeTab === 'iaa', 'text-gray-500 hover:text-gray-700': activeTab !== 'iaa' }" class="px-4 py-1.5 rounded-md text-sm transition">İAA Projeleri</button>
+                        @endif
+
                         @if($stats['has_mediation_access'])
                         <button @click="activeTab = 'arabuluculuk'" :class="{ 'bg-blue-50 text-blue-700 shadow-sm font-bold': activeTab === 'arabuluculuk', 'text-gray-500 hover:text-gray-700': activeTab !== 'arabuluculuk' }" class="px-4 py-1.5 rounded-md text-sm transition relative">
                             Arabuluculuk
@@ -208,6 +236,10 @@
                 <!-- Son Hareketler Loop (Tabs'a göre değişir) -->
                 <div class="mt-8">
                     <h5 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-gray-200 pb-2">
+                        @php
+                            $iaaAuthorized = !Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.iaa.gor');
+                            $sikayetAuthorized = !Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.sikayet.gor');
+                        @endphp
                         <span x-text="activeTab === 'sikayet' ? 'Son Hareketler (Şikayetler)' : (activeTab === 'iaa' ? 'Son Hareketler (İAA)' : 'Son Hareketler (Arabuluculuk)')"></span>
                     </h5>
                     
@@ -218,16 +250,42 @@
                             <div class="space-y-4">
                                 @foreach($stats['last_moves_sikayet'] as $proje)
                                     <div class="flex items-start justify-between group hover:bg-white p-2 rounded-lg transition hover:shadow-sm">
-                                        <div class="flex items-start gap-3">
+                                        <div class="flex items-start gap-3 w-full">
                                             <div class="mt-1 w-2 h-2 rounded-full flex-shrink-0 bg-red-400"></div>
-                                            <div>
-                                                <a href="{{ route('proje.workspace.show', $proje->id) }}" class="font-semibold text-gray-800 hover:text-red-600 text-sm block">
-                                                    {{ $proje->baslik }}
+                                            <div class="w-full">
+                                                <a href="{{ route('admin.sikayetler.show', $proje->id) }}" class="font-semibold text-gray-800 hover:text-red-600 text-sm block">
+                                                    {{ $proje->iaaProjesi->baslik ?? ($proje->musteri_sikayet_konusu ?? 'Şikayet #' . $proje->id) }}
                                                 </a>
-                                                <div class="flex items-center gap-2 mt-1">
-                                                    <span class="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded border border-red-100">{{ $proje->durum }}</span>
-                                                    <span class="text-[10px] text-gray-400">{{ $proje->updated_at->diffForHumans() }}</span>
-                                                </div>
+                                                        <div class="flex flex-col gap-1 w-full">
+                                                            <div class="flex items-center justify-between gap-2">
+                                                                @if($proje->iaaProjesi)
+                                                                    {!! $proje->iaaProjesi->durum_etiketi !!}
+                                                                @else
+                                                                    {!! $proje->musteri_durum_badge !!}
+                                                                @endif
+                                                                <span class="text-[10px] text-gray-400">{{ $proje->updated_at->diffForHumans() }}</span>
+                                                            </div>
+
+                                                            @if($proje->iaaProjesi)
+                                                                @php $progress = $proje->iaaProjesi->ilerleme_verisi; @endphp
+                                                                @if($progress['toplam'] > 0)
+                                                                    <div class="mt-0.5 w-full">
+                                                                        <div class="flex items-center justify-between mb-0.5">
+                                                                            <span class="text-[9px] text-gray-500 font-bold">
+                                                                                @if($proje->iaaProjesi->aktif_adim)
+                                                                                    {{ $proje->iaaProjesi->aktif_adim->name }} 
+                                                                                @endif
+                                                                                <span class="text-gray-400 font-normal">({{ $progress['tamamlanan'] }}/{{ $progress['toplam'] }})</span>
+                                                                            </span>
+                                                                            <span class="text-[9px] font-bold text-blue-600">{{ $progress['yuzde'] }}%</span>
+                                                                        </div>
+                                                                        <div class="w-full h-1 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
+                                                                            <div class="h-full bg-{{ $progress['yuzde'] == 100 ? 'green' : 'blue' }}-500 transition-all duration-500" style="width: {{ $progress['yuzde'] }}%"></div>
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            @endif
+                                                        </div>
                                             </div>
                                         </div>
                                     </div>
@@ -248,6 +306,7 @@
                     @endif
 
                     <!-- İAA Listesi -->
+                    @if(!Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.iaa.gor'))
                     <div x-show="activeTab === 'iaa'" style="display: none;">
                         @if(isset($stats['last_moves_iaa']) && $stats['last_moves_iaa']->isNotEmpty())
                             <div class="space-y-4">
@@ -259,9 +318,29 @@
                                                 <a href="{{ route('proje.workspace.show', $proje->id) }}" class="font-semibold text-gray-800 hover:text-cyan-600 text-sm block">
                                                     {{ $proje->baslik }}
                                                 </a>
-                                                <div class="flex items-center gap-2 mt-1">
-                                                    <span class="text-[10px] bg-cyan-50 text-cyan-600 px-1.5 py-0.5 rounded border border-cyan-100">{{ $proje->durum }}</span>
-                                                    <span class="text-[10px] text-gray-400">{{ $proje->updated_at->diffForHumans() }}</span>
+                                                <div class="flex flex-col gap-1 w-full max-w-[200px]">
+                                                    <div class="flex items-center justify-between gap-2">
+                                                        {!! $proje->durum_etiketi !!}
+                                                        <span class="text-[10px] text-gray-400">{{ $proje->updated_at->diffForHumans() }}</span>
+                                                    </div>
+                                                    
+                                                    @php $progress = $proje->ilerleme_verisi; @endphp
+                                                    @if($progress['toplam'] > 0)
+                                                        <div class="mt-0.5 w-full">
+                                                            <div class="flex items-center justify-between mb-0.5">
+                                                                <span class="text-[9px] text-gray-500 font-bold">
+                                                                    @if($proje->aktif_adim)
+                                                                        {{ $proje->aktif_adim->name }} 
+                                                                    @endif
+                                                                    <span class="text-gray-400 font-normal">({{ $progress['tamamlanan'] }}/{{ $progress['toplam'] }})</span>
+                                                                </span>
+                                                                <span class="text-[9px] font-bold text-cyan-600">{{ $progress['yuzde'] }}%</span>
+                                                            </div>
+                                                            <div class="w-full h-1 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
+                                                                <div class="h-full bg-{{ $progress['yuzde'] == 100 ? 'green' : 'cyan' }}-500 transition-all duration-500" style="width: {{ $progress['yuzde'] }}%"></div>
+                                                            </div>
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>
@@ -283,7 +362,7 @@
                             </div>
                             @if(($stats['total_iaa_count'] ?? 0) > 5)
                                 <div class="mt-6 pt-4 border-t border-gray-100 text-center">
-                                    <a href="{{ route('proje.workspace.index') }}" class="text-sm font-bold text-cyan-600 hover:text-cyan-800 transition flex items-center justify-center gap-1">
+                                    <a href="{{ route('iaa.index') }}" class="text-sm font-bold text-cyan-600 hover:text-cyan-800 transition flex items-center justify-center gap-1">
                                         <span>Tümünü Gör (Toplam {{ $stats['total_iaa_count'] }} Kayıt)</span>
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
                                     </a>
@@ -293,6 +372,7 @@
                              <div class="text-sm text-gray-400 italic py-4">Görüntülenecek İAA projesi yok.</div>
                         @endif
                     </div>
+                    @endif
 
                     <!-- Arabuluculuk Listesi -->
                     @if($stats['has_mediation_access'])
@@ -343,10 +423,12 @@
                         @endif
                     </div>
                     @endif
-                </div>
-            </div>
+                </div> {{-- Son Hareketler div sonu --}}
+            </div> {{-- proje-dagilimi-bolumu div sonu --}}
 
+            <!-- Disiplin ve Havuz Bölümü -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                @if(!Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.disiplin.gor'))
                 <!-- Disiplin Cezaları -->
                 <div id="bolum-disiplin-takibi-bolumu" class="bg-white rounded-2xl shadow-sm border border-red-100 p-6 relative overflow-hidden scroll-mt-24">
                     <div class="absolute top-0 right-0 p-4 opacity-5">
@@ -375,23 +457,25 @@
                                             @endif
                                         </div>
                                         <div>
-                                            <p class="text-xs font-bold text-gray-800">{{ $ceza->user->name }}</p>
-                                            <p class="text-[10px] text-gray-500">{{ $ceza->behavior->name ?? 'Disiplin İhlali' }}</p>
+                                            <a href="{{ route('profile.show', $ceza->user->id) }}" class="font-bold text-gray-800 text-sm hover:text-red-600">{{ $ceza->user->name }}</a>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-[10px] text-gray-400">{{ $ceza->created_at->diffForHumans() }}</span>
+                                                <span class="text-[10px] font-bold text-red-500">{{ $ceza->behavior->tanim ?? 'Kural İhlali' }}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="text-[10px] font-bold text-red-600">{{ $ceza->karar_tarihi->format('d.m.Y') }}</div>
-                                        <div class="text-[9px] text-gray-400 capitalize">{{ $ceza->durum }}</div>
+                                        <span class="text-[10px] font-bold text-gray-500 uppercase">{{ $ceza->durum }}</span>
                                     </div>
                                 </div>
                             @empty
-                                <div class="text-center py-6 text-gray-400 italic text-xs">Aktif disiplin dosyası bulunamadı.</div>
+                                <div class="text-center py-10 text-gray-400 italic">Bölümde aktif disiplin dosyası yok.</div>
                             @endforelse
                         </div>
 
                         @if(($stats['bolum_disiplin_count'] ?? 0) > 5)
                             <div class="mt-6 pt-4 border-t border-gray-100 text-center">
-                                <a href="{{ route('disiplin.index') }}" class="text-sm font-bold text-red-600 hover:text-red-800 transition flex items-center justify-center gap-1">
+                                <a href="{{ route('admin.disiplin.index') }}" class="text-sm font-bold text-red-600 hover:text-red-800 transition flex items-center justify-center gap-1">
                                     <span>Tümünü Gör (Toplam {{ $stats['bolum_disiplin_count'] }} Kayıt)</span>
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
                                 </a>
@@ -399,6 +483,7 @@
                         @endif
                     </div>
                 </div>
+                @endif
 
                 <!-- Havuzdaki Öneriler (YENİ) -->
                 <div class="bg-white rounded-2xl shadow-sm border border-purple-100 p-6 relative overflow-hidden">
@@ -433,12 +518,14 @@
                         <div class="text-center py-8 text-gray-400 text-sm relative z-10">Havuzda öneri yok.</div>
                      @endif
                 </div>
+            </div> {{-- Disiplin ve Havuz Grid sonu --}}
 
-                <!-- Tuttuğum Tutanaklar (YENİ) -->
+            <!-- Bölüm Personel Tutanakları -->
+            @if(!Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.disiplin.gor'))
                  <div class="col-span-1 md:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                     <h4 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Tuttuğum Tutanaklar
+                        Bölüm Personel Tutanakları
                         <span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full ml-auto">{{ $stats['tuttugum_tutanaklar_count'] ?? 0 }}</span>
                     </h4>
                     
@@ -455,6 +542,17 @@
                                 </thead>
                                 <tbody>
                                     @foreach($stats['tuttugum_tutanaklar'] as $tutanak)
+                                        @php
+                                            $durumClass = match ($tutanak->durum) {
+                                                'Taslak' => 'bg-gray-50 text-gray-700 border-gray-200',
+                                                'Savunma Bekleniyor' => 'bg-amber-50 text-amber-700 border-amber-200',
+                                                'Kurul İncelemesinde', 'Kurulda' => 'bg-blue-50 text-blue-700 border-blue-200',
+                                                'Yönetici Değerlendirmesi' => 'bg-purple-50 text-purple-700 border-purple-200',
+                                                'Karar Verildi' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                                                'İptal Edildi' => 'bg-rose-50 text-rose-700 border-rose-200',
+                                                default => 'bg-gray-100 text-gray-600 border-gray-200'
+                                            };
+                                        @endphp
                                         <tr class="border-b hover:bg-gray-50">
                                             <td class="px-4 py-3 font-medium text-gray-900">
                                                 <a href="{{ route('profile.show', $tutanak->user->id) }}" class="hover:underline flex items-center gap-2">
@@ -471,7 +569,9 @@
                                             </td>
                                             <td class="px-4 py-3 text-gray-500">{{ $tutanak->created_at->format('d.m.Y') }}</td>
                                             <td class="px-4 py-3">
-                                                <span class="px-2 py-1 rounded-full text-[10px] bg-gray-100 text-gray-600">{{ $tutanak->durum }}</span>
+                                                <span class="px-2.5 py-1 inline-flex text-[10px] leading-5 font-bold rounded-lg border {{ $durumClass }}">
+                                                    {{ $tutanak->durum }}
+                                                </span>
                                             </td>
                                         </tr>
                                     @endforeach
@@ -479,39 +579,64 @@
                             </table>
                         </div>
                     @else
-                        <div class="text-center py-6 text-gray-400 italic">Henüz bir tutanak oluşturmadınız.</div>
+                        <div class="text-center py-6 text-gray-400 italic">Bölüm personeline ait tutanak bulunamadı.</div>
                     @endif
                 </div>
-
-            </div>
+                @endif
         </div>
 
         <!-- === SAĞ KOLON (PERSONEL & RANKING) === -->
         <div class="space-y-6">
             
-            <!-- Personel Listesi -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-                <div class="p-5 border-b border-gray-100 bg-gray-50">
-                    <h4 class="font-bold text-gray-800">Personel Listesi</h4>
+            <!-- Personel Listesi (SEKMELİ) -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col" x-data="{ personelTab: 'diger' }">
+                <div class="p-4 border-b border-gray-100 bg-gray-50">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-bold text-gray-800">Personel Listesi</h4>
+                        @if(Auth::user()->hasRole('Bölüm Lideri') || Auth::user()->hasBolumAuthority('bolum.mavi_yaka.yonet'))
+                        <a href="{{ route('admin.mavi-yaka.create') }}"
+                            class="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition flex items-center gap-1"
+                            x-show="personelTab === 'mavi-yaka'">
+                            + Yeni Ekle
+                        </a>
+                        @endif
+                    </div>
+                    {{-- Sekmeler --}}
+                    <div class="flex bg-white rounded-lg p-0.5 border border-gray-200 gap-1">
+                        <button @click="personelTab = 'diger'"
+                            :class="personelTab === 'diger' ? 'bg-indigo-50 text-indigo-700 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                            class="flex-1 px-3 py-1.5 rounded-md text-xs transition flex items-center justify-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            Beyaz Yaka Personellerim
+                        </button>
+                        <button @click="personelTab = 'mavi-yaka'"
+                            :class="personelTab === 'mavi-yaka' ? 'bg-blue-50 text-blue-700 font-bold shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                            class="flex-1 px-3 py-1.5 rounded-md text-xs transition flex items-center justify-center gap-1">
+                            <span class="inline-flex items-center justify-center w-4 h-4 bg-blue-500 rounded-full text-white text-[8px] font-black">MY</span>
+                            Mavi Yaka
+                        </button>
+                    </div>
                 </div>
-                
-                <div class="overflow-y-auto max-h-[800px]">
+
+                {{-- DİĞER PERSONELLER --}}
+                <div x-show="personelTab === 'diger'" class="overflow-y-auto max-h-[550px]">
                     <table class="w-full">
-                         <thead class="bg-gray-50 text-xs text-gray-400 uppercase font-medium sticky top-0">
+                        <thead class="bg-gray-50 text-xs text-gray-400 uppercase font-medium sticky top-0">
                             <tr>
                                 <th class="px-5 py-3 text-left">Personel</th>
                                 <th class="px-5 py-3 text-right">Puan</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-50 text-sm">
-                            @foreach($stats['tum_personel_listesi'] as $personel)
-                                <tr class="group hover:bg-gray-50 transition">
+                            @foreach($stats['tum_personel_listesi']->where('is_mavi_yaka', false) as $personel)
+                                @php $isMe = ($personel->id === Auth::id()); @endphp
+                                <tr class="group hover:bg-gray-50 transition {{ $isMe ? 'bg-indigo-50/50' : '' }}">
                                     <td class="px-5 py-3">
                                         <div class="flex items-center gap-3">
                                             <div class="relative flex-shrink-0">
                                                 <a href="{{ route('profile.show', $personel->id) }}">
                                                     @if($personel->profile_photo_path)
-                                                        <img class="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-sm group-hover:ring-indigo-100 transition" src="{{ asset('storage/' . $personel->profile_photo_path) }}" alt="{{ $personel->name }}">
+                                                        <img class="w-10 h-10 rounded-full object-cover ring-2 {{ $isMe ? 'ring-indigo-400' : 'ring-white shadow-sm' }} group-hover:ring-indigo-100 transition" src="{{ asset('storage/' . $personel->profile_photo_path) }}" alt="{{ $personel->name }}">
                                                     @else
                                                          <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shadow-sm">
                                                             {{ substr($personel->name, 0, 1) }}
@@ -521,15 +646,25 @@
                                                  <span class="absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full {{ $personel->isOnline() ? 'bg-green-500' : 'bg-gray-300' }}"></span>
                                             </div>
                                             <div>
-                                                <a href="{{ route('profile.show', $personel->id) }}" class="font-bold text-gray-800 hover:text-indigo-600 block transition">{{ $personel->name }}</a>
+                                                <div class="flex items-center gap-1.5">
+                                                    <a href="{{ route('profile.show', $personel->id) }}" class="font-bold text-gray-800 hover:text-indigo-600 block transition">{{ $personel->name }}</a>
+                                                    @if($isMe)
+                                                        <span title="Bölüm Lideri" class="text-indigo-600">
+                                                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                                        </span>
+                                                    @endif
+                                                </div>
                                                 <div class="text-xs text-gray-500">
-                                                    {{ $personel->roles->first()->name ?? $personel->unvan ?? 'Personel' }}
+                                                    @if($isMe)
+                                                        <span class="text-indigo-600 font-bold uppercase tracking-wider text-[9px]">Bölüm Lideri</span>
+                                                    @else
+                                                        {{ $personel->roles->first()->name ?? $personel->unvan ?? 'Personel' }}
+                                                    @endif
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
                                     <td class="px-5 py-3 text-right">
-                                        {{-- PUAN TIKLANABİLİR --}}
                                         <a href="{{ route('profile.puanlar', $personel->id) }}" class="inline-block hover:bg-indigo-50 px-2 py-1 rounded transition group/point">
                                             <div class="font-bold text-indigo-700 group-hover/point:text-indigo-900">{{ $personel->cached_total_score ?? 0 }} P</div>
                                             @if($personel->gorevli_oldugu_projeler_count > 0)
@@ -538,9 +673,82 @@
                                         </a>
                                     </td>
                                 </tr>
+                                @if($isMe)
+                                    <tr class="h-px">
+                                        <td colspan="2" class="p-0">
+                                            <div class="h-[2px] w-full bg-gradient-to-r from-indigo-100 via-indigo-500 to-indigo-100"></div>
+                                        </td>
+                                    </tr>
+                                @endif
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+
+                {{-- MAVİ YAKA --}}
+                <div x-show="personelTab === 'mavi-yaka'" class="overflow-y-auto max-h-[550px]" style="display:none;">
+                    @php
+                        $maviYakalar = \App\Models\User::where('is_mavi_yaka', true)
+                            ->where('bolum_id', Auth::user()->bolum_id)
+                            ->orderBy('name')
+                            ->get();
+                    @endphp
+
+                    @if($maviYakalar->isEmpty())
+                        <div class="flex flex-col items-center justify-center py-10 text-gray-400">
+                            <span class="text-4xl mb-2">👷</span>
+                            <p class="text-sm">Henüz mavi yaka personeli yok.</p>
+                            @if(Auth::user()->hasRole('Bölüm Lideri') || Auth::user()->hasBolumAuthority('bolum.mavi_yaka.yonet'))
+                            <a href="{{ route('admin.mavi-yaka.create') }}"
+                                class="mt-3 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">
+                                İlk Mavi Yaka'yı Ekle
+                            </a>
+                            @endif
+                        </div>
+                    @else
+                        <table class="w-full">
+                            <thead class="bg-blue-50 text-xs text-blue-500 uppercase font-medium sticky top-0">
+                                <tr>
+                                    <th class="px-5 py-3 text-left">Personel</th>
+                                    <th class="px-5 py-3 text-right">Puan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50 text-sm">
+                                @foreach($maviYakalar as $my)
+                                    <tr class="group hover:bg-blue-50/30 transition">
+                                        <td class="px-5 py-3">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
+                                                    {{ strtoupper(substr($my->name, 0, 2)) }}
+                                                </div>
+                                                <div>
+                                                    <div class="font-bold text-gray-800">{{ $my->name }}</div>
+                                                    <div class="text-xs text-blue-500">{{ $my->unvan ?? 'Mavi Yaka' }}</div>
+                                                    @if($my->sicil_no)
+                                                        <div class="text-[10px] text-gray-400">Sicil: {{ $my->sicil_no }}</div>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-3 text-right">
+                                            <a href="{{ route('profile.puanlar', $my->id) }}" class="inline-block hover:bg-blue-50 px-2 py-1 rounded transition group/point">
+                                                <div class="font-bold text-blue-700 group-hover/point:text-blue-900">{{ $my->cached_total_score ?? 0 }} P</div>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        <div class="p-3 border-t border-gray-100 text-center">
+                            <a href="{{ route('admin.mavi-yaka.index') }}"
+                                class="text-xs text-blue-600 font-bold hover:underline">
+                                Tüm Mavi Yaka Listesi →
+                            </a>
+                        </div>
+                    @endif
+                </div>
+                <div class="px-5 py-3 bg-gray-50 border-t border-gray-100 text-center">
+                    <a href="{{ route('admin.bolumler.dashboard', Auth::user()->bolum_id) }}" class="text-[10px] font-bold text-gray-500 hover:text-indigo-600 uppercase tracking-widest transition">Tüm Personeli Yönet &rarr;</a>
                 </div>
             </div>
 
@@ -619,7 +827,7 @@
                         @if($listItems->isNotEmpty())
                             <div class="space-y-3">
                                  @foreach($listItems as $item)
-                                    @if($typeKey == 'arabuluculuk')
+                                     @if($typeKey == 'arabuluculuk')
                                         {{-- ARABULUCULUK KART TASARIMI --}}
                                         <div class="flex items-start gap-4 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition group">
                                             <div class="bg-blue-50 text-blue-600 font-bold p-2 text-xs rounded text-center min-w-[50px]">
@@ -639,8 +847,30 @@
                                                 Detay
                                             </div>
                                         </div>
-                                    @else
-                                        {{-- STANDART PROJE/ŞİKAYET KART TASARIMI --}}
+                                     @elseif($typeKey == 'sikayet')
+                                        {{-- ŞİKAYET KART TASARIMI --}}
+                                        <div class="flex items-start gap-4 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition group">
+                                            <div class="bg-red-50 text-red-600 font-bold p-2 text-xs rounded text-center min-w-[60px]">
+                                                {{ $item->gerceklesecek_puan ?? '100.00' }} P
+                                            </div>
+                                            <div class="flex-1">
+                                                <a href="{{ route('admin.sikayetler.show', $item->id) }}" class="font-bold text-gray-800 hover:text-red-600 block">
+                                                    {{ $item->iaaProjesi->baslik ?? ($item->musteri_sikayet_konusu ?? ($item->firma_adi ?? 'Şikayet #' . $item->id)) }}
+                                                </a>
+                                                <div class="text-xs text-gray-500 mt-1 flex flex-wrap gap-2 items-center">
+                                                    <span class="bg-gray-100 px-1.5 py-0.5 rounded">{{ $item->cozumTakimi->ad ?? 'Takımsız' }}</span>
+                                                    <span>•</span>
+                                                    <span>{{ $item->created_at->format('d.m.Y') }}</span>
+                                                    @if($item->musteri_adi || $item->firma_adi)
+                                                        <span>•</span>
+                                                        <span class="text-red-500">{{ $item->musteri_adi ?? $item->firma_adi }}</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                                {!! $item->musteri_durum_badge !!}
+                                        </div>
+                                     @else
+                                        {{-- IAA KART TASARIMI --}}
                                         <div class="flex items-start gap-4 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition group">
                                             <div class="bg-{{ $typeMeta['color'] }}-50 text-{{ $typeMeta['color'] }}-600 font-bold p-2 text-xs rounded text-center min-w-[50px]">
                                                 {{ $item->puan ?? '-' }} P
@@ -659,14 +889,9 @@
                                                     @endif
                                                 </div>
                                             </div>
-                                            <div class="text-xs font-bold 
-                                                @if($item->durum == 'Tamamlandı') text-green-600 
-                                                @elseif(Str::contains($item->durum, 'Bekliyor')) text-orange-500 
-                                                @else text-blue-600 @endif">
-                                                {{ $item->durum }}
-                                            </div>
+                                                {!! $item->durum_etiketi !!}
                                         </div>
-                                    @endif
+                                     @endif
                                  @endforeach
                             </div>
                         @else
@@ -682,9 +907,63 @@
     @endforeach
 
 
-    {{-- İADE TABLOSU (EN ALT) - Sadece Şikayet Sorumluluğu Varsa --}}
-    @if(isset($iadeVerileri) && $stats['is_responsible_for_sikayet'])
+    {{-- İADE TABLOSU (EN ALT) - Sadece Şikayet Sorumluluğu Varsa ve Yetkili ise --}}
+    @if(isset($iadeVerileri) && $stats['is_responsible_for_sikayet'] && (!Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.iade.gor')))
         @include('dashboard.partials.iadeler-tablosu')
     @endif
+
+    {{-- ═══════════════════════════════════════════════════════════════════ --}}
+    {{-- BÖLÜM MÜŞTERİ ZİYARETLERİ                             --}}
+    {{-- ═══════════════════════════════════════════════════════════════════ --}}
+    @if(!Auth::user()->isDepartmentDeputy() || Auth::user()->hasBolumAuthority('bolum.ziyaret.gor'))
+    <div id="bolum-ziyaretleri-tablosu" class="mb-8 scroll-mt-24">
+        <div class="bg-white rounded-3xl border border-indigo-100 shadow-[0_10px_40px_rgba(79,70,229,0.05)] overflow-hidden relative">
+            {{-- Ziyaret Başlık --}}
+            <div class="px-6 lg:px-8 py-6 border-b border-indigo-50 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-lg lg:text-xl font-black text-gray-900 tracking-tight">Bölüm Müşteri Ziyaretleri</h4>
+                        <p class="text-xs text-gray-500 font-bold mt-0.5">Planlanan ve gerçekleştirilen ziyaret takibi</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <form method="GET" action="{{ url()->current() }}" class="flex items-center gap-2 bg-white/60 p-1 rounded-xl border border-gray-100">
+                        <input type="date" name="ziyaret_start_date" value="{{ request('ziyaret_start_date') }}" class="text-[10px] border-transparent bg-transparent rounded-lg px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500 font-bold text-gray-600">
+                        <span class="text-gray-300">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </span>
+                        <input type="date" name="ziyaret_end_date" value="{{ request('ziyaret_end_date') }}" class="text-[10px] border-transparent bg-transparent rounded-lg px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500 font-bold text-gray-600">
+                        <button type="submit" class="p-2 bg-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-600 hover:text-white transition-all">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </button>
+                    </form>
+                    <span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm">ZİYARET TAKİBİ</span>
+                </div>
+            </div>
+
+            {{-- Livewire Ziyaret Tablosu --}}
+            @livewire('dashboard.super-admin-visit-table', [
+                'bolumIds' => is_array(Auth::user()->getAllowedBolumIds()) ? Auth::user()->getAllowedBolumIds() : (Auth::user()->getAllowedBolumIds() === '*' ? [] : [Auth::user()->bolum_id]),
+                'hideHeader' => true,
+                'startDate' => request('ziyaret_start_date'),
+                'endDate' => request('ziyaret_end_date')
+            ], key('dept-visit-table-lider-'.Auth::id()))
+        </div>
+    </div>
+    @endif
+
+    @include('dashboard.partials._users-activity')
+
+    <div class="mt-12 pt-8 border-t border-gray-100">
+        <h4 class="font-bold text-xl text-gray-800 flex items-center gap-2 mb-6">
+             <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+             Kişisel Durum Özeti
+        </h4>
+        @include('dashboard.partials.standart-kullanici')
+    </div>
 
 </div>

@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Yeni İAA Önerisi | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-bold text-2xl text-gray-800 leading-tight">

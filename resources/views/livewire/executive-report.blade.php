@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Yönetim Kokpiti | 
+@endpush
+
 <div class="min-h-screen bg-gray-50/50">
 
     {{-- HEADER & FİLTRELER --}}

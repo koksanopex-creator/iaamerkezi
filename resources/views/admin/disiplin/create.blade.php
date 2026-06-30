@@ -1,4 +1,5 @@
 <x-app-layout>
+    @push('pageTitle', 'Yeni Tutanak Oluştur | ')
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Yeni Disiplin Tutanağı Oluştur') }}
@@ -36,6 +37,7 @@
                         selectedCategory: '', 
                         behaviors: {{ json_encode($categories) }},
                         files: [],
+                        isSubmitting: false,
                         
                         // Dosya Seçildiğinde Tetiklenir
                         handleFileSelect(event) {
@@ -82,7 +84,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">İlgili Personel <span class="text-red-500">*</span></label>
-                                <select name="user_id" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                <select name="user_id" id="user_id" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 select2-searchable" required>
                                     <option value="">-- Seçiniz --</option>
                                     @foreach($users as $user)
                                         <option value="{{ $user->id }}" {{ old('user_id') == $user->id ? 'selected' : '' }}>
@@ -92,8 +94,8 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Olay Tarihi ve Saati <span class="text-red-500">*</span></label>
-                                <input type="datetime-local" name="olay_tarihi" value="{{ old('olay_tarihi') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Olay Tarihi <span class="text-red-500">*</span></label>
+                                <input type="date" name="olay_tarihi" value="{{ old('olay_tarihi') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
                             </div>
                         </div>
                     </div>
@@ -226,8 +228,18 @@
                     {{-- BUTONLAR --}}
                     <div class="flex justify-end gap-4 pt-4 border-t border-gray-200">
                         <a href="{{ route('admin.disiplin.index') }}" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md font-semibold hover:bg-gray-50 transition">İptal</a>
-                        <button type="submit" class="px-6 py-2 bg-red-600 text-white rounded-md font-bold hover:bg-red-700 shadow-lg transform hover:scale-105 transition flex items-center gap-2">
-                            Tutanak Oluştur ve Gönder
+                        <button type="submit" 
+                            :disabled="isSubmitting"
+                            @click="if(!isSubmitting) { isSubmitting = true; $nextTick(() => { $el.closest('form').submit(); }); }"
+                            :class="isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700 transform hover:scale-105'"
+                            class="px-6 py-2 bg-red-600 text-white rounded-md font-bold shadow-lg transition flex items-center gap-2">
+                            <template x-if="isSubmitting">
+                                <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                            </template>
+                            <span x-text="isSubmitting ? 'Kaydediliyor...' : 'Tutanak Oluştur ve Gönder'"></span>
                         </button>
                     </div>
 
@@ -235,4 +247,45 @@
             </div>
         </div>
     </div>
-</x-app-layout>
+    @push('scripts')
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('.select2-searchable').select2({
+                placeholder: "Personel arayın...",
+                allowClear: true,
+                width: '100%'
+            });
+        });
+    </script>
+    <style>
+        /* Select2 Tailwind Uyumluluk CSS */
+        .select2-container--default .select2-selection--single {
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.375rem !important;
+            height: 42px !important;
+            padding-top: 6px !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            top: 8px !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: #374151 !important;
+            font-size: 0.875rem !important;
+        }
+        .select2-container--open .select2-dropdown {
+            border-color: #6366f1 !important;
+            border-radius: 0.5rem !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+            margin-top: 4px !important;
+        }
+        .select2-search--dropdown .select2-search__field {
+            border: 1px solid #d1d5db !important;
+            border-radius: 0.375rem !important;
+            padding: 8px !important;
+        }
+    </style>
+    @endpush
+</x-app-layout>

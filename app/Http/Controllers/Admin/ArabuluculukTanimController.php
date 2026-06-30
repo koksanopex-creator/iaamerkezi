@@ -15,9 +15,9 @@ class ArabuluculukTanimController extends Controller
      */
     public function anlasmaMaddeleri()
     {
-        // 1. Yetki Kontrolü (Hukuk Admini, Yöneticisi veya Superadmin)
-        if (!Auth::user()->can('arabuluculuk.settings_view') && !Auth::user()->hasRole('Superadmin')) {
-            abort(403, 'Bu alana erişim yetkiniz yok.');
+        // 1. Yetki Kontrolü
+        if (!Auth::user()->can('arabuluculuk.tanimlar.gor') && !Auth::user()->hasRole(['Superadmin', 'Hukuk Admini', 'Yonetim'])) {
+            abort(403, 'Arabuluculuk tanımlarını görüntüleme yetkiniz yok.');
         }
 
         // 2. Verileri Çek
@@ -35,8 +35,8 @@ class ArabuluculukTanimController extends Controller
     // Yeni Madde Ekleme
     public function storeMadde(Request $request)
     {
-        if (!Auth::user()->can('arabuluculuk.settings_create') && !Auth::user()->hasRole('Superadmin')) {
-            abort(403);
+        if (!Auth::user()->can('arabuluculuk.tanimlar.duzenle') && !Auth::user()->hasRole(['Superadmin', 'Hukuk Admini'])) {
+            abort(403, 'Anlaşma maddesi ekleme yetkiniz yok.');
         }
 
         $request->validate([
@@ -58,8 +58,8 @@ class ArabuluculukTanimController extends Controller
     // --- YENİ EKLENEN UPDATE METODU ---
     public function updateMadde(Request $request, $id)
     {
-        if (!Auth::user()->can('arabuluculuk.settings_edit') && !Auth::user()->hasRole('Superadmin')) {
-            abort(403);
+        if (!Auth::user()->can('arabuluculuk.tanimlar.duzenle') && !Auth::user()->hasRole(['Superadmin', 'Hukuk Admini'])) {
+            abort(403, 'Anlaşma maddesi düzenleme yetkiniz yok.');
         }
 
         $madde = ArabuluculukAnlasmaMaddesi::findOrFail($id);
@@ -79,8 +79,8 @@ class ArabuluculukTanimController extends Controller
      */
     public function destroyMadde($id)
     {
-        if (!Auth::user()->can('arabuluculuk.settings_delete') && !Auth::user()->hasRole('Superadmin')) {
-            abort(403, 'Madde silme yetkiniz yok.');
+        if (!Auth::user()->can('arabuluculuk.tanimlar.duzenle') && !Auth::user()->hasRole(['Superadmin', 'Hukuk Admini'])) {
+            abort(403, 'Anlaşma maddesi silme yetkiniz yok.');
         }
 
         $madde = ArabuluculukAnlasmaMaddesi::findOrFail($id);

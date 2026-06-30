@@ -1,92 +1,146 @@
+@push('pageTitle')
+    Makine Logları | 
+@endpush
+
 <x-app-layout>
-    <div class="py-12 bg-gray-50 min-h-screen">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 bg-white border-b border-gray-200">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">
-                            Makine İşlem Geçmişi (Global)
-                        </h2>
+    <div class="py-8 bg-slate-50 min-h-screen">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <!-- ÜST BİLGİ VE BREADCRUMB -->
+            <div class="mb-8 animate-fade-in-down">
+                <nav class="flex mb-4" aria-label="Breadcrumb">
+                    <ol class="flex items-center space-x-2 text-sm text-slate-500">
+                        <li><a href="{{ route('dashboard') }}" class="hover:text-indigo-600 transition-colors">Dashboard</a></li>
+                        <li><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></li>
+                        <li class="font-semibold text-slate-800">Makine İşlem Geçmişi</li>
+                    </ol>
+                </nav>
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-3xl font-black text-slate-800 tracking-tight">Makine İşlem Geçmişi</h2>
+                        <p class="text-slate-500 text-sm mt-1 uppercase tracking-wider font-semibold">Operasyonel Kayıtlar ve Sistem İzleme</p>
                     </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Tarih</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Bölüm</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Kullanıcı</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Makine</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        İşlem</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Detaylar</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse($logs as $log)
-                                                            <tr>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                                    {{ $log->created_at->format('d.m.Y H:i') }}
-                                                                </td>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                    {{ $log->bolum->ad ?? 'Silinmiş Bölüm' }}
-                                                                </td>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                    {{ $log->user->name ?? 'Silinmiş Kullanıcı' }}
-                                                                </td>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                    {{ $log->machine->name ?? ($log->details['deleted_machine_name'] ?? '-') }}
-                                                                </td>
-                                                                <td class="px-6 py-4 whitespace-nowrap">
-                                                                    <span
-                                                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                                        {{ $log->action == 'Ekleme' ? 'bg-green-100 text-green-800' :
-                                    ($log->action == 'Silme' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800') }}">
-                                                                        {{ $log->action }}
-                                                                    </span>
-                                                                </td>
-                                                                <td class="px-6 py-4 text-sm text-gray-500">
-                                                                    <div class="max-w-xs truncate">
-                                                                        @if(is_array($log->details))
-                                                                            @foreach($log->details as $key => $value)
-                                                                                @if(!is_array($value))
-                                                                                    <span class="font-medium">{{ $key }}:</span> {{ $value }}<br>
-                                                                                @endif
-                                                                            @endforeach
-                                                                        @else
-                                                                            {{ $log->details }}
-                                                                        @endif
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6"
-                                            class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                                            Henüz hiç kayıt yok.
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="mt-4">
-                        {{ $logs->links() }}
+                    <div class="flex items-center gap-3">
+                        <div class="px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-200">
+                            <span class="text-xs text-slate-400 block uppercase font-bold">Toplam Kayıt</span>
+                            <span class="text-lg font-bold text-slate-700">{{ $logs->total() }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <!-- LOG TABLOSU -->
+            <div class="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in-up">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 border-b border-slate-100">
+                                <th class="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tarih / Zaman</th>
+                                <th class="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Bölüm</th>
+                                <th class="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Kullanıcı</th>
+                                <th class="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Makine</th>
+                                <th class="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">İşlem</th>
+                                <th class="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Değişiklik Detayları</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            @forelse($logs as $log)
+                                <tr class="hover:bg-slate-50/50 transition-colors group">
+                                    <td class="px-6 py-5 whitespace-nowrap">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-bold text-slate-700">{{ $log->created_at->format('d.m.Y') }}</span>
+                                            <span class="text-[11px] text-slate-400 font-medium">{{ $log->created_at->format('H:i:s') }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-5 whitespace-nowrap">
+                                        <div class="inline-flex items-center px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold ring-1 ring-indigo-100">
+                                            {{ $log->bolum->ad ?? 'Bilinmeyen' }}
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-5 whitespace-nowrap">
+                                        <div class="flex items-center gap-2.5">
+                                            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs ring-2 ring-white">
+                                                {{ substr($log->user->name ?? '?', 0, 1) }}
+                                            </div>
+                                            <span class="text-sm font-semibold text-slate-600">{{ $log->user->name ?? 'Dış Sistem' }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                                            <span class="text-sm font-bold text-slate-700 uppercase">{{ $log->machine->name ?? ($log->details['deleted_machine_name'] ?? '-') }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-5 whitespace-nowrap text-center">
+                                        @php
+                                            $actionStyles = [
+                                                'Ekleme' => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'ring' => 'ring-emerald-200', 'icon' => 'plus'],
+                                                'Silme' => ['bg' => 'bg-rose-50', 'text' => 'text-rose-700', 'ring' => 'ring-rose-200', 'icon' => 'trash'],
+                                                'Güncelleme' => ['bg' => 'bg-amber-50', 'text' => 'text-amber-700', 'ring' => 'ring-amber-200', 'icon' => 'refresh'],
+                                            ];
+                                            $style = $actionStyles[$log->action] ?? ['bg' => 'bg-slate-50', 'text' => 'text-slate-700', 'ring' => 'ring-slate-200', 'icon' => 'dots-horizontal'];
+                                        @endphp
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter {{ $style['bg'] }} {{ $style['text'] }} ring-1 {{ $style['ring'] }} shadow-sm">
+                                            {{ $log->action }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-5">
+                                        <div class="max-w-sm">
+                                            @if(is_array($log->details))
+                                                <div class="grid grid-cols-1 gap-1">
+                                                    @foreach($log->details as $key => $value)
+                                                        @if(!is_array($value) && $key !== 'deleted_machine_name')
+                                                            <div class="flex items-center gap-2 text-[11px]">
+                                                                <span class="text-slate-400 font-bold uppercase tracking-tighter">{{ $key }}:</span>
+                                                                <span class="text-slate-600 font-semibold italic">{{ Str::limit($value, 40) }}</span>
+                                                            </div>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <p class="text-[11px] text-slate-500 italic">{{ $log->details }}</p>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center">
+                                        <div class="flex flex-col items-center justify-center">
+                                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                                                <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            </div>
+                                            <p class="text-slate-400 font-semibold italic">Henüz hiçbir işlem kaydı bulunamadı.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- SAYFALAMA --}}
+                @if($logs->hasPages())
+                    <div class="px-6 py-4 bg-slate-50/50 border-t border-slate-100">
+                        {{ $logs->links() }}
+                    </div>
+                @endif
+            </div>
+
+            <p class="mt-4 text-center text-slate-400 text-[10px] font-medium uppercase tracking-[0.2em]">Sistem tarafından otomatik olarak kayıt altına alınmıştır.</p>
         </div>
     </div>
+
+    <style>
+        @keyframes fade-in-down {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fade-in-up {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-down { animation: fade-in-down 0.5s ease-out forwards; }
+        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+    </style>
 </x-app-layout>

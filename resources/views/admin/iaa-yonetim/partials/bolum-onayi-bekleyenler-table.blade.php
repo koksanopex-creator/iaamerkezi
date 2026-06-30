@@ -8,7 +8,7 @@
                 </svg>
             </div>
             <h3 class="text-lg font-semibold text-purple-800">
-                Bölüm Onayı Bekleyen Projeler
+                Bölüm Kalite Yöneticisi Onayı Bekleyen Projeler
                 <span class="ml-2 px-2.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
                     {{ $iaas->count() }}
                 </span>
@@ -24,7 +24,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
             </div>
-            <p class="text-gray-500 font-medium">Şu anda bölüm onayı bekleyen proje bulunmamaktadır.</p>
+            <p class="text-gray-500 font-medium">Şu anda bölüm kalite yöneticisi onayı bekleyen proje bulunmamaktadır.</p>
         </div>
     @else
         <div class="overflow-x-auto">
@@ -68,33 +68,41 @@
                                 {{ $iaa->updated_at->format('d.m.Y H:i') }}
                             </td>
                             <td class="px-6 py-4 text-right text-sm font-medium">
-                                {{-- Yetki Kontrolü --}}
-                                @php
-                                    $user = auth()->user();
-                                    $yetkiliMi = $user->hasRole('Superadmin');
-                                    if (!$yetkiliMi && $iaa->musteriSikayeti) {
-                                        $yetkiliMi = $user->yonettigiSikayetKategorileri->contains($iaa->musteriSikayeti->sikayet_kategorisi_id);
-                                    }
-                                @endphp
+                                <div x-data="{ showOnayModal: false, showRevizeModal: false, showRedModal: false }" class="flex items-center justify-end space-x-2">
+                                    {{-- 1. İNCELE BUTONU (Projeye Git) - Her zaman görünür --}}
+                                    <a href="{{ route('proje.workspace.show', $iaa->id) }}" target="_blank" 
+                                    class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition-colors focus:outline-none"
+                                    title="Projeyi yeni sekmede aç">
+                                        <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        İncele
+                                    </a>
 
-                                @if($yetkiliMi)
-                                    <div x-data="{ showRevizeModal: false, showRedModal: false }" class="flex items-center justify-end space-x-2">
-                                        
-                                        {{-- 1. İNCELE BUTONU (Projeye Git) --}}
-                                        <a href="{{ route('proje.workspace.show', $iaa->id) }}" target="_blank" 
-                                        class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                                        title="Projeyi yeni sekmede aç">
-                                            <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                            </svg>
-                                            İncele
-                                        </a>
+                                    {{-- 2. ÖNERİ BUTONU - Her zaman görünür --}}
+                                    <a href="{{ route('iaa.show', $iaa->id) }}" target="_blank" 
+                                    class="inline-flex items-center px-3 py-1.5 bg-white border border-amber-300 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-50 transition-colors focus:outline-none"
+                                    title="Orijinal öneri detayına git">
+                                        <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Öneri
+                                    </a>
 
+                                    {{-- Yetki Kontrolü --}}
+                                    @php
+                                        $user = auth()->user();
+                                        $yetkiliMi = $user->hasRole('Superadmin');
+                                        if (!$yetkiliMi && $iaa->musteriSikayeti) {
+                                            $yetkiliMi = $user->yonettigiSikayetKategorileri->contains($iaa->musteriSikayeti->sikayet_kategorisi_id);
+                                        }
+                                    @endphp
+
+                                    @if($yetkiliMi)
                                         {{-- Onayla Butonu --}}
-                                        {{-- Onayla Butonu (Modal Tetikleyici) --}}
                                         <button @click="showOnayModal = true" type="button" 
-                                                class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                                class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-colors focus:outline-none">
                                             <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                             Onayla
                                         </button>
@@ -116,7 +124,7 @@
                                                                 </div>
                                                                 <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
                                                                     <h3 class="text-lg leading-6 font-medium text-gray-900 border-b pb-2 mb-4 italic text-green-600">
-                                                                        Bölüm Yöneticisi Onayı
+                                                                        Bölüm Kalite Yöneticisi Onayı
                                                                     </h3>
                                                                     <div class="mt-2">
                                                                         <label for="not" class="block text-sm font-medium text-gray-700 mb-1">Direktöre Notunuz (Opsiyonel)</label>

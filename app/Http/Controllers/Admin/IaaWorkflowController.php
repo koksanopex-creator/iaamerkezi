@@ -15,7 +15,7 @@ class IaaWorkflowController extends Controller
      */
     public function index()
     {
-        $workflows = \App\Models\IaaWorkflow::latest()->get();
+        $workflows = \App\Models\IaaWorkflow::withCount('steps')->latest()->get();
         return view('admin.workflows.index', compact('workflows'));
     }
 
@@ -55,7 +55,7 @@ class IaaWorkflowController extends Controller
 
         // 4. Kullanıcıyı başarı mesajıyla ana listeye geri yönlendir.
         return redirect()->route('admin.workflows.index')
-                         ->with('success', 'Yeni akış şablonu başarıyla oluşturuldu.');
+            ->with('success', 'Yeni akış şablonu başarıyla oluşturuldu.');
     }
 
     /**
@@ -99,7 +99,7 @@ class IaaWorkflowController extends Controller
 
         // 4. Kullanıcıyı başarı mesajıyla ana listeye geri yönlendir.
         return redirect()->route('admin.workflows.index')
-                         ->with('success', 'Akış şablonu başarıyla güncellendi.');
+            ->with('success', 'Akış şablonu başarıyla güncellendi.');
     }
 
 
@@ -140,9 +140,23 @@ class IaaWorkflowController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(IaaWorkflow $iaaWorkflow)
+    /**
+     * Bir iş akışı şablonunu siler.
+     */
+    public function destroy(\App\Models\IaaWorkflow $workflow)
     {
-        //
+        // 1. Şablonun herhangi bir projede (iaa_talepleri) kullanılıp kullanılmadığını kontrol et
+        $isUsed = \App\Models\IaaTalep::where('iaa_workflow_id', $workflow->id)->exists();
+
+        if ($isUsed) {
+            return back()->with('error', 'Bu şablon en az bir projede kullanıldığı için silinemez. Önce ilgili projelerin iş akışlarını değiştirmeniz veya projeleri silmeniz gerekir.');
+        }
+
+        // 2. Şablonu sil (iaa_workflow_steps tablosundaki adımlar 'onDelete cascade' ile otomatik silinecektir)
+        $workflow->delete();
+
+        return redirect()->route('admin.workflows.index')
+            ->with('success', 'İş akış şablonu ve tüm adımları başarıyla silindi.');
     }
 
     /**
@@ -172,12 +186,12 @@ class IaaWorkflowController extends Controller
 
         // Adımı sil.
         $step->delete();
-        
+
         // Şimdi, aynı şablonda, silinen adımın sırasından daha büyük olan tüm adımları bul
         // ve onların 'order' değerini bir azalt.
         IaaWorkflowStep::where('iaa_workflow_id', $workflowId)
-                    ->where('order', '>', $deletedOrder)
-                    ->decrement('order');
+            ->where('order', '>', $deletedOrder)
+            ->decrement('order');
 
         return back()->with('success', 'Adım başarıyla silindi ve sıra güncellendi.');
     }

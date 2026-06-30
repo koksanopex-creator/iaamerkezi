@@ -50,7 +50,7 @@
         @else
             
             {{-- MODERN LİSTE GÖRÜNÜMÜ --}}
-            <div class="grid grid-cols-1 gap-4">
+            <div class="grid grid-cols-1 gap-4" x-data="{ limit: 5, total: {{ $profileCases->count() }} }">
                 @foreach($profileCases as $case)
                     @php
                         // Detay Linki
@@ -67,7 +67,7 @@
                         };
                     @endphp
 
-                    <a href="{{ $detailLink }}" class="block group">
+                    <a href="{{ $detailLink }}" class="block group" x-show="{{ $loop->index }} < limit" x-transition>
                         <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden">
                             
                             {{-- Sol Durum Çizgisi --}}
@@ -118,6 +118,19 @@
                         </div>
                     </a>
                 @endforeach
+
+                @if($profileCases->count() > 5)
+                    <div class="mt-4 flex justify-center">
+                        <button @click="limit = (limit === 5 ? total : 5)" 
+                                class="inline-flex items-center px-6 py-2.5 bg-white border border-gray-300 rounded-xl font-bold text-sm text-gray-700 shadow-sm hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:scale-105 active:scale-95 group">
+                            <svg class="w-5 h-5 mr-2 text-gray-400 group-hover:text-indigo-500 transition-colors transform transition-transform" :class="limit !== 5 ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 13l-7 7-7-7m14-8l-7 7-7-7"></path>
+                            </svg>
+                            <span x-text="limit === 5 ? 'Daha Fazla Göster' : 'Daha Az Göster'"></span>
+                            <span x-show="limit === 5" class="ml-2 px-2 py-0.5 bg-gray-100 text-gray-500 rounded-lg text-xs" x-text="'(' + (total - 5) + ' kaldı)'"></span>
+                        </button>
+                    </div>
+                @endif
             </div>
 
         @endif

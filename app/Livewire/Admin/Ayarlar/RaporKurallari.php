@@ -56,7 +56,11 @@ class RaporKurallari extends Component
         // Spatie Role kontrolü (Spatie yoksa hata vermemesi için try-catch veya class_exists kontrolü yapılabilir ama burada var varsayıyoruz)
         $roller = \Spatie\Permission\Models\Role::all(); 
         
-        $users = User::orderBy('name')->get(); 
+        $users = User::with('bolum')
+            ->where('is_personnel', true)
+            ->where('is_mavi_yaka', false)
+            ->orderBy('name')
+            ->get(); 
 
         return view('livewire.admin.ayarlar.rapor-kurallari', compact('roller', 'users'));
     }
@@ -89,6 +93,29 @@ class RaporKurallari extends Component
         $this->icerik = array_merge($this->icerik, $kural->icerik_ayarlari ?? []);
 
         $this->isModalOpen = true;
+    }
+
+    /**
+     * Rol seçildiğinde o role ait kullanıcıları otomatik seçili kullanıcılar listesine ekler.
+     */
+    public function updatedSeciliRoller($value)
+    {
+        if (empty($value)) return;
+
+        // Seçilen rollerdeki tüm kullanıcı ID'lerini al
+        $roleNames = Role::whereIn('id', (array)$value)->pluck('name')->toArray();
+        $userIds = User::role($roleNames)
+            ->where('is_personnel', true)
+            ->where('is_mavi_yaka', false)
+            ->pluck('id')
+            ->map(fn($id) => (string)$id)
+            ->toArray();
+
+        // Mevcut seçili olanlarla birleştir (tekilleştir)
+        $this->secili_users = array_unique(array_merge($this->secili_users, $userIds));
+        
+        // Select2'yi güncellemek için event fırlat (Opsiyonel, x-init hookumuz hallediyor olmalı)
+        $this->dispatch('users-updated', ids: $this->secili_users);
     }
 
     public function kaydet()
@@ -154,11 +181,13 @@ class RaporKurallari extends Component
         // a. Rollerdeki Kullanıcılar
         if (!empty($kural->alicilar['roller'])) {
             foreach ($kural->alicilar['roller'] as $roleId) {
-                // Role ID'den ismi bul, sonra o isme sahip userları çek
                 $role = Role::find($roleId);
                 if ($role) {
-                    $usersWithRole = User::role($role->name)->pluck('email');
-                    $alicilar = $alicilar->merge($usersWithRole);
+                    $usersWithRole = User::role($role->name)->get();
+                    foreach ($usersWithRole as $u) {
+                        // AKILLI FİLTRE KALDIRILDI - Kullanıcı tam kontrol istedi
+                        $alicilar->push($u->email);
+                    }
                 }
             }
         }
@@ -192,7 +221,7 @@ class RaporKurallari extends Component
         foreach ($alicilar as $email) {
             if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 try {
-                    Mail::to($email)->send(new OtomatikYoneticiRaporu($raporData, $kural->baslik));
+                    Mail::to($email)->queue(new OtomatikYoneticiRaporu($raporData, $kural->baslik));
                 } catch (\Exception $e) {
                     \Log::error("Rapor mail hatası ($email): " . $e->getMessage());
                 }

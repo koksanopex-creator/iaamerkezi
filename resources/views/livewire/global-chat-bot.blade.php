@@ -104,14 +104,18 @@
             });
             observer.observe(chatContainer, { childList: true, subtree: true });
 
-            // Context: Mevcut Sayfayı Livewire'a Bildir
+            // Context: Mevcut Sayfayı Livewire'a Bildir (Gözlemci modunda değilse)
             document.addEventListener('livewire:initialized', () => {
-                Livewire.dispatch('updateCurrentUrl', { url: window.location.href });
+                @unless(Auth::user()->isShadowing())
+                    Livewire.dispatch('updateCurrentUrl', { url: window.location.href });
+                @endunless
             });
 
-            // SPA (Single Page Application) geçişlerinde de güncelle (Livewire Navigate kullanılıyorsa)
+            // SPA geçişlerinde de güncelle (Gözlemci modunda değilse)
             document.addEventListener('livewire:navigated', () => {
-                Livewire.dispatch('updateCurrentUrl', { url: window.location.href });
+                @unless(Auth::user()->isShadowing())
+                    Livewire.dispatch('updateCurrentUrl', { url: window.location.href });
+                @endunless
             });
         </script>
     </div>

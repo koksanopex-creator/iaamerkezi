@@ -15,4 +15,9 @@ class LoginActivity extends Model
         'created_at' => 'datetime',
         'last_activity_at' => 'datetime',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

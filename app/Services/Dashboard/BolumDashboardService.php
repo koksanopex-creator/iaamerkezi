@@ -13,36 +13,96 @@ class BolumDashboardService
     /**
      * Bölüm Kalite Yöneticisi İstatistikleri
      */
-    public function getQualityStats(User $user)
+    public function getQualityStats(User $user, array $filters = [])
     {
-        $sorumluKategoriler = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
+        $sorumluKategoriler = $user->yonettigiSikayetKategorileri;
+        $sorumluKategoriIds = $sorumluKategoriler->pluck('id')->toArray();
 
-        $bolumOnayiBekleyenSayisi = Iaa::whereIn('durum', ['Bölüm Onayı Bekliyor', 'talep_onayi_bekliyor_kalite'])
-            ->whereHas('musteriSikayeti', function ($q) use ($sorumluKategoriler) {
-                $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriler);
-            })->count();
+        $startDate = $filters['areas_start_date'] ?? null;
+        $endDate = $filters['areas_end_date'] ?? null;
 
         $stats = [
-            'bolum_onay_sayisi' => $bolumOnayiBekleyenSayisi,
-            'toplam_sikayet' => MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriler)->count(),
-            'cozulen_sikayet' => MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriler)->where('musteri_durum', 'Kapatıldı')->count(),
-            'islemdeki_sikayet' => MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriler)->where('musteri_durum', 'İşlemde')->count(),
+            'bolum_onay_sayisi' => Iaa::whereIn('durum', ['Bölüm Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_kalite'])
+                ->whereHas('musteriSikayeti', function ($q) use ($sorumluKategoriIds) {
+                    $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriIds);
+                })->count(),
 
-            'onay_bekleyen_liste' => Iaa::whereIn('durum', ['Bölüm Onayı Bekliyor', 'talep_onayi_bekliyor_kalite'])
-                ->whereHas('musteriSikayeti', function ($q) use ($sorumluKategoriler) {
-                    $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriler);
+            'kategori_bazli_stats' => [],
+
+            'onay_bekleyen_liste' => Iaa::whereIn('durum', ['Bölüm Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_kalite'])
+                ->whereHas('musteriSikayeti', function ($q) use ($sorumluKategoriIds) {
+                    $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriIds);
                 })
                 ->with(['atananTakim', 'musteriSikayeti'])
                 ->latest('updated_at')
                 ->take(5)
                 ->get(),
 
-            'son_departman_sikayetleri' => MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriler)
+            'son_departman_sikayetleri' => MusteriSikayeti::whereIn('sikayet_kategorisi_id', $sorumluKategoriIds)
                 ->with('cozumTakimi')
                 ->latest()
                 ->take(5)
                 ->get(),
+
+            'onay_bekleyen_ziyaretler' => \App\Models\IaaZiyaretPlani::where('status', 'Beklemede')
+                ->whereHas('iaa.musteriSikayeti', function ($q) use ($sorumluKategoriIds) {
+                    $q->whereIn('sikayet_kategorisi_id', $sorumluKategoriIds);
+                })
+                ->with(['iaa.musteriSikayeti.customer', 'iaa.gonderen'])
+                ->latest()
+                ->get(),
         ];
+
+        // Durum listeleri (getLeaderStatsByBolum ile uyumlu)
+        $statuses = [
+            'onay_bekleyen' => ['Havuzda', 'Onay Bekliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_direktor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_superadmin'],
+            'tamamlanan'    => ['Kapatıldı', 'İptal Edildi'],
+            'islemde'       => ['Yeni', 'İşlemde', 'Atandı']
+        ];
+
+        foreach ($sorumluKategoriler as $kat) {
+            $baseQ = MusteriSikayeti::where('sikayet_kategorisi_id', $kat->id);
+            
+            if ($startDate) $baseQ->whereDate('created_at', '>=', $startDate);
+            if ($endDate) $baseQ->whereDate('created_at', '<=', $endDate);
+
+            $toplam = (clone $baseQ)->count();
+            $cozulen = (clone $baseQ)->whereIn('musteri_durum', $statuses['tamamlanan'])->count();
+            
+            // Onay Bekleyen: Bağlı İAA projesi onay bekleyen statülerinden birindeyse
+            $onayBekleyen = (clone $baseQ)->whereHas('iaaProjesi', function($sq) use ($statuses) {
+                $sq->whereIn('durum', $statuses['onay_bekleyen']);
+            })->count();
+
+            // İşlemde: 'Yeni', 'İşlemde' veya 'Atandı' olanlar ama İAA'sı onay beklemeyenler
+            $islemde = (clone $baseQ)->whereIn('musteri_durum', $statuses['islemde'])
+                ->where(function($sq1) use ($statuses) {
+                    $sq1->whereDoesntHave('iaaProjesi')
+                        ->orWhereHas('iaaProjesi', function($sq2) use ($statuses) {
+                            $sq2->whereNotIn('durum', $statuses['onay_bekleyen']);
+                        });
+                })->count();
+
+            $stats['kategori_bazli_stats'][$kat->id] = [
+                'toplam' => $toplam,
+                'cozulen' => $cozulen,
+                'onay_bekleyen' => $onayBekleyen,
+                'islemde' => $islemde
+            ];
+        }
+
+        // Genel istatistikler (KPI kartları için)
+        $genelToplamSikayet = 0;
+        $genelIslemdeki = 0;
+        $genelCozulen = 0;
+        foreach ($stats['kategori_bazli_stats'] as $katStat) {
+            $genelToplamSikayet += $katStat['toplam'];
+            $genelIslemdeki += $katStat['islemde'] + $katStat['onay_bekleyen'];
+            $genelCozulen += $katStat['cozulen'];
+        }
+        $stats['toplam_sikayet'] = $genelToplamSikayet;
+        $stats['islemdeki_sikayet'] = $genelIslemdeki;
+        $stats['cozulen_sikayet'] = $genelCozulen;
 
         return $stats;
     }
@@ -58,10 +118,18 @@ class BolumDashboardService
         if (!$user->bolum_id)
             return $stats;
 
-        // Bölüm personellerinin ID'leri (Lider hariç)
-        $personelIds = User::where('bolum_id', $user->bolum_id)
-            ->where('id', '!=', $user->id)
-            ->pluck('id');
+        // Bölümdeki TÜM personellerin ID'leri (Lider dahil)
+        $personelIds = User::where('bolum_id', $user->bolum_id)->pluck('id');
+
+        // Makine İstatistikleri
+        $stats['machine_stats'] = [
+            'total' => \App\Models\Machine::where('bolum_id', $user->bolum_id)->count(),
+            'active' => \App\Models\Machine::where('bolum_id', $user->bolum_id)->where('status', 'active')->count(),
+            'maintenance' => \App\Models\Machine::where('bolum_id', $user->bolum_id)->where('status', 'maintenance')->count(),
+            'repair' => \App\Models\Machine::where('bolum_id', $user->bolum_id)->where('status', 'repair')->count(),
+            'broken' => \App\Models\Machine::where('bolum_id', $user->bolum_id)->where('status', 'broken')->count(),
+            'inactive' => \App\Models\Machine::where('bolum_id', $user->bolum_id)->where('status', 'inactive')->count(),
+        ];
 
         // Yetkiler / Sorumluluklar
         $responsibleForComplaints = \App\Models\SikayetKategori::where('bolum_id', $user->bolum_id)->exists();
@@ -73,18 +141,36 @@ class BolumDashboardService
         // Filtre Helper
         $filterYear = $filters['year'] ?? null;
         $filterMonth = $filters['month'] ?? null;
+        $startDate = $filters['start_date'] ?? null;
+        $endDate = $filters['end_date'] ?? null;
 
-        $applyDateFilter = function ($query, $column = 'created_at') use ($filterYear, $filterMonth) {
+        $applyDateFilter = function ($query, $column = 'created_at') use ($filterYear, $filterMonth, $startDate, $endDate) {
             if (!empty($filterYear))
                 $query->whereYear($column, $filterYear);
             if (!empty($filterMonth))
                 $query->whereMonth($column, $filterMonth);
+            
+            if (!empty($startDate))
+                $query->whereDate($column, '>=', $startDate);
+            if (!empty($endDate))
+                $query->whereDate($column, '<=', $endDate);
         };
 
-        // --- 1. PERSONELİN GÖREVLİ OLDUĞU PROJELER ---
-        $bolumProjeleriQuery = Iaa::whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor'])
-            ->whereHas('projeEkibi', function ($q) use ($personelIds) {
-                $q->whereIn('users.id', $personelIds);
+
+        // --- KAPSAYICI SORGU HELPER ---
+        $inclusiveQuery = function ($q) use ($user, $personelIds) {
+            $q->where('bolum_id', $user->bolum_id)
+                ->orWhereHas('projeEkibi', fn($sq) => $sq->whereIn('users.id', $personelIds))
+                ->orWhereHas('atananTakim', fn($sq) => $sq->whereIn('lider_user_id', $personelIds));
+        };
+
+        // --- 1. PROJELER ---
+        $bolumProjeleriQuery = Iaa::whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_direktor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_superadmin'])
+            ->where(function ($q) use ($inclusiveQuery, $user) {
+                $inclusiveQuery($q);
+                $q->orWhereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($user) {
+                    $sq->where('bolum_id', $user->bolum_id);
+                });
             });
         $applyDateFilter($bolumProjeleriQuery, 'created_at');
 
@@ -98,7 +184,7 @@ class BolumDashboardService
         // --- 2. HAVUZDAKİ ÖNERİLER ---
         $havuzQuery = Iaa::sadeceOneriler()
             ->whereIn('gonderen_user_id', $personelIds)
-            ->whereIn('durum', ['Yeni', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_superadmin']);
+            ->whereIn('durum', ['Yeni', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_direktor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_superadmin']);
         $applyDateFilter($havuzQuery, 'created_at');
 
         $stats['havuzdaki_oneriler_count'] = $havuzQuery->count();
@@ -106,10 +192,9 @@ class BolumDashboardService
 
         // --- 3. BÖLÜME BAĞLI ŞİKAYETLER ---
         if ($responsibleForComplaints) {
-            $bolumSikayetQuery = MusteriSikayeti::where('musteri_durum', '!=', 'Kapatıldı')
-                ->whereHas('iaaProjesi.projeEkibi', function ($q) use ($personelIds) {
-                    $q->whereIn('users.id', $personelIds);
-                });
+            $bolumSikayetQuery = MusteriSikayeti::whereHas('sikayetKategori', function ($q) use ($user) {
+                $q->where('bolum_id', $user->bolum_id);
+            });
             $applyDateFilter($bolumSikayetQuery, 'created_at');
 
             $stats['bolum_sikayet_count'] = $bolumSikayetQuery->count();
@@ -127,10 +212,6 @@ class BolumDashboardService
             ->distinct('user_id')
             ->count();
 
-        // Puan hesaplaması için 'tum_personel_listesi' ayrıca controller tarafında veya burada detaylı hesaplanabilir.
-        // Performans sebebiyle burada sadece basit listeyi dönüyorum, puan hesaplamasını controller'daki loop'a bırakabiliriz veya buraya taşıyabiliriz.
-        // Controller tarafında calculateTotalScore metodu private oldugu için, o metodu public yapıp servisten çağırmak mantıklı olabilir veya servise taşımak.
-        // Şimdilik listeyi dönelim
         $stats['tum_personel_listesi'] = User::whereIn('id', $personelIds)
             ->withCount([
                 'gorevliOlduguProjeler' => function ($q) {
@@ -139,12 +220,8 @@ class BolumDashboardService
             ])
             ->with('roles')
             ->orderByRaw("id = ? DESC", [$user->id]) // Çağıran lider en üstte
-            ->orderByDesc('last_seen_at')
+            ->orderBy('name')
             ->get();
-
-        // NOT: Puan hesaplaması (cached_total_score) serviste yapılmıyor, Controller tarafında foreach ile eklenecek
-        // veya bu servis içine user puanı hesaplama mantığı taşınmalı.
-        // Şimdilik controller'ın bu listeyi alıp işlemesi bekleniyor.
 
         // --- 5. DİSİPLİN OLAYLARI ---
         $disiplinQuery = \App\Models\DisciplinaryCase::whereIn('user_id', $personelIds);
@@ -155,27 +232,40 @@ class BolumDashboardService
         $applyDateFilter($disiplinListQuery, 'karar_tarihi');
         $stats['bolum_disiplin_cezalari'] = $disiplinListQuery->with(['user', 'behavior'])->latest()->take(5)->get();
 
-        // --- 6. TUTTUĞUM TUTANAKLAR ---
-        $tuttugumTutanaklarQuery = \App\Models\DisciplinaryCase::where('reporter_id', $user->id);
+        // --- 6. BÖLÜM PERSONEL TUTANAKLARI (Liderin tuttukları dahil) ---
+        $tuttugumTutanaklarQuery = \App\Models\DisciplinaryCase::whereIn('user_id', $personelIds);
         $applyDateFilter($tuttugumTutanaklarQuery, 'created_at');
         $stats['tuttugum_tutanaklar_count'] = $tuttugumTutanaklarQuery->count();
         $stats['tuttugum_tutanaklar'] = $tuttugumTutanaklarQuery->with(['user', 'behavior'])->latest()->take(5)->get();
 
         // --- 7. DAĞILIM VE LİSTELER (TABLAR) ---
-        // Bu kısım oldukça karmaşık ve uzun olduğu için ayrı bir metodda toparlanabilir veya buraya eklenebilir.
-        // Kod tekrarını önlemek için burada hesaplayalım.
+        $baseQuery = function () use ($user, $personelIds, $inclusiveQuery) {
+            return \App\Models\Iaa::where(function ($q) use ($user, $personelIds, $inclusiveQuery) {
+                $inclusiveQuery($q);
+                $q->orWhereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($user) {
+                    $sq->where('bolum_id', $user->bolum_id);
+                });
+            });
+        };
 
-        $baseQuery = function () use ($personelIds) {
-            return \App\Models\Iaa::where(function ($q) use ($personelIds) {
-                $q->whereHas('projeEkibi', fn($sq) => $sq->whereIn('users.id', $personelIds))
-                    ->orWhereHas('atananTakim', fn($sq) => $sq->whereIn('lider_user_id', $personelIds));
+        $baseSikayetQuery = function () use ($user, $personelIds) {
+            // Şikayetler tablosu üzerinden bölüm ile eşleşenleri çekiyoruz ki Iaa projesi olmayan ("Yeni") şikayetler de gelsin.
+            return \App\Models\MusteriSikayeti::whereHas('sikayetKategori', function ($q) use ($user) {
+                $q->where('bolum_id', $user->bolum_id);
             });
         };
 
         $statuses = [
-            'tamamlanan' => ['Tamamlandı', 'Talep Olarak Kapatıldı'],
-            'devam_eden' => ['Atandı', 'Devam Ediyor', 'Revize Ediliyor'],
-            'onay_bekleyen' => ['Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite']
+            'tamamlanan'    => ['Tamamlandı', 'Talep Olarak Kapatıldı', 'talep_olarak_kapatildi', 'hatali_bildirim_olarak_kapatildi', 'Reddedildi', 'İptal Edildi'],
+            'devam_eden'    => ['Yeni', 'Havuzda', 'Atandı', 'Devam Ediyor', 'Revize Ediliyor'],
+            'onay_bekleyen' => ['Onay Bekliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_direktor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_superadmin']
+        ];
+
+        // Şikayet Durumları
+        $sikayetStatuses = [
+            'tamamlanan' => ['Kapatıldı', 'İptal Edildi'],
+            'devam_eden' => ['Yeni', 'İşlemde', 'Atandı'],
+            'onay_bekleyen' => [] // Şikayetlerde direkt yönetici onayı statüsü yoksa boş
         ];
 
         $filterStatusDate = function ($q, $statusList) use ($filterYear, $filterMonth) {
@@ -186,19 +276,44 @@ class BolumDashboardService
             $q->whereIn('durum', $statusList);
         };
 
+        $filterSikayetStatusDate = function ($q, $statusList) use ($filterYear, $filterMonth) {
+            if (!empty($filterYear))
+                $q->whereYear('updated_at', $filterYear);
+            if (!empty($filterMonth))
+                $q->whereMonth('updated_at', $filterMonth);
+            $q->whereIn('musteri_durum', $statusList);
+        };
+
         foreach ($statuses as $key => $statusList) {
-            // IAA
-            $iaaQ = $baseQuery()->tap(fn($q) => $q->whereDoesntHave('musteriSikayeti')->where('durum', '!=', 'talep_olarak_kapatildi'));
+            $iaaQ = $baseQuery()->tap(fn($q) => $q->sadeceOneriler());
             $filterStatusDate($iaaQ, $statusList);
             $stats['dagilim']['iaa'][$key] = $iaaQ->count();
             $stats['list']['iaa'][$key] = $iaaQ->with(['atananTakim.lider', 'gonderen'])->latest()->take(10)->get();
 
             // Complaint
             if ($responsibleForComplaints) {
-                $compQ = $baseQuery()->tap(fn($q) => $q->whereHas('musteriSikayeti'));
-                $filterStatusDate($compQ, $statusList);
+                $compQ = $baseSikayetQuery();
+                
+                if ($key === 'onay_bekleyen') {
+                    // Şikayete bağlı İAA projesi onay bekleyen statülerinden birindeyse 'Onay Bekleyen' say
+                    $compQ->whereHas('iaaProjesi', function($sq) use ($statusList) {
+                        $sq->whereIn('durum', $statusList);
+                    });
+                } elseif ($key === 'devam_eden') {
+                    // İşlemde olanlar ama İAA'sı onay beklemeyenler
+                    $compQ->whereIn('musteri_durum', $sikayetStatuses[$key])
+                          ->where(function($sq1) use ($statuses) {
+                              $sq1->whereDoesntHave('iaaProjesi')
+                                  ->orWhereHas('iaaProjesi', function($sq2) use ($statuses) {
+                                      $sq2->whereNotIn('durum', $statuses['onay_bekleyen']);
+                                  });
+                          });
+                } else {
+                    $filterSikayetStatusDate($compQ, $sikayetStatuses[$key]);
+                }
+
                 $stats['dagilim']['sikayet'][$key] = $compQ->count();
-                $stats['list']['sikayet'][$key] = $compQ->with(['atananTakim.lider', 'musteriSikayeti'])->latest()->take(10)->get();
+                $stats['list']['sikayet'][$key] = (clone $compQ)->with(['cozumTakimi.lider', 'iaaProjesi'])->latest()->take(10)->get();
             } else {
                 $stats['dagilim']['sikayet'][$key] = 0;
                 $stats['list']['sikayet'][$key] = collect();
@@ -206,44 +321,33 @@ class BolumDashboardService
         }
 
         // --- 8. SON HAREKETLER (GENEL) ---
-        $lastMovesIaa = $baseQuery()->tap(fn($q) => $q->whereDoesntHave('musteriSikayeti')->where('durum', '!=', 'talep_olarak_kapatildi'));
+        $lastMovesIaa = $baseQuery()->tap(fn($q) => $q->sadeceOneriler());
         $applyDateFilter($lastMovesIaa, 'created_at');
         $stats['last_moves_iaa'] = $lastMovesIaa
-            ->whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Tamamlandı'])
+            ->whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Tamamlandı', 'Talep Olarak Kapatıldı'])
             ->with(['projeEkibi', 'gonderen'])
             ->latest()
             ->take(5)
             ->get();
-
-        $stats['total_iaa_count'] = (clone $lastMovesIaa)->count(); // Filtreli toplam
+        $stats['total_iaa_count'] = (clone $baseQuery())->tap(fn($q) => $q->sadeceOneriler())->count();
 
         if ($responsibleForComplaints) {
-            $lastMovesComplaints = $baseQuery()->tap(fn($q) => $q->whereHas('musteriSikayeti'));
+            $lastMovesComplaints = $baseSikayetQuery();
             $applyDateFilter($lastMovesComplaints, 'created_at');
             $stats['last_moves_sikayet'] = $lastMovesComplaints
-                ->whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Tamamlandı'])
-                ->with(['projeEkibi', 'musteriSikayeti'])
+                ->whereIn('musteri_durum', ['Yeni', 'Atandı', 'İşlemde', 'Kapatıldı', 'İptal Edildi'])
+                ->with(['cozumTakimi', 'iaaProjesi'])
                 ->latest()
                 ->take(5)
                 ->get();
-            $stats['total_sikayet_count'] = (clone $lastMovesComplaints)->count();
+            $stats['total_sikayet_count'] = (clone $baseSikayetQuery())->count();
         } else {
             $stats['last_moves_sikayet'] = collect();
             $stats['total_sikayet_count'] = 0;
         }
 
-        // --- ARABULUCULUK (Eğer yetkisi varsa) ---
-        // Bu mantık HukukDashboardService ile benzer ama Bölüm Lideri için biraz farklı (kendi bölümü odaklı değil, yetkisi odaklı)
-        // DashboardController'daki mantığı koruyarak buraya taşıyabiliriz veya bu kısmı HukukDashboardService'e paslayabiliriz.
-        // Ancak HukukDashboardService "Hukuk Admini" odaklı. Burası "Limited Access".
-        // O yüzden buraya almak daha güvenli.
-
         if ($canSeeMediation) {
-            // ... (Arabuluculuk mantığı buraya eklenecek, DashboardController'dan kopyalanabilir)
-            // Yer kazanmak için şimdilik özet geçiyorum, detaylı implementasyon controller refactor sırasında yapılabilir.
-            // Ama prensip olarak buraya taşınmalı.
-            $stats['total_arabuluculuk_count'] = \App\Models\ArabuluculukCase::count(); // Basit örnek
-            // Detaylı mantık Controller'dan buraya taşınacak.
+            $stats['total_arabuluculuk_count'] = \App\Models\ArabuluculukCase::count();
         }
 
         return $stats;
@@ -263,16 +367,36 @@ class BolumDashboardService
         $responsibleForComplaints = \App\Models\SikayetKategori::where('bolum_id', $bolum->id)->exists();
         $stats['is_responsible_for_sikayet'] = $responsibleForComplaints;
 
-        // Filtre Helper
-        $filterYear = $filters['year'] ?? null;
-        $filterMonth = $filters['month'] ?? null;
+        $applyDateFilter = function ($query, $type = 'sikayet', $column = 'created_at') use ($filters, $bolum) {
+            // Eğer aktif bölüm seçilmişse ve bu bölüm değilse filtreleme (Tüm zamanlar göster)
+            if (isset($filters['active_bolum']) && $filters['active_bolum'] != $bolum->id) {
+                return;
+            }
 
-        $applyDateFilter = function ($query, $column = 'created_at') use ($filterYear, $filterMonth) {
-            if (!empty($filterYear))
-                $query->whereYear($column, $filterYear);
-            if (!empty($filterMonth))
-                $query->whereMonth($column, $filterMonth);
+            // Tip bazlı anahtar haritası
+            $keyMap = [
+                'sikayet' => ['start_date', 'end_date'],
+                'return' => ['return_start_date', 'return_end_date'],
+                'iaa' => ['iaa_start_date', 'iaa_end_date'],
+                'disiplin' => ['disiplin_start_date', 'disiplin_end_date'],
+                'gorev' => ['gorev_start_date', 'gorev_end_date'],
+            ];
+
+            $keys = $keyMap[$type] ?? ['start_date', 'end_date'];
+            
+            $startDate = $filters[$keys[0]] ?? null;
+            $endDate = $filters[$keys[1]] ?? null;
+
+            if ($startDate) $query->whereDate($column, '>=', $startDate);
+            if ($endDate) $query->whereDate($column, '<=', $endDate);
+            
+            // Legacy year/month desteği (Global filtreler için)
+            if (empty($startDate) && empty($endDate)) {
+                if (!empty($filters['year'])) $query->whereYear($column, $filters['year']);
+                if (!empty($filters['month'])) $query->whereMonth($column, $filters['month']);
+            }
         };
+
 
         // --- 1. PROJELER ---
         $inclusiveQuery = function ($q) use ($bolum, $personelIds) {
@@ -282,21 +406,20 @@ class BolumDashboardService
         };
 
         // Sadece Aktif Projeleri Say (Arayüzdeki sayaç için)
-        $aktifProjelerQuery = Iaa::whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite'])
+        $aktifProjelerQuery = Iaa::whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_direktor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_superadmin'])
             ->where(function ($q) use ($inclusiveQuery, $bolum) {
                 $inclusiveQuery($q);
                 $q->orWhereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($bolum) {
                     $sq->where('bolum_id', $bolum->id);
                 });
             });
-        $applyDateFilter($aktifProjelerQuery, 'created_at');
+        $applyDateFilter($aktifProjelerQuery, 'iaa', 'created_at');
         $stats['bolum_aktif_proje_count'] = $aktifProjelerQuery->count();
 
         // Saf İAA Sayısı (Şikayet olmayan + Personel dahil)
-        $safIaaCountQuery = Iaa::whereDoesntHave('musteriSikayeti')
-            ->where('durum', '!=', 'talep_olarak_kapatildi')
+        $safIaaCountQuery = Iaa::sadeceOneriler()
             ->where($inclusiveQuery);
-        $applyDateFilter($safIaaCountQuery, 'created_at');
+        $applyDateFilter($safIaaCountQuery, 'iaa', 'created_at');
         $stats['bolum_saf_iaa_count'] = $safIaaCountQuery->count();
 
         // Tüm Projeleri Getir (Son Eklenenler Listesi için)
@@ -306,7 +429,7 @@ class BolumDashboardService
                 $sq->where('bolum_id', $bolum->id);
             });
         });
-        $applyDateFilter($bolumProjeleriQuery, 'created_at');
+        $applyDateFilter($bolumProjeleriQuery, 'iaa', 'created_at');
 
         $stats['bolum_projeleri'] = $bolumProjeleriQuery->with([
             'atananTakim.lider',
@@ -315,22 +438,35 @@ class BolumDashboardService
         ])->latest()->take(10)->get();
 
         // --- 2. BÖLÜME BAĞLI ŞİKAYETLER ---
-        $bolumSikayetQuery = MusteriSikayeti::where('musteri_durum', '!=', 'Kapatıldı')
-            ->whereHas('sikayetKategori', function ($q) use ($bolum) {
-                $q->where('bolum_id', $bolum->id);
-            });
-        $applyDateFilter($bolumSikayetQuery, 'created_at');
+        $bolumSikayetQuery = MusteriSikayeti::whereHas('sikayetKategori', function ($q) use ($bolum) {
+            $q->where('bolum_id', $bolum->id);
+        });
+        $applyDateFilter($bolumSikayetQuery, 'sikayet', 'created_at');
 
         $stats['bolum_sikayet_count'] = $bolumSikayetQuery->count();
-        $stats['bolum_sikayetleri'] = $bolumSikayetQuery->with(['customer', 'iaaProjesi'])->latest()->take(10)->get();
+        $stats['bolum_sikayetleri'] = (clone $bolumSikayetQuery)->with(['customer', 'iaaProjesi'])->latest()->take(10)->get();
 
         // --- 3. DİSİPLİN OLAYLARI ---
         $disiplinQuery = \App\Models\DisciplinaryCase::whereIn('user_id', $personelIds);
-        $applyDateFilter($disiplinQuery, 'created_at');
+        $applyDateFilter($disiplinQuery, 'disiplin', 'created_at');
         $stats['bolum_disiplin_count'] = $disiplinQuery->count();
-        $stats['bolum_disiplinleri'] = $disiplinQuery->with(['user', 'behavior'])->latest()->take(5)->get();
+        $stats['bolum_disiplin_olaylari'] = $disiplinQuery->with(['user', 'behavior'])->latest()->get(); // Tümü gelsin dashboardda tablo scroll olabilir
 
-        // --- 4. DAĞILIM VE LİSTELER ---
+        // --- 4. ONAY BEKLEYEN ZİYARET PLANLARI (YENİ) ---
+        $pendingVisitsQuery = \App\Models\IaaZiyaretPlani::where('status', 'Beklemede')
+            ->whereHas('iaa', function ($q) use ($bolum, $personelIds, $inclusiveQuery) {
+                $q->where(function ($sq) use ($bolum, $personelIds, $inclusiveQuery) {
+                    $inclusiveQuery($sq);
+                    $sq->orWhereHas('musteriSikayeti.sikayetKategori', function ($skq) use ($bolum) {
+                        $skq->where('bolum_id', $bolum->id);
+                    });
+                });
+            });
+        
+        $stats['pending_visit_count'] = $pendingVisitsQuery->count();
+        $stats['pending_visits_list'] = $pendingVisitsQuery->with(['iaa.musteriSikayeti.customer', 'iaa.gonderen'])->latest()->get();
+
+        // --- 5. DAĞILIM VE LİSTELER ---
         $baseQuery = function () use ($bolum, $personelIds, $inclusiveQuery) {
             return \App\Models\Iaa::where(function ($q) use ($bolum, $personelIds, $inclusiveQuery) {
                 $inclusiveQuery($q);
@@ -340,31 +476,69 @@ class BolumDashboardService
             });
         };
 
+        $baseSikayetQuery = function () use ($bolum) {
+            return \App\Models\MusteriSikayeti::whereHas('sikayetKategori', function ($q) use ($bolum) {
+                $q->where('bolum_id', $bolum->id);
+            });
+        };
+
         $statuses = [
-            'yeni' => ['Havuzda', 'Onay Bekliyor'],
-            'islemde' => ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite'],
-            'tamamlanan' => ['Tamamlandı', 'Talep Olarak Kapatıldı', 'talep_olarak_kapatildi', 'Reddedildi']
+            'tamamlanan'    => ['Tamamlandı', 'Talep Olarak Kapatıldı', 'talep_olarak_kapatildi', 'hatali_bildirim_olarak_kapatildi', 'Reddedildi', 'İptal Edildi'],
+            'devam_eden'    => ['Atandı', 'Devam Ediyor', 'Revize Ediliyor'],
+            'onay_bekleyen' => ['Havuzda', 'Onay Bekliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_direktor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_superadmin']
         ];
 
-        $filterStatusDate = function ($q, $statusList) use ($filterYear, $filterMonth) {
-            if (!empty($filterYear))
-                $q->whereYear('updated_at', $filterYear);
-            if (!empty($filterMonth))
-                $q->whereMonth('updated_at', $filterMonth);
+        $sikayetStatuses = [
+            'tamamlanan'    => ['Kapatıldı', 'İptal Edildi'],
+            'devam_eden'    => ['Yeni', 'İşlemde', 'Atandı'],
+            'onay_bekleyen' => ['Onay Bekliyor'] // Müşteri portalı statüsü olarak 'Onay Bekliyor' varsayılabilir veya boş kalabilir ama aşağıda özelleştireceğiz
+        ];
+
+        $filterStatusDate = function ($q, $statusList) use ($filters) {
+            if (!empty($filters['year']))
+                $q->whereYear('updated_at', $filters['year']);
+            if (!empty($filters['month']))
+                $q->whereMonth('updated_at', $filters['month']);
             $q->whereIn('durum', $statusList);
         };
 
+        $filterSikayetStatusDate = function ($q, $statusList) use ($filters) {
+            if (!empty($filters['year']))
+                $q->whereYear('updated_at', $filters['year']);
+            if (!empty($filters['month']))
+                $q->whereMonth('updated_at', $filters['month']);
+            $q->whereIn('musteri_durum', $statusList);
+        };
+
         foreach ($statuses as $key => $statusList) {
-            $iaaQ = $baseQuery()->tap(fn($q) => $q->whereDoesntHave('musteriSikayeti')->where('durum', '!=', 'talep_olarak_kapatildi'));
+            $iaaQ = $baseQuery()->tap(fn($q) => $q->sadeceOneriler());
             $filterStatusDate($iaaQ, $statusList);
             $stats['dagilim']['iaa'][$key] = $iaaQ->count();
             $stats['list']['iaa'][$key] = $iaaQ->with(['atananTakim.lider', 'gonderen'])->latest()->take(5)->get();
 
             if ($responsibleForComplaints) {
-                $compQ = $baseQuery()->tap(fn($q) => $q->whereHas('musteriSikayeti'));
-                $filterStatusDate($compQ, $statusList);
+                $compQ = $baseSikayetQuery();
+                
+                if ($key === 'onay_bekleyen') {
+                    // Şikayete bağlı İAA projesi onay bekleyen statülerinden birindeyse 'Onay Bekleyen' say
+                    $compQ->whereHas('iaaProjesi', function($sq) use ($statusList) {
+                        $sq->whereIn('durum', $statusList);
+                    });
+                } elseif ($key === 'islemde' || $key === 'devam_eden') {
+                    // İşlemde olanlar ama İAA'sı onay beklemeyenler
+                    $compQ->whereIn('musteri_durum', $sikayetStatuses[$key])
+                          ->where(function($sq1) use ($statuses) {
+                              $sq1->whereDoesntHave('iaaProjesi')
+                                  ->orWhereHas('iaaProjesi', function($sq2) use ($statuses) {
+                                      $sq2->whereNotIn('durum', $statuses['onay_bekleyen']);
+                                  });
+                          });
+                } else {
+                    $filterSikayetStatusDate($compQ, $sikayetStatuses[$key]);
+                }
+
                 $stats['dagilim']['sikayet'][$key] = $compQ->count();
-                $stats['list']['sikayet'][$key] = $compQ->with(['atananTakim.lider', 'musteriSikayeti'])->latest()->take(5)->get();
+                $stats['list']['sikayet'][$key] = (clone $compQ)->with(['cozumTakimi.lider', 'iaaProjesi'])->latest()->take(5)->get();
             } else {
                 $stats['dagilim']['sikayet'][$key] = 0;
                 $stats['list']['sikayet'][$key] = collect();
@@ -376,9 +550,8 @@ class BolumDashboardService
             ->whereHas('talepEdenTakimlar', function ($q) {
                 $q->where('iaa_talepleri.due_date', '<', now());
             });
-
-        $stats['dagilim']['iaa']['geciken'] = (clone $gecikenBaseQuery)->whereDoesntHave('musteriSikayeti')->count();
-        $stats['list']['iaa']['geciken'] = (clone $gecikenBaseQuery)->whereDoesntHave('musteriSikayeti')->with(['atananTakim.lider', 'gonderen'])->latest()->take(5)->get();
+        $stats['dagilim']['iaa']['geciken'] = (clone $gecikenBaseQuery)->sadeceOneriler()->count();
+        $stats['list']['iaa']['geciken'] = (clone $gecikenBaseQuery)->sadeceOneriler()->with(['atananTakim.lider', 'gonderen'])->latest()->take(5)->get();
 
         if ($responsibleForComplaints) {
             $stats['dagilim']['sikayet']['geciken'] = (clone $gecikenBaseQuery)->whereHas('musteriSikayeti')->count();
@@ -389,21 +562,22 @@ class BolumDashboardService
         }
 
         // --- 6. SAF İAA PROJELERİ (Tablo İçin) ---
-        $stats['bolum_iaa_projeleri'] = $baseQuery()->whereDoesntHave('musteriSikayeti')
-            ->where('durum', '!=', 'talep_olarak_kapatildi')
+        $iaaTableQuery = $baseQuery()->tap(fn($q) => $q->sadeceOneriler());
+        $applyDateFilter($iaaTableQuery, 'iaa', 'created_at');
+        $stats['bolum_iaa_projeleri'] = $iaaTableQuery
             ->with(['atananTakim.lider', 'gonderen'])
             ->latest()
             ->take(10)
             ->get();
-
-        $lastMovesIaa = $baseQuery()->tap(fn($q) => $q->whereDoesntHave('musteriSikayeti')->where('durum', '!=', 'talep_olarak_kapatildi'));
-        $applyDateFilter($lastMovesIaa, 'created_at');
+            
+        $lastMovesIaa = $baseQuery()->tap(fn($q) => $q->sadeceOneriler());
+        $applyDateFilter($lastMovesIaa, 'iaa', 'created_at');
         $stats['total_iaa_count'] = (clone $lastMovesIaa)->count();
 
         if ($responsibleForComplaints) {
-            $lastMovesComplaints = $baseQuery()->tap(fn($q) => $q->whereHas('musteriSikayeti'));
-            $applyDateFilter($lastMovesComplaints, 'created_at');
-            $stats['total_sikayet_count'] = (clone $lastMovesComplaints)->count();
+            $lastMovesComplaints = $baseSikayetQuery();
+            $applyDateFilter($lastMovesComplaints, 'sikayet', 'created_at');
+            $stats['total_sikayet_count'] = $lastMovesComplaints->count();
         } else {
             $stats['total_sikayet_count'] = 0;
         }
@@ -438,7 +612,7 @@ class BolumDashboardService
 
         // --- 6. PERSONEL BEKLEYEN GÖREVLERİ (YENİ - V5.30) ---
         // Bu bölümdeki tüm personellerin (Lider dahil) "Şikayet Görevlerim" sayfasındaki gibi bekleyen işlerini getirir.
-        $stats['bolum_personel_gorevleri'] = Iaa::whereHas('musteriSikayeti')
+        $gorevQuery = Iaa::whereHas('musteriSikayeti')
             ->where(function ($topQ) use ($bolum, $personelIds) {
                 // A) Bölüm Onayı Bekleyenler (Bölüm Lideri veya Kalite Yöneticisi için)
                 $topQ->orWhere(function ($q) use ($bolum) {
@@ -473,7 +647,12 @@ class BolumDashboardService
                                 });
                         });
                 });
-            })
+            });
+        
+        $applyDateFilter($gorevQuery, 'gorev', 'updated_at');
+
+        $stats['bolum_personel_gorevleri'] = $gorevQuery
+            ->distinct()
             ->with([
                 'musteriSikayeti.sikayetKategori',
                 'aktifAdim.sorumlular',
@@ -485,6 +664,7 @@ class BolumDashboardService
 
         return $stats;
     }
+
 
     /**
      * Direktör için tüm bölümlerin agrega verilerini hesaplar (Dökümlü).
@@ -520,18 +700,16 @@ class BolumDashboardService
             };
 
             // 1. Şikayetler (Bölüme ait)
-            $sikayetQ = \App\Models\MusteriSikayeti::where('musteri_durum', '!=', 'Kapatıldı')
-                ->whereHas('sikayetKategori', function ($q) use ($bolum) {
-                    $q->where('bolum_id', $bolum->id);
-                });
+            $sikayetQ = \App\Models\MusteriSikayeti::whereHas('sikayetKategori', function ($q) use ($bolum) {
+                $q->where('bolum_id', $bolum->id);
+            });
             $applyDateFilter($sikayetQ, 'created_at');
             $sikayetCount = $sikayetQ->count();
             $results['sikayet']['total'] += $sikayetCount;
             $results['sikayet']['breakdown'][$bolum->ad] = $sikayetCount;
 
             // 2. Saf İAA (Şikayet olmayan + Personel dahil olan)
-            $safIaaQ = Iaa::whereDoesntHave('musteriSikayeti')
-                ->where('durum', '!=', 'talep_olarak_kapatildi')
+            $safIaaQ = Iaa::sadeceOneriler()
                 ->where($inclusiveQuery);
             $applyDateFilter($safIaaQ, 'created_at');
             $safIaaCount = $safIaaQ->count();
@@ -539,7 +717,7 @@ class BolumDashboardService
             $results['saf_iaa']['breakdown'][$bolum->ad] = $safIaaCount;
 
             // 3. Toplam Proje (Şikayet + Saf İAA, Aktif Durumdakiler)
-            $projeQ = Iaa::whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_kalite'])
+            $projeQ = Iaa::whereIn('durum', ['Atandı', 'Devam Ediyor', 'Revize Ediliyor', 'Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'talep_onayi_bekliyor_direktor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_superadmin'])
                 ->where(function ($q) use ($inclusiveQuery, $bolum) {
                     $inclusiveQuery($q);
                     $q->orWhereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($bolum) {

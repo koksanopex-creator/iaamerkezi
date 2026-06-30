@@ -1,3 +1,7 @@
+@push('pageTitle')
+    Şikayet Kategorileri | 
+@endpush
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex flex-col gap-2">

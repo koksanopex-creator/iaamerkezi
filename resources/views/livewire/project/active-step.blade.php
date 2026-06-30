@@ -1,6 +1,6 @@
 <div class="bg-white p-6 rounded-lg shadow-lg border-2 border-blue-300">
-    <h3 class="text-xl font-bold text-blue-700 mb-2">Aktif Adım: {{ $currentStep->name }}</h3>
-    <p class="text-gray-600 mb-6">{{ $currentStep->description }}</p>
+    <h3 class="text-xl font-bold text-blue-700 mb-2">Aktif Adım: {{ $currentStep['name'] }}</h3>
+    <p class="text-gray-600 mb-6">{{ $currentStep['description'] }}</p>
 
     {{-- Hata mesajları için alan --}}
      @if (session()->has('error'))
@@ -18,12 +18,12 @@
     <form wire:submit="save" id="main-form">
 
         <div class="space-y-6">
-            @if(empty($currentStep->widgets))
+            @if(empty($currentStep['widgets']))
                 <div class="p-4 text-center bg-gray-50 rounded-lg border">
                     <p class="text-gray-500">Bu adım için herhangi bir form elemanı (widget) tanımlanmamış.</p>
                 </div>
             @else
-                @foreach($currentStep->widgets as $index => $widget)
+                @foreach($currentStep['widgets'] as $index => $widget)
                     @php
                         // Widget config'ini ve index'i partial'a göndermek için hazırla
                         $widgetData = [
@@ -80,6 +80,36 @@
                                 @break
                             {{-- ============================== --}}
 
+                            {{-- === YENİ ANALİZ ARAÇLARI === --}}
+                            @case('swot')
+                                @include('livewire.project.widgets._swot', $widgetData)
+                                @break
+                            @case('checklist')
+                                @include('livewire.project.widgets._checklist', $widgetData)
+                                @break
+                            @case('before_after')
+                                @include('livewire.project.widgets._before-after', $widgetData)
+                                @break
+                            @case('risk_matrix')
+                                @include('livewire.project.widgets._risk-matrix', $widgetData)
+                                @break
+                            @case('image_upload')
+                                @include('livewire.project.widgets._image-upload', $widgetData)
+                                @break
+                            @case('action_list')
+                                @include('livewire.project.widgets._action-list', $widgetData)
+                                @break
+                            @case('task_list')
+                                @include('livewire.project.widgets._task-list', $widgetData)
+                                @break
+                            @case('prioritization_matrix')
+                                @include('livewire.project.widgets._prioritization-matrix', $widgetData)
+                                @break
+                            @case('4m_report')
+                                @include('livewire.project.widgets._4m-report', $widgetData)
+                                @break
+                            {{-- ============================== --}}
+
                             @default
                                 <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
                                     <strong>Hata:</strong> Tanımsız widget türü: '{{ $widget['type'] }}'
@@ -113,7 +143,7 @@
                 // Bu adım için bir atama var mı diye kontrol et
                 $assignmentRecord = \Illuminate\Support\Facades\DB::table('iaa_step_assignments')
                     ->where('iaa_id', $iaa instanceof \App\Models\Iaa ? $iaa->id : $iaa['id'])
-                    ->where('iaa_workflow_step_id', $currentStep->id)
+                    ->where('iaa_workflow_step_id', $currentStep['id'])
                     ->first();
                 
                 $isLockedForUser = false;

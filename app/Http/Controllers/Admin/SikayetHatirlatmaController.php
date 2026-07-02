@@ -34,7 +34,10 @@ class SikayetHatirlatmaController extends Controller
 
         $this->authorize('viewAny', SikayetHatirlatma::class);
 
-        $baseQuery = SikayetHatirlatma::query();
+        $baseQuery = SikayetHatirlatma::query()
+            ->whereHas('musteriSikayeti', function($q) {
+                $q->whereNotIn('musteri_durum', ['Kapatıldı', 'Çözümlendi']);
+            });
 
         // YETKİ BAZLI FİLTRELEME (rules1.md ve Ek Roller Uyumlu)
         if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
@@ -74,10 +77,7 @@ class SikayetHatirlatmaController extends Controller
         ];
 
         $query = SikayetHatirlatma::with(['musteriSikayeti.customer', 'gonderen'])
-            ->withCount('yorumlar')
-            ->whereHas('musteriSikayeti', function($q) {
-                $q->whereNotIn('musteri_durum', ['Kapatıldı', 'Çözümlendi']);
-            });
+            ->withCount('yorumlar');
 
         // Apply same base query constraints to main query
         $query->mergeConstraintsFrom($baseQuery);

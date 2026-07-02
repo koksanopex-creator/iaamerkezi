@@ -732,7 +732,10 @@
                                             <div class="flex items-center gap-1">
                                                 @php
                                                     $user = auth()->user();
-                                                    $navPendingCount = \App\Models\SikayetHatirlatma::where('durum', 'bilgi_girisi_bekleniyor');
+                                                    $navPendingCount = \App\Models\SikayetHatirlatma::where('durum', 'bilgi_girisi_bekleniyor')
+                                                        ->whereHas('musteriSikayeti', function($q) {
+                                                            $q->whereNotIn('musteri_durum', ['Kapatıldı', 'Çözümlendi']);
+                                                        });
                                                     if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
                                                         if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
                                                             $navPendingCount->whereHas('musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt İçi'); });

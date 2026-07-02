@@ -9,7 +9,7 @@ use App\Models\User;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class TakimdanCikarildi extends Notification implements ShouldQueue
+class TakimdanCikarildi extends Notification
 {
     use Queueable;
 

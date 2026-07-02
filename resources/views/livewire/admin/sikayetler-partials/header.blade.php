@@ -74,7 +74,7 @@
                     Yeni Şikayet
                 </a>
             @endcan
-            @role('Superadmin|Müşteri Şikayeti Kurulu')
+            @role('Superadmin|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı')
             <a href="{{ route('admin.sikayetler.kurulGirdileri') }}"
                 class="inline-flex items-center px-5 py-2.5 rounded-xl font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 transition-all">
                 <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

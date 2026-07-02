@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class DisiplinToplantiDavetNotification extends Notification implements ShouldQueue
+class DisiplinToplantiDavetNotification extends Notification
 {
     use Queueable;
 

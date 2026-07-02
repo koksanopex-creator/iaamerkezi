@@ -151,7 +151,13 @@
                             Hatırlatıcılar
                         </button>
 
-
+                        {{-- Tab 9: Kurul Raporları --}}
+                        <button type="button" @click="activeTab = 'kurul_raporlari'" 
+                            :class="activeTab === 'kurul_raporlari' ? 'bg-indigo-50 text-indigo-700 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                            class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Kurul Raporları
+                        </button>
                     </nav>
                 </div>
 
@@ -1080,6 +1086,27 @@
                                         </div>
                                     </div>
                                 </div>
+                        </div>
+                    </div>
+                    </div>
+
+                    {{-- TAB 9: KURUL RAPORLARI --}}
+                    <div x-show="activeTab === 'kurul_raporlari'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-indigo-600 px-6 py-5 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-xl font-bold text-white">Kurul Raporları (Müşteri Şikayeti)</h3>
+                                        <p class="text-xs text-indigo-100 opacity-90">Kurul yöneticilerine ve diğer yetkililere giden performans raporları.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                @livewire('admin.ayarlar.musteri-sikayeti-rapor-kurallari')
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -236,7 +236,7 @@ class User extends Authenticatable implements MustVerifyEmail // <-- Interface I
         $user = $this->getEffectiveUser();
 
         // 1. Superadmin/Yonetim/Kurul/Müşteri ise tüm bölümleri görsün
-        if ($user->traitHasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri', 'Müşteri Temsilcisi']))
+        if ($user->traitHasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri', 'Müşteri Temsilcisi']))
         {
             return '*';
         }
@@ -569,7 +569,7 @@ class User extends Authenticatable implements MustVerifyEmail // <-- Interface I
         $user = $this->getEffectiveUser();
 
         // 1. Üst Yönetim ve Kurul her zaman yetkilidir
-        if ($user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
+        if ($user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
             return true;
         }
 
@@ -661,7 +661,7 @@ class User extends Authenticatable implements MustVerifyEmail // <-- Interface I
         $user = $this->getEffectiveUser();
 
         // Admin ve operasyonel roller her zaman görür
-        if ($user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Müşteri Saha Temsilcisi'])) {
+        if ($user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Müşteri Saha Temsilcisi'])) {
             return true;
         }
 

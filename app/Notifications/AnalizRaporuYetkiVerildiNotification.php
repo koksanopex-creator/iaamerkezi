@@ -8,7 +8,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Models\ReportRoleAuthorization;
 
-class AnalizRaporuYetkiVerildiNotification extends Notification implements ShouldQueue
+class AnalizRaporuYetkiVerildiNotification extends Notification
 {
     use Queueable;
 

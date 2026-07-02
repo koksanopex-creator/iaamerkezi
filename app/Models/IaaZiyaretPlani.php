@@ -123,6 +123,14 @@ class IaaZiyaretPlani extends Model
                   ->orWhereJsonContains('visitors', (string)$user->id)
                   ->orWhereJsonContains('visitors', $user->id);
             });
+        } else {
+            if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                    $query->whereHas('iaa.musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt İçi'); });
+                } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                    $query->whereHas('iaa.musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt Dışı'); });
+                }
+            }
         }
 
         return $query->count();

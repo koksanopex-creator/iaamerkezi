@@ -8,7 +8,7 @@ use Illuminate\Notifications\Notification;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class DisiplinKuruluUyelikNotification extends Notification implements ShouldQueue
+class DisiplinKuruluUyelikNotification extends Notification
 {
     use Queueable;
 

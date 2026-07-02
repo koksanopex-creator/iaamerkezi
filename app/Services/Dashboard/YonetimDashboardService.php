@@ -230,36 +230,140 @@ class YonetimDashboardService
         // 8. BEKLEYEN İŞLER (ÖZET LİSTE)
         $waitingTasks = collect();
         Iaa::whereIn('durum', ['Bölüm Onayı Bekliyor', 'Yönetici Onayı Bekliyor'])
+            ->whereDoesntHave('musteriSikayeti')
             ->when($bolumId, fn($q) => $q->where('bolum_id', $bolumId))
-            ->with(['bolum', 'gonderen'])
+            ->with(['bolum', 'gonderen', 'atananTakim.lider'])
             ->take(5)->get()->each(function ($iaa) use ($waitingTasks) {
+                $beklenen = '-';
+                if ($iaa->durum == 'Bölüm Onayı Bekliyor') {
+                    $kaliteci = \App\Models\User::role('Bölüm Kalite Yöneticisi')
+                        ->whereHas('yonettigiSikayetKategorileri', function ($q) use ($iaa) {
+                            $q->whereHas('bolum', fn($bq) => $bq->where('id', $iaa->bolum_id));
+                        })->first();
+                    $beklenen = $kaliteci ? $kaliteci->name : 'Bölüm Kalite Yöneticisi';
+                } elseif ($iaa->durum == 'Yönetici Onayı Bekliyor') {
+                    $yonetici = \App\Models\User::role(['Superadmin', 'Yonetim'])->first();
+                    $beklenen = $yonetici ? $yonetici->name : 'Yönetim / Superadmin';
+                }
+                
                 $waitingTasks->push([
                     'type' => 'İAA',
                     'subject' => $iaa->baslik,
                     'waiting_person' => $iaa->gonderen->name ?? 'Bilinmiyor',
                     'waiting_dept' => $iaa->bolum->ad ?? '-',
                     'status' => $iaa->durum,
+                    'status_html' => $iaa->durum_etiketi,
+                    'action_expected_from' => $beklenen,
+                    'is_customer_entry' => false,
                     'days' => $iaa->created_at->diffInDays(now()),
                     'link' => route('proje.workspace.show', $iaa->id)
                 ]);
             });
 
-        MusteriSikayeti::whereIn('musteri_durum', ['Yeni', 'İşlemde'])
+        MusteriSikayeti::whereIn('musteri_durum', ['Yeni', 'İşlemde', 'Atandı', 'Devam Ediyor'])
             ->when($bolumId, function($q) use ($bolumId) {
                 $q->whereHas('sikayetKategori', fn($sq) => $sq->where('bolum_id', $bolumId));
             })
-            ->with(['customer', 'sikayetKategori.bolum'])
+            ->with(['customer', 'sikayetKategori.bolum', 'sikayetKategori.yoneticiler', 'cozumTakimi.lider', 'olusturanKurulUyesi', 'iaaProjesi.atananTakim.lider', 'iaaProjesi.bolum'])
             ->take(5)->get()->each(function ($s) use ($waitingTasks) {
+                $beklenen = '-';
+                if ($s->iaaProjesi) {
+                    if ($s->iaaProjesi->durum == 'Bölüm Onayı Bekliyor') {
+                        $kaliteci = $s->sikayetKategori && $s->sikayetKategori->yoneticiler->isNotEmpty()
+                            ? $s->sikayetKategori->yoneticiler->first()
+                            : null;
+                        $beklenen = $kaliteci ? $kaliteci->name : 'Bölüm Kalite Yöneticisi';
+                    } elseif ($s->iaaProjesi->durum == 'Yönetici Onayı Bekliyor') {
+                        $yonetici = \App\Models\User::role(['Superadmin', 'Yonetim'])->first();
+                        $beklenen = $yonetici ? $yonetici->name : 'Yönetim / Superadmin';
+                    } elseif (in_array($s->iaaProjesi->durum, ['Yeni', 'Atandı', 'Devam Ediyor'])) {
+                        $beklenen = $s->iaaProjesi->atananTakim && $s->iaaProjesi->atananTakim->lider ? $s->iaaProjesi->atananTakim->lider->name : 'Takım Lideri';
+                    }
+                } else {
+                    if ($s->musteri_durum == 'Yeni') $beklenen = 'Kurul (Atama Bekliyor)';
+                    elseif (in_array($s->musteri_durum, ['İşlemde', 'Atandı', 'Devam Ediyor'])) {
+                        $beklenen = $s->cozumTakimi && $s->cozumTakimi->lider ? $s->cozumTakimi->lider->name : 'Takım Lideri';
+                    }
+                }
+                
+                $isCustomerEntry = $s->olusturanKurulUyesi && $s->olusturanKurulUyesi->hasAnyRole(['Müşteri', 'Müşteri Temsilcisi', 'Müşteri Saha Temsilcisi']);
+                
                 $waitingTasks->push([
                     'type' => 'Müşteri Şikayeti',
                     'subject' => $s->musteri_sikayet_konusu,
                     'waiting_person' => $s->customer->name ?? 'Müşteri',
                     'waiting_dept' => $s->sikayetKategori->bolum->ad ?? '-',
                     'status' => $s->musteri_durum,
+                    'status_html' => $s->musteri_durum_badge,
+                    'action_expected_from' => $beklenen,
+                    'is_customer_entry' => $isCustomerEntry,
                     'days' => $s->created_at->diffInDays(now()),
                     'link' => route('admin.sikayetler.show', $s->id)
                 ]);
             });
+
+        // 8.1. ZİYARET PLANLARI (BEKLEYENLER)
+        \App\Models\IaaZiyaretPlani::where(function ($q) {
+                $q->where('status', 'Onaylandı')
+                  ->orWhereIn('return_date_revision_status', ['Bekliyor', 'Direktör Onayı Bekliyor']);
+            })
+            ->whereHas('iaa', function ($q) use ($bolumId) {
+                $q->when($bolumId, fn($sq) => $sq->where('bolum_id', $bolumId));
+            })
+            ->with(['iaa.musteriSikayeti.customer', 'planner', 'iaa.bolum'])
+            ->take(5)->get()->each(function ($ziyaret) use ($waitingTasks) {
+                $isRevision = in_array($ziyaret->return_date_revision_status, ['Bekliyor', 'Direktör Onayı Bekliyor']);
+                
+                $statusText = $isRevision ? 'Tahmini Dönüş Revizyonu Bekliyor' : 'Müşteri Ziyareti Sonuçlarının Girilmesi Bekleniyor';
+                $statusHtml = '<span class="bg-yellow-50 text-yellow-600 border border-yellow-300 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1 shadow-sm w-48 justify-center text-center leading-tight">⚠ ' . $statusText . '</span>';
+                
+                $beklenen = '-';
+                if ($isRevision) {
+                    if ($ziyaret->return_date_revision_status == 'Direktör Onayı Bekliyor') {
+                        $direktor = $ziyaret->iaa->bolum && $ziyaret->iaa->bolum->director_id ? \App\Models\User::find($ziyaret->iaa->bolum->director_id) : null;
+                        $beklenen = $direktor ? $direktor->name : 'Direktör';
+                    } else {
+                        // 'Bekliyor' durumunda: Bölüm Kalite Yöneticisi onayı bekleniyor
+                        $catId = $ziyaret->iaa->musteriSikayeti->sikayet_kategorisi_id ?? null;
+                        $kaliteci = null;
+                        if ($catId) {
+                            $kaliteci = \App\Models\User::role('Bölüm Kalite Yöneticisi')
+                                ->whereHas('yonettigiSikayetKategorileri', function ($q) use ($catId) {
+                                    $q->where('sikayet_kategorileri.id', $catId);
+                                })->first();
+                        }
+                        $beklenen = $kaliteci ? $kaliteci->name : 'Bölüm Kalite Yöneticisi';
+                    }
+                } else {
+                    $visitorIdsArray = $ziyaret->visitors ? (is_string($ziyaret->visitors) ? json_decode($ziyaret->visitors, true) : (is_array($ziyaret->visitors) ? $ziyaret->visitors : [])) : [];
+                    if (!empty($visitorIdsArray)) {
+                        $users = \App\Models\User::whereIn('id', $visitorIdsArray)->pluck('name')->toArray();
+                        if (!empty($users)) {
+                            $beklenen = implode(', ', $users);
+                        }
+                    } elseif (!empty($ziyaret->visitor_name)) {
+                        $beklenen = $ziyaret->visitor_name;
+                    } else {
+                        $beklenen = 'Ziyaretçiler';
+                    }
+                }
+                
+                $subject = $ziyaret->iaa->musteriSikayeti->musteri_sikayet_konusu ?? $ziyaret->iaa->baslik;
+                
+                $waitingTasks->push([
+                    'type' => 'Ziyaret',
+                    'subject' => $subject,
+                    'waiting_person' => $ziyaret->iaa->musteriSikayeti->customer->name ?? 'Bilinmiyor',
+                    'waiting_dept' => $ziyaret->iaa->bolum->ad ?? '-',
+                    'status' => $statusText,
+                    'status_html' => $statusHtml,
+                    'action_expected_from' => $beklenen,
+                    'is_customer_entry' => false,
+                    'days' => $ziyaret->updated_at->diffInDays(now()),
+                    'link' => route('proje.workspace.show', $ziyaret->iaa_id) . '#ziyaret-bilgileri-alani'
+                ]);
+            });
+
         $stats['waiting_tasks'] = $waitingTasks->sortByDesc('days');
 
         // 9. MÜŞTERİ VERİLERİ (İadeler vb.)

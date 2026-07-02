@@ -9,7 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class SikayetHatirlatmaBildirimi extends Notification implements ShouldQueue
+class SikayetHatirlatmaBildirimi extends Notification
 {
     use Queueable;
 

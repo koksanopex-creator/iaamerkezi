@@ -184,8 +184,16 @@
                 })->count();
         }
 
-        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri'])) {
-            $unassignedSikayetCount = \App\Models\MusteriSikayeti::where('musteri_durum', 'Yeni')->count();
+        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri Şikayeti Çözüm Lideri'])) {
+            $q = \App\Models\MusteriSikayeti::where('musteri_durum', 'Yeni');
+            if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                    $q->where('konum_tipi', 'Yurt İçi');
+                } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                    $q->where('konum_tipi', 'Yurt Dışı');
+                }
+            }
+            $unassignedSikayetCount = $q->count();
         } else {
             $unassignedSikayetCount = 0;
         }
@@ -236,7 +244,7 @@
 
         // 7. Yönetici Ziyaret Onay Sayacı (Müşteri Ziyaretleri İçin)
         $managerPendingVisitCount = 0;
-        if ($user->hasRole(['Bölüm Kalite Yöneticisi', 'Direktör', 'Superadmin', 'Yonetim'])) {
+        if ($user->hasRole(['Bölüm Kalite Yöneticisi', 'Direktör', 'Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
             $allowedBolumler = $user->getAllowedBolumIds();
             $query = \App\Models\IaaZiyaretPlani::where('status', 'Beklemede');
             if ($allowedBolumler !== '*') {
@@ -246,6 +254,14 @@
                             $sq->whereIn('bolum_id', $allowedBolumler);
                         });
                 });
+            } else {
+                if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                    if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                        $query->whereHas('iaa.musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt İçi'); });
+                    } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                        $query->whereHas('iaa.musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt Dışı'); });
+                    }
+                }
             }
             $managerPendingVisitCount = $query->count();
         }
@@ -679,7 +695,7 @@
                                         <span class="w-1.5 h-4 bg-white rounded-full shadow-sm"></span>
                                         ŞİKAYET VE ANALİZ
                                     </div>
-                                    @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.sikayet.gor'))
+                                    @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.sikayet.gor'))
                                     <x-dropdown-link :href="route('admin.sikayetler.index')" class="flex items-center justify-between font-bold {{ $unassignedSikayetCount > 0 ? 'text-rose-700 bg-rose-50' : '' }}">
                                         <span>Şikayet Paneli</span>
                                         @if($pendingSikayetGorevCount > 0 || $unassignedSikayetCount > 0)
@@ -705,27 +721,33 @@
                                         <x-dropdown-link :href="route('admin.musteri-sikayet-karsilastirma')" class="text-indigo-600 font-bold bg-indigo-50/20">📈 Kıyaslama Raporu</x-dropdown-link>
                                     @endif
                                     @endif
-                                    @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.iade.gor'))
+                                    @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.iade.gor'))
                                     <x-dropdown-link :href="route('admin.sikayet-iade-raporlari.index')" class="text-rose-600 font-bold bg-rose-50/20">♻️ İadeler Raporu</x-dropdown-link>
                                     @endif
                                     
                                     {{-- MÜŞTERİ HATIRLATMALARI (Modül A & C) --}}
-                                    @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Temsilcisi', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.sikayet.bildirim'))
+                                    @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Temsilcisi', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.sikayet.bildirim'))
                                         <x-dropdown-link :href="route('admin.sikayet-hatirlatma.index')" class="text-indigo-600 font-bold bg-indigo-50/50 flex justify-between items-center group">
                                             <span>Müşteri Hatırlatmaları</span>
                                             <div class="flex items-center gap-1">
                                                 @php
                                                     $user = auth()->user();
                                                     $navPendingCount = \App\Models\SikayetHatirlatma::where('durum', 'bilgi_girisi_bekleniyor');
-                                                    if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
-                                                        $allowedBolumIds = $user->getAllowedBolumIds();
-                                                        $navPendingCount->where(function($q) use ($user, $allowedBolumIds) {
-                                                            $q->whereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($allowedBolumIds) {
-                                                                if ($allowedBolumIds !== '*') { $sq->whereIn('bolum_id', $allowedBolumIds); }
-                                                            })->orWhereHas('musteriSikayeti.cozumTakimi', function($sq) use ($user) {
-                                                                $sq->where('lider_user_id', $user->id);
+                                                    if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                                                        if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                                                            $navPendingCount->whereHas('musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt İçi'); });
+                                                        } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                                                            $navPendingCount->whereHas('musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt Dışı'); });
+                                                        } else {
+                                                            $allowedBolumIds = $user->getAllowedBolumIds();
+                                                            $navPendingCount->where(function($q) use ($user, $allowedBolumIds) {
+                                                                $q->whereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($allowedBolumIds) {
+                                                                    if ($allowedBolumIds !== '*') { $sq->whereIn('bolum_id', $allowedBolumIds); }
+                                                                })->orWhereHas('musteriSikayeti.cozumTakimi', function($sq) use ($user) {
+                                                                    $sq->where('lider_user_id', $user->id);
+                                                                });
                                                             });
-                                                        });
+                                                        }
                                                     }
                                                     $navPendingCount = $navPendingCount->count();
                                                 @endphp
@@ -791,6 +813,15 @@
                     </div>
                 @endif
 
+                {{-- 5.5 İŞ & SÜREÇ TAKİBİ --}}
+                @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Bölüm Lideri', 'Bölüm Lider Yardımcısı', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Direktör', 'Hukuk Yöneticisi', 'Hukuk Admini']))
+                    <div class="flex items-center h-full">
+                        <a href="{{ route('admin.tum-bekleyen-isler') }}" class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all {{ request()->routeIs('admin.tum-bekleyen-isler') ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50' }}">
+                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span>İş & Süreç Takibi</span>
+                        </a>
+                    </div>
+                @endif
 
                 {{-- 6. YÖNETİCİ --}}
                 @if(Auth::user()->hasRole(['Superadmin', 'Yonetim', 'Bölüm Kalite Yöneticisi', 'Bölüm Lideri', 'Direktör']) || Auth::user()->hasBolumAuthority('bolum.mavi_yaka.yonet'))
@@ -875,10 +906,6 @@
                                         <span class="w-1.5 h-4 bg-white rounded-full shadow-sm"></span>
                                         OPERASYON VE İYİLEŞTİRME
                                     </div>
-                                    
-                                    @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim']))
-                                        <x-dropdown-link :href="route('admin.tum-bekleyen-isler')" class="text-indigo-600 font-bold bg-indigo-50/50">⚡ Tüm Bekleyen İşler</x-dropdown-link>
-                                    @endif
 
                                     <x-dropdown-link :href="Auth::user()->hasRole(['Yonetim', 'Yönetim']) ? route('admin.raporlar.index') : route('admin.iaa-yonetim.index')" class="flex items-center justify-between font-bold">
                                         <span>İAA Paneli</span>

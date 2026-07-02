@@ -596,7 +596,7 @@ class SikayetlerTablosu extends Component
         $this->applyAuthorizationFilters($query);
 
         // === 2. İSTATİSTİKLERİ HESAPLA (AKTİF FİLTRELERE GÖRE) ===
-        $baseStatsQuery = clone $query;
+        $baseStatsQuery = (clone $query)->withoutEagerLoads();
         
         // Üstteki sayaçların filtrelerden etkilenmesi için applyFilters'ı stats query'sine de uyguluyoruz
         $this->applyFilters($baseStatsQuery);

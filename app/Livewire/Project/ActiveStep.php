@@ -50,6 +50,13 @@ class ActiveStep extends Component
     public $newImageUploads = [];
     public array $initialChartData = []; // Blade için ilk veriler
 
+    // === Bildirim Modalı Özellikleri ===
+    public $isNotificationModalOpen = false;
+    public $notificationDraft = '';
+    public $notificationNotes = '';
+    public $notifyingWidgetIndex = null;
+    // ===================================
+
     public function mount($iaa, $assignment, $currentStep, $progressUpdate)
     {
         $this->iaa = $iaa;
@@ -111,6 +118,19 @@ class ActiveStep extends Component
             $contentData = json_decode($this->progressUpdateModel->content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $this->formData = $contentData['form_data'] ?? [];
+
+                // --- ESKİ user_id VERİLERİNİ user_ids ARRAY'İNE DÖNÜŞTÜRME ---
+                if (isset($this->currentStep['widgets']) && is_array($this->currentStep['widgets'])) {
+                    foreach ($this->currentStep['widgets'] as $index => $widget) {
+                        if (isset($widget['type']) && $widget['type'] === 'user_select') {
+                            if (isset($this->formData[$index]['user_id']) && !isset($this->formData[$index]['user_ids'])) {
+                                $this->formData[$index]['user_ids'] = [$this->formData[$index]['user_id']];
+                            }
+                        }
+                    }
+                }
+                // -------------------------------------------------------------
+
                 if (!empty($contentData['tools'])) {
                     $savedTools = $contentData['tools'];
 
@@ -191,6 +211,88 @@ class ActiveStep extends Component
                 }
             }
         }
+    }
+
+    public function saveDraft()
+    {
+        try {
+            // Temizlik: user_ids içinden çıkarılan kişileri notified_users içinden de çıkaralım ki yetkileri düşsün!
+            if (is_array($this->formData)) {
+                foreach ($this->formData as $idx => $data) {
+                    if (isset($data['user_ids']) && isset($data['notified_users'])) {
+                        $currentUserIds = $data['user_ids'];
+                        $this->formData[$idx]['notified_users'] = array_values(array_intersect($data['notified_users'], $currentUserIds));
+                    }
+                }
+            }
+
+            DB::transaction(function () {
+                $widgetTypesInThisStep = isset($this->currentStep['widgets']) ? collect($this->currentStep['widgets'])->pluck('type') : collect();
+                $processedFormData = is_array($this->formData) ? $this->formData : [];
+                
+                $toolsToSave = [];
+                if ($widgetTypesInThisStep->contains('five_whys')) {
+                    $toolsToSave['five_whys'] = $this->toolsData['five_whys'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('fishbone')) {
+                    $toolsToSave['fishbone'] = $this->toolsData['fishbone'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('pareto')) {
+                    $toolsToSave['pareto'] = $this->toolsData['pareto'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('bar_chart')) {
+                    $toolsToSave['bar_chart_data'] = $this->toolsData['bar_chart_data'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('line_chart')) {
+                    $toolsToSave['line_chart_data'] = $this->toolsData['line_chart_data'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('swot')) {
+                    $toolsToSave['swot'] = $this->toolsData['swot'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('action_list')) {
+                    $toolsToSave['action_list'] = $this->toolsData['action_list'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('task_list')) {
+                    $toolsToSave['task_list'] = $this->toolsData['task_list'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('prioritization_matrix')) {
+                    $toolsToSave['prioritization_matrix'] = $this->toolsData['prioritization_matrix'] ?? null;
+                }
+                if ($widgetTypesInThisStep->contains('4m_report')) {
+                    $toolsToSave['4m_report'] = $this->toolsData['4m_report'] ?? null;
+                }
+
+                $contentToSave = json_encode(['form_data' => $processedFormData, 'tools' => $toolsToSave]);
+                
+                $existing = IaaProgressUpdate::where('iaa_talep_id', $this->assignment['id'])
+                    ->where('iaa_workflow_step_id', $this->currentStep['id'])
+                    ->first();
+
+                IaaProgressUpdate::updateOrCreate(
+                    ['iaa_talep_id' => $this->assignment['id'], 'iaa_workflow_step_id' => $this->currentStep['id']],
+                    ['user_id' => Auth::id(), 'content' => $contentToSave, 'completed_at' => $existing ? $existing->completed_at : null]
+                );
+            });
+            
+            $this->progressUpdateModel = IaaProgressUpdate::where('iaa_talep_id', $this->assignment['id'])
+                    ->where('iaa_workflow_step_id', $this->currentStep['id'])
+                    ->first();
+        } catch (\Exception $e) {
+            Log::error('Draft Save Hatası: ' . $e->getMessage());
+        }
+    }
+
+    public function autosaveUserSelect($userIds = [], $index = null)
+    {
+        if ($index !== null) {
+            $this->formData[$index]['user_ids'] = $userIds;
+        }
+        $this->saveDraft();
+    }
+
+    private function redirectWithMessage($iaaId, $status, $message)
+    {
+        return redirect()->route('proje.workspace.show', $iaaId)->with($status, $message);
     }
 
 
@@ -631,6 +733,102 @@ class ActiveStep extends Component
             return redirect()->route('home');
         }
     }
+
+    // === Bildirim Gönderme Metodları ===
+    public function openNotificationModal($widgetIndex)
+    {
+        $this->notifyingWidgetIndex = $widgetIndex;
+        $this->notificationNotes = '';
+        
+        $stepName = $this->currentStep['name'] ?? 'Bilinmeyen Adım';
+        $iaaBaslik = is_object($this->iaa) ? $this->iaa->baslik : (is_array($this->iaa) ? ($this->iaa['baslik'] ?? '') : '');
+
+        $this->notificationDraft = "Merhaba,\n\n'{$iaaBaslik}' projesindeki '{$stepName}' adımı için tarafınıza sorumluluk tanımlanmıştır.\nLütfen sistemi kontrol ediniz.";
+        
+        $this->isNotificationModalOpen = true;
+    }
+
+    public function closeNotificationModal()
+    {
+        $this->isNotificationModalOpen = false;
+        $this->notifyingWidgetIndex = null;
+        $this->notificationNotes = '';
+    }
+
+    public function sendUserSelectNotification()
+    {
+        $index = $this->notifyingWidgetIndex;
+        if ($index === null) return;
+
+        $selectedIds = $this->formData[$index]['user_ids'] ?? [];
+        if (empty($selectedIds)) {
+            session()->flash('error', 'Lütfen en az bir kullanıcı seçin.');
+            return;
+        }
+
+        $usersToNotify = User::whereIn('id', $selectedIds)->get();
+        if ($usersToNotify->isEmpty()) return;
+
+        $notes = $this->notificationNotes;
+        $draft = $this->notificationDraft;
+        $currentUser = Auth::user();
+        
+        // iaModel'i bul
+        $iaaModel = is_object($this->iaa) ? $this->iaa : Iaa::find(is_array($this->iaa) ? ($this->iaa['id'] ?? null) : $this->iaa);
+        $stepModel = IaaWorkflowStep::find($this->currentStep['id']);
+
+        if (!$iaaModel || !$stepModel) {
+            session()->flash('error', 'Proje veya adım bilgisi eksik.');
+            return;
+        }
+
+        defer(function () use ($usersToNotify, $iaaModel, $stepModel, $draft, $notes, $currentUser) {
+            foreach ($usersToNotify as $user) {
+                // Sorumluya ve bölüm liderine bildirim at (AdimSorumlusuAtandi benzeri ama yeni oluşturacağımız WidgetUserSelectedNotification ile)
+                // Yöneticileri bul:
+                $managers = collect();
+                if ($user->bolum_id) {
+                    $bolumLiderleri = User::role('Bölüm Lideri')->where('bolum_id', $user->bolum_id)->get();
+                    $bolumLiderYardimcilari = User::role('Bölüm Lider Yardımcısı')->where('bolum_id', $user->bolum_id)->get();
+                    $direktorler = User::role('Direktör')->where('bolum_id', $user->bolum_id)->get();
+                    $managers = $managers->merge($bolumLiderleri)->merge($bolumLiderYardimcilari)->merge($direktorler);
+                }
+                
+                $allRecipients = $managers->push($user)->unique('id');
+
+                foreach ($allRecipients as $recipient) {
+                    try {
+                        \Illuminate\Support\Facades\Notification::send($recipient, new \App\Notifications\WidgetUserSelectedNotification(
+                            $iaaModel, 
+                            $stepModel, 
+                            $user, // Seçilen kişi (Kimin seçildiğini belirtmek için)
+                            $currentUser, // Gönderen
+                            $draft,
+                            $notes
+                        ));
+                    } catch (\Exception $e) {
+                        Log::error('Widget Kullanıcı Bildirimi gönderilemedi: ' . $e->getMessage());
+                    }
+                }
+            }
+        });
+
+        // Durumu güncelle
+        if (!isset($this->formData[$index]['notified_users'])) {
+            $this->formData[$index]['notified_users'] = [];
+        }
+        $this->formData[$index]['notified_users'] = array_unique(array_merge($this->formData[$index]['notified_users'], $selectedIds));
+
+        if (!empty($notes)) {
+            $this->formData[$index]['last_notification_note'] = $notes;
+        }
+        
+        $this->saveDraft();
+
+        $this->closeNotificationModal();
+        session()->flash('success', 'Bildirimler arka planda gönderilmek üzere sıraya alındı ve güncel seçimler kaydedildi.');
+    }
+    // ===================================
 
 
     public function render()

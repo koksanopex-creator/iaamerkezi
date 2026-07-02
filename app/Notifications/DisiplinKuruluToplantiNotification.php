@@ -9,7 +9,7 @@ use App\Models\DisiplinKuruluToplanti;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class DisiplinKuruluToplantiNotification extends Notification implements ShouldQueue
+class DisiplinKuruluToplantiNotification extends Notification
 {
     use Queueable;
 

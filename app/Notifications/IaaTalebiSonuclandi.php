@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 use App\Models\Iaa;
 use App\Models\Takim;
 
-class IaaTalebiSonuclandi extends Notification implements ShouldQueue
+class IaaTalebiSonuclandi extends Notification
 {
     use Queueable;
 

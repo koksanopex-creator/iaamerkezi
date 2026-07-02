@@ -667,18 +667,20 @@
                         <tr class="bg-white hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4">
                                 @if($task['type'] == 'Müşteri Şikayeti')
-                                    <span
-                                        class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-1 rounded border border-red-200">MÜŞTERİ
-                                        ŞİKAYETİ</span>
+                                    <div class="flex flex-col items-center gap-1.5 w-[130px]">
+                                        <span class="w-full inline-flex justify-center items-center bg-red-50 text-red-600 border border-red-200/60 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-sm transition-all">MÜŞTERİ ŞİKAYETİ</span>
+                                        @if(isset($task['is_customer_entry']) && $task['is_customer_entry'])
+                                            <span class="bg-rose-500 text-white text-[9px] px-2 py-0.5 rounded-lg font-black tracking-wider animate-pulse shadow-sm">Müşteri Girdisi</span>
+                                        @endif
+                                    </div>
                                 @elseif($task['type'] == 'İAA')
-                                    <span
-                                        class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200">İAA</span>
+                                    <span class="inline-flex justify-center items-center w-[130px] bg-indigo-50 text-indigo-600 border border-indigo-200/60 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-sm transition-all">İAA</span>
                                 @elseif($task['type'] == 'Arabuluculuk')
-                                    <span
-                                        class="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-200">ARABULUCULUK</span>
+                                    <span class="inline-flex justify-center items-center w-[130px] bg-blue-50 text-blue-600 border border-blue-200/60 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-sm transition-all">ARABULUCULUK</span>
+                                @elseif($task['type'] == 'Ziyaret')
+                                    <span class="inline-flex justify-center items-center w-[130px] bg-teal-50 text-teal-600 border border-teal-200/60 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-sm transition-all">ZİYARET PLANI</span>
                                 @else
-                                    <span
-                                        class="bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-1 rounded border border-gray-200">{{ strtoupper($task['type']) }}</span>
+                                    <span class="inline-flex justify-center items-center w-[130px] bg-gray-50 text-gray-600 border border-gray-200/60 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-sm transition-all">{{ strtoupper($task['type']) }}</span>
                                 @endif
                             </td>
                             <td class="px-6 py-4">
@@ -692,9 +694,20 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4">
-                                <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded inline-block">
-                                    {{ $task['status'] }}
-                                </span>
+                                @if(isset($task['status_html']))
+                                    <div class="flex flex-col items-center">
+                                        <div class="scale-90 origin-center">
+                                            {!! $task['status_html'] !!}
+                                        </div>
+                                        <span class="text-[9px] text-gray-500 font-bold uppercase mt-1 text-center" title="Aksiyon Beklenen Kişi/Rol">
+                                            Kimi Bekliyor: <span class="text-indigo-600">{{ $task['action_expected_from'] ?? '-' }}</span>
+                                        </span>
+                                    </div>
+                                @else
+                                    <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded inline-block">
+                                        {{ $task['status'] }}
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-6 py-4">
                                 <div

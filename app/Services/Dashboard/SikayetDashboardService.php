@@ -12,31 +12,64 @@ class SikayetDashboardService
     /**
      * Müşteri Şikayeti Kurulu İstatistikleri
      */
-    public function getBoardStats()
+    public function getBoardStats(User $user = null)
     {
+        $query = MusteriSikayeti::query();
+        
+        if ($user) {
+            if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                $query->where('konum_tipi', 'Yurt İçi');
+            } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                $query->where('konum_tipi', 'Yurt Dışı');
+            }
+        }
         return [
-            'toplam_sikayet' => MusteriSikayeti::count(),
-            'yeni_sikayet' => MusteriSikayeti::where('musteri_durum', 'Yeni')->count(),
-            'islemde_sikayet' => MusteriSikayeti::where('musteri_durum', 'İşlemde')->count(),
-            'tamamlanan_sikayet' => MusteriSikayeti::whereIn('musteri_durum', ['Tamamlandı', 'Kapatıldı', 'Çözümlendi'])->count(),
-            'son_sikayetler' => MusteriSikayeti::with([
+            'toplam_sikayet' => (clone $query)->count(),
+            'yeni_sikayet' => (clone $query)->where('musteri_durum', 'Yeni')->count(),
+            'islemde_sikayet' => (clone $query)->where('musteri_durum', 'İşlemde')->count(),
+            'tamamlanan_sikayet' => (clone $query)->whereIn('musteri_durum', ['Tamamlandı', 'Kapatıldı', 'Çözümlendi'])->count(),
+            'son_sikayetler' => (clone $query)->with([
                 'sikayetKategori.bolum', 
                 'cozumTakimi.lider', 
                 'olusturanKurulUyesi', 
                 'customer',
                 'iaaProjesi.aktifAdim'
             ])->latest()->take(15)->get(),
-            'kurul_uyeleri' => User::role('Müşteri Şikayeti Kurulu')
+            'kurul_uyeleri' => User::role(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])
+                ->when($user, function($q) use ($user) {
+                    if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                        $q->role(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi']);
+                    } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                        $q->role(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']);
+                    }
+                })
                 ->with('bolum')
                 ->withCount('girdigiSikayetler')
                 ->withSum('girdigiSikayetler', 'kazanilan_puan')
                 ->orderByDesc('girdigi_sikayetler_count')
                 ->get(),
             'hatirlatmalar' => \App\Models\SikayetHatirlatma::with(['musteriSikayeti.customer', 'gonderen'])
+                ->whereHas('musteriSikayeti', function($q) use ($user) {
+                    if ($user) {
+                        if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                            $q->where('konum_tipi', 'Yurt İçi');
+                        } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                            $q->where('konum_tipi', 'Yurt Dışı');
+                        }
+                    }
+                })
                 ->latest()
                 ->take(5)
                 ->get(),
-            'toplam_hatirlatma_sayisi' => \App\Models\SikayetHatirlatma::count(),
+            'toplam_hatirlatma_sayisi' => \App\Models\SikayetHatirlatma::whereHas('musteriSikayeti', function($q) use ($user) {
+                    if ($user) {
+                        if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                            $q->where('konum_tipi', 'Yurt İçi');
+                        } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                            $q->where('konum_tipi', 'Yurt Dışı');
+                        }
+                    }
+                })->count(),
         ];
     }
 

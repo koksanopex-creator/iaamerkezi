@@ -126,7 +126,7 @@ class DashboardController extends Controller
             $roleMap = [
                 'superadmin' => 'Superadmin',
                 'yonetim' => 'Yonetim',
-                'kurul' => 'Müşteri Şikayeti Kurulu',
+                'kurul' => ['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'],
                 'cozum_lideri' => 'Müşteri Şikayeti Çözüm Lideri',
                 'kalite' => 'Bölüm Kalite Yöneticisi',
                 'bolum_lideri' => 'Bölüm Lideri',
@@ -153,7 +153,7 @@ class DashboardController extends Controller
                 $activeDashboard = 'superadmin';
             elseif ($user->hasRole('Yonetim'))
                 $activeDashboard = 'yonetim';
-            elseif ($user->hasRole('Müşteri Şikayeti Kurulu'))
+            elseif ($user->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']))
                 $activeDashboard = 'kurul';
             elseif ($user->hasRole('Müşteri Şikayeti Çözüm Lideri'))
                 $activeDashboard = 'cozum_lideri';
@@ -250,12 +250,19 @@ class DashboardController extends Controller
         }
         elseif ($activeDashboard === 'kurul')
         {
-            $kurul_stats = $this->sikayetService->getBoardStats();
+            $kurul_stats = $this->sikayetService->getBoardStats($user);
             $user_stats = $this->istatistikService->getStats($user);
             $stats = array_merge($kurul_stats, $user_stats);
 
-            // Müşteri Şikayet Kurulu için iade verileri (Tüm iadeleri görsünler)
+            // Müşteri Şžikayet Kurulu için iade verileri (Tüm iadeleri görsünler)
             $iadeVerileri = \App\Models\SikayetIadesi::with(['musteriSikayeti.sikayetKategori.bolum', 'musteriSikayeti.iaaProjesi', 'musteriSikayeti.customer'])
+                ->whereHas('musteriSikayeti', function($q) use ($user) {
+                    if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                        $q->where('konum_tipi', 'Yurt İçi');
+                    } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                        $q->where('konum_tipi', 'Yurt Dışı');
+                    }
+                })
                 ->when(request('return_start_date'), fn($q) => $q->whereDate('iade_tarihi', '>=', request('return_start_date')))
                 ->when(request('return_end_date'), fn($q) => $q->whereDate('iade_tarihi', '<=', request('return_end_date')))
                 ->when(request('return_search'), function ($q)
@@ -276,12 +283,27 @@ class DashboardController extends Controller
                 ->latest('iade_tarihi')->paginate(10, ['*'], 'return_page');
 
             $iadeToplamlari = \App\Models\SikayetIadesi::select('birim', \DB::raw('SUM(miktar) as toplam_miktar'))
+                ->whereHas('musteriSikayeti', function($q) use ($user) {
+                    if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                        $q->where('konum_tipi', 'Yurt İçi');
+                    } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                        $q->where('konum_tipi', 'Yurt Dışı');
+                    }
+                })
                 ->when(request('return_start_date'), fn($q) => $q->whereDate('iade_tarihi', '>=', request('return_start_date')))
                 ->when(request('return_end_date'), fn($q) => $q->whereDate('iade_tarihi', '<=', request('return_end_date')))
                 ->groupBy('birim')->pluck('toplam_miktar', 'birim');
 
             // Müşteri listesi tablosu için tüm müşteriler (Son eklenenlere göre ve istatistiklerle)
-            $stats['sorumlu_musteriler'] = \App\Models\Customer::with('users')
+            $customerQuery = \App\Models\Customer::with('users');
+            
+            if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                $customerQuery->where('location_type', 'Yurt İçi');
+            } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                $customerQuery->where('location_type', 'Yurt Dışı');
+            }
+            
+            $stats['sorumlu_musteriler'] = $customerQuery
                 ->withCount([
                     'complaints as toplam_sikayet',
                     'complaints as cozulen_sikayet' => function($query) {
@@ -894,10 +916,6 @@ class DashboardController extends Controller
     public function tumBekleyenIsler(Request $request)
     {
         $user = Auth::user();
-        if (!$user->hasRole(['Superadmin', 'Yonetim']))
-        {
-            abort(403, 'Bu sayfayı görüntüleme yetkiniz yok.');
-        }
 
         $data = $this->superAdminService->getAllPendingWorks($request->all());
 

@@ -907,16 +907,22 @@ class UserController extends Controller
             'roles.*' => 'string'
         ]);
 
-        // Kullanıcıyı oluştur
-        $user = \App\Models\User::firstOrCreate(
-            ['email' => $request->email],
-            [
+        // Kullanıcıyı bul veya oluştur (Soft delete kontrolü ile)
+        $user = \App\Models\User::withTrashed()->where('email', $request->email)->first();
+
+        if ($user) {
+            if ($user->trashed()) {
+                $user->restore(); // Eğer silinmişse geri getir
+            }
+        } else {
+            $user = \App\Models\User::create([
+                'email' => $request->email,
                 'name' => trim($request->first_name . ' ' . $request->last_name),
                 'password' => bcrypt(\Illuminate\Support\Str::random(16)),
                 'email_verified_at' => now(),
                 'tc_kimlik_no' => $request->tc_no
-            ]
-        );
+            ]);
+        }
 
         $user->onaylandi_mi = true;
         $user->rejected_at = null;

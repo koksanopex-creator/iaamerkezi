@@ -105,7 +105,16 @@ trait ComplaintNotificationTrait
         }
 
         // 5. Müşteri Şikayeti Kurulu Üyeleri
-        $kurulUyeleri = User::role('Müşteri Şikayeti Kurulu')->get();
+        $kurulRolleri = ['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'];
+        if ($sikayet->konum_tipi === 'Yurt İçi') {
+            $kurulRolleri[] = 'Müşteri Şikayeti Kurulu - Yurt İçi';
+            $kurulRolleri[] = 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi';
+        } elseif ($sikayet->konum_tipi === 'Yurt Dışı') {
+            $kurulRolleri[] = 'Müşteri Şikayeti Kurulu - Yurt Dışı';
+            $kurulRolleri[] = 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı';
+        }
+        
+        $kurulUyeleri = User::role($kurulRolleri)->get();
         foreach ($kurulUyeleri as $u) {
             $recipients->push($u);
             $addToSnapshot($u, 'Müşteri Şikayeti Kurulu Üyesi');

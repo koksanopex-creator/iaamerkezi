@@ -259,10 +259,11 @@ Route::middleware(['auth', BlockCustomerAccess::class])->group(function ()
         Route::get('/yonetim', ExecutiveReport::class)
             ->name('yonetim.index');
 
-        // [YENİ] Tüm Bekleyen İşler Sayfası
-        Route::get('/tum-bekleyen-isler', [DashboardController::class, 'tumBekleyenIsler'])
-            ->name('admin.tum-bekleyen-isler');
     });
+
+    // [YENİ] Tüm Bekleyen İşler Sayfası (Tüm Personel Erişebilir)
+    Route::get('/tum-bekleyen-isler', [DashboardController::class, 'tumBekleyenIsler'])
+        ->name('admin.tum-bekleyen-isler');
 
     // Superadmin, Yönetim, Bölüm Lideri veya Direktör rolüne sahip olanlar görebilir.
     Route::group(['middleware' => ['role:Superadmin|Yonetim|Bölüm Lideri|Direktör']], function ()
@@ -320,6 +321,7 @@ Route::middleware(['auth', BlockCustomerAccess::class])->group(function ()
     // Şikayet Detayları Güncelleme (Lot, Makine vb.)
     Route::put('/proje-calisma-alani/{iaa}/sikayet-detaylari', [ProjectWorkspaceController::class, 'updateComplaintDetails'])->name('proje.update-complaint-details');
     Route::post('/proje-calisma-alani/adim/{progress_update}/yeniden-ac', [ProjectWorkspaceController::class, 'reopenStep'])->name('proje.workspace.reopenStep');
+    Route::post('/proje-calisma-alani/adim/{progress_update}/geri-al', [ProjectWorkspaceController::class, 'undoStep'])->name('proje.workspace.undoStep');
     // VAZGEÇME ROTASI
     Route::post('/proje-calisma-alani/adim/{id}/vazgec', [ProjectWorkspaceController::class, 'cancelReopenStep'])
         ->name('proje.workspace.cancelReopenStep');
@@ -460,7 +462,7 @@ Route::post('users/{id}/reddet', [UserController::class, 'basvuruReddet'])->name
     Route::get('/ayarlar/toplu-mail-yetkileri', \App\Livewire\Admin\TopluMailAyarlari::class)->name('ayarlar.toplu-mail-yetkileri');
     Route::get('/musteriler', MusteriYonetimi::class)
         ->name('musteriler.index')
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Direktör|Hukuk Admini|Hukuk Yöneticisi|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi']);
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Direktör|Hukuk Admini|Hukuk Yöneticisi|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi']);
     // =================================================================
 
 
@@ -740,52 +742,52 @@ Route::middleware(['role:Superadmin'])->group(function () {
     // Şikayet Raporları (Canlı) - KORUMALI
     Route::get('musteri-sikayet-raporlari', [ReportController::class, 'sikayetRaporlari'])
         ->name('sikayet-raporlari.index')
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi']);
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi']);
 
     // İAA Raporları (Canlı) - YENİ
     Route::get('iaa-raporlari', [ReportController::class, 'iaaRaporlari'])
         ->name('iaa-raporlari.index')
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi']);
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi']);
 
     // Tüm Şikayetler Listesi - KORUMALI
     Route::get('musteri-sikayet-raporlari/tum-liste', [ReportController::class, 'tumSikayetListesi'])
         ->name('sikayet-raporlari.tum-liste')
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Saha Temsilcisi']);
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Saha Temsilcisi']);
 
     // Şikayet Rapor Tablosu (Canlı Livewire)
     Route::get('musteri-sikayet-rapor-sayfasi', [ReportController::class, 'sikayetRaporTablosu'])
         ->name('sikayet-raporlari.tablo')
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Saha Temsilcisi']);
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Saha Temsilcisi']);
 
     // Dışa Aktarma Rotaları (Export)
     Route::get('musteri-sikayet-raporlari/export-excel', [ReportController::class, 'exportExcel'])
         ->name('sikayet-raporlari.export-excel')
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Saha Temsilcisi']);
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Saha Temsilcisi']);
     Route::get('musteri-sikayet-raporlari/export-pdf', [ReportController::class, 'exportPdf'])
         ->name('sikayet-raporlari.export-pdf')
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Saha Temsilcisi']);
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Saha Temsilcisi']);
 
     // İadeler Raporu (Yeni)
     Route::get('musteri-sikayet-iade-raporlari', [ReportController::class, 'iadeRaporlari'])
         ->name('sikayet-iade-raporlari.index')
-        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi']);
+        ->middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi']);
 
     // Kurul Girdileri
     Route::get('sikayetler/kurul-girdileri', [SikayetController::class, 'kurulGirdileri'])
         ->name('sikayetler.kurulGirdileri')
-        ->middleware('role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi');
+        ->middleware('role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi');
 
     Route::get('sikayetler/export-excel', [SikayetController::class, 'exportExcel'])
         ->name('sikayetler.export-excel')
-        ->middleware('role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Direktör');
+        ->middleware('role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Direktör');
     Route::get('sikayetler/export-pdf', [SikayetController::class, 'exportPdf'])
         ->name('sikayetler.export-pdf')
-        ->middleware('role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Direktör');
+        ->middleware('role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Direktör');
 
     Route::resource('sikayetler', SikayetController::class)
         ->names('sikayetler')
         ->parameters(['sikayetler' => 'sikayet'])
-        ->middleware('role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Direktör|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi');
+        ->middleware('role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Bölüm Lideri|Müşteri Şikayeti Çözüm Lideri|Direktör|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi');
 
     Route::post('sikayetler/{sikayet}/restore', [SikayetController::class, 'restore'])
         ->name('sikayetler.restore')
@@ -795,7 +797,7 @@ Route::middleware(['role:Superadmin'])->group(function () {
     // MÜŞTERİ HATIRLATMA SİSTEMİ (Modül A, B, C)
     // =================================================================
     // Manuel Hatırlatma & Genel Liste (Modül A & C)
-    Route::middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Çözüm Lideri|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi'])->group(function() {
+    Route::middleware(['role:Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Müşteri Şikayeti Çözüm Lideri|Bölüm Kalite Yöneticisi|Direktör|Bölüm Lideri|Bölüm Lider Yardımcısı|Müşteri Saha Temsilcisi'])->group(function() {
         Route::get('musteri-hatirlatmalari', [SikayetHatirlatmaController::class, 'index'])->name('sikayet-hatirlatma.index');
         Route::get('musteri-hatirlatmalari/{hatirlatma}', [SikayetHatirlatmaController::class, 'show'])->name('sikayet-hatirlatma.show');
         Route::post('musteri-hatirlatmalari/{sikayet}/gonder', [SikayetHatirlatmaController::class, 'gonder'])->name('sikayet-hatirlatma.gonder');
@@ -822,15 +824,6 @@ Route::middleware(['role:Superadmin'])->group(function () {
             Route::delete('/{kural}', [SikayetHatirlaticiController::class, 'destroy'])->name('destroy');
         });
 
-        // Yönetici Rapor Kuralları
-        Route::prefix('sistem-ayarlari/yonetici-rapor-kurallari')->name('sikayet-yonetici-rapor.')->group(function() {
-            Route::get('/', [App\Http\Controllers\Admin\MusteriSikayetiYoneticiRaporController::class, 'index'])->name('index');
-            Route::get('/create', [App\Http\Controllers\Admin\MusteriSikayetiYoneticiRaporController::class, 'create'])->name('create');
-            Route::post('/', [App\Http\Controllers\Admin\MusteriSikayetiYoneticiRaporController::class, 'store'])->name('store');
-            Route::get('/{kural}/edit', [App\Http\Controllers\Admin\MusteriSikayetiYoneticiRaporController::class, 'edit'])->name('edit');
-            Route::put('/{kural}', [App\Http\Controllers\Admin\MusteriSikayetiYoneticiRaporController::class, 'update'])->name('update');
-            Route::delete('/{kural}', [App\Http\Controllers\Admin\MusteriSikayetiYoneticiRaporController::class, 'destroy'])->name('destroy');
-        });
     });
 
     // =================================================================

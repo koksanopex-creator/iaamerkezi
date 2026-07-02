@@ -73,6 +73,7 @@ class ProjeAdimYorumlari extends Component
                 'Superadmin',
                 'Yonetim',
                 'Müşteri Şikayeti Kurulu',
+                'Müşteri Şikayeti Kurulu Yöneticisi',
                 'Müşteri Şikayeti Çözüm Lideri',
                 'Bölüm Kalite Yöneticisi',
                 'Bölüm Lideri',
@@ -80,6 +81,19 @@ class ProjeAdimYorumlari extends Component
             ])) {
                 $this->kullaniciYetkiliMi = true;
                 return;
+            }
+
+            // Bölgesel Kurul Üyeleri Yorum Yetkisi (Yurt İçi / Yurt Dışı)
+            if ($this->iaa->musteriSikayeti) {
+                $sikayetKonum = $this->iaa->musteriSikayeti->konum_tipi;
+                if ($sikayetKonum === 'Yurt İçi' && $user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                    $this->kullaniciYetkiliMi = true;
+                    return;
+                }
+                if ($sikayetKonum === 'Yurt Dışı' && $user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                    $this->kullaniciYetkiliMi = true;
+                    return;
+                }
             }
 
             // B) PROJE EKİP ÜYESİ KONTROLÜ (Sadece ilgili projede yetkili)

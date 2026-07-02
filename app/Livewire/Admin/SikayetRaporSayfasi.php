@@ -58,7 +58,11 @@ class SikayetRaporSayfasi extends Component
         ]);
 
         // === 1. YETKİ KONTROLÜ (Standart Sikayet Tablosundaki Gibi) ===
-        if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Yonetim'])) {
+        if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+            $query->where('konum_tipi', 'Yurt İçi');
+        } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+            $query->where('konum_tipi', 'Yurt Dışı');
+        } elseif ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Yonetim'])) {
             // Hepsini görebilir
         } elseif ($user->hasRole('Direktör')) {
             $yonettigiBolumIds = $user->getAllowedBolumIds();
@@ -149,7 +153,11 @@ class SikayetRaporSayfasi extends Component
         // Grafik verileri için yetki kısıtlamasını "Bölüm" bazlı genişletiyoruz (Takım bağımsız)
         $chartQuery = MusteriSikayeti::with(['sikayetKategori.bolum', 'customer', 'iaaProjesi']);
         
-        if ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Yonetim'])) {
+        if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+            $chartQuery->where('konum_tipi', 'Yurt İçi');
+        } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+            $chartQuery->where('konum_tipi', 'Yurt Dışı');
+        } elseif ($user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Yonetim'])) {
             // Hepsi
         } elseif ($user->hasRole('Direktör')) {
             $yonettigiBolumIds = $user->getAllowedBolumIds();

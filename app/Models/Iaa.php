@@ -492,11 +492,21 @@ class Iaa extends Model
             if ($tarih) {
                 $gun = ceil(\Carbon\Carbon::parse($tarih)->diffInMinutes(now()) / (24 * 60));
                 if ($gun < 1) $gun = 1;
-                $text .= "<br><span class='text-[9px] opacity-75 font-bold lowercase'>({$gun} gündür)</span>";
+                $text .= "<span class='block text-[9px] opacity-80 font-bold mt-0.5 lowercase tracking-wider'>({$gun} gündür)</span>";
             }
         }
 
-        return sprintf('<span class="inline-flex flex-col items-center justify-center px-3 py-1 rounded-md text-xs border leading-tight text-center %s">%s</span>', $ayar['class'], $text);
+        // Tamamlanma süresini ekle
+        $isCompleted = in_array($this->durum, ['Tamamlandı', 'talep_olarak_kapatildi', 'hatali_bildirim_olarak_kapatildi']);
+        if ($isCompleted) {
+            $baslangic = $this->created_at;
+            $bitis = $this->tamamlanma_tarihi ?? $this->updated_at;
+            $gun = ceil(\Carbon\Carbon::parse($baslangic)->diffInMinutes($bitis) / (24 * 60));
+            if ($gun < 1) $gun = 1;
+            $text .= "<span class='block text-[9px] opacity-80 font-bold mt-0.5 lowercase tracking-wider'>({$gun} günde)</span>";
+        }
+
+        return sprintf('<span class="inline-flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-tight text-center leading-tight w-32 whitespace-normal break-words %s">%s</span>', $ayar['class'], $text);
     }
 
     /**

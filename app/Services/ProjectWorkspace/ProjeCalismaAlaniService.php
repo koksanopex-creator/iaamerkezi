@@ -189,9 +189,20 @@ class ProjeCalismaAlaniService
             }
 
             // Kurul Üyesi İzni (Read Only)
-            if (!$isYetkiliKullanici && Auth::user()->hasRole('Müşteri Şikayeti Kurulu'))
+            if (!$isYetkiliKullanici && Auth::user()->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi']))
             {
                 return true;
+            }
+
+            // Kurul Üyesi Yurt İçi/Yurt Dışı İzni
+            if (!$isYetkiliKullanici && $iaa->musteriSikayeti) {
+                $sikayetKonum = $iaa->musteriSikayeti->konum_tipi;
+                if ($sikayetKonum === 'Yurt İçi' && Auth::user()->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                    return true;
+                }
+                if ($sikayetKonum === 'Yurt Dışı' && Auth::user()->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                    return true;
+                }
             }
 
             // Müşteri Saha Temsilcisi (Read Only - Sadece yetkili olduğu bölümler)
@@ -212,6 +223,26 @@ class ProjeCalismaAlaniService
 
             if ($isYetkiliKullanici)
             {
+                return true;
+            }
+
+            // Kural 1.9: Eğer bu kişi herhangi bir adımda widget ile seçilmişse görebilir.
+            $user = Auth::user();
+            $isAssignedToStep = \Illuminate\Support\Facades\DB::table('iaa_step_assignments')
+                ->where('iaa_id', $iaa->id)
+                ->where('user_id', $user->id)
+                ->exists();
+                
+            if ($isAssignedToStep) {
+                return true;
+            }
+
+            $isWidgetSelected = \App\Models\IaaProgressUpdate::join('iaa_talepleri', 'iaa_talepleri.id', '=', 'iaa_progress_updates.iaa_talep_id')
+                ->where('iaa_talepleri.iaa_id', $iaa->id)
+                ->where('iaa_progress_updates.content', 'LIKE', '%"'.$user->id.'"%')
+                ->exists();
+                
+            if ($isWidgetSelected) {
                 return true;
             }
         }

@@ -15,8 +15,12 @@ class MusteriSikayetiYoneticiRaporKurali extends Model
     protected $fillable = [
         'ad',
         'aktif',
+        'alicilar',
+        'rapor_kapsami',
         'siklik',
+        'periyot',
         'haftanin_gunleri',
+        'ayin_gunleri',
         'saat',
         'mail_aktif_et',
         'zili_aktif_et',
@@ -28,7 +32,9 @@ class MusteriSikayetiYoneticiRaporKurali extends Model
 
     protected $casts = [
         'aktif' => 'boolean',
+        'alicilar' => 'array',
         'haftanin_gunleri' => 'array',
+        'ayin_gunleri' => 'array',
         'mail_aktif_et' => 'boolean',
         'zili_aktif_et' => 'boolean',
         'son_calisma_tarihi' => 'datetime'

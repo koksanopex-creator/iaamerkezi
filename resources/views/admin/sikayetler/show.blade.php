@@ -138,7 +138,7 @@
 
             {{-- 1. ÜST BİLGİ KARTI (İSTATİSTİKLER, DURUM ve KATEGORİ) --}}
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-xl border border-gray-100 mb-6 p-4">
-                <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 text-center divide-x divide-gray-100">
+                <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 text-center divide-x divide-gray-100">
 
                     <div class="flex flex-col items-center justify-center p-2">
                         <span class="text-xs text-gray-400 uppercase tracking-widest mb-1">Durum</span>
@@ -153,6 +153,19 @@
                             class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold {{ $sikayet->oncelik_badge_class }}">
                             {{ $sikayet->musteri_oncelik }}
                         </span>
+                    </div>
+
+                    <div class="flex flex-col items-center justify-center p-2">
+                        <span class="text-xs text-gray-400 uppercase tracking-widest mb-1">Bölge</span>
+                        @if($sikayet->konum_tipi === 'Yurt İçi')
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                YURT İÇİ
+                            </span>
+                        @else
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-200">
+                                YURT DIŞI
+                            </span>
+                        @endif
                     </div>
 
                     <div class="flex flex-col items-center justify-center p-2">
@@ -1046,7 +1059,11 @@
 
                         <div class="space-y-4">
                             <div>
-                                <span class="text-xs text-gray-400 block">Şikayeti Oluşturan Personel</span>
+                                @if($sikayet->olusturanKurulUyesi && $sikayet->olusturanKurulUyesi->hasRole(['Müşteri Temsilcisi', 'Müşteri']))
+                                    <span class="text-xs text-red-600 font-bold block">Şikayeti Giren Müşteri Temsilcisi</span>
+                                @else
+                                    <span class="text-xs text-gray-400 block">Şikayeti Oluşturan Personel</span>
+                                @endif
                                 @if($sikayet->olusturanKurulUyesi)
                                     <a href="{{ route('profile.show', $sikayet->olusturanKurulUyesi->id) }}"
                                         title="E-posta: {{ $sikayet->olusturanKurulUyesi->email }} {{ $sikayet->olusturanKurulUyesi->telefon ? ' | Tel: ' . $sikayet->olusturanKurulUyesi->telefon : '' }}"

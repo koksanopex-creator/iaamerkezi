@@ -105,6 +105,16 @@
                                 @endif
                             </div>
 
+                            @php
+                                $usr = auth()->user();
+                                $onlyYurtIci = $usr->hasRole('Müşteri Şikayeti Kurulu - Yurt İçi') && !$usr->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt Dışı']);
+                                $onlyYurtDisi = $usr->hasRole('Müşteri Şikayeti Kurulu - Yurt Dışı') && !$usr->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi']);
+                                
+                                $defKonumTipi = old('konum_tipi', 'Yurt İçi');
+                                if ($onlyYurtIci) $defKonumTipi = 'Yurt İçi';
+                                if ($onlyYurtDisi) $defKonumTipi = 'Yurt Dışı';
+                            @endphp
+
                             <div class="group md:col-span-2 mb-6">
                                 <label class="flex items-start font-semibold text-sm text-gray-700 mb-2">
                                     <svg class="w-4 h-4 mr-2 text-red-500 mt-0.5 flex-shrink-0"
@@ -115,15 +125,24 @@
                                     </svg>
                                     <span>Konum Tipi <span class="text-red-500 ml-1">*</span></span>
                                 </label>
+                                
+                                @if($onlyYurtIci || $onlyYurtDisi)
+                                    <input type="hidden" name="konum_tipi" value="{{ $defKonumTipi }}">
+                                @endif
+
                                 <div class="mt-2 flex flex-wrap items-center gap-4 md:space-x-6">
-                                    <label class="inline-flex items-center cursor-pointer">
+                                    <label class="inline-flex items-center {{ $onlyYurtDisi ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}">
                                         <input type="radio" name="konum_tipi" value="Yurt İçi"
-                                            class="form-radio w-5 h-5 text-red-600 focus:ring-red-500" {{ old('konum_tipi', 'Yurt İçi') == 'Yurt İçi' ? 'checked' : '' }}>
+                                            class="form-radio w-5 h-5 text-red-600 focus:ring-red-500" 
+                                            {{ $defKonumTipi == 'Yurt İçi' ? 'checked' : '' }} 
+                                            {{ ($onlyYurtIci || $onlyYurtDisi) ? 'disabled' : '' }}>
                                         <span class="ml-2 text-sm text-gray-700">Yurt İçi</span>
                                     </label>
-                                    <label class="inline-flex items-center cursor-pointer">
+                                    <label class="inline-flex items-center {{ $onlyYurtIci ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }}">
                                         <input type="radio" name="konum_tipi" value="Yurt Dışı"
-                                            class="form-radio w-5 h-5 text-red-600 focus:ring-red-500" {{ old('konum_tipi') == 'Yurt Dışı' ? 'checked' : '' }}>
+                                            class="form-radio w-5 h-5 text-red-600 focus:ring-red-500" 
+                                            {{ $defKonumTipi == 'Yurt Dışı' ? 'checked' : '' }}
+                                            {{ ($onlyYurtIci || $onlyYurtDisi) ? 'disabled' : '' }}>
                                         <span class="ml-2 text-sm text-gray-700">Yurt Dışı</span>
                                     </label>
                                 </div>

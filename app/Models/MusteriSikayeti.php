@@ -273,7 +273,17 @@ class MusteriSikayeti extends Model
             $metin .= " <span class='block text-[9px] opacity-80 font-bold mt-0.5 lowercase tracking-wider'>({$gun} gündür)</span>";
         }
 
-        return "<span class=\"inline-flex flex-col items-center justify-center px-3 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-tight text-center leading-tight {$class}\">{$metin}</span>";
+        // Tamamlanma süresini ekle
+        $isCompleted = in_array($this->musteri_durum, ['Çözümlendi', 'Kapatıldı', 'Tamamlandı']);
+        if ($isCompleted) {
+            $baslangic = $this->created_at; 
+            $bitis = $this->musteri_cozum_son_tarihi ?? $this->updated_at;
+            $gun = ceil(\Carbon\Carbon::parse($baslangic)->diffInMinutes($bitis) / (24 * 60));
+            if ($gun < 1) $gun = 1;
+            $metin .= " <span class='block text-[9px] opacity-80 font-bold mt-0.5 lowercase tracking-wider'>({$gun} günde)</span>";
+        }
+
+        return "<span class=\"inline-flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-tight text-center leading-tight w-32 whitespace-normal break-words {$class}\">{$metin}</span>";
     }
 
     public function getMusteriDurumBadgeAnalizAttribute()

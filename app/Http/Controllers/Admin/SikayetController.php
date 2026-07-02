@@ -356,8 +356,17 @@ class SikayetController extends Controller
         $yetkiVar = false;
 
         // 1. SÜPER YETKİLİLER (Her yeri görenler)
-        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
+        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
             $yetkiVar = true;
+        }
+
+        // 1.1 BÖLGESEL KURUL ÜYELERİ (Sadece Kendi Bölgelerini Görenler)
+        if (!$yetkiVar) {
+            if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi']) && $sikayet->konum_tipi === 'Yurt İçi') {
+                $yetkiVar = true;
+            } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']) && $sikayet->konum_tipi === 'Yurt Dışı') {
+                $yetkiVar = true;
+            }
         }
 
         // 2. BÖLÜM VE KATEGORİ YETKİSİ (SADECE PERSONEL İÇİN)
@@ -439,7 +448,10 @@ class SikayetController extends Controller
         $sikayet->load('dosyalar');
 
         $user = auth()->user();
-        $tamYetki = $user->hasRole('Superadmin') || $user->id === $sikayet->olusturan_kurul_uyesi_id;
+        $tamYetki = $user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu Yöneticisi']) || 
+                    ($user->hasRole('Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi') && $sikayet->konum_tipi === 'Yurt İçi') ||
+                    ($user->hasRole('Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı') && $sikayet->konum_tipi === 'Yurt Dışı') ||
+                    $user->id === $sikayet->olusturan_kurul_uyesi_id;
 
         // Kategorileri çek (Yetkiye göre filtrele)
         $allowedBolumIds = $user->getAllowedBolumIds();
@@ -517,7 +529,10 @@ class SikayetController extends Controller
                 }
             }
 
-            $tamYetki = $user->hasRole('Superadmin') || $user->id === $sikayet->olusturan_kurul_uyesi_id;
+            $tamYetki = $user->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu Yöneticisi']) || 
+                        ($user->hasRole('Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi') && $sikayet->konum_tipi === 'Yurt İçi') ||
+                        ($user->hasRole('Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı') && $sikayet->konum_tipi === 'Yurt Dışı') ||
+                        $user->id === $sikayet->olusturan_kurul_uyesi_id;
 
             if (!$tamYetki) {
                 $updateData = [
@@ -643,16 +658,19 @@ class SikayetController extends Controller
         }
 
         // 1. Kullanıcının Yönettiği Ekibi Bulma
-        if ($girisYapanKullanici->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+        if ($girisYapanKullanici->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu'])) {
             $kurulUyeleri = User::role([
                 'Müşteri Şikayeti Kurulu', 
                 'Müşteri Şikayeti Kurulu - Yurt İçi', 
-                'Müşteri Şikayeti Kurulu - Yurt Dışı'
+                'Müşteri Şikayeti Kurulu - Yurt Dışı',
+                'Müşteri Şikayeti Kurulu Yöneticisi',
+                'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi',
+                'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'
             ])->orderBy('name')->get();
-        } elseif ($girisYapanKullanici->hasRole('Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi')) {
-            $kurulUyeleri = User::role(['Müşteri Şikayeti Kurulu - Yurt İçi'])->orderBy('name')->get();
-        } elseif ($girisYapanKullanici->hasRole('Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı')) {
-            $kurulUyeleri = User::role(['Müşteri Şikayeti Kurulu - Yurt Dışı'])->orderBy('name')->get();
+        } elseif ($girisYapanKullanici->hasRole(['Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt İçi'])) {
+            $kurulUyeleri = User::role(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])->orderBy('name')->get();
+        } elseif ($girisYapanKullanici->hasRole(['Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri Şikayeti Kurulu - Yurt Dışı'])) {
+            $kurulUyeleri = User::role(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])->orderBy('name')->get();
         } else {
             // Normal üye ise sadece kendisini görebilir
             $kurulUyeleri = collect([$girisYapanKullanici]);
@@ -677,13 +695,26 @@ class SikayetController extends Controller
 
             $son7Gun = (clone $baseQuery)->where('created_at', '>=', $yediGunOnce)->count();
 
+            $roleLabel = 'Genel';
+            if ($uye->hasRole(['Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt İçi'])) {
+                $roleLabel = 'Yurt İçi';
+            } elseif ($uye->hasRole(['Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri Şikayeti Kurulu - Yurt Dışı'])) {
+                $roleLabel = 'Yurt Dışı';
+            } elseif ($uye->hasRole(['Superadmin', 'Yonetim'])) {
+                $roleLabel = 'Yönetici';
+            }
+
             $ekipPerformansi[] = (object)[
                 'id' => $uye->id,
                 'name' => $uye->name,
                 'toplam' => $toplam,
                 'hatali_bildirim' => $hataliBildirim,
                 'talep_kapanan' => $talepKapanan,
-                'son_7_gun' => $son7Gun
+                'son_7_gun' => $son7Gun,
+                'role_label' => $roleLabel,
+                'login_count' => $uye->loginActivities()->count(),
+                'last_seen' => $uye->last_seen_at ? clone $uye->last_seen_at : null,
+                'fire_orani' => $toplam > 0 ? round(($hataliBildirim / $toplam) * 100, 1) : 0
             ];
         }
 
@@ -720,7 +751,15 @@ class SikayetController extends Controller
             'cozulen_benim_girdiklerim' => MusteriSikayeti::where('olusturan_kurul_uyesi_id', $girisYapanKullanici->id)->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı', 'Tamamlandı'])->count(),
         ];
 
-        return view('admin.sikayetler.kurul', compact('sikayetler', 'kurulUyeleri', 'selectedUserId', 'stats_filtrelenmis', 'stats_kisisel', 'ekipPerformansi', 'isManager'));
+        // Liderlik Tabloları (Yöneticiler için)
+        $toplamGirenLiderler = collect($ekipPerformansi)->sortByDesc('toplam')->take(3);
+        $enCokLoginOlanlar = collect($ekipPerformansi)->sortByDesc('login_count')->take(3);
+        $enAzFireVerenler = collect($ekipPerformansi)->filter(fn($p) => $p->toplam >= 3)->sortBy('fire_orani')->take(3);
+        if ($enAzFireVerenler->isEmpty()) {
+            $enAzFireVerenler = collect($ekipPerformansi)->sortBy('fire_orani')->take(3);
+        }
+
+        return view('admin.sikayetler.kurul', compact('sikayetler', 'kurulUyeleri', 'selectedUserId', 'stats_filtrelenmis', 'stats_kisisel', 'ekipPerformansi', 'isManager', 'toplamGirenLiderler', 'enCokLoginOlanlar', 'enAzFireVerenler'));
     }
 
     public function restore($id)

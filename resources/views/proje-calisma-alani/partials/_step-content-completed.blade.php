@@ -24,15 +24,10 @@
         {{-- Sağ Taraf: Yeniden Düzenle Butonu (KİLİT KONTROLÜ İLE) --}}
         @php
             // Projenin durumunu kontrol et (Controller'da yaptığımız kilit mantığı)
-            // Not: Bu partial içinde $iaa değişkeni direkt gelmeyebilir, $progressUpdate üzerinden erişiriz.
-            // $iaa değişkeni show.blade.php'den gelebilir ama garanti olsun diye sorgulayalım:
-            
             $iaaDurum = null;
-            // Eğer üst katmandan $iaa geldiyse kullan, yoksa sorgula (Performans için üstten gelmesi iyidir)
             if(isset($iaa)) {
                 $iaaDurum = $iaa->durum;
             } else {
-                // Veritabanından bul (Maliyetli ama güvenli)
                 $iaaDurum = DB::table('iaa_talepleri')
                     ->join('iaas', 'iaa_talepleri.iaa_id', '=', 'iaas.id')
                     ->where('iaa_talepleri.id', $progressUpdate->iaa_talep_id)
@@ -41,27 +36,143 @@
 
             $kilitliDurumlar = ['Bölüm Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlandı'];
             $isLocked = in_array($iaaDurum, $kilitliDurumlar);
+
+            // Sorumlu için sonraki adım kontrolü
+            $isQualityManager = isset($iaa) ? app(\App\Services\ProjectWorkspace\ProjeCalismaAlaniService::class)->isQualityManagerWithInterventionPower(auth()->user(), $iaa) : false;
+            $isLeader = isset($iaa) && $iaa->atananTakim && $iaa->atananTakim->lider_user_id == auth()->id();
+            $isSuperAdmin = auth()->user()->hasRole('Superadmin');
+            
+            $isOrdinaryAssignee = !$isLeader && !$isSuperAdmin && !$isQualityManager;
+            $canReopen = true;
+            $blockReason = '';
+            
+            // Herkes için "Sonraki Adım Tamamlandı Mı?" kontrolü (Geri Al / Sil işlemi için gerekli)
+            $subsequentCompleted = false;
+            if (isset($step) && isset($step->order)) {
+                $subsequentCompleted = \App\Models\IaaProgressUpdate::where('iaa_talep_id', $progressUpdate->iaa_talep_id)
+                    ->whereNotNull('completed_at')
+                    ->whereHas('step', function($q) use ($step) {
+                        $q->where('order', '>', $step->order);
+                    })
+                    ->exists();
+            }
+
+            if ($isOrdinaryAssignee && $subsequentCompleted) {
+                $canReopen = false;
+                $blockReason = 'Bir sonraki adım tamamlandığı için bu adımı düzenleme yetkiniz kapanmıştır.';
+            }
+
+            $canUndo = !$subsequentCompleted;
         @endphp
 
         @if(!$isLocked && $canEdit)
-            @if(!$isAssignedToSomeoneElse)
-                <form action="{{ route('proje.workspace.reopenStep', $progressUpdate) }}" method="POST" onsubmit="return confirm('Dikkat: Bu adımı yeniden açmak, onay sürecini sıfırlayabilir. Devam etmek istiyor musunuz?');">
-                    @csrf
-                    <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
-                        <svg class="w-4 h-4 mr-1.5 text-gray-500 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                        Düzenle / Aç
-                    </button>
-                </form>
+            <div class="flex items-center gap-2">
+                @if($canReopen)
+                    @if(!$isAssignedToSomeoneElse)
+                        {{-- Geri Al (Sil) Butonu --}}
+                        @if($canUndo)
+                            <div x-data="{ showUndoModal: false }">
+                                <button type="button" @click="showUndoModal = true" class="inline-flex items-center px-3 py-1.5 bg-red-50 border border-red-200 rounded-md font-semibold text-xs text-red-600 uppercase tracking-widest shadow-sm hover:bg-red-100 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150" title="Adımı tamamen silerek bir önceki duruma geri dön">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    Adımı Geri Al
+                                </button>
+
+                                {{-- UNDO MODAL --}}
+                                <div x-show="showUndoModal" class="fixed inset-0 z-[100] overflow-y-auto" style="display: none;" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                                    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                                        <div x-show="showUndoModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+
+                                        <!-- This element is to trick the browser into centering the modal contents. -->
+                                        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                                        <div x-show="showUndoModal" @click.away="showUndoModal = false" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6 relative z-[101]">
+                                            <div class="sm:flex sm:items-start">
+                                                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                                                    <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                    </svg>
+                                                </div>
+                                                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                                        Adımı Tamamen Sil
+                                                    </h3>
+                                                    <div class="mt-2">
+                                                        <p class="text-sm text-gray-500">
+                                                            Bu adımı geri aldığınızda adım <strong>sıfırlanacak</strong> ve aşağıdaki veriler kalıcı olarak <strong>silinecektir</strong>:
+                                                        </p>
+                                                        <ul class="mt-3 text-sm text-red-600 bg-red-50 border border-red-100 p-3 rounded-md list-disc list-inside">
+                                                            @php
+                                                                $fileCount = 0;
+                                                                $fieldCount = 0;
+                                                                if($progressUpdate->content) {
+                                                                    $cData = json_decode($progressUpdate->content, true);
+                                                                    $fData = $cData['form_data'] ?? [];
+                                                                    $fieldCount = count($fData);
+                                                                    foreach($fData as $w) {
+                                                                        if(isset($w['files']) && is_array($w['files'])) $fileCount += count($w['files']);
+                                                                        if(isset($w['before_image_path'])) $fileCount++;
+                                                                        if(isset($w['after_image_path'])) $fileCount++;
+                                                                    }
+                                                                }
+                                                            @endphp
+                                                            <li>Adıma girilen <strong>{{ $fieldCount }} adet</strong> form/widget verisi</li>
+                                                            @if($fileCount > 0)
+                                                                <li>Sunucuya yüklenen <strong>{{ $fileCount }} adet</strong> dosya/görsel</li>
+                                                            @endif
+                                                            <li>Adımın tamamlanma onayı ve atanan sorumluluklar (varsa)</li>
+                                                        </ul>
+                                                        <p class="mt-3 text-sm font-medium text-gray-700">
+                                                            Bu işlem kesinlikle geri alınamaz. Devam etmek istiyor musunuz?
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                                                <form action="{{ route('proje.workspace.undoStep', $progressUpdate) }}" method="POST">
+                                                    @csrf
+                                                    <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                                                        Evet, Tamamen Sil
+                                                    </button>
+                                                </form>
+                                                <button type="button" @click="showUndoModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm transition-colors">
+                                                    İptal
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <button type="button" class="inline-flex items-center px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-md font-semibold text-xs text-gray-400 uppercase tracking-widest cursor-not-allowed" title="Sadece en son tamamlanan adım geri alınabilir.">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                Adımı Geri Al
+                            </button>
+                        @endif
+
+                        <form action="{{ route('proje.workspace.reopenStep', $progressUpdate) }}" method="POST" onsubmit="return confirm('Dikkat: Bu adımı yeniden açmak, onay sürecini sıfırlayabilir. Devam etmek istiyor musunuz?');">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
+                                <svg class="w-4 h-4 mr-1.5 text-gray-500 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                Düzenle / Aç
+                            </button>
+                        </form>
+                    @else
+                        @php 
+                            $sorumluUserIds = $assignments->pluck('user_id')->toArray();
+                            $sorumluNames = \App\Models\User::whereIn('id', $sorumluUserIds)->pluck('name')->implode(', ');
+                        @endphp
+                        <span class="inline-flex items-center px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md font-semibold text-xs text-blue-500 uppercase tracking-widest cursor-help" title="Bu adım '{{ $sorumluNames ?: 'ekibe' }}' atanmıştır. Sadece sorumlu kişiler veya lider düzenleyebilir.">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Sorumlu: {{ $sorumluNames ? Str::limit($sorumluNames, 20) : 'Atanmış' }}
+                        </span>
+                    @endif
             @else
-                @php 
-                    $sorumluUserIds = $assignments->pluck('user_id')->toArray();
-                    $sorumluNames = \App\Models\User::whereIn('id', $sorumluUserIds)->pluck('name')->implode(', ');
-                @endphp
-                <span class="inline-flex items-center px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md font-semibold text-xs text-blue-500 uppercase tracking-widest cursor-help" title="Bu adım '{{ $sorumluNames ?: 'ekibe' }}' atanmıştır. Sadece sorumlu kişiler veya lider düzenleyebilir.">
+                <span class="inline-flex items-center px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-md font-semibold text-xs text-amber-600 uppercase tracking-widest cursor-not-allowed" title="{{ $blockReason }}">
                     <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    Sorumlu: {{ $sorumluNames ? Str::limit($sorumluNames, 20) : 'Atanmış' }}
+                    Kilitli (Sonraki Adım Dolu)
                 </span>
             @endif
+            </div>
         @else
             <span class="inline-flex items-center px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-md font-semibold text-xs text-gray-400 uppercase tracking-widest cursor-not-allowed" title="{{ $iaaDurum == 'Direktör Onayı Bekliyor' ? 'Proje direktör onayında. Müdahale için önce onayınızı geri çekmelisiniz.' : 'Proje onay aşamasında veya tamamlandığı için düzenleme yapılamaz.' }}">
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
@@ -130,11 +241,31 @@
                          <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200">
                          {!! !empty($widgetValue['text']) ? nl2br(e($widgetValue['text'])) : '<span class="text-gray-400 italic">Girilmemiş</span>' !!}
                             </p>
-                        @elseif($widgetType === 'user_select')
-                            @php $user = isset($widgetValue['user_id']) ? \App\Models\User::find($widgetValue['user_id']) : null; @endphp
-                            <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                {!! $user?->name ?? '<span class="text-gray-400 italic">Seçilmemiş</span>' !!}
-                            </p>
+                        @elseif($widgetType === 'user_select' || $widgetType === 'user_select_info')
+                            @php 
+                                $selectedUsers = collect();
+                                $userIds = $widgetValue['info_user_ids'] ?? $widgetValue['user_ids'] ?? null;
+                                if (is_array($userIds)) {
+                                    $selectedUsers = \App\Models\User::whereIn('id', $userIds)->get();
+                                } elseif (isset($widgetValue['user_id'])) {
+                                    $selectedUser = \App\Models\User::find($widgetValue['user_id']);
+                                    if ($selectedUser) $selectedUsers->push($selectedUser);
+                                }
+                            @endphp
+                            <div class="mt-1 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                @if($selectedUsers->isNotEmpty())
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach($selectedUsers as $u)
+                                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-sm">
+                                                <svg class="mr-1.5 h-3.5 w-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                                {{ $u->name }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="text-gray-400 italic text-sm">Seçilmemiş</span>
+                                @endif
+                            </div>
                          @elseif($widgetType === 'date_picker')
                             <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200">
                                 {!! isset($widgetValue['date']) && $widgetValue['date'] ? \Carbon\Carbon::parse($widgetValue['date'])->format('d.m.Y') : '<span class="text-gray-400 italic">Tarih Girilmemiş</span>' !!}

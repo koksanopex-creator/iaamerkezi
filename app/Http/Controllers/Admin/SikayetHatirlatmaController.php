@@ -34,33 +34,53 @@ class SikayetHatirlatmaController extends Controller
 
         $this->authorize('viewAny', SikayetHatirlatma::class);
 
+        $baseQuery = SikayetHatirlatma::query();
+
+        // YETKİ BAZLI FİLTRELEME (rules1.md ve Ek Roller Uyumlu)
+        if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+            if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                $baseQuery->whereHas('musteriSikayeti', function($sq) {
+                    $sq->where('konum_tipi', 'Yurt İçi');
+                });
+            } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                $baseQuery->whereHas('musteriSikayeti', function($sq) {
+                    $sq->where('konum_tipi', 'Yurt Dışı');
+                });
+            } else {
+                $allowedBolumIds = $user->getAllowedBolumIds();
+                
+                $baseQuery->where(function($q) use ($user, $allowedBolumIds) {
+                    // 1. Bölüm bazlı yetkisi olanlar (Direktör, Lider, Kalite vb.)
+                    $q->whereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($allowedBolumIds) {
+                        if ($allowedBolumIds !== '*') {
+                            $sq->whereIn('bolum_id', $allowedBolumIds);
+                        }
+                    });
+
+                    // 2. Çözüm Lideri olarak atandığı şikayetler (Spesifik atama)
+                    $q->orWhereHas('musteriSikayeti.cozumTakimi', function($sq) use ($user) {
+                        $sq->where('lider_user_id', $user->id);
+                    });
+                });
+            }
+        }
+
+        $statsData = [
+            'toplam' => (clone $baseQuery)->count(),
+            'bekleyen' => (clone $baseQuery)->where('durum', 'bilgi_girisi_bekleniyor')->count(),
+            'yanitlanan' => (clone $baseQuery)->where('durum', 'bilgi_girildi')->count(),
+            'ikna_oldu' => (clone $baseQuery)->where('durum', 'musteri_ikna_oldu')->count(),
+            'tekrarlanan' => (clone $baseQuery)->where('hatirlatma_sayisi', '>', 1)->count(),
+        ];
+
         $query = SikayetHatirlatma::with(['musteriSikayeti.customer', 'gonderen'])
             ->withCount('yorumlar')
             ->whereHas('musteriSikayeti', function($q) {
                 $q->whereNotIn('musteri_durum', ['Kapatıldı', 'Çözümlendi']);
             });
 
-        // YETKİ BAZLI FİLTRELEME (rules1.md ve Ek Roller Uyumlu)
-        $user = auth()->user();
-        
-        // Superadmin, Yonetim ve Şikayet Kurulu üyeleri HER ŞEYİ görür
-        if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
-            $allowedBolumIds = $user->getAllowedBolumIds();
-            
-            $query->where(function($q) use ($user, $allowedBolumIds) {
-                // 1. Bölüm bazlı yetkisi olanlar (Direktör, Lider, Kalite vb.)
-                $q->whereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($allowedBolumIds) {
-                    if ($allowedBolumIds !== '*') {
-                        $sq->whereIn('bolum_id', $allowedBolumIds);
-                    }
-                });
-
-                // 2. Çözüm Lideri olarak atandığı şikayetler (Spesifik atama)
-                $q->orWhereHas('musteriSikayeti.cozumTakimi', function($sq) use ($user) {
-                    $sq->where('lider_user_id', $user->id);
-                });
-            });
-        }
+        // Apply same base query constraints to main query
+        $query->mergeConstraintsFrom($baseQuery);
 
         // Filtreleme
         if ($request->filled('start_date')) {
@@ -109,7 +129,7 @@ class SikayetHatirlatmaController extends Controller
 
         $hatirlatmalar = $query->paginate(20)->withQueryString();
 
-        return view('admin.sikayet-hatirlatma.index', compact('hatirlatmalar'));
+        return view('admin.sikayet-hatirlatma.index', compact('hatirlatmalar', 'statsData'));
     }
 
     /**
@@ -393,7 +413,7 @@ class SikayetHatirlatmaController extends Controller
             $authorizedCustomerIds[] = (int)$user->customer_id;
         }
 
-        if (!in_array($sikayet->customer_id, $authorizedCustomerIds) && !$user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu'])) {
+        if (!in_array($sikayet->customer_id, $authorizedCustomerIds) && !$user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
             abort(403, 'Bu şikayet için hatırlatma gönderme yetkiniz bulunmamaktadır.');
         }
 
@@ -430,7 +450,7 @@ class SikayetHatirlatmaController extends Controller
         }
 
         // [YENİ] İç personel (Temsilci, Kurul, Admin) bu görünümü izleyebilir
-        $isInternal = $user->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Temsilcisi']);
+        $isInternal = $user->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri Temsilcisi']);
 
         if (!$isInternal && !in_array($hatirlatma->musteriSikayeti->customer_id, $authorizedCustomerIds)) {
             abort(403, 'Bu hatırlatmayı görüntüleme yetkiniz bulunmamaktadır.');

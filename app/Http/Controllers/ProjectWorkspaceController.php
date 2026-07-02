@@ -48,7 +48,10 @@ class ProjectWorkspaceController extends Controller
             'musteriSikayeti.yetkili_user',
             'musteriSikayeti.sikayetKategori.bolum.director',
             'atananTakim.lider', 
-            'projeEkibi', 
+            'atananTakim.uyeler.bolum',
+            'atananTakim.uyeler.roles',
+            'projeEkibi.bolum',
+            'projeEkibi.roles',
             'talepEdenTakimlar.lider', 
             'talepEdenTakimlar.uyeler',
             'ziyaretPlani'
@@ -102,6 +105,20 @@ class ProjectWorkspaceController extends Controller
             $iaa = $this->stepIslemleriService->reopenStep($progress_update);
             return redirect()->route('proje.workspace.show', $iaa->id)
                 ->with('success', 'Adım yeniden düzenlemeye açıldı.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Adımı Geri Al (Tamamen Sil/Sıfırla) İşlemi
+     */
+    public function undoStep(IaaProgressUpdate $progress_update)
+    {
+        try {
+            $iaa = $this->stepIslemleriService->undoStep($progress_update);
+            return redirect()->route('proje.workspace.show', $iaa->id)
+                ->with('success', 'Adım başarıyla geri alındı ve sıfırlandı.');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }

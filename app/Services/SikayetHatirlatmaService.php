@@ -249,7 +249,16 @@ class SikayetHatirlatmaService
         }
 
         // 8. Müşteri Şikayeti Kurulu Üyeleri (ATAMA YETKİLİLERİ)
-        $kurulUyeleri = User::role('Müşteri Şikayeti Kurulu')->get();
+        $kurulRolleri = ['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'];
+        if ($sikayet->konum_tipi === 'Yurt İçi') {
+            $kurulRolleri[] = 'Müşteri Şikayeti Kurulu - Yurt İçi';
+            $kurulRolleri[] = 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi';
+        } elseif ($sikayet->konum_tipi === 'Yurt Dışı') {
+            $kurulRolleri[] = 'Müşteri Şikayeti Kurulu - Yurt Dışı';
+            $kurulRolleri[] = 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı';
+        }
+        
+        $kurulUyeleri = User::role($kurulRolleri)->get();
         foreach ($kurulUyeleri as $kurul) {
             $rolAdi = $sikayet->iaa_id ? 'Kurul Üyesi' : 'Kurul Üyesi (Atama Sorumlusu)';
             $alicilar[] = ['user' => $kurul, 'rol' => $rolAdi];

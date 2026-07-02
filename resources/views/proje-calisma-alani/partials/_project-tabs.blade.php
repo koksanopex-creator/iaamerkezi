@@ -134,6 +134,24 @@
                 <div class="space-y-6">
                     @include('proje-calisma-alani.partials._talep-notification', ['iaa' => $iaa])
                     @include('proje-calisma-alani.partials._faulty-notification', ['iaa' => $iaa])
+
+                    @php
+                        $isLeaderOrManager = Auth::check() && (
+                            ($iaa->atananTakim && Auth::id() == $iaa->atananTakim->lider_user_id) || 
+                            (Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && ($isQualityManagerInterventionPower ?? false))
+                        );
+                        $hasAnyReport = $iaa->hatali_bildirim_gerekcesi || $iaa->talep_gerekcesi;
+                    @endphp
+
+                    @if(!$hasAnyReport && !$isLeaderOrManager)
+                        <div class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-8 text-center flex flex-col items-center justify-center">
+                            <svg class="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <h4 class="text-sm font-bold text-gray-500 mb-1">Operasyonel Kayıt Bulunmuyor</h4>
+                            <p class="text-xs text-gray-400 max-w-md mx-auto">Bu proje için henüz bir hatalı bildirim (şikayetin geçersiz sayılması) veya talep dönüşümü (şikayet yerine müşteri talebi olarak değerlendirilmesi) raporlanmamıştır.</p>
+                        </div>
+                    @endif
                 </div>
             </div>
         @endif

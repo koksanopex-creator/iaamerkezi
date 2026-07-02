@@ -88,10 +88,10 @@ class MusteriYonetimi extends Component
         // BUTON YETKİSİ: Hukuk rolleri kesinlikle yeni müşteri/şikayet EKLEYEMEZ (sadece görebilirler - organik bağ varsa)
         if ($user->hasAnyRole(['Hukuk Admini', 'Hukuk Yöneticisi', 'Yonetim', 'Yönetim'])) {
             $this->isAdmin = false;
-        } else if ($user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Bölüm Lideri', 'Direktör', 'Bölüm Kalite Yöneticisi'])) {
+        } else if ($user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Bölüm Lideri', 'Direktör', 'Bölüm Kalite Yöneticisi'])) {
             // Bu roller ekleme yapabilir (isAdmin = true)
             $this->isAdmin = true;
-        } else if ($user->hasRole('Müşteri Saha Temsilcisi')) {
+        } else if ($user->hasAnyRole(['Müşteri Saha Temsilcisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
             $this->isAdmin = false;
         } else {
             $this->isAdmin = false;
@@ -122,8 +122,22 @@ class MusteriYonetimi extends Component
         $query = Customer::query();
 
         // 1. YETKİ TABANLI FİLTRELEME (Scoping)
-        if ($user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
+        if ($user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
             // Tam yetkili ve yönetim rolleri tüm müşterileri filtresiz görür
+        } elseif ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+            $query->where(function($q) {
+                $q->where('location_type', 'Yurt İçi')
+                  ->orWhereHas('sikayetler', function($sq) {
+                      $sq->where('konum_tipi', 'Yurt İçi');
+                  });
+            });
+        } elseif ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+            $query->where(function($q) {
+                $q->where('location_type', 'Yurt Dışı')
+                  ->orWhereHas('sikayetler', function($sq) {
+                      $sq->where('konum_tipi', 'Yurt Dışı');
+                  });
+            });
         } elseif (!$this->isAdmin && !$user->hasAnyRole(['Hukuk Admini', 'Hukuk Yöneticisi', 'Müşteri Saha Temsilcisi'])) {
             // Tam yetkili olmayan (Düz personel vb.) sadece dahil olduğu şikayetlerin müşterilerini görür
             $query->whereHas('sikayetler', function ($q) use ($user) {
@@ -177,44 +191,69 @@ class MusteriYonetimi extends Component
             ->withCount([
                 'representatives',
                 'sikayetler as toplam_sikayet' => function($q) use ($user) {
-                    // Toplam şikayet sayısını da yetkiye göre kısıtlıyoruz (Eğer Bölüm Lideri ise sadece kendi ilgilendiklerini saymalı)
-                    if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
-                        $allowedBolumIds = $user->getAllowedBolumIds();
-                        $q->where(function($sub) use ($user, $allowedBolumIds) {
-                            if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
-                                $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
-                            }
-                            if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
-                                $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
-                                    ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
-                            }
-                        });
+                    if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                        if ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                            $q->where('konum_tipi', 'Yurt İçi');
+                        } elseif ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                            $q->where('konum_tipi', 'Yurt Dışı');
+                        } else {
+                            $allowedBolumIds = $user->getAllowedBolumIds();
+                            $q->where(function($sub) use ($user, $allowedBolumIds) {
+                                if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
+                                    $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
+                                }
+                                if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
+                                    $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
+                                        ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
+                                }
+                            });
+                        }
                     }
                 },
                 'sikayetler as cozulmus_sikayet' => function ($q) use ($user) {
                     $q->whereIn('musteri_durum', ['Çözümlendi', 'Kapatıldı']);
-                    if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
-                        $allowedBolumIds = $user->getAllowedBolumIds();
-                        $q->where(function($sub) use ($user, $allowedBolumIds) {
-                            if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
-                                $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
-                            }
-                            if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
-                                $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
-                                    ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
-                            }
-                        });
+                    if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                        if ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                            $q->where('konum_tipi', 'Yurt İçi');
+                        } elseif ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                            $q->where('konum_tipi', 'Yurt Dışı');
+                        } else {
+                            $allowedBolumIds = $user->getAllowedBolumIds();
+                            $q->where(function($sub) use ($user, $allowedBolumIds) {
+                                if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
+                                    $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
+                                }
+                                if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
+                                    $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
+                                        ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
+                                }
+                            });
+                        }
                     }
                 },
-                'sikayetler as total_returns' => function ($q) {
+                'sikayetler as total_returns' => function ($q) use ($user) {
                     $q->has('iadeler');
+                    if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                        if ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                            $q->where('konum_tipi', 'Yurt İçi');
+                        } elseif ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                            $q->where('konum_tipi', 'Yurt Dışı');
+                        }
+                    }
                 }
             ])
             ->addSelect([
-                'total_visits' => \App\Models\IaaZiyaretPlani::whereIn('iaa_id', function($q) {
+                'total_visits' => \App\Models\IaaZiyaretPlani::whereIn('iaa_id', function($q) use ($user) {
                     $q->select('iaa_id')->from('musteri_sikayetleri')
                       ->whereColumn('customer_id', 'customers.id')
                       ->whereNotNull('iaa_id');
+                    if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                        if ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                            $q->where('konum_tipi', 'Yurt İçi');
+                        } elseif ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                            $q->where('konum_tipi', 'Yurt Dışı');
+                        }
+                    }
                 })->whereIn('status', ['Onaylandı', 'Tamamlandı'])
                   ->selectRaw('COALESCE(count(*), 0)'),
             ])
@@ -231,17 +270,23 @@ class MusteriYonetimi extends Component
             if ($this->topFilterEndDate) $q->whereDate('musteri_sikayet_tarihi', '<=', $this->topFilterEndDate);
             
             // Buradaki sayacı da yetkiye göre kısıtlıyoruz
-            if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu'])) {
-                $allowedBolumIds = $user->getAllowedBolumIds();
-                $q->where(function($sub) use ($user, $allowedBolumIds) {
-                    if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
-                        $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
-                    }
-                    if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
-                        $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
-                            ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
-                    }
-                });
+            if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Yönetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                if ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                    $q->where('konum_tipi', 'Yurt İçi');
+                } elseif ($user->hasAnyRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                    $q->where('konum_tipi', 'Yurt Dışı');
+                } else {
+                    $allowedBolumIds = $user->getAllowedBolumIds();
+                    $q->where(function($sub) use ($user, $allowedBolumIds) {
+                        if (is_array($allowedBolumIds) && count($allowedBolumIds) > 0) {
+                            $sub->whereHas('sikayetKategori', function ($k) use ($allowedBolumIds) { $k->whereIn('bolum_id', $allowedBolumIds); });
+                        }
+                        if ($user->bolum_id && !$user->hasRole('Müşteri Saha Temsilcisi')) {
+                            $sub->orWhereHas('cozumTakimi.uyeler', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); })
+                                ->orWhereHas('iaa.projeEkibi', function($u) use ($user) { $u->where('users.bolum_id', $user->bolum_id); });
+                        }
+                    });
+                }
             }
         }])
         ->reorder() // Tablonun varsayılan sıralamasını temizle

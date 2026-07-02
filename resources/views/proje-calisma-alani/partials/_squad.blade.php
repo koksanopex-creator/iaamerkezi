@@ -93,9 +93,9 @@
             @endif
         </div>
 
-        {{-- ÜYE LİSTESİ --}}
+        {{-- ÜYE LİSTESİ (TAG CLOUD) --}}
         <div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-4">
+            <div class="flex flex-wrap items-center gap-3 mt-4">
                 @foreach($iaa->projeEkibi as $uye)
                     @include('proje-calisma-alani.partials._squad-card', ['uye' => $uye])
                 @endforeach

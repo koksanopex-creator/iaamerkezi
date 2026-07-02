@@ -137,7 +137,7 @@
                             @endif
 
                             {{-- MAİL DURUMU (SADECE YETKİLİLER GÖRÜR) --}}
-                            @hasanyrole('Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Müşteri Şikayeti Çözüm Lideri')
+                            @hasanyrole('Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Müşteri Şikayeti Çözüm Lideri')
                                 @if(!$sikayet->mail_sent && $sikayet->mail_error)
                                     <div class="mt-1 flex justify-center">
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 text-[9px] font-black border border-rose-100 cursor-help animate-pulse" 
@@ -187,7 +187,7 @@
                                 @if(!$sikayet->customer_id)
                                     @php
                                         $user = auth()->user();
-                                        $canAssign = $user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu']);
+                                        $canAssign = $user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']);
                                         if(!$canAssign && $user->hasRole('Bölüm Kalite Yöneticisi')) {
                                             $yonetilenKategoriIds = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
                                             if (empty($yonetilenKategoriIds) && $user->bolum_id) {
@@ -205,7 +205,7 @@
                                 @endif
 
                                 {{-- 2. YÖNET (Kurul/Admin) --}}
-                                @role('Superadmin|Müşteri Şikayeti Kurulu')
+                                @role('Superadmin|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı')
                                     <button wire:click="$dispatch('openTriyajModal', { id: {{ $sikayet->id }} })"
                                         class="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors" title="Yönet">
                                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

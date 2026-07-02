@@ -10,7 +10,7 @@ use App\Models\Iaa;
 use App\Models\Takim;
 use App\Models\User;
 
-class IaaProjesineTalepGeldi extends Notification implements ShouldQueue
+class IaaProjesineTalepGeldi extends Notification
 {
     use Queueable;
 

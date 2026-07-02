@@ -135,7 +135,12 @@
                                         <p class="text-xs font-black text-slate-800 truncate leading-tight" title="{{ $sikayet->musteri_sikayet_konusu }}">
                                             {{ Str::limit($sikayet->musteri_sikayet_konusu, 40) }}
                                         </p>
-                                        <p class="text-[9px] font-bold text-indigo-600 uppercase tracking-tight">{{ $sikayet->customer->name ?? $sikayet->musteri_adi }}</p>
+                                        <div class="flex items-center gap-2 mt-0.5">
+                                            <p class="text-[9px] font-bold text-indigo-600 uppercase tracking-tight">{{ Str::limit($sikayet->customer->name ?? $sikayet->musteri_adi, 25) }}</p>
+                                            @if($sikayet->konum_tipi)
+                                                <span class="text-[8px] px-1.5 py-0.5 rounded-sm {{ $sikayet->konum_tipi === 'Yurt İçi' ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-fuchsia-50 text-fuchsia-600 border border-fuchsia-100' }}">{{ $sikayet->konum_tipi }}</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </td>
@@ -154,11 +159,28 @@
                                         <span class="text-[10px] font-bold text-slate-600 truncate max-w-[100px]">{{ $sikayet->cozumTakimi->ad }}</span>
                                     </div>
                                 @else
-                                    <span class="text-[8px] font-black text-rose-500 uppercase tracking-tighter">Atanmadı</span>
+                                    <span class="text-[8px] font-black text-rose-500 uppercase tracking-tighter animate-pulse">Atanmadı</span>
+                                @endif
+                                @if($sikayet->olusturanKurulUyesi)
+                                    <p class="text-[8px] text-slate-400 mt-1" title="Ekleyen Personel">Ekleyen: {{ $sikayet->olusturanKurulUyesi->name }}</p>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-center scale-90 origin-center">
-                                {!! $sikayet->musteri_durum_badge !!}
+                            <td class="px-6 py-4 text-center">
+                                <div class="scale-90 origin-center flex flex-col items-center gap-1.5">
+                                    {!! $sikayet->musteri_durum_badge !!}
+                                    
+                                    @if($sikayet->iaaProjesi && $sikayet->iaaProjesi->ziyaretPlani()->exists())
+                                        <span class="text-[9px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 whitespace-nowrap shadow-sm">📅 Ziyaret Planlandı</span>
+                                    @endif
+                                    
+                                    @if($sikayet->iadeler()->exists())
+                                        <span class="text-[9px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded border border-rose-100 whitespace-nowrap shadow-sm animate-pulse">♻️ İade Var</span>
+                                    @endif
+                                    
+                                    @if($sikayet->iaaProjesi && isset($sikayet->iaaProjesi->ilerleme_verisi['kapanis_bekleniyor']) && $sikayet->iaaProjesi->ilerleme_verisi['kapanis_bekleniyor'])
+                                        <span class="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded border border-amber-100 whitespace-nowrap shadow-sm animate-pulse">⏳ Kapanış İşlemleri Bekleniyor!</span>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex flex-col items-center gap-1 min-w-[70px]">

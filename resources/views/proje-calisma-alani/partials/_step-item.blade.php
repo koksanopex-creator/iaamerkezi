@@ -33,6 +33,18 @@
     
     // 5. Müşteri Şikayeti Kaynaklı mı?
     $hasCustomer = $iaa->musteriSikayeti ? true : false;
+    
+    // 6. Widget ile atanan kullanıcıların listesi
+    $widgetAssignedUserIds = [];
+    if ($progressUpdate && $progressUpdate->content) {
+        $contentDecoded = json_decode($progressUpdate->content, true);
+        $formData = $contentDecoded['form_data'] ?? [];
+        foreach ($formData as $data) {
+            if (isset($data['user_ids']) && is_array($data['user_ids'])) {
+                $widgetAssignedUserIds = array_merge($widgetAssignedUserIds, $data['user_ids']);
+            }
+        }
+    }
 @endphp
 
 <div id="step-card-{{ $step->id }}" class="mb-10 ml-6" x-data="{ open: {{ $isCompleted ? 'false' : ($isCurrent ? 'true' : 'false') }} }">
@@ -265,12 +277,26 @@
                                 </div>
                             </template>
                             <template x-if="selectedIds.length === 0">
-                                <span class="text-gray-400 italic text-xs flex items-center gap-1.5">
-                                    <div class="p-1 bg-gray-200 rounded-full">
-                                        <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                    </div>
-                                    Sorumlu atanmamış (Ortak Görev)
-                                </span>
+                                <div>
+                                    @if(!empty($widgetAssignedUserIds))
+                                        @php 
+                                            $widgetUsers = \App\Models\User::whereIn('id', $widgetAssignedUserIds)->pluck('name')->implode(', ');
+                                        @endphp
+                                        <div class="mb-2 p-2 bg-indigo-50 border-l-2 border-indigo-500 rounded-r text-xs text-indigo-800">
+                                            @if($isCompleted)
+                                                Bu adım <strong>{{ $widgetUsers }}</strong> tarafından tamamlanmıştır.
+                                            @else
+                                                Bu alan için takım harici şu sorumlular (<strong>{{ $widgetUsers }}</strong>) atanmış ve görevin tamamlanması bekleniyor.
+                                            @endif
+                                        </div>
+                                    @endif
+                                    <span class="text-gray-400 italic text-xs flex items-center gap-1.5">
+                                        <div class="p-1 bg-gray-200 rounded-full">
+                                            <svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                        </div>
+                                        Sorumlu atanmamış (Ortak Görev)
+                                    </span>
+                                </div>
                             </template>
                         </div>
                     </div>
@@ -346,14 +372,30 @@
                     $assignedUserIds = $assignments->pluck('user_id')->toArray();
                     $isAssignedToSomeoneElse = false;
                     
+                    $isWidgetAssigned = false;
+                    if ($progressUpdate && $progressUpdate->content) {
+                        $contentDecoded = json_decode($progressUpdate->content, true);
+                        $formData = $contentDecoded['form_data'] ?? [];
+                        foreach ($formData as $data) {
+                            if (isset($data['user_ids']) && is_array($data['user_ids']) && in_array(auth()->id(), $data['user_ids'])) {
+                                $isWidgetAssigned = true;
+                                break;
+                            }
+                        }
+                    }
+                    
                     if ($isSafeIaa && $assignments->isNotEmpty() && auth()->check()) {
                         $isAssignedToMe = in_array(auth()->id(), $assignedUserIds);
                         $isSuperAdmin = auth()->user()->hasRole('Superadmin');
                         $isLeader = ($iaa->atananTakim && auth()->id() == $iaa->atananTakim->lider_user_id);
                         
-                        if (!$isAssignedToMe && !$isSuperAdmin && !$isLeader) {
+                        if (!$isAssignedToMe && !$isSuperAdmin && !$isLeader && !$isWidgetAssigned) {
                             $isAssignedToSomeoneElse = true;
                         }
+                    }
+                    
+                    if ($isWidgetAssigned) {
+                        $canEdit = true;
                     }
                 @endphp
                 <div x-show="open" x-transition>
@@ -375,13 +417,29 @@
                     $assignedUserIds = $assignments->pluck('user_id')->toArray();
                     $isAssignedToSomeoneElse = false;
                     
+                    $isWidgetAssigned = false;
+                    if ($progressUpdate && $progressUpdate->content) {
+                        $contentDecoded = json_decode($progressUpdate->content, true);
+                        $formData = $contentDecoded['form_data'] ?? [];
+                        foreach ($formData as $data) {
+                            if (isset($data['user_ids']) && is_array($data['user_ids']) && in_array(auth()->id(), $data['user_ids'])) {
+                                $isWidgetAssigned = true;
+                                break;
+                            }
+                        }
+                    }
+                    
                     if ($isSafeIaa && $assignments->isNotEmpty() && auth()->check()) {
                         $isAssignedToMe = in_array(auth()->id(), $assignedUserIds);
                         $isSuperAdmin = auth()->user()->hasRole('Superadmin');
                         
-                        if (!$isAssignedToMe && !$isSuperAdmin && !$isLeader) {
+                        if (!$isAssignedToMe && !$isSuperAdmin && !$isLeader && !$isWidgetAssigned) {
                             $isAssignedToSomeoneElse = true;
                         }
+                    }
+                    
+                    if ($isWidgetAssigned) {
+                        $canEdit = true;
                     }
                 @endphp
 
@@ -429,10 +487,11 @@
             @if($isCompleted || $isCurrent)
                 <div class="mt-8 mb-4 px-6 md:px-10 border-t border-gray-100 pt-6">
                     <h5 class="text-xs font-bold text-gray-500 uppercase mb-3">İletişim & Notlar</h5>
-                    @livewire('admin.proje-adim-yorumlari', [
-                        'iaa' => $iaa, 
-                        'step' => $step
-                    ], key($step->id))
+                    <livewire:admin.proje-adim-yorumlari 
+                        :iaa="$iaa" 
+                        :step="$step" 
+                        :wire:key="'comments-'.$step->id" 
+                        lazy />
                 </div>
             @endif
 

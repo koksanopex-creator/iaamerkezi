@@ -7,7 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class MusteriSikayetiManagerReportNotification extends Notification implements ShouldQueue
+class MusteriSikayetiManagerReportNotification extends Notification
 {
     use Queueable;
 
@@ -51,7 +51,7 @@ class MusteriSikayetiManagerReportNotification extends Notification implements S
                     ->line($this->kural->mail_taslagi ?? 'Ekibinizin güncel performans raporu aşağıdadır:');
 
         foreach ($this->performansVerisi as $veri) {
-            $mail->line("{$veri->name}: Toplam {$veri->toplam} Şikayet, Hatalı: {$veri->hatali_bildirim}, Talep Kapanan: {$veri->talep_kapanan}, Son 7 Gün: {$veri->son_7_gun}");
+            $mail->line("{$veri->name}: Toplam {$veri->toplam} Şikayet, Çözümlenen: {$veri->cozumlenen}, İptal/Reddedilen: {$veri->iptal_red}, Son 7 Gün: {$veri->son_7_gun}");
         }
 
         $mail->action('Raporu İncele', route('admin.sikayetler.kurulGirdileri'))

@@ -155,7 +155,7 @@
                         {!! $sikayet->musteri_durum_badge !!}
                         
                         {{-- MAİL DURUMU (SADECE YETKİLİLER GÖRÜR) --}}
-                        @hasanyrole('Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Bölüm Kalite Yöneticisi|Müşteri Şikayeti Çözüm Lideri')
+                        @hasanyrole('Superadmin|Yonetim|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı|Bölüm Kalite Yöneticisi|Müşteri Şikayeti Çözüm Lideri')
                             @if(!$sikayet->mail_sent && $sikayet->mail_error)
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-rose-100 text-rose-600 border border-rose-200 cursor-help animate-pulse" 
                                       title="BİLDİRİM HATASI: {{ $sikayet->mail_error }}">
@@ -301,7 +301,7 @@
                                 <span class="text-gray-600 font-bold text-sm">Sistem</span>
                                 @php
                                     $user = auth()->user();
-                                    $canAssign = $user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu']);
+                                    $canAssign = $user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']);
                                     if(!$canAssign && $user->hasRole('Bölüm Kalite Yöneticisi')) {
                                         $yonetilenKategoriIds = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
                                         if (empty($yonetilenKategoriIds) && $user->bolum_id) {
@@ -491,7 +491,7 @@
                     <div class="flex-grow"></div>
 
                     {{-- Yönetim Butonu --}}
-                    @role('Superadmin|Müşteri Şikayeti Kurulu')
+                    @role('Superadmin|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı')
                     <button wire:click="$dispatch('openTriyajModal', { id: {{ $sikayet->id }} })"
                         class="inline-flex items-center px-3 py-2 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all">
                         <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -508,7 +508,7 @@
                     @if(!$sikayet->customer_id)
                         @php
                             $user = auth()->user();
-                            $canAssign = $user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu']);
+                            $canAssign = $user->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']);
                             if(!$canAssign && $user->hasRole('Bölüm Kalite Yöneticisi')) {
                                 $yonetilenKategoriIds = $user->yonettigiSikayetKategorileri->pluck('id')->toArray();
                                 if (empty($yonetilenKategoriIds) && $user->bolum_id) {

@@ -8,7 +8,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class DisiplinToplantiRevizyonNotification extends Notification implements ShouldQueue
+class DisiplinToplantiRevizyonNotification extends Notification
 {
     use Queueable;
 

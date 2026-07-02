@@ -16,7 +16,9 @@ class CustomerProfileController extends Controller
 
         // 1. GENEL SAYFA ERİŞİM YETKİSİ
         $tamYetkiliRoller = [
-            'Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'
+            'Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi',
+            'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi',
+            'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'
         ];
         
         $yetkisiVarMi = $user->hasRole($tamYetkiliRoller);
@@ -40,6 +42,14 @@ class CustomerProfileController extends Controller
         // =============================================================
         
         $baseQuery = $customer->sikayetler();
+
+        if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+            if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi']) && !$user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                $baseQuery->where('konum_tipi', 'Yurt İçi');
+            } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']) && !$user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                $baseQuery->where('konum_tipi', 'Yurt Dışı');
+            }
+        }
 
         if ($request->has('start_date') || $request->has('end_date')) {
             $startDate = $request->start_date;
@@ -163,8 +173,15 @@ class CustomerProfileController extends Controller
         $secilenYil = $request->input('yil');
 
         // 2. Temel Sorgu: Bu müşteriye ait iadeleri bul
-        $iadeQuery = \App\Models\SikayetIadesi::whereHas('sikayet', function($q) use ($customer) {
+        $iadeQuery = \App\Models\SikayetIadesi::whereHas('sikayet', function($q) use ($customer, $user) {
             $q->where('customer_id', $customer->id);
+            if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi']) && !$user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                    $q->where('konum_tipi', 'Yurt İçi');
+                } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']) && !$user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                    $q->where('konum_tipi', 'Yurt Dışı');
+                }
+            }
         })
         ->with(['sikayet.sikayetKategori.bolum']); // Bölüm adını almak için ilişki zinciri
 
@@ -195,8 +212,15 @@ class CustomerProfileController extends Controller
         }
 
         // 6. Filtre İçin Mevcut Yılları Listele (Sadece bu müşterinin yılları)
-        $mevcutYillar = \App\Models\SikayetIadesi::whereHas('sikayet', function($q) use ($customer) {
+        $mevcutYillar = \App\Models\SikayetIadesi::whereHas('sikayet', function($q) use ($customer, $user) {
                 $q->where('customer_id', $customer->id);
+                if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                    if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi']) && !$user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                        $q->where('konum_tipi', 'Yurt İçi');
+                    } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı']) && !$user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                        $q->where('konum_tipi', 'Yurt Dışı');
+                    }
+                }
             })
             ->selectRaw('YEAR(created_at) as yil')
             ->distinct()

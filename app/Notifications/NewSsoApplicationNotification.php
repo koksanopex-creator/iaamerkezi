@@ -8,7 +8,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
-class NewSsoApplicationNotification extends Notification implements ShouldQueue
+class NewSsoApplicationNotification extends Notification
 {
     use Queueable;
 

@@ -84,40 +84,44 @@ class ProjeAdimIslemleriService
         // Tüm Paydaşlara Bildirim (Sadece ilk kez tamamlandığında)
         if ($isFirstCompletion)
         {
-            $this->notifyStakeholdersAboutProgress($iaa, $step, $assignment);
+            defer(function () use ($iaa, $step, $assignment) {
+                $this->notifyStakeholdersAboutProgress($iaa, $step, $assignment);
+            });
         }
 
         // Bildirim (Takım üyelerine)
-        try
-        {
-            $takim = \App\Models\Takim::find($assignment->takim_id);
-            if ($takim)
+        $guncelleyenKullanici = Auth::user();
+        defer(function () use ($iaa, $step, $assignment, $guncelleyenKullanici) {
+            try
             {
-                $guncelleyenKullanici = Auth::user();
-                $bildirimAlacaklar = $takim->users->where('id', '!=', $guncelleyenKullanici->id);
-
-                if ($bildirimAlacaklar->isNotEmpty())
+                $takim = \App\Models\Takim::find($assignment->takim_id);
+                if ($takim)
                 {
-                    Notification::send($bildirimAlacaklar, new ProjeAdimiGuncellendi($iaa, $step, $guncelleyenKullanici));
+                    $bildirimAlacaklar = $takim->users->where('id', '!=', $guncelleyenKullanici->id);
+
+                    if ($bildirimAlacaklar->isNotEmpty())
+                    {
+                        Notification::send($bildirimAlacaklar, new ProjeAdimiGuncellendi($iaa, $step, $guncelleyenKullanici));
+                    }
                 }
             }
-        }
-        catch (\Exception $e)
-        {
-            // Bildirim hatası süreci durdurmasın, loglansın ve tekrar denenebilsin
-            \App\Helpers\MailLogHelper::logFailure(
-                $iaa,
-                '"' . $iaa->baslik . '" projesinde ekip bilgilendirmesi gönderilemedi',
-                $bildirimAlacaklar ?? collect(),
-                $e->getMessage(),
-                \App\Notifications\ProjeAdimiGuncellendi::class,
-                [
-                    'recipient_ids' => ($bildirimAlacaklar ?? collect())->pluck('id')->toArray(),
-                    'params' => ['iaa' => $iaa, 'step' => $step, 'user' => $guncelleyenKullanici]
-                ],
-                $iaa->bolum_id
-            );
-        }
+            catch (\Exception $e)
+            {
+                // Bildirim hatası süreci durdurmasın, loglansın ve tekrar denenebilsin
+                \App\Helpers\MailLogHelper::logFailure(
+                    $iaa,
+                    '"' . $iaa->baslik . '" projesinde ekip bilgilendirmesi gönderilemedi',
+                    $bildirimAlacaklar ?? collect(),
+                    $e->getMessage(),
+                    \App\Notifications\ProjeAdimiGuncellendi::class,
+                    [
+                        'recipient_ids' => ($bildirimAlacaklar ?? collect())->pluck('id')->toArray(),
+                        'params' => ['iaa' => $iaa, 'step' => $step, 'user' => $guncelleyenKullanici]
+                    ],
+                    $iaa->bolum_id
+                );
+            }
+        });
 
         return $iaa;
     }
@@ -246,15 +250,52 @@ class ProjeAdimIslemleriService
         $assignment = DB::table('iaa_talepleri')->find($progressUpdate->iaa_talep_id);
         $iaa = Iaa::find($assignment->iaa_id);
 
-        // Yetki: Sadece Lider, Admin veya Müdahale Yetkili Kalite Yöneticisi
+        // Yetki: Sadece Lider, Admin, Müdahale Yetkili Kalite Yöneticisi VEYA Adım Sorumlusu
         $isQualityManager = $this->calismaAlaniService->isQualityManagerWithInterventionPower(Auth::user(), $iaa);
         $isLeader = $iaa->atananTakim && $iaa->atananTakim->lider_user_id == Auth::id();
         $isSuperAdmin = Auth::user()->hasRole('Superadmin');
-
-        if (!$isLeader && !$isSuperAdmin && !$isQualityManager)
-        {
-            abort(403, 'Bu adımı geri alma yetkiniz yok. Sadece ekip lideri veya müdahale yetkili kalite yöneticisi bu işlemi yapabilir.');
+        
+        $userId = Auth::id();
+        $isAssigned = DB::table('iaa_step_assignments')
+            ->where('iaa_id', $iaa->id)
+            ->where('iaa_workflow_step_id', $progressUpdate->iaa_workflow_step_id)
+            ->where('user_id', $userId)
+            ->exists();
+            
+        if (!$isAssigned && $progressUpdate->content) {
+            $contentDecoded = json_decode($progressUpdate->content, true);
+            $formData = $contentDecoded['form_data'] ?? [];
+            foreach ($formData as $data) {
+                if (isset($data['user_ids']) && is_array($data['user_ids']) && in_array($userId, $data['user_ids'])) {
+                    $isAssigned = true;
+                    break;
+                }
+            }
         }
+
+        if (!$isLeader && !$isSuperAdmin && !$isQualityManager && !$isAssigned)
+        {
+            abort(403, 'Bu adımı geri alma yetkiniz yok. Sadece ekip lideri, ilgili adım sorumlusu veya müdahale yetkili kalite yöneticisi bu işlemi yapabilir.');
+        }
+
+        // --- SONRADAN DAHİL OLAN SORUMLU İÇİN KİLİT ---
+        $isOrdinaryAssignee = !$isLeader && !$isSuperAdmin && !$isQualityManager && $isAssigned;
+        if ($isOrdinaryAssignee) {
+            $step = IaaWorkflowStep::find($progressUpdate->iaa_workflow_step_id);
+            if ($step && isset($step->order)) {
+                $subsequentCompleted = \App\Models\IaaProgressUpdate::where('iaa_talep_id', $progressUpdate->iaa_talep_id)
+                    ->whereNotNull('completed_at')
+                    ->whereHas('step', function($q) use ($step) {
+                        $q->where('order', '>', $step->order);
+                    })
+                    ->exists();
+
+                if ($subsequentCompleted) {
+                    abort(403, 'Bir sonraki adım tamamlandığı için bu adımı düzenleme yetkiniz kapanmıştır.');
+                }
+            }
+        }
+        // ----------------------------------------------
 
         // Durum Kilidi
         $kilitliDurumlar = ['Bölüm Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlandı'];
@@ -275,6 +316,111 @@ class ProjeAdimIslemleriService
             'user_id' => Auth::id(),
             'eylem' => 'Proje Adımı Yeniden Açıldı',
             'aciklama' => Auth::user()->name . " adlı kullanıcı, '" . $stepName . "' adımını yeniden düzenlemek için açtı."
+        ]);
+
+        return $iaa;
+    }
+
+    /**
+     * Adımı Geri Al (Tamamen Sil/Sıfırla)
+     */
+    public function undoStep(IaaProgressUpdate $progressUpdate)
+    {
+        $assignment = DB::table('iaa_talepleri')->find($progressUpdate->iaa_talep_id);
+        $iaa = Iaa::find($assignment->iaa_id);
+
+        // Yetki Kontrolü: Lider, Admin, Müdahale Yetkili Kalite Yöneticisi VEYA Adım Sorumlusu
+        $isQualityManager = $this->calismaAlaniService->isQualityManagerWithInterventionPower(Auth::user(), $iaa);
+        $isLeader = $iaa->atananTakim && $iaa->atananTakim->lider_user_id == Auth::id();
+        $isSuperAdmin = Auth::user()->hasRole('Superadmin');
+        
+        $userId = Auth::id();
+        $isAssigned = DB::table('iaa_step_assignments')
+            ->where('iaa_id', $iaa->id)
+            ->where('iaa_workflow_step_id', $progressUpdate->iaa_workflow_step_id)
+            ->where('user_id', $userId)
+            ->exists();
+            
+        if (!$isAssigned && $progressUpdate->content) {
+            $contentDecoded = json_decode($progressUpdate->content, true);
+            $formData = $contentDecoded['form_data'] ?? [];
+            foreach ($formData as $data) {
+                if (isset($data['user_ids']) && is_array($data['user_ids']) && in_array($userId, $data['user_ids'])) {
+                    $isAssigned = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$isLeader && !$isSuperAdmin && !$isQualityManager && !$isAssigned)
+        {
+            abort(403, 'Bu adımı geri alma (silme) yetkiniz yok. Sadece ekip lideri, ilgili adım sorumlusu veya müdahale yetkili kalite yöneticisi bu işlemi yapabilir.');
+        }
+
+        // Kronolojik Kilit Kontrolü: Kendisinden SONRA tamamlanmış adım var mı?
+        $step = IaaWorkflowStep::find($progressUpdate->iaa_workflow_step_id);
+        if ($step && isset($step->order)) {
+            $subsequentCompleted = \App\Models\IaaProgressUpdate::where('iaa_talep_id', $progressUpdate->iaa_talep_id)
+                ->whereNotNull('completed_at')
+                ->whereHas('step', function($q) use ($step) {
+                    $q->where('order', '>', $step->order);
+                })
+                ->exists();
+
+            if ($subsequentCompleted) {
+                throw new \Exception('Sadece en son tamamlanmış adımı geri alabilirsiniz. Bir sonraki adım tamamlandığı için bu adımı geri alamazsınız.');
+            }
+        }
+
+        // Durum Kilidi: Proje onay aşamasında veya tamamlanmışsa engelle
+        $kilitliDurumlar = ['Bölüm Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Yönetici Onayı Bekliyor', 'Tamamlandı'];
+        if (in_array($iaa->durum, $kilitliDurumlar))
+        {
+            throw new \Exception('Proje onay aşamasında veya tamamlandığı için işlem yapılamaz. Geri alma işlemi için önce onayı geri çekmeniz gerekir.');
+        }
+
+        // Dosyaları Fiziksel Olarak Silme
+        if ($progressUpdate->content) {
+            $contentDecoded = json_decode($progressUpdate->content, true);
+            $formData = $contentDecoded['form_data'] ?? [];
+            foreach ($formData as $data) {
+                // file_upload veya image_upload widget'larından gelen "files" array'i
+                if (isset($data['files']) && is_array($data['files'])) {
+                    foreach ($data['files'] as $filePath) {
+                        if (\Illuminate\Support\Facades\Storage::exists($filePath)) {
+                            \Illuminate\Support\Facades\Storage::delete($filePath);
+                        }
+                    }
+                }
+                // before_after widget'ından gelen resimler
+                if (isset($data['before_image_path']) && \Illuminate\Support\Facades\Storage::exists($data['before_image_path'])) {
+                    \Illuminate\Support\Facades\Storage::delete($data['before_image_path']);
+                }
+                if (isset($data['after_image_path']) && \Illuminate\Support\Facades\Storage::exists($data['after_image_path'])) {
+                    \Illuminate\Support\Facades\Storage::delete($data['after_image_path']);
+                }
+            }
+        }
+
+        // Adımı Sil (IaaProgressUpdate veritabanından kaldır)
+        $progressUpdate->delete();
+
+        // Eğer projedeki tüm ilerlemeler silindiyse, iaa_talepleri status'ünü kontrol et
+        $anyCompleted = \App\Models\IaaProgressUpdate::where('iaa_talep_id', $assignment->id)
+                ->whereNotNull('completed_at')
+                ->exists();
+        if (!$anyCompleted) {
+            DB::table('iaa_talepleri')->where('id', $assignment->id)->update(['status' => 'Devam Ediyor']);
+        }
+
+        // Loglama (Superadmin/Yönetim/Kalite Yöneticisi için)
+        $stepName = $step ? $step->name : 'Bilinmeyen Adım';
+
+        IaaLog::create([
+            'iaa_id' => $iaa->id,
+            'user_id' => Auth::id(),
+            'eylem' => 'Proje Adımı Tamamen Geri Alındı (Silindi)',
+            'aciklama' => Auth::user()->name . " adlı kullanıcı, '" . $stepName . "' adımını tamamen geri aldı (sıfırladı)."
         ]);
 
         return $iaa;
@@ -357,43 +503,45 @@ class ProjeAdimIslemleriService
                 $mesaj = "Adım sorumluları '{$sorumluNames}' olarak güncellendi.";
 
                 // BİLDİRİMLER:
-                // 1. Atanan Her Bir Sorumluya ve Onların Bölüm Liderlerine Gönder
-                foreach ($sorumluUsers as $sorumlu) {
-                    $this->notifyUserAndManager($sorumlu, new AdimSorumlusuAtandi($iaa, $step, $sorumlu, $currentUser));
-                }
-
-                // 2. Proje Ekibinin Geri Kalanına (Observer olarak) Bilgi Ver
-                $ekip = $iaa->projeEkibi->merge([$iaa->atananTakim->lider]);
-                $notifyList = $ekip->filter(function($u) use ($currentUser, $targetUserIds) {
-                    return $u->id != $currentUser->id && !in_array($u->id, $targetUserIds);
-                })->unique('id');
-
-                if ($notifyList->isNotEmpty()) {
+                defer(function () use ($sorumluUsers, $iaa, $step, $currentUser, $targetUserIds) {
+                    // 1. Atanan Her Bir Sorumluya ve Onların Bölüm Liderlerine Gönder
                     foreach ($sorumluUsers as $sorumlu) {
-                        try {
-                            // Sorumlu olmayan ekip üyelerine sadece veritabanı (Zil) bildirimi gitsin
-                            Notification::send($notifyList, new AdimSorumlusuAtandi($iaa, $step, $sorumlu, $currentUser));
-                        } catch (\Exception $e) {
-                            \App\Helpers\MailLogHelper::logFailure(
-                                $iaa,
-                                'Adım Ataması Ekip Bilgilendirmesi',
-                                $notifyList,
-                                $e->getMessage(),
-                                \App\Notifications\AdimSorumlusuAtandi::class,
-                                [
-                                    'recipient_ids' => $notifyList->pluck('id')->toArray(),
-                                    'params' => [
-                                        'iaa' => $iaa,
-                                        'step' => $step,
-                                        'sorumlu' => $sorumlu,
-                                        'lider' => $currentUser
-                                    ]
-                                ],
-                                $iaa->bolum_id
-                            );
+                        $this->notifyUserAndManager($sorumlu, new AdimSorumlusuAtandi($iaa, $step, $sorumlu, $currentUser));
+                    }
+
+                    // 2. Proje Ekibinin Geri Kalanına (Observer olarak) Bilgi Ver
+                    $ekip = $iaa->projeEkibi->merge([$iaa->atananTakim->lider]);
+                    $notifyList = $ekip->filter(function($u) use ($currentUser, $targetUserIds) {
+                        return $u->id != $currentUser->id && !in_array($u->id, $targetUserIds);
+                    })->unique('id');
+
+                    if ($notifyList->isNotEmpty()) {
+                        foreach ($sorumluUsers as $sorumlu) {
+                            try {
+                                // Sorumlu olmayan ekip üyelerine sadece veritabanı (Zil) bildirimi gitsin
+                                Notification::send($notifyList, new AdimSorumlusuAtandi($iaa, $step, $sorumlu, $currentUser));
+                            } catch (\Exception $e) {
+                                \App\Helpers\MailLogHelper::logFailure(
+                                    $iaa,
+                                    'Adım Ataması Ekip Bilgilendirmesi',
+                                    $notifyList,
+                                    $e->getMessage(),
+                                    \App\Notifications\AdimSorumlusuAtandi::class,
+                                    [
+                                        'recipient_ids' => $notifyList->pluck('id')->toArray(),
+                                        'params' => [
+                                            'iaa' => $iaa,
+                                            'step' => $step,
+                                            'sorumlu' => $sorumlu,
+                                            'lider' => $currentUser
+                                        ]
+                                    ],
+                                    $iaa->bolum_id
+                                );
+                            }
                         }
                     }
-                }
+                });
             } else {
                 $mesaj = "Adım ataması kaldırıldı, herkes işlem yapabilir.";
             }

@@ -152,8 +152,12 @@
                                 @endif
                             </div>
 
-                            {{-- Konum Tipi --}}
-                            {{-- mb-6 EKLENDİ: Altındaki Kategori ile arasını açar --}}
+                            @php
+                                $usr = auth()->user();
+                                $onlyYurtIci = $usr->hasRole('Müşteri Şikayeti Kurulu - Yurt İçi') && !$usr->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt Dışı']);
+                                $onlyYurtDisi = $usr->hasRole('Müşteri Şikayeti Kurulu - Yurt Dışı') && !$usr->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi']);
+                            @endphp
+
                             <div class="group flex flex-col lg:col-span-2 mb-6">
                                 <label class="flex items-start font-semibold text-sm text-gray-700 mb-2">
                                     <svg class="w-4 h-4 mr-2 text-blue-500 mt-0.5 flex-shrink-0"
@@ -166,16 +170,23 @@
                                 </label>
                                 <div class="flex flex-wrap items-center gap-4">
                                     @if($tamYetki)
+                                        @if($onlyYurtIci || $onlyYurtDisi)
+                                            <input type="hidden" name="konum_tipi" value="{{ $sikayet->konum_tipi }}">
+                                        @endif
                                         <label
-                                            class="inline-flex items-center cursor-pointer bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition">
+                                            class="inline-flex items-center {{ $onlyYurtDisi ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }} bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition">
                                             <input type="radio" name="konum_tipi" value="Yurt İçi"
-                                                class="form-radio w-5 h-5 text-blue-600 focus:ring-blue-500" {{ old('konum_tipi', $sikayet->konum_tipi) == 'Yurt İçi' ? 'checked' : '' }}>
+                                                class="form-radio w-5 h-5 text-blue-600 focus:ring-blue-500" 
+                                                {{ old('konum_tipi', $sikayet->konum_tipi) == 'Yurt İçi' ? 'checked' : '' }}
+                                                {{ ($onlyYurtIci || $onlyYurtDisi) ? 'disabled' : '' }}>
                                             <span class="ml-2 text-sm text-gray-700 font-medium">Yurt İçi</span>
                                         </label>
                                         <label
-                                            class="inline-flex items-center cursor-pointer bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition">
+                                            class="inline-flex items-center {{ $onlyYurtIci ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer' }} bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition">
                                             <input type="radio" name="konum_tipi" value="Yurt Dışı"
-                                                class="form-radio w-5 h-5 text-blue-600 focus:ring-blue-500" {{ old('konum_tipi', $sikayet->konum_tipi) == 'Yurt Dışı' ? 'checked' : '' }}>
+                                                class="form-radio w-5 h-5 text-blue-600 focus:ring-blue-500" 
+                                                {{ old('konum_tipi', $sikayet->konum_tipi) == 'Yurt Dışı' ? 'checked' : '' }}
+                                                {{ ($onlyYurtIci || $onlyYurtDisi) ? 'disabled' : '' }}>
                                             <span class="ml-2 text-sm text-gray-700 font-medium">Yurt Dışı</span>
                                         </label>
                                     @else

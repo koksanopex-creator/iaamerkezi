@@ -75,7 +75,15 @@
                                             <td class="px-4 py-3">
                                                 <div class="flex items-center gap-2">
                                                     <img src="{{ $uye->profile_photo_url }}" class="w-6 h-6 rounded-full border border-slate-100" alt="">
+                                                <div class="flex flex-col">
                                                     <span class="text-[11px] font-bold text-slate-700">{{ $uye->name }}</span>
+                                                    @php 
+                                                        $roleBadge = 'Genel';
+                                                        if($uye->hasRole(['Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt İçi'])) $roleBadge = 'Yurt İçi';
+                                                        elseif($uye->hasRole(['Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri Şikayeti Kurulu - Yurt Dışı'])) $roleBadge = 'Yurt Dışı';
+                                                        elseif($uye->hasRole(['Superadmin', 'Yonetim'])) $roleBadge = 'Yönetici';
+                                                    @endphp
+                                                    <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest">{{ $roleBadge }}</span>
                                                 </div>
                                             </td>
                                             <td class="px-4 py-3 text-right">
@@ -117,8 +125,80 @@
                     </div>
                     @endunless
 
-                    {{-- EKİP PERFORMANS RAPORU (Sadece Yöneticiler İçin) --}}
+                    {{-- LİDERLİK TABLOLARI (Sadece Yöneticiler İçin) --}}
                     @if($isManager)
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        {{-- En Çok Şikayet Girenler --}}
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-5 py-3 border-b border-slate-50 bg-indigo-50/50">
+                                <h3 class="font-black text-indigo-900 text-[10px] uppercase tracking-widest">En Aktif Raportörler</h3>
+                            </div>
+                            <div class="p-4 space-y-3">
+                                @forelse($toplamGirenLiderler as $index => $lider)
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-5 h-5 rounded-full {{ $index == 0 ? 'bg-amber-400 text-white' : ($index == 1 ? 'bg-slate-300 text-white' : 'bg-amber-600 text-white') }} flex items-center justify-center text-[9px] font-black">{{ $index + 1 }}</span>
+                                            <div class="flex flex-col">
+                                                <span class="text-[10px] font-bold text-slate-700 truncate w-32" title="{{ $lider->name }}">{{ $lider->name }}</span>
+                                                <span class="text-[8px] font-black text-slate-400 uppercase">{{ $lider->role_label }}</span>
+                                            </div>
+                                        </div>
+                                        <span class="text-xs font-black text-indigo-600">{{ $lider->toplam }} <span class="text-[8px] text-slate-400">Kayıt</span></span>
+                                    </div>
+                                @empty
+                                    <span class="text-[10px] text-slate-400">Veri yok.</span>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        {{-- En Çok Login Olanlar --}}
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-5 py-3 border-b border-slate-50 bg-emerald-50/50">
+                                <h3 class="font-black text-emerald-900 text-[10px] uppercase tracking-widest">Sistem Kullanımı</h3>
+                            </div>
+                            <div class="p-4 space-y-3">
+                                @forelse($enCokLoginOlanlar as $index => $lider)
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[9px] font-black">{{ $index + 1 }}</span>
+                                            <div class="flex flex-col">
+                                                <span class="text-[10px] font-bold text-slate-700 truncate w-32" title="{{ $lider->name }}">{{ $lider->name }}</span>
+                                                <span class="text-[8px] font-black text-slate-400 uppercase">{{ $lider->role_label }}</span>
+                                            </div>
+                                        </div>
+                                        <span class="text-xs font-black text-emerald-600">{{ $lider->login_count }} <span class="text-[8px] text-slate-400">Giriş</span></span>
+                                    </div>
+                                @empty
+                                    <span class="text-[10px] text-slate-400">Veri yok.</span>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        {{-- En Az Fire Verenler (Kalite) --}}
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="px-5 py-3 border-b border-slate-50 bg-rose-50/50">
+                                <h3 class="font-black text-rose-900 text-[10px] uppercase tracking-widest">En Düşük Hata Oranı</h3>
+                            </div>
+                            <div class="p-4 space-y-3">
+                                @forelse($enAzFireVerenler as $index => $lider)
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-[9px] font-black">{{ $index + 1 }}</span>
+                                            <div class="flex flex-col">
+                                                <span class="text-[10px] font-bold text-slate-700 truncate w-32" title="{{ $lider->name }}">{{ $lider->name }}</span>
+                                                <span class="text-[8px] font-black text-slate-400 uppercase">{{ $lider->role_label }}</span>
+                                            </div>
+                                        </div>
+                                        <span class="text-xs font-black text-rose-600">%{{ $lider->fire_orani }} <span class="text-[8px] text-slate-400">Hata</span></span>
+                                    </div>
+                                @empty
+                                    <span class="text-[10px] text-slate-400">Veri yok.</span>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- EKİP PERFORMANS RAPORU (Sadece Yöneticiler İçin) --}}
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
                         <div class="px-6 py-4 border-b border-slate-50 bg-indigo-50/30">
                             <h3 class="font-black text-indigo-900 text-sm uppercase tracking-widest">Ekip Performans Raporu</h3>
@@ -128,8 +208,10 @@
                                 <thead class="bg-slate-50/50">
                                     <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                                         <th class="px-4 py-3">Personel Adı</th>
+                                        <th class="px-4 py-3 text-center">Bölge/Yetki</th>
+                                        <th class="px-4 py-3 text-center">Son Aktivite</th>
                                         <th class="px-4 py-3 text-center">Toplam Girilen</th>
-                                        <th class="px-4 py-3 text-center">Hatalı Bildirim (Fire)</th>
+                                        <th class="px-4 py-3 text-center">Hatalı Bildirim</th>
                                         <th class="px-4 py-3 text-center">Talep Kapanan</th>
                                         <th class="px-4 py-3 text-right">Son 7 Gün Performansı</th>
                                     </tr>
@@ -137,9 +219,27 @@
                                 <tbody class="divide-y divide-slate-100">
                                     @forelse($ekipPerformansi as $ekipUyesi)
                                         <tr class="hover:bg-slate-50 transition-colors">
-                                            <td class="px-4 py-3 font-bold text-slate-700 text-xs">{{ $ekipUyesi->name }}</td>
+                                            <td class="px-4 py-3 font-bold text-slate-700 text-xs">
+                                                {{ $ekipUyesi->name }}
+                                                <div class="text-[9px] text-slate-400 font-normal mt-0.5">Toplam Login: {{ $ekipUyesi->login_count }}</div>
+                                            </td>
+                                            <td class="px-4 py-3 text-center">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest {{ $ekipUyesi->role_label == 'Yurt İçi' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : ($ekipUyesi->role_label == 'Yurt Dışı' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-slate-100 text-slate-500 border border-slate-200') }}">
+                                                    {{ $ekipUyesi->role_label }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-center font-bold text-[10px] text-slate-500">
+                                                @if($ekipUyesi->last_seen)
+                                                    {{ $ekipUyesi->last_seen->diffForHumans() }}
+                                                @else
+                                                    Bilinmiyor
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-3 text-center font-black text-slate-600">{{ $ekipUyesi->toplam }}</td>
-                                            <td class="px-4 py-3 text-center font-black text-rose-500">{{ $ekipUyesi->hatali_bildirim }}</td>
+                                            <td class="px-4 py-3 text-center font-black text-rose-500">
+                                                {{ $ekipUyesi->hatali_bildirim }}
+                                                <div class="text-[8px] text-slate-400 font-normal">%{{ $ekipUyesi->fire_orani }}</div>
+                                            </td>
                                             <td class="px-4 py-3 text-center font-black text-emerald-600">{{ $ekipUyesi->talep_kapanan }}</td>
                                             <td class="px-4 py-3 text-right font-black text-indigo-600">{{ $ekipUyesi->son_7_gun }} Şikayet</td>
                                         </tr>
@@ -161,7 +261,7 @@
                                 @if($selectedUserId == 'all')
                                     Genel Kurul Analizi (Tüm Üyeler)
                                 @else
-                                    {{ $kurulUyeleri->find($selectedUserId)->name ?? 'Seçili Üye' }} - Analiz Verileri
+                                    {{ optional($kurulUyeleri->firstWhere('id', $selectedUserId))->name ?? 'Seçili Üye' }} - Analiz Verileri
                                 @endif
                             </h3>
                             <span class="text-[10px] font-black bg-slate-100 px-3 py-1 rounded-full text-slate-500">{{ $stats_filtrelenmis['toplam'] }} TOPLAM KAYIT</span>

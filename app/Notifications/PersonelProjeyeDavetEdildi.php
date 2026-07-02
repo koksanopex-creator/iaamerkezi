@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 use App\Models\Iaa;
 use App\Models\User;
 
-class PersonelProjeyeDavetEdildi extends Notification implements ShouldQueue
+class PersonelProjeyeDavetEdildi extends Notification
 {
     use Queueable;
 

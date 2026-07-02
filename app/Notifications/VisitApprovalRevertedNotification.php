@@ -7,7 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use App\Models\Iaa;
 
-class VisitApprovalRevertedNotification extends Notification implements ShouldQueue
+class VisitApprovalRevertedNotification extends Notification
 {
     use Queueable;
 

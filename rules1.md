@@ -20,6 +20,26 @@ YOU MUST ALWAYS FOLLOW THESE RULES. NEVER IGNORE THEM.
 - Serverdaki git versiyonum 2.43.0
 - Serverdaki phpmyadmin versiyonum 5.2.1
 
+### SUNUCU PROJE DİZİNLERİ VE CANLI URL'LER (PRODUCTION)
+1. **IAA Projesi (Şikayetler, Disiplin vb.)**
+   - Sunucu Dizini: `/var/www/kys_koksan/iaa`
+   - Canlı URL: `https://kys.koksan.com/iaa/`
+
+2. **Merkezi API (Merkezi Yönetim Sistemi Core)**
+   - Sunucu Dizini: `/var/www/kys_koksan/merkezi_yonetim_sistemi_core`
+   - Canlı URL: `https://kys.koksan.com/merkezi_yonetim_sistemi/`
+
+3. **Koksan Takvim (İş Süreçleri / CRM / Saha)**
+   - Sunucu Dizini: `/var/www/koksan-takvim`
+   - Canlı URL: `https://kys.koksan.com/koksan_is_surecleri/login`
+
+### SUNUCU ERİŞİM BİLGİLERİ (VPN & SSH)
+- **VPN Türü**: SSL VPN (WatchGuard)
+- **VPN Public IP**: `82.222.9.114` (Port: `10443`, Protokol: `TCP`)
+- **İç Ağ Sunucu IP**: `172.20.5.10`
+- **SSH Kullanıcı**: `tamadmin`
+- **SSH Parola**: `8LUMFS0UVX90.`
+
 ### ENVIRONMENT SAFE URL RULE
 - Hardcoded URL/path kullanmak YASAK:
   ❌ /storage/...

@@ -8,7 +8,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Models\Iaa;
 
-class ZiyaretIptalEdildiBildirimi extends Notification implements ShouldQueue
+class ZiyaretIptalEdildiBildirimi extends Notification
 {
     use Queueable;
 

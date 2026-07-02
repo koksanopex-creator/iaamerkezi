@@ -8,7 +8,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Models\IaaZiyaretPlani;
 
-class VisitStatusChanged extends Notification implements ShouldQueue
+class VisitStatusChanged extends Notification
 {
     use Queueable;
 

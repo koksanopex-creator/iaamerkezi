@@ -13,6 +13,7 @@ use App\Models\DisciplinaryCase;
 use App\Models\Customer;
 use App\Models\ArabuluculukCase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class SuperAdminDashboardService
 {
@@ -94,11 +95,41 @@ class SuperAdminDashboardService
         $durum = $filters['durum'] ?? null;
 
         $bekleyenIsler = collect();
+        $user = auth()->user();
+        $allowedBolumIds = $user ? $user->getAllowedBolumIds() : [];
+        $isGlobal = ($allowedBolumIds === '*');
+
+        // Global yetkileri modüllere göre detaylandıralım (Örn: Müşteri Şikayeti Kurulu Şikayetleri global görür, İAA'yı göremez)
+        $isIaaGlobal = $isGlobal && $user->hasAnyRole(['Superadmin', 'Yonetim']);
+        $isSikayetGlobal = $isGlobal;
+        $isZiyaretGlobal = $isGlobal && $user->hasAnyRole(['Superadmin', 'Yonetim']);
+        $isDisiplinGlobal = $isGlobal && $user->hasAnyRole(['Superadmin', 'Yonetim']);
+        $isArabuluculukGlobal = $isGlobal && $user->hasAnyRole(['Superadmin', 'Yonetim']);
+        $isKullaniciGlobal = $isGlobal && $user->hasAnyRole(['Superadmin', 'Yonetim']);
 
         // 1. İAA PROJELERİ
         if (!$tur || $tur == 'İAA') {
-            $iaas = Iaa::sadeceOneriler()->with(['bolum', 'atananTakim.lider'])
+            $iaas = Iaa::sadeceOneriler()->with(['bolum', 'gonderen', 'atananTakim.lider'])
                 ->whereNotIn('durum', ['Tamamlandı', 'Reddedildi', 'İptal Edildi', 'Taslak', 'talep_olarak_kapatildi']);
+
+            if (!$isIaaGlobal) {
+                $iaas->where(function($q) use ($allowedBolumIds, $user) {
+                    if (is_array($allowedBolumIds) && !empty($allowedBolumIds)) {
+                        $q->whereIn('bolum_id', $allowedBolumIds);
+                    }
+                    $q->orWhere('gonderen_user_id', $user->id)
+                      ->orWhereHas('atananTakim', function($t) use ($user) {
+                          $t->where('lider_user_id', $user->id)
+                            ->orWhereHas('uyeler', fn($u) => $u->where('users.id', $user->id));
+                      })
+                      ->orWhereHas('projeEkibi', function($pe) use ($user) {
+                          $pe->where('users.id', $user->id);
+                      })
+                      ->orWhereHas('stepAssignments', function($sa) use ($user) {
+                          $sa->where('user_id', $user->id);
+                      });
+                });
+            }
 
             if ($bolum) {
                 $iaas->whereHas('bolum', function ($q) use ($bolum) {
@@ -106,16 +137,24 @@ class SuperAdminDashboardService
                 });
             }
 
-            if ($durum) {
-                $iaas->where('durum', $durum);
-            }
-
             $iaas->get()->each(function ($item) use ($bekleyenIsler) {
-                // Sorumlu Kişi Mantığı
+                // Sorumlu Kişi Mantığı - Spesifik İsim
                 $sorumlu = 'Atanmamış';
-                if ($item->durum == 'Onay Bekliyor') {
+                if (in_array($item->durum, ['Onay Bekliyor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_superadmin'])) {
                     $sa = User::role('Superadmin')->first();
                     $sorumlu = $sa ? $sa->name : 'Sistem Yöneticisi';
+                } elseif (in_array($item->durum, ['Bölüm Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_kalite'])) {
+                    $kaliteci = User::role('Bölüm Kalite Yöneticisi')
+                        ->whereHas('yonettigiSikayetKategorileri', function ($q) use ($item) {
+                            $q->whereHas('bolum', fn($bq) => $bq->where('id', $item->bolum_id));
+                        })->first();
+                    $sorumlu = $kaliteci ? $kaliteci->name : 'Bölüm Kalite Yöneticisi';
+                } elseif ($item->durum == 'Yönetici Onayı Bekliyor') {
+                    $yonetici = User::role(['Superadmin', 'Yonetim'])->first();
+                    $sorumlu = $yonetici ? $yonetici->name : 'Yönetim / Superadmin';
+                } elseif (in_array($item->durum, ['Direktör Onayı Bekliyor', 'talep_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_direktor'])) {
+                    $direktor = $item->bolum && $item->bolum->director_id ? User::find($item->bolum->director_id) : null;
+                    $sorumlu = $direktor ? $direktor->name : 'Direktör';
                 } else {
                     $sorumlu = $item->atananTakim && $item->atananTakim->lider 
                         ? $item->atananTakim->lider->name 
@@ -129,6 +168,7 @@ class SuperAdminDashboardService
                     'personel' => $sorumlu,
                     'bolum' => $item->bolum ? $item->bolum->ad : '-',
                     'durum' => $item->durum,
+                    'status_html' => $item->durum_etiketi,
                     'gun' => $item->created_at->diffInDays(now()),
                     'oncelik' => $item->oncelik ?? 'Normal',
                     'link' => route('proje.workspace.show', $item->id)
@@ -141,14 +181,31 @@ class SuperAdminDashboardService
             $sikayetler = MusteriSikayeti::with(['sikayetKategori.bolum', 'cozumTakimi.lider', 'iaaProjesi'])
                 ->where('musteri_durum', '!=', 'Kapatıldı');
 
+            if (!$isSikayetGlobal) {
+                $sikayetler->where(function($q) use ($allowedBolumIds, $user) {
+                    if (is_array($allowedBolumIds) && !empty($allowedBolumIds)) {
+                        $q->whereHas('sikayetKategori', function($c) use ($allowedBolumIds) {
+                            $c->whereIn('bolum_id', $allowedBolumIds);
+                        });
+                    }
+                    $q->orWhere('olusturan_kurul_uyesi_id', $user->id)
+                      ->orWhereHas('cozumTakimi', function($t) use ($user) {
+                          $t->where('lider_user_id', $user->id)
+                            ->orWhereHas('uyeler', fn($u) => $u->where('users.id', $user->id));
+                      })
+                      ->orWhereHas('iaaProjesi.stepAssignments', function($sa) use ($user) {
+                          $sa->where('user_id', $user->id);
+                      })
+                      ->orWhereHas('iaaProjesi.projeEkibi', function($pe) use ($user) {
+                          $pe->where('users.id', $user->id);
+                      });
+                });
+            }
+
             if ($bolum) {
                 $sikayetler->whereHas('sikayetKategori.bolum', function ($q) use ($bolum) {
                     $q->where('ad', $bolum);
                 });
-            }
-
-            if ($durum) {
-                $sikayetler->where('musteri_durum', $durum);
             }
 
             $sikayetler->get()->each(function ($item) use ($bekleyenIsler) {
@@ -156,13 +213,13 @@ class SuperAdminDashboardService
                 $sorumlu = 'Atanmamış';
                 $projeDurumu = $item->iaaProjesi ? $item->iaaProjesi->durum : $item->musteri_durum;
 
-                if ($projeDurumu == 'Bölüm Onayı Bekliyor') {
+                if (in_array($projeDurumu, ['Bölüm Onayı Bekliyor', 'talep_onayi_bekliyor_kalite', 'hatali_bildirim_onayi_bekliyor_kalite'])) {
                     $kaliteci = $item->sikayetKategori ? $item->sikayetKategori->yoneticiler()->first() : null;
                     $sorumlu = $kaliteci ? $kaliteci->name : 'Kalite Yöneticisi';
-                } elseif ($projeDurumu == 'Yönetici Onayı Bekliyor') {
-                    $lider = User::role('Bölüm Lideri')->where('bolum_id', ($item->sikayetKategori ? $item->sikayetKategori->bolum_id : null))->first();
-                    $sorumlu = $lider ? $lider->name : 'Bölüm Lideri';
-                } elseif ($projeDurumu == 'Direktör Onayı Bekliyor') {
+                } elseif (in_array($projeDurumu, ['Yönetici Onayı Bekliyor', 'talep_onayi_bekliyor_superadmin', 'hatali_bildirim_onayi_bekliyor_superadmin'])) {
+                    $yonetici = User::role(['Superadmin', 'Yonetim'])->first();
+                    $sorumlu = $yonetici ? $yonetici->name : 'Yönetim / Superadmin';
+                } elseif (in_array($projeDurumu, ['Direktör Onayı Bekliyor', 'talep_onayi_bekliyor_direktor', 'hatali_bildirim_onayi_bekliyor_direktor'])) {
                     $direktor = $item->sikayetKategori && $item->sikayetKategori->bolum ? $item->sikayetKategori->bolum->director : null;
                     $sorumlu = $direktor ? $direktor->name : 'Direktör';
                 } else {
@@ -178,9 +235,88 @@ class SuperAdminDashboardService
                     'personel' => $sorumlu,
                     'bolum' => $item->sikayetKategori && $item->sikayetKategori->bolum ? $item->sikayetKategori->bolum->ad : '-',
                     'durum' => $projeDurumu,
+                    'status_html' => $item->musteri_durum_badge,
                     'gun' => $item->created_at->diffInDays(now()),
                     'oncelik' => $item->oncelik ?? 'Normal',
                     'link' => route('admin.sikayetler.show', $item->id)
+                ]);
+            });
+        }
+
+        // 3. ZİYARET PLANLARI
+        if (!$tur || $tur == 'Ziyaret Planı') {
+            $ziyaretler = \App\Models\IaaZiyaretPlani::where(function ($q) {
+                    $q->where('status', 'Onaylandı')
+                      ->orWhereIn('return_date_revision_status', ['Bekliyor', 'Direktör Onayı Bekliyor']);
+                })->with(['iaa.bolum', 'iaa.musteriSikayeti.customer', 'planner']);
+
+            if (!$isZiyaretGlobal) {
+                $ziyaretler->where(function($q) use ($allowedBolumIds, $user) {
+                    if (is_array($allowedBolumIds) && !empty($allowedBolumIds)) {
+                        $q->whereHas('iaa', function($iaa) use ($allowedBolumIds) {
+                            $iaa->whereIn('bolum_id', $allowedBolumIds);
+                        });
+                    }
+                    $q->orWhere('visitor_id', $user->id)
+                      ->orWhereJsonContains('visitors', (string)$user->id)
+                      ->orWhereJsonContains('visitors', $user->id);
+                });
+            }
+
+            if ($bolum) {
+                $ziyaretler->whereHas('iaa.bolum', function ($q) use ($bolum) {
+                    $q->where('ad', $bolum);
+                });
+            }
+
+            $ziyaretler->get()->each(function ($item) use ($bekleyenIsler) {
+                $isRevision = in_array($item->return_date_revision_status, ['Bekliyor', 'Direktör Onayı Bekliyor']);
+                $durumText = $isRevision ? 'Tahmini Dönüş Revizyonu Bekliyor' : 'Ziyaret Sonuçlarının Girilmesi Bekleniyor';
+
+                $sorumlu = '-';
+                if ($isRevision) {
+                    if ($item->return_date_revision_status == 'Direktör Onayı Bekliyor') {
+                        $direktor = $item->iaa->bolum && $item->iaa->bolum->director_id ? \App\Models\User::find($item->iaa->bolum->director_id) : null;
+                        $sorumlu = $direktor ? $direktor->name : 'Direktör';
+                    } else {
+                        // 'Bekliyor' durumunda: Bölüm Kalite Yöneticisi onayı bekleniyor
+                        $catId = $item->iaa->musteriSikayeti->sikayet_kategorisi_id ?? null;
+                        $kaliteci = null;
+                        if ($catId) {
+                            $kaliteci = \App\Models\User::role('Bölüm Kalite Yöneticisi')
+                                ->whereHas('yonettigiSikayetKategorileri', function ($q) use ($catId) {
+                                    $q->where('sikayet_kategorileri.id', $catId);
+                                })->first();
+                        }
+                        $sorumlu = $kaliteci ? $kaliteci->name : 'Bölüm Kalite Yöneticisi';
+                    }
+                } else {
+                    $visitorIdsArray = $item->visitors ? (is_string($item->visitors) ? json_decode($item->visitors, true) : (is_array($item->visitors) ? $item->visitors : [])) : [];
+                    if (!empty($visitorIdsArray)) {
+                        $users = \App\Models\User::whereIn('id', $visitorIdsArray)->pluck('name')->toArray();
+                        if (!empty($users)) {
+                            $sorumlu = implode(', ', $users);
+                        }
+                    } elseif (!empty($item->visitor_name)) {
+                        $sorumlu = $item->visitor_name;
+                    } else {
+                        $sorumlu = 'Ziyaretçiler';
+                    }
+                }
+
+                $statusHtml = '<span class="inline-flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-tight text-center leading-tight w-32 whitespace-normal break-words bg-yellow-50 text-yellow-600 border-yellow-300 shadow-sm">⚠ ' . $durumText . '</span>';
+                
+                $bekleyenIsler->push([
+                    'id' => 'ziyaret-' . $item->id,
+                    'tur' => 'Ziyaret Planı',
+                    'konu' => $item->iaa->musteriSikayeti ? $item->iaa->musteriSikayeti->musteri_sikayet_konusu : $item->iaa->baslik,
+                    'personel' => $sorumlu,
+                    'bolum' => $item->iaa->bolum ? $item->iaa->bolum->ad : '-',
+                    'durum' => $durumText,
+                    'status_html' => $statusHtml,
+                    'gun' => $item->updated_at->diffInDays(now()),
+                    'oncelik' => 'Normal',
+                    'link' => route('proje.workspace.show', $item->iaa_id) . '#ziyaret-bilgileri-alani'
                 ]);
             });
         }
@@ -189,6 +325,19 @@ class SuperAdminDashboardService
             $arabuluculuk = ArabuluculukCase::with(['calisan.bolum'])
                 ->where('status', '!=', 'kapatildi');
 
+            if (!$isArabuluculukGlobal) {
+                $arabuluculuk->where(function($q) use ($allowedBolumIds, $user) {
+                    if (is_array($allowedBolumIds) && !empty($allowedBolumIds)) {
+                        $q->whereHas('calisan', function($c) use ($allowedBolumIds) {
+                            $c->whereIn('bolum_id', $allowedBolumIds);
+                        });
+                    }
+                    $q->orWhere('calisan_user_id', $user->id)
+                      ->orWhere('external_lawyer_id', $user->id)
+                      ->orWhere('created_by', $user->id);
+                });
+            }
+
             if ($bolum) {
                 $arabuluculuk->whereHas('calisan.bolum', function ($q) use ($bolum) {
                     $q->where('ad', $bolum);
@@ -196,6 +345,7 @@ class SuperAdminDashboardService
             }
 
             $arabuluculuk->get()->each(function ($item) use ($bekleyenIsler) {
+                $statusHtml = '<span class="inline-flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-tight text-center leading-tight w-32 whitespace-normal break-words bg-blue-50 text-blue-600 border-blue-200 shadow-sm">' . strtoupper(str_replace('_', ' ', $item->status)) . '</span>';
                 $bekleyenIsler->push([
                     'id' => $item->id,
                     'tur' => 'Arabuluculuk',
@@ -203,6 +353,7 @@ class SuperAdminDashboardService
                     'personel' => $item->calisan ? $item->calisan->name : '-',
                     'bolum' => $item->calisan && $item->calisan->bolum ? $item->calisan->bolum->ad : '-',
                     'durum' => $item->status,
+                    'status_html' => $statusHtml,
                     'gun' => $item->created_at->diffInDays(now()),
                     'oncelik' => 'Yüksek',
                     'link' => route('admin.arabuluculuk.show', $item->id)
@@ -215,14 +366,22 @@ class SuperAdminDashboardService
             $disiplinler = DisciplinaryCase::with(['user.bolum', 'reporter', 'behavior'])
                 ->whereNotIn('durum', ['Karar Verildi', 'İptal Edildi', 'Taslak']);
 
+            if (!$isDisiplinGlobal) {
+                $disiplinler->where(function($q) use ($allowedBolumIds, $user) {
+                    if (is_array($allowedBolumIds) && !empty($allowedBolumIds)) {
+                        $q->whereHas('user', function($u) use ($allowedBolumIds) {
+                            $u->whereIn('bolum_id', $allowedBolumIds);
+                        });
+                    }
+                    $q->orWhere('user_id', $user->id)
+                      ->orWhere('reporter_id', $user->id);
+                });
+            }
+
             if ($bolum) {
                 $disiplinler->whereHas('user.bolum', function ($q) use ($bolum) {
                     $q->where('ad', $bolum);
                 });
-            }
-
-            if ($durum) {
-                $disiplinler->where('durum', $durum);
             }
 
             $disiplinler->get()->each(function ($item) use ($bekleyenIsler) {
@@ -237,6 +396,7 @@ class SuperAdminDashboardService
                     $sorumlu = 'Disiplin Kurulu Üyeleri';
                 }
 
+                $statusHtml = '<span class="inline-flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-tight text-center leading-tight w-32 whitespace-normal break-words bg-rose-50 text-rose-600 border-rose-200 shadow-sm">' . strtoupper($item->durum) . '</span>';
                 $bekleyenIsler->push([
                     'id' => $item->id,
                     'tur' => 'Disiplin',
@@ -244,6 +404,7 @@ class SuperAdminDashboardService
                     'personel' => $sorumlu,
                     'bolum' => $item->user && $item->user->bolum ? $item->user->bolum->ad : '-',
                     'durum' => $item->durum,
+                    'status_html' => $statusHtml,
                     'gun' => $item->created_at->diffInDays(now()),
                     'oncelik' => $item->hesaplanan_puan > 50 ? 'Yüksek' : 'Normal',
                     'link' => route('admin.disiplin.show', $item->id)
@@ -252,7 +413,7 @@ class SuperAdminDashboardService
         }
 
         // 5. KULLANICI ONAYLARI
-        if (!$tur || $tur == 'Kullanıcı Kaydı') {
+        if ((!$tur || $tur == 'Kullanıcı Kaydı') && $isKullaniciGlobal) {
             $kullanicilar = User::where('onaylandi_mi', false)->with('bolum');
 
             if ($bolum) {
@@ -262,6 +423,7 @@ class SuperAdminDashboardService
             }
 
             $kullanicilar->get()->each(function ($item) use ($bekleyenIsler) {
+                $statusHtml = '<span class="inline-flex flex-col items-center justify-center px-2 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-tight text-center leading-tight w-32 whitespace-normal break-words bg-slate-900 text-white border-slate-700 shadow-sm">ONAY BEKLİYOR</span>';
                 $bekleyenIsler->push([
                     'id' => $item->id,
                     'tur' => 'Kullanıcı Kaydı',
@@ -269,6 +431,7 @@ class SuperAdminDashboardService
                     'personel' => 'Süperadmin',
                     'bolum' => $item->bolum ? $item->bolum->ad : '-',
                     'durum' => 'Onay Bekliyor',
+                    'status_html' => $statusHtml,
                     'gun' => $item->created_at->diffInDays(now()),
                     'oncelik' => 'Normal',
                     'link' => route('admin.users.index')
@@ -279,8 +442,8 @@ class SuperAdminDashboardService
         // Dropdown Verileri
         $dropdowns = [
             'bolumler' => Bolum::pluck('ad')->toArray(),
-            'turler' => ['İAA', 'Müşteri Şikayeti', 'Arabuluculuk', 'Disiplin', 'Kullanıcı Kaydı'],
-            'durumlar' => array_unique($bekleyenIsler->pluck('durum')->toArray())
+            'turler' => ['İAA', 'Müşteri Şikayeti', 'Ziyaret Planı', 'Arabuluculuk', 'Disiplin', 'Kullanıcı Kaydı'],
+            'durumlar' => array_values(array_unique($bekleyenIsler->pluck('durum')->toArray()))
         ];
 
         // İstatistikler
@@ -291,11 +454,28 @@ class SuperAdminDashboardService
             'arabuluculuk' => $bekleyenIsler->where('tur', 'Arabuluculuk')->count()
         ];
 
+        if ($durum) {
+            $bekleyenIsler = $bekleyenIsler->filter(function ($item) use ($durum) {
+                return $item['durum'] == $durum;
+            });
+        }
+
         // Sıralama (En çok bekleyenden en az bekleyene)
-        $bekleyenIsler = $bekleyenIsler->sortByDesc('gun');
+        $bekleyenIsler = $bekleyenIsler->sortByDesc('gun')->values();
+
+        // Sayfalama (Pagination) - Her sayfada 20 sonuç
+        $page = request()->get('page', 1);
+        $perPage = 20;
+        $paginatedItems = new LengthAwarePaginator(
+            $bekleyenIsler->forPage($page, $perPage),
+            $bekleyenIsler->count(),
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
 
         return [
-            'bekleyenIsler' => $bekleyenIsler,
+            'bekleyenIsler' => $paginatedItems,
             'stats' => $stats,
             'dropdowns' => $dropdowns
         ];

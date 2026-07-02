@@ -212,7 +212,20 @@
                             class="w-full h-12 rounded-2xl border-slate-200 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all cursor-pointer">
                             <option value="">Tüm Durumlar</option>
                             @foreach($durumlarListesi as $durum)
-                                <option value="{{ $durum }}" {{ request('durum') == $durum ? 'selected' : '' }}>{{ $durum }}
+                                @php
+                                    $displayDurum = match($durum) {
+                                        'Bölüm Onayı Bekliyor', 'Onay Bekliyor' => 'Bölüm Kalite Yöneticisi Onayı Bekliyor',
+                                        'Yönetici Onayı Bekliyor' => 'Final Onay Bekliyor',
+                                        'talep_onayi_bekliyor_kalite' => 'Müşteri Talebi: Kalite Onayı Bekliyor',
+                                        'talep_onayi_bekliyor_direktor' => 'Müşteri Talebi: Direktör Onayı Bekliyor',
+                                        'talep_onayi_bekliyor_superadmin' => 'Müşteri Talebi: Yönetim Onayı Bekliyor',
+                                        'hatali_bildirim_onayi_bekliyor_kalite' => 'Hatalı Bildirim: Kalite Onayı Bekliyor',
+                                        'hatali_bildirim_onayi_bekliyor_direktor' => 'Hatalı Bildirim: Direktör Onayı Bekliyor',
+                                        'hatali_bildirim_onayi_bekliyor_superadmin' => 'Hatalı Bildirim: Yönetim Onayı Bekliyor',
+                                        default => $durum
+                                    };
+                                @endphp
+                                <option value="{{ $durum }}" {{ request('durum') == $durum ? 'selected' : '' }}>{{ $displayDurum }}
                                 </option>
                             @endforeach
                         </select>
@@ -292,6 +305,11 @@
                                                 class="inline-flex px-3 py-1 bg-violet-50 text-violet-600 rounded-lg text-[10px] font-black border border-violet-100 shadow-sm leading-none uppercase">
                                                 Disiplin
                                             </span>
+                                        @elseif($is['tur'] == 'Ziyaret Planı')
+                                            <span
+                                                class="inline-flex px-3 py-1 bg-teal-50 text-teal-600 rounded-lg text-[10px] font-black border border-teal-100 shadow-sm leading-none uppercase">
+                                                Ziyaret
+                                            </span>
                                         @elseif($is['tur'] == 'Kullanıcı Kaydı')
                                             <span
                                                 class="inline-flex px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black border border-slate-950 shadow-sm leading-none uppercase">
@@ -337,29 +355,16 @@
                                         </div>
                                     </td>
                                     <td class="px-8 py-7 text-center">
-                                        @php
-                                            $durumColor = match($is['durum']) {
-                                                'Onay Bekliyor', 'Yeni' => 'bg-indigo-50 text-indigo-600 border-indigo-100',
-                                                'Bölüm Onayı Bekliyor', 'İşlemde', 'Devam Ediyor' => 'bg-amber-50 text-amber-600 border-amber-100',
-                                                'Yönetici Onayı Bekliyor', 'Kurulda', 'Kurul İncelemesinde' => 'bg-orange-50 text-orange-600 border-orange-100',
-                                                'Direktör Onayı Bekliyor' => 'bg-rose-50 text-rose-600 border-rose-100',
-                                                'Tamamlandı', 'Havuzda' => 'bg-emerald-50 text-emerald-600 border-emerald-100',
-                                                'Savunma Bekleniyor' => 'bg-amber-50 text-amber-600 border-amber-100',
-                                                'Yönetici Değerlendirmesi' => 'bg-indigo-50 text-indigo-600 border-indigo-100',
-                                                default => 'bg-slate-50 text-slate-600 border-slate-100'
-                                            };
-                                            $roundedGun = ceil($is['gun']);
-                                        @endphp
-                                        <span
-                                            class="inline-block px-4 py-1.5 rounded-2xl {{ $durumColor }} text-[10px] font-black border leading-none truncate max-w-full"
-                                            title="{{ $is['durum'] }}">
-                                            {{ 
-                                                strtoupper(
-                                                    $is['durum'] == 'Bölüm Onayı Bekliyor' ? 'Bölüm Kalite Yöneticisi Onayı Bekliyor' : 
-                                                    ($is['durum'] == 'Yönetici Onayı Bekliyor' ? 'Final Onay Bekliyor' : $is['durum'])
-                                                ) 
-                                            }}
-                                        </span>
+                                        @php $roundedGun = ceil($is['gun']); @endphp
+                                        @if(isset($is['status_html']))
+                                            <div class="inline-flex justify-center scale-90 origin-center">
+                                                {!! $is['status_html'] !!}
+                                            </div>
+                                        @else
+                                            <span class="inline-block px-4 py-1.5 rounded-2xl bg-gray-100 text-gray-600 text-[10px] font-black border border-gray-200 leading-none truncate max-w-full" title="{{ $is['durum'] }}">
+                                                {{ strtoupper($is['durum'] == 'Bölüm Onayı Bekliyor' ? 'Bölüm Kalite Yöneticisi Onayı Bekliyor' : ($is['durum'] == 'Yönetici Onayı Bekliyor' ? 'Final Onay Bekliyor' : $is['durum'])) }}
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="px-8 py-7 text-center">
                                         <div class="inline-flex flex-col items-center">
@@ -413,6 +418,12 @@
                         </tbody>
                     </table>
                 </div>
+
+                @if($bekleyenIsler->hasPages())
+                    <div class="px-8 py-6 border-t border-slate-100 bg-slate-50/50">
+                        {{ $bekleyenIsler->links() }}
+                    </div>
+                @endif
             </div>
 
             <!-- FOOTER INFO -->

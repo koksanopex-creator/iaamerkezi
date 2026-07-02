@@ -20,7 +20,7 @@
                 $stats = [
                     [
                         'label' => 'Toplam Talep', 
-                        'val' => \App\Models\SikayetHatirlatma::count(), 
+                        'val' => $statsData['toplam'], 
                         'icon' => '📊', 
                         'color' => 'bg-indigo-600',
                         'link' => route('admin.sikayet-hatirlatma.index'),
@@ -28,7 +28,7 @@
                     ],
                     [
                         'label' => 'Bekleyen', 
-                        'val' => \App\Models\SikayetHatirlatma::where('durum', 'bilgi_girisi_bekleniyor')->count(), 
+                        'val' => $statsData['bekleyen'], 
                         'icon' => '🟡', 
                         'color' => 'bg-amber-500',
                         'link' => route('admin.sikayet-hatirlatma.index', ['durum' => 'bilgi_girisi_bekleniyor']),
@@ -36,7 +36,7 @@
                     ],
                     [
                         'label' => 'Yanıtlanan', 
-                        'val' => \App\Models\SikayetHatirlatma::where('durum', 'bilgi_girildi')->count(), 
+                        'val' => $statsData['yanitlanan'], 
                         'icon' => '🔵', 
                         'color' => 'bg-blue-600',
                         'link' => route('admin.sikayet-hatirlatma.index', ['durum' => 'bilgi_girildi']),
@@ -44,7 +44,7 @@
                     ],
                     [
                         'label' => 'İkna Oldu', 
-                        'val' => \App\Models\SikayetHatirlatma::where('durum', 'musteri_ikna_oldu')->count(), 
+                        'val' => $statsData['ikna_oldu'], 
                         'icon' => '🟢', 
                         'color' => 'bg-emerald-600',
                         'link' => route('admin.sikayet-hatirlatma.index', ['durum' => 'musteri_ikna_oldu']),
@@ -52,7 +52,7 @@
                     ],
                     [
                         'label' => 'Tekrarlanan', 
-                        'val' => \App\Models\SikayetHatirlatma::where('hatirlatma_sayisi', '>', 1)->count(), 
+                        'val' => $statsData['tekrarlanan'], 
                         'icon' => '🔄', 
                         'color' => 'bg-rose-500',
                         'link' => route('admin.sikayet-hatirlatma.index', ['tekrarlanan' => 1]),

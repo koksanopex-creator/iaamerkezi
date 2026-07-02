@@ -7,7 +7,7 @@ use Illuminate\Notifications\Notification;
 
 use Illuminate\Contracts\Queue\ShouldQueue; // KUYRUK İÇİN
 
-class TakimaDavetEdildi extends Notification implements ShouldQueue // KUYRUK İÇİN
+class TakimaDavetEdildi extends Notification
 {
     use Queueable;
 

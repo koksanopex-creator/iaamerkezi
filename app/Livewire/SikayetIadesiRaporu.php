@@ -132,7 +132,15 @@ class SikayetIadesiRaporu extends Component
             ->with(['musteriSikayeti.sikayetKategori.bolum', 'musteriSikayeti.customer', 'user']);
 
         // 1. Organik Bağ ve Rol Bazlı Filtreleme
-        if (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
+        if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+            $query->whereHas('musteriSikayeti', function($q) {
+                $q->where('konum_tipi', 'Yurt İçi');
+            });
+        } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+            $query->whereHas('musteriSikayeti', function($q) {
+                $q->where('konum_tipi', 'Yurt Dışı');
+            });
+        } elseif (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
             $allowedBolumIds = $user->getAllowedBolumIds();
             
             $query->whereHas('musteriSikayeti.sikayetKategori', function($q) use ($allowedBolumIds, $user) {
@@ -261,8 +269,13 @@ class SikayetIadesiRaporu extends Component
             $complaintQuery->whereDate('created_at', '<=', Carbon::parse($this->endDate)->endOfDay());
         }
         
-        if (!Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
-            $allowedBolumIds = Auth::user()->getAllowedBolumIds();
+        $user = Auth::user();
+        if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+            $complaintQuery->where('konum_tipi', 'Yurt İçi');
+        } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+            $complaintQuery->where('konum_tipi', 'Yurt Dışı');
+        } elseif (!$user->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+            $allowedBolumIds = $user->getAllowedBolumIds();
             if ($allowedBolumIds !== '*') {
                 $complaintQuery->whereHas('sikayetKategori', function($q) use ($allowedBolumIds) {
                     $q->whereIn('bolum_id', $allowedBolumIds);

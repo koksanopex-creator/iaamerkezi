@@ -99,6 +99,40 @@ class IaaPolicy
                     }
                 }
             }
+
+            // Kural 1.8: Müşteri Şikayeti Kurulu ve Yöneticileri (Bölgesel veya Global)
+            if ($iaa->musteriSikayeti) {
+                $sikayetKonum = $iaa->musteriSikayeti->konum_tipi;
+                if ($user->hasRole(['Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                    return true;
+                }
+                if ($sikayetKonum === 'Yurt İçi' && $user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                    return true;
+                }
+                if ($sikayetKonum === 'Yurt Dışı' && $user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                    return true;
+                }
+            }
+        }
+
+        // Kural 1.9: Eğer bu kişi herhangi bir adımda widget ile seçilmişse (ve bildirim gittiyse), görebilir.
+        // Veya herhangi bir adıma "Adım Sorumlusu" olarak atanmışsa görebilir.
+        $isAssignedToStep = \Illuminate\Support\Facades\DB::table('iaa_step_assignments')
+            ->where('iaa_id', $iaa->id)
+            ->where('user_id', $user->id)
+            ->exists();
+            
+        if ($isAssignedToStep) {
+            return true;
+        }
+
+        $isWidgetSelected = \App\Models\IaaProgressUpdate::join('iaa_talepleri', 'iaa_talepleri.id', '=', 'iaa_progress_updates.iaa_talep_id')
+            ->where('iaa_talepleri.iaa_id', $iaa->id)
+            ->where('iaa_progress_updates.content', 'LIKE', '%"'.$user->id.'"%')
+            ->exists();
+            
+        if ($isWidgetSelected) {
+            return true;
         }
 
         // Kural 2: Durum Bazlı Görünürlük (Yalnızca Personel İçin)

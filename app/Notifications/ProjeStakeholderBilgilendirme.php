@@ -8,7 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class ProjeStakeholderBilgilendirme extends Notification implements ShouldQueue
+class ProjeStakeholderBilgilendirme extends Notification
 {
     use Queueable;
 

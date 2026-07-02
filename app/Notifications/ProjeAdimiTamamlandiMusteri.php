@@ -9,7 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class ProjeAdimiTamamlandiMusteri extends Notification implements ShouldQueue
+class ProjeAdimiTamamlandiMusteri extends Notification
 {
     use Queueable;
 
@@ -45,11 +45,12 @@ class ProjeAdimiTamamlandiMusteri extends Notification implements ShouldQueue
         $baslik = $this->iaa->baslik;
         $stepName = $this->step->name;
         $progress = "{$this->completedCount}/{$this->totalCount}";
+        $sikayetMetni = ($notifiable->is_personnel ?? 0) == 1 ? "bölümünüze ait şikayetin" : "şikayetinizin";
         
         return (new MailMessage)
             ->subject("Proje Adımı Tamamlandı: #{$this->iaa->id}")
             ->greeting("Merhaba {$notifiable->name},")
-            ->line("#{$this->iaa->id} Nolu **\"{$baslik}\"** başlıklı şikayetinizin **{$stepName}** adımı tamamlanmıştır.")
+            ->line("#{$this->iaa->id} Nolu **\"{$baslik}\"** başlıklı {$sikayetMetni} **{$stepName}** adımı tamamlanmıştır.")
             ->line("Mevcut süreç ilerlemesi: **{$progress}**")
             ->action('Proje Alanını Görüntüle', route('proje.workspace.show', $this->iaa->id))
             ->salutation('Saygılarımızla, Köksan İyileştirmeye Açık Alan');
@@ -63,9 +64,10 @@ class ProjeAdimiTamamlandiMusteri extends Notification implements ShouldQueue
         $baslik = $this->iaa->baslik;
         $stepName = $this->step->name;
         $progress = "{$this->completedCount}/{$this->totalCount}";
+        $sikayetMetni = ($notifiable->is_personnel ?? 0) == 1 ? "bölümünüze ait şikayetin" : "şikayetinizin";
 
         return [
-            'message' => "#{$this->iaa->id} Nolu **\"{$baslik}\"** başlıklı şikayetinizin **{$stepName}** adımı tamamlanmıştır. (Süreç: {$progress})",
+            'message' => "#{$this->iaa->id} Nolu **\"{$baslik}\"** başlıklı {$sikayetMetni} **{$stepName}** adımı tamamlanmıştır. (Süreç: {$progress})",
             'link' => route('proje.workspace.show', $this->iaa->id),
             'iaa_id' => $this->iaa->id,
             'step_id' => $this->step->id

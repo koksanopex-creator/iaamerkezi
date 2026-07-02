@@ -949,6 +949,7 @@
                                     @role('Superadmin')
                                         <x-dropdown-link :href="route('admin.takvim-eslestirme.index')" class="bg-indigo-50/30 font-bold border-y border-indigo-50/50">Takvim Eşleştirme</x-dropdown-link>
                                         <x-dropdown-link :href="route('admin.sistem-ayarlari.index')">Sistem Ayarları</x-dropdown-link>
+                                        <x-dropdown-link href="/pulse" target="_blank" class="text-indigo-600 font-bold bg-indigo-50/20">⚡ Performans Paneli (Pulse)</x-dropdown-link>
                                     @endrole
 
                                     @if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Bölüm Lideri', 'Direktör']))
@@ -1377,6 +1378,7 @@
                         @role('Superadmin')
                             <x-responsive-nav-link :href="route('admin.takvim-eslestirme.index')" class="text-indigo-600 font-bold bg-indigo-50/30">Takvim Eşleştirme</x-responsive-nav-link>
                             <x-responsive-nav-link :href="route('admin.sistem-ayarlari.index')">Sistem Ayarları</x-responsive-nav-link>
+                            <x-responsive-nav-link href="/pulse" target="_blank" class="text-indigo-600 font-bold bg-indigo-50/20">⚡ Performans Paneli (Pulse)</x-responsive-nav-link>
                         @endrole
                     @endif
 

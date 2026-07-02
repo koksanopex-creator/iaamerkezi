@@ -25,6 +25,10 @@
         }
         $isDirector = $currentUser->hasRole('Direktör');
         $isSuperAdmin = $currentUser->hasRole('Superadmin');
+        
+        if ($isSuperAdmin) {
+            $isLeader = true;
+        }
 
         // Direktör Bölüm Kontrolü
         if ($isDirector && !$isSuperAdmin) {

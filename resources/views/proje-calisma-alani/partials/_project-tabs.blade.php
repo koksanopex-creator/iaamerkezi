@@ -4,7 +4,7 @@
     $hasFaultyPanel = isset($isComplaintProject) && $isComplaintProject && Auth::check() && !Auth::user()->hasAnyRole(['Müşteri', 'Müşteri Temsilcisi', 'Müşteri Saha Temsilcisi']) && is_null(Auth::user()->customer_id);
     
     // YENİ: Eğer kullanıcı Bölüm Kalite Yöneticisi ise ve müdahale yetkisi kapalıysa operasyonel sekmeleri görmemeli (Lider değilse)
-    if (Auth::check() && Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && !($isQualityManagerInterventionPower ?? false)) {
+    if (Auth::check() && Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && !Auth::user()->hasRole('Superadmin') && !($isQualityManagerInterventionPower ?? false)) {
         // Eğer bu QM aynı zamanda takım lideri değilse (çok nadir bir durum ama kontrol edelim), panelleri gizle
         $isActualLeader = $iaa->atananTakim && Auth::id() == $iaa->atananTakim->lider_user_id;
         if (!$isActualLeader) {
@@ -15,7 +15,7 @@
     $hasCustomerNotification = $hasComplaintDetails && Auth::check() && Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi']);
     
     // Müşteri İletişimi sekmesi için de aynı kısıtlamayı uygulayalım
-    if (Auth::check() && Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && !($isQualityManagerInterventionPower ?? false)) {
+    if (Auth::check() && Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && !Auth::user()->hasRole('Superadmin') && !($isQualityManagerInterventionPower ?? false)) {
         $hasCustomerNotification = Auth::user()->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']);
     }
     $isGuestOrCustomer = !Auth::check();
@@ -138,7 +138,8 @@
                     @php
                         $isLeaderOrManager = Auth::check() && (
                             ($iaa->atananTakim && Auth::id() == $iaa->atananTakim->lider_user_id) || 
-                            (Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && ($isQualityManagerInterventionPower ?? false))
+                            (Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && ($isQualityManagerInterventionPower ?? false)) ||
+                            Auth::user()->hasRole('Superadmin')
                         );
                         $hasAnyReport = $iaa->hatali_bildirim_gerekcesi || $iaa->talep_gerekcesi;
                     @endphp

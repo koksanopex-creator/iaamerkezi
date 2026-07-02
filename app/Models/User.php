@@ -267,6 +267,15 @@ class User extends Authenticatable implements MustVerifyEmail // <-- Interface I
             {
                 $bolumIds[] = $user->bolum_id;
             }
+            
+            // Lideri olduğu takımların varsayılan olarak atandığı kategorilerin bölüm ID'lerini de ekle
+            $takimIds = $user->lideriOlduguTakimlar()->pluck('id')->toArray();
+            if (!empty($takimIds)) {
+                $kategoriBolumIds = \App\Models\SikayetKategori::whereIn('varsayilan_takim_id', $takimIds)
+                                      ->whereNotNull('bolum_id')
+                                      ->pluck('bolum_id')->toArray();
+                $bolumIds = array_merge($bolumIds, $kategoriBolumIds);
+            }
         }
 
         // 5. Direktör Yetkisi

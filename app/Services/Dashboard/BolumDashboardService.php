@@ -466,6 +466,16 @@ class BolumDashboardService
         $stats['pending_visit_count'] = $pendingVisitsQuery->count();
         $stats['pending_visits_list'] = $pendingVisitsQuery->with(['iaa.musteriSikayeti.customer', 'iaa.gonderen'])->latest()->get();
 
+        $totalVisitsQuery = \App\Models\IaaZiyaretPlani::whereHas('iaa', function ($q) use ($bolum, $personelIds, $inclusiveQuery) {
+            $q->where(function ($sq) use ($bolum, $personelIds, $inclusiveQuery) {
+                $inclusiveQuery($sq);
+                $sq->orWhereHas('musteriSikayeti.sikayetKategori', function ($skq) use ($bolum) {
+                    $skq->where('bolum_id', $bolum->id);
+                });
+            });
+        });
+        $stats['total_visit_count'] = $totalVisitsQuery->count();
+
         // --- 5. DAĞILIM VE LİSTELER ---
         $baseQuery = function () use ($bolum, $personelIds, $inclusiveQuery) {
             return \App\Models\Iaa::where(function ($q) use ($bolum, $personelIds, $inclusiveQuery) {

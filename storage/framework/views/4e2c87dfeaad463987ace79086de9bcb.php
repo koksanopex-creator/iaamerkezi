@@ -184,8 +184,16 @@
                 })->count();
         }
 
-        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri'])) {
-            $unassignedSikayetCount = \App\Models\MusteriSikayeti::where('musteri_durum', 'Yeni')->count();
+        if ($user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri Şikayeti Çözüm Lideri'])) {
+            $q = \App\Models\MusteriSikayeti::where('musteri_durum', 'Yeni');
+            if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                    $q->where('konum_tipi', 'Yurt İçi');
+                } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                    $q->where('konum_tipi', 'Yurt Dışı');
+                }
+            }
+            $unassignedSikayetCount = $q->count();
         } else {
             $unassignedSikayetCount = 0;
         }
@@ -236,7 +244,7 @@
 
         // 7. Yönetici Ziyaret Onay Sayacı (Müşteri Ziyaretleri İçin)
         $managerPendingVisitCount = 0;
-        if ($user->hasRole(['Bölüm Kalite Yöneticisi', 'Direktör', 'Superadmin', 'Yonetim'])) {
+        if ($user->hasRole(['Bölüm Kalite Yöneticisi', 'Direktör', 'Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
             $allowedBolumler = $user->getAllowedBolumIds();
             $query = \App\Models\IaaZiyaretPlani::where('status', 'Beklemede');
             if ($allowedBolumler !== '*') {
@@ -246,6 +254,14 @@
                             $sq->whereIn('bolum_id', $allowedBolumler);
                         });
                 });
+            } else {
+                if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                    if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                        $query->whereHas('iaa.musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt İçi'); });
+                    } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                        $query->whereHas('iaa.musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt Dışı'); });
+                    }
+                }
             }
             $managerPendingVisitCount = $query->count();
         }
@@ -1150,7 +1166,7 @@
                                         <span class="w-1.5 h-4 bg-white rounded-full shadow-sm"></span>
                                         ŞİKAYET VE ANALİZ
                                     </div>
-                                    <?php if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.sikayet.gor')): ?>
+                                    <?php if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.sikayet.gor')): ?>
                                     <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => route('admin.sikayetler.index'),'class' => 'flex items-center justify-between font-bold '.e($unassignedSikayetCount > 0 ? 'text-rose-700 bg-rose-50' : '').'']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1249,7 +1265,7 @@
 <?php endif; ?>
                                     <?php endif; ?>
                                     <?php endif; ?>
-                                    <?php if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.iade.gor')): ?>
+                                    <?php if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.iade.gor')): ?>
                                     <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => route('admin.sikayet-iade-raporlari.index'),'class' => 'text-rose-600 font-bold bg-rose-50/20']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1272,7 +1288,7 @@
                                     <?php endif; ?>
                                     
                                     
-                                    <?php if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Temsilcisi', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.sikayet.bildirim')): ?>
+                                    <?php if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Müşteri Temsilcisi', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Müşteri Şikayeti Çözüm Lideri', 'Direktör', 'Bölüm Lideri', 'Müşteri Saha Temsilcisi']) || Auth::user()->hasBolumAuthority('bolum.sikayet.bildirim')): ?>
                                         <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => route('admin.sikayet-hatirlatma.index'),'class' => 'text-indigo-600 font-bold bg-indigo-50/50 flex justify-between items-center group']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -1287,16 +1303,25 @@
                                             <div class="flex items-center gap-1">
                                                 <?php
                                                     $user = auth()->user();
-                                                    $navPendingCount = \App\Models\SikayetHatirlatma::where('durum', 'bilgi_girisi_bekleniyor');
-                                                    if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu'])) {
-                                                        $allowedBolumIds = $user->getAllowedBolumIds();
-                                                        $navPendingCount->where(function($q) use ($user, $allowedBolumIds) {
-                                                            $q->whereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($allowedBolumIds) {
-                                                                if ($allowedBolumIds !== '*') { $sq->whereIn('bolum_id', $allowedBolumIds); }
-                                                            })->orWhereHas('musteriSikayeti.cozumTakimi', function($sq) use ($user) {
-                                                                $sq->where('lider_user_id', $user->id);
-                                                            });
+                                                    $navPendingCount = \App\Models\SikayetHatirlatma::where('durum', 'bilgi_girisi_bekleniyor')
+                                                        ->whereHas('musteriSikayeti', function($q) {
+                                                            $q->whereNotIn('musteri_durum', ['Kapatıldı', 'Çözümlendi']);
                                                         });
+                                                    if (!$user->hasRole(['Superadmin', 'Yonetim', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi'])) {
+                                                        if ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi'])) {
+                                                            $navPendingCount->whereHas('musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt İçi'); });
+                                                        } elseif ($user->hasRole(['Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı'])) {
+                                                            $navPendingCount->whereHas('musteriSikayeti', function($sq) { $sq->where('konum_tipi', 'Yurt Dışı'); });
+                                                        } else {
+                                                            $allowedBolumIds = $user->getAllowedBolumIds();
+                                                            $navPendingCount->where(function($q) use ($user, $allowedBolumIds) {
+                                                                $q->whereHas('musteriSikayeti.sikayetKategori', function ($sq) use ($allowedBolumIds) {
+                                                                    if ($allowedBolumIds !== '*') { $sq->whereIn('bolum_id', $allowedBolumIds); }
+                                                                })->orWhereHas('musteriSikayeti.cozumTakimi', function($sq) use ($user) {
+                                                                    $sq->where('lider_user_id', $user->id);
+                                                                });
+                                                            });
+                                                        }
                                                     }
                                                     $navPendingCount = $navPendingCount->count();
                                                 ?>
@@ -1533,6 +1558,15 @@
                     </div>
                 <?php endif; ?>
 
+                
+                <?php if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim', 'Bölüm Lideri', 'Bölüm Lider Yardımcısı', 'Bölüm Kalite Yöneticisi', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı', 'Direktör', 'Hukuk Yöneticisi', 'Hukuk Admini'])): ?>
+                    <div class="flex items-center h-full">
+                        <a href="<?php echo e(route('admin.tum-bekleyen-isler')); ?>" class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all <?php echo e(request()->routeIs('admin.tum-bekleyen-isler') ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'); ?>">
+                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span>İş & Süreç Takibi</span>
+                        </a>
+                    </div>
+                <?php endif; ?>
 
                 
                 <?php if(Auth::user()->hasRole(['Superadmin', 'Yonetim', 'Bölüm Kalite Yöneticisi', 'Bölüm Lideri', 'Direktör']) || Auth::user()->hasBolumAuthority('bolum.mavi_yaka.yonet')): ?>
@@ -1798,28 +1832,6 @@
                                         <span class="w-1.5 h-4 bg-white rounded-full shadow-sm"></span>
                                         OPERASYON VE İYİLEŞTİRME
                                     </div>
-                                    
-                                    <?php if(Auth::user()->hasAnyRole(['Superadmin', 'Yonetim'])): ?>
-                                        <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
-<?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => route('admin.tum-bekleyen-isler'),'class' => 'text-indigo-600 font-bold bg-indigo-50/50']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
-<?php $component->withName('dropdown-link'); ?>
-<?php if ($component->shouldRender()): ?>
-<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
-<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
-<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
-<?php endif; ?>
-<?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('admin.tum-bekleyen-isler')),'class' => 'text-indigo-600 font-bold bg-indigo-50/50']); ?>⚡ Tüm Bekleyen İşler <?php echo $__env->renderComponent(); ?>
-<?php endif; ?>
-<?php if (isset($__attributesOriginal68cb1971a2b92c9735f83359058f7108)): ?>
-<?php $attributes = $__attributesOriginal68cb1971a2b92c9735f83359058f7108; ?>
-<?php unset($__attributesOriginal68cb1971a2b92c9735f83359058f7108); ?>
-<?php endif; ?>
-<?php if (isset($__componentOriginal68cb1971a2b92c9735f83359058f7108)): ?>
-<?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
-<?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
-<?php endif; ?>
-                                    <?php endif; ?>
 
                                     <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
@@ -2031,6 +2043,25 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('admin.sistem-ayarlari.index'))]); ?>Sistem Ayarları <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginal68cb1971a2b92c9735f83359058f7108)): ?>
+<?php $attributes = $__attributesOriginal68cb1971a2b92c9735f83359058f7108; ?>
+<?php unset($__attributesOriginal68cb1971a2b92c9735f83359058f7108); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginal68cb1971a2b92c9735f83359058f7108)): ?>
+<?php $component = $__componentOriginal68cb1971a2b92c9735f83359058f7108; ?>
+<?php unset($__componentOriginal68cb1971a2b92c9735f83359058f7108); ?>
+<?php endif; ?>
+                                        <?php if (isset($component)) { $__componentOriginal68cb1971a2b92c9735f83359058f7108 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginal68cb1971a2b92c9735f83359058f7108 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.dropdown-link','data' => ['href' => '/pulse','target' => '_blank','class' => 'text-indigo-600 font-bold bg-indigo-50/20']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('dropdown-link'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['href' => '/pulse','target' => '_blank','class' => 'text-indigo-600 font-bold bg-indigo-50/20']); ?>⚡ Performans Paneli (Pulse) <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal68cb1971a2b92c9735f83359058f7108)): ?>
 <?php $attributes = $__attributesOriginal68cb1971a2b92c9735f83359058f7108; ?>
@@ -3563,6 +3594,25 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['href' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(route('admin.sistem-ayarlari.index'))]); ?>Sistem Ayarları <?php echo $__env->renderComponent(); ?>
+<?php endif; ?>
+<?php if (isset($__attributesOriginald69b52d99510f1e7cd3d80070b28ca18)): ?>
+<?php $attributes = $__attributesOriginald69b52d99510f1e7cd3d80070b28ca18; ?>
+<?php unset($__attributesOriginald69b52d99510f1e7cd3d80070b28ca18); ?>
+<?php endif; ?>
+<?php if (isset($__componentOriginald69b52d99510f1e7cd3d80070b28ca18)): ?>
+<?php $component = $__componentOriginald69b52d99510f1e7cd3d80070b28ca18; ?>
+<?php unset($__componentOriginald69b52d99510f1e7cd3d80070b28ca18); ?>
+<?php endif; ?>
+                            <?php if (isset($component)) { $__componentOriginald69b52d99510f1e7cd3d80070b28ca18 = $component; } ?>
+<?php if (isset($attributes)) { $__attributesOriginald69b52d99510f1e7cd3d80070b28ca18 = $attributes; } ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'components.responsive-nav-link','data' => ['href' => '/pulse','target' => '_blank','class' => 'text-indigo-600 font-bold bg-indigo-50/20']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component->withName('responsive-nav-link'); ?>
+<?php if ($component->shouldRender()): ?>
+<?php $__env->startComponent($component->resolveView(), $component->data()); ?>
+<?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
+<?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
+<?php endif; ?>
+<?php $component->withAttributes(['href' => '/pulse','target' => '_blank','class' => 'text-indigo-600 font-bold bg-indigo-50/20']); ?>⚡ Performans Paneli (Pulse) <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginald69b52d99510f1e7cd3d80070b28ca18)): ?>
 <?php $attributes = $__attributesOriginald69b52d99510f1e7cd3d80070b28ca18; ?>

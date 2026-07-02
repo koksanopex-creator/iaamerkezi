@@ -1117,4 +1117,14 @@ Route::get('/admin/saha-kalite-analistleri', function() {
     return 'YapÄ±m aÅŸamasÄ±nda';
 })->name('admin.saha-kalite-analistleri.index')->middleware(['auth']);
 
+// Pulse Loglarını Temizleme Rotası
+Route::post('/pulse/purge', function () {
+    if (!auth()->check() || !auth()->user()->hasRole('Superadmin')) {
+        abort(403, 'Yetkiniz yok.');
+    }
+    app(\Laravel\Pulse\Pulse::class)->purge();
+    \Illuminate\Support\Facades\Cache::put('last_pulse_purge_time', now()->toDateTimeString());
+    return redirect()->back();
+})->name('pulse.purge')->middleware(['auth']);
+
 require __DIR__ . '/auth.php';

@@ -176,7 +176,7 @@
                         $navItems = [
                             ['id' => 'bolum-sikayetleri-tablosu', 'label' => 'Şikayetler', 'count' => $bData['bolum_sikayet_count'] ?? 0, 'icon' => 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', 'color' => 'red'],
                             ['id' => 'bolum-iadeleri-tablosu', 'label' => 'İadeler', 'count' => $iadeCount, 'icon' => 'M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16m16 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', 'color' => 'red'],
-                            ['id' => 'bolum-ziyaretleri-tablosu', 'label' => 'Ziyaretler', 'count' => $bData['pending_visit_count'] ?? 0, 'icon' => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', 'color' => 'indigo'],
+                            ['id' => 'bolum-ziyaretleri-tablosu', 'label' => 'Ziyaretler', 'count' => $bData['total_visit_count'] ?? 0, 'icon' => 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', 'color' => 'indigo'],
                             ['id' => 'bolum-iaa-tablosu', 'label' => 'İAA Projeleri', 'count' => $bData['bolum_iaa_projeleri']->count() ?? 0, 'icon' => 'M13 10V3L4 14h7v7l9-11h-7z', 'color' => 'indigo'],
                         ];
 

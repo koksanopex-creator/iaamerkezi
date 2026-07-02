@@ -100,7 +100,7 @@ class PlanVisit extends Component
         if ($this->embedded)
         {
             $this->isOpen = true;
-            $this->loadLocalVisitData();
+            $this->loadCustomerData();
         }
 
         // Düzenleme kısıtlaması (Onay sürecindeki projeler salt okunurdur)
@@ -157,9 +157,6 @@ class PlanVisit extends Component
         }
 
         $this->isOpen = true;
-        if (empty($this->customerData)) {
-            $this->loadCustomerData();
-        }
         $this->savedVisit = null;
         $this->isEnteringResults = (isset($this->iaa->ziyaretPlani) && $this->iaa->ziyaretPlani->status === 'Onaylandı');
     }
@@ -259,12 +256,110 @@ class PlanVisit extends Component
                         ->all();
                 }
 
-                $this->loadLocalVisitData();
-
-                // Form verilerini düzenleme işlemi için doldur (Takvim API eşleşmeleri ile)
+                // === YENİ MANTIK: LOKAL VERİTABANINDAN ÇEK ===
                 $localVisit = $this->iaa->ziyaretPlani;
-                if ($localVisit) {
-                    $this->formData['visit_date'] = \Carbon\Carbon::parse($localVisit->visit_date)->format('Y-m-d\TH:i');
+
+                if ($localVisit)
+                {
+                    $localVisit->load('planner');
+                    $this->savedVisit = $localVisit->toArray();
+                    $this->savedVisit['planner_name'] = $localVisit->planner->name ?? 'Planlayan Kişi';
+                    $this->customerData['existing_visit'] = $this->savedVisit;
+
+                    // Business unit name for array
+                    foreach ($this->businessUnits as $bu)
+                    {
+                        $buId = is_array($bu) ? ($bu['id'] ?? null) : ($bu->id ?? null);
+                        if ($buId == $localVisit->business_unit_id)
+                        {
+                            $this->savedVisit['business_unit'] = $bu;
+                            break;
+                        }
+                    }
+
+                    // Fallback for Business Unit name from local DB if API didn't provide it
+                    if (!isset($this->savedVisit['business_unit']))
+                    {
+                        $bolum = \App\Models\Bolum::where('takvim_business_unit_id', $localVisit->business_unit_id)->first();
+                        $this->savedVisit['business_unit'] = [
+                            'id' => $localVisit->business_unit_id,
+                            'name' => $bolum ? $bolum->ad : 'Bilinmeyen Birim (ID:' . $localVisit->business_unit_id . ')'
+                        ];
+                    }
+
+                    // User name for array
+                    $visitorsArray = [];
+                    $visitorIds = $localVisit->visitors ? (is_string($localVisit->visitors) ? json_decode($localVisit->visitors, true) : (is_array($localVisit->visitors) ? $localVisit->visitors : [])) : [];
+                    
+                    if (empty($visitorIds) && $localVisit->visitor_id) {
+                        $visitorIds = [(string) $localVisit->visitor_id];
+                    }
+
+                    if (!empty($visitorIds))
+                    {
+                        foreach ($visitorIds as $vId) {
+                            $visitorNameStr = null;
+                            
+                            // 1. Try Takvim API users
+                            foreach ($this->customerData['users'] ?? [] as $tUser)
+                            {
+                                if ($tUser['id'] == $vId)
+                                {
+                                    $visitorNameStr = $tUser['name'];
+                                    break;
+                                }
+                            }
+
+                            // 2. Try Local DB users
+                            $visitorUser = null;
+                            if (!$visitorNameStr)
+                            {
+                                $visitorUser = \App\Models\User::find($vId);
+                                if ($visitorUser)
+                                {
+                                    $visitorNameStr = $visitorUser->name;
+                                }
+                            }
+                            else
+                            {
+                                $visitorUser = \App\Models\User::find($vId);
+                            }
+
+                            $userArray = ['name' => $visitorNameStr ?? 'Bilinmeyen'];
+                            if ($visitorUser)
+                            {
+                                $userArray['email'] = $visitorUser->email;
+                                $userArray['phone'] = $visitorUser->telefon;
+                                $userArray['title'] = $visitorUser->unvan;
+                                $userArray['photo'] = $visitorUser->profile_photo_path ? asset('storage/' . $visitorUser->profile_photo_path) : null;
+                            }
+                            $visitorsArray[] = $userArray;
+                        }
+                        
+                        $this->savedVisit['users'] = $visitorsArray;
+                        $this->savedVisit['user'] = $visitorsArray[0] ?? null; // Geriye dönük uyumluluk için ilki
+                    }
+                    elseif ($localVisit->visitor_name)
+                    {
+                        $this->savedVisit['user'] = ['name' => $localVisit->visitor_name];
+                        $this->savedVisit['users'] = [['name' => $localVisit->visitor_name]];
+                    }
+
+                    // Product name for array
+                    if ($localVisit->customer_product_id)
+                    {
+                        foreach ($this->customerData['products'] ?? [] as $product)
+                        {
+                            if ($product['id'] == $localVisit->customer_product_id)
+                            {
+                                $this->savedVisit['product'] = $product;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Populate formData for editing
+                    $this->formData['visit_date'] = Carbon::parse($localVisit->visit_date)->format('Y-m-d\TH:i');
                     $this->formData['visit_reason'] = $localVisit->visit_reason;
                     $this->formData['visit_notes'] = $localVisit->visit_notes;
                     $this->formData['contact_persons'] = $localVisit->contact_persons ?? [];
@@ -274,19 +369,18 @@ class PlanVisit extends Component
                     $this->formData['findings'] = $localVisit->findings;
                     $this->formData['result'] = $localVisit->result;
                     $this->formData['business_unit_id'] = $localVisit->business_unit_id;
-                    
-                    $visitorIds = $localVisit->visitors ? (is_string($localVisit->visitors) ? json_decode($localVisit->visitors, true) : (is_array($localVisit->visitors) ? $localVisit->visitors : [])) : [];
-                    if (empty($visitorIds) && $localVisit->visitor_id) {
-                        $visitorIds = [(string) $localVisit->visitor_id];
-                    }
-
+                    // Çoklu Ziyaretçi ID'leri formata aktarılıyor
+                    // Yerel ID'leri customerData['users'] listesindeki ID'lerle eşleştir
+                    // (Takvim'den gelen kullanıcılar farklı ID'ye sahip olabilir)
                     $resolvedVisitorIds = [];
                     if (!empty($visitorIds)) {
                         foreach ($visitorIds as $vId) {
+                            // Önce direkt ID eşleşmesi dene
                             $directMatch = collect($this->customerData['users'] ?? [])->first(fn($u) => (string)($u['id'] ?? '') === (string)$vId);
                             if ($directMatch) {
                                 $resolvedVisitorIds[] = (string)$directMatch['id'];
                             } else {
+                                // Email üzerinden eşleştir (yerel ID → Takvim ID)
                                 $localUser = \App\Models\User::find($vId);
                                 if ($localUser && $localUser->email) {
                                     $takvimMatch = collect($this->customerData['users'] ?? [])->first(function($u) use ($localUser) {
@@ -295,6 +389,7 @@ class PlanVisit extends Component
                                     if ($takvimMatch) {
                                         $resolvedVisitorIds[] = (string)$takvimMatch['id'];
                                     } else {
+                                        // Kullanıcı Takvim listesinde yok, yerel ID ile devam et
                                         $resolvedVisitorIds[] = (string)$vId;
                                     }
                                 } else {
@@ -306,6 +401,14 @@ class PlanVisit extends Component
                     $this->formData['visitor_ids'] = !empty($resolvedVisitorIds) ? $resolvedVisitorIds : ($localVisit->visitor_name ? ['Diğer'] : []);
                     $this->formData['other_visitor_name'] = $localVisit->visitor_name ?? '';
                     $this->formData['visitor_name'] = $localVisit->visitor_name ?? '';
+
+                    if ($localVisit->completed_by)
+                    {
+                        $this->completerName = $localVisit->completer->name ?? 'Bilinmeyen';
+                        $this->completedAt = $localVisit->completed_at->format('d.m.Y H:i');
+                    }
+
+                    $this->syncAuthorization();
                 }
             }
             else
@@ -319,71 +422,6 @@ class PlanVisit extends Component
         {
             Log::error('Visit data fetch failed: ' . $e->getMessage());
             $this->errorMessage = 'Bağlantı hatası: Takvim uygulamasına ulaşılamıyor. ' . $e->getMessage();
-        }
-    }
-
-    public function loadLocalVisitData()
-    {
-        $localVisit = $this->iaa->ziyaretPlani;
-
-        if ($localVisit)
-        {
-            $localVisit->load('planner');
-            $this->savedVisit = $localVisit->toArray();
-            $this->savedVisit['planner_name'] = $localVisit->planner->name ?? 'Planlayan Kişi';
-
-            // Business Unit Name Fallback
-            $bolum = \App\Models\Bolum::where('takvim_business_unit_id', $localVisit->business_unit_id)->first();
-            $this->savedVisit['business_unit'] = [
-                'id' => $localVisit->business_unit_id,
-                'name' => $bolum ? $bolum->ad : 'Bilinmeyen Birim (ID:' . $localVisit->business_unit_id . ')'
-            ];
-
-            // User name for array
-            $visitorsArray = [];
-            $visitorIds = $localVisit->visitors ? (is_string($localVisit->visitors) ? json_decode($localVisit->visitors, true) : (is_array($localVisit->visitors) ? $localVisit->visitors : [])) : [];
-            
-            if (empty($visitorIds) && $localVisit->visitor_id) {
-                $visitorIds = [(string) $localVisit->visitor_id];
-            }
-
-            if (!empty($visitorIds))
-            {
-                foreach ($visitorIds as $vId) {
-                    $visitorUser = \App\Models\User::find($vId);
-                    $userArray = ['name' => $visitorUser ? $visitorUser->name : 'Bilinmeyen Kullanıcı (ID: ' . $vId . ')'];
-                    if ($visitorUser)
-                    {
-                        $userArray['email'] = $visitorUser->email;
-                        $userArray['phone'] = $visitorUser->telefon;
-                        $userArray['title'] = $visitorUser->unvan;
-                        $userArray['photo'] = $visitorUser->profile_photo_path ? asset('storage/' . $visitorUser->profile_photo_path) : null;
-                    }
-                    $visitorsArray[] = $userArray;
-                }
-                
-                $this->savedVisit['users'] = $visitorsArray;
-                $this->savedVisit['user'] = $visitorsArray[0] ?? null;
-            }
-            elseif ($localVisit->visitor_name)
-            {
-                $this->savedVisit['user'] = ['name' => $localVisit->visitor_name];
-                $this->savedVisit['users'] = [['name' => $localVisit->visitor_name]];
-            }
-
-            // Müşteri Şikayetinden ürün bilgisini çekmeye çalışalım, product array için
-            if ($localVisit->customer_product_id) {
-                $productName = $this->iaa->musteriSikayeti->musteri_urun_veya_hizmet ?? 'Ürün ID: ' . $localVisit->customer_product_id;
-                $this->savedVisit['product'] = ['id' => $localVisit->customer_product_id, 'name' => $productName];
-            }
-
-            if ($localVisit->completed_by)
-            {
-                $this->completerName = $localVisit->completer->name ?? 'Bilinmeyen';
-                $this->completedAt = $localVisit->completed_at->format('d.m.Y H:i');
-            }
-
-            $this->syncAuthorization();
         }
     }
 

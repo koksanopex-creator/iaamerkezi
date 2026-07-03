@@ -99,10 +99,7 @@ class PlanVisit extends Component
             $this->formData['business_unit_id'] = $iaa->bolum->takvim_business_unit_id;
         }
 
-        if ($this->embedded)
-        {
-            $this->loadCustomerData();
-        }
+        // Tembel Yükleme (Lazy Load) - Veriler sayfa açılırken değil, form açıldığında çekilecek.
 
         // Düzenleme kısıtlaması (Onay sürecindeki projeler salt okunurdur)
         $this->isReadOnly = in_array($iaa->durum, [
@@ -171,6 +168,10 @@ class PlanVisit extends Component
         {
             $this->errorMessage = 'Bu işlemi gerçekleştirmek için yetkiniz bulunmamaktadır.';
             return;
+        }
+
+        if (empty($this->customerData)) {
+            $this->loadCustomerData();
         }
 
         $this->isOpen = true;

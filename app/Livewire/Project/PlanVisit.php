@@ -29,6 +29,7 @@ class PlanVisit extends Component
 
     public $iaa;
     public $embedded = false;
+    public $stepId = null;
     public $customerData = [];
     public $businessUnits = [];
     public $savedVisit = null;
@@ -85,10 +86,11 @@ class PlanVisit extends Component
     public $showCancelModal = false;
     public $cancelReason = null;
 
-    public function mount(Iaa $iaa, $embedded = false)
+    public function mount(Iaa $iaa, $embedded = false, $stepId = null)
     {
         $this->iaa = $iaa;
         $this->embedded = $embedded;
+        $this->stepId = $stepId;
         $this->formData['visit_date'] = now()->format('Y-m-d\TH:i');
 
 
@@ -99,7 +101,6 @@ class PlanVisit extends Component
 
         if ($this->embedded)
         {
-            $this->isOpen = true;
             $this->loadCustomerData();
         }
 
@@ -112,10 +113,13 @@ class PlanVisit extends Component
             'Talep Olarak Kapatıldı'
         ]);
 
-        if ($iaa->ziyaretPlani) {
-            $vpStatus = $iaa->ziyaretPlani->status;
+        $currentVisit = $this->getVisit();
+        if ($currentVisit) {
+            $vpStatus = $currentVisit->status;
             if (in_array($vpStatus, ['Beklemede', 'Revize İsteniyor'])) {
                 $this->isReadOnly = false;
+            } elseif ($vpStatus === 'Tamamlandı') {
+                $this->isReadOnly = true;
             }
         }
 
@@ -147,6 +151,19 @@ class PlanVisit extends Component
         }
     }
 
+    public function getVisit()
+    {
+        if ($this->stepId) {
+            return \App\Models\IaaZiyaretPlani::where('iaa_id', $this->iaa->id)
+                ->where('iaa_workflow_step_id', $this->stepId)
+                ->first();
+        } else {
+            return \App\Models\IaaZiyaretPlani::where('iaa_id', $this->iaa->id)
+                ->whereNull('iaa_workflow_step_id')
+                ->first();
+        }
+    }
+
     public function editVisit()
     {
         $this->syncAuthorization();
@@ -158,7 +175,7 @@ class PlanVisit extends Component
 
         $this->isOpen = true;
         $this->savedVisit = null;
-        $this->isEnteringResults = (isset($this->iaa->ziyaretPlani) && $this->iaa->ziyaretPlani->status === 'Onaylandı');
+        $this->isEnteringResults = ($this->getVisit() !== null && $this->getVisit()->status === 'Onaylandı');
     }
 
     public function cancelEdit()
@@ -257,7 +274,7 @@ class PlanVisit extends Component
                 }
 
                 // === YENİ MANTIK: LOKAL VERİTABANINDAN ÇEK ===
-                $localVisit = $this->iaa->ziyaretPlani;
+                $localVisit = $this->getVisit();
 
                 if ($localVisit)
                 {
@@ -517,7 +534,7 @@ class PlanVisit extends Component
             }
 
             // [ÇOKLU DOSYA YÜKLEME MANTIĞI - GELENEKSEL TAŞIMA]
-            $currentFiles = $this->iaa->ziyaretPlani->visit_file ?? [];
+            $currentFiles = $this->getVisit()->visit_file ?? [];
             if (!is_array($currentFiles))
                 $currentFiles = [$currentFiles];
 
@@ -547,16 +564,19 @@ class PlanVisit extends Component
 
             // [YENİ] Önceki ziyaretçileri kaydet (Bildirim optimizasyonu için)
             $oldVisitorIds = [];
-            if ($this->iaa->ziyaretPlani && $this->iaa->ziyaretPlani->exists) {
-                $oldVisitorIds = $this->iaa->ziyaretPlani->visitors ?? [];
+            if ($this->getVisit() && $this->getVisit()->exists) {
+                $oldVisitorIds = $this->getVisit()->visitors ?? [];
                 // Geriye dönük uyumluluk (eski visitor_id varsa)
-                if ($this->iaa->ziyaretPlani->visitor_id && !in_array((string)$this->iaa->ziyaretPlani->visitor_id, $oldVisitorIds)) {
-                    $oldVisitorIds[] = (string)$this->iaa->ziyaretPlani->visitor_id;
+                if ($this->getVisit()->visitor_id && !in_array((string)$this->getVisit()->visitor_id, $oldVisitorIds)) {
+                    $oldVisitorIds[] = (string)$this->getVisit()->visitor_id;
                 }
             }
 
             $ziyaretPlani = \App\Models\IaaZiyaretPlani::updateOrCreate(
-                ['iaa_id' => $this->iaa->id],
+                [
+                    'iaa_id' => $this->iaa->id,
+                    'iaa_workflow_step_id' => $this->stepId
+                ],
                 [
                     'visitor_id' => $primaryVisitorId, // Geriye dönük uyumluluk ve primary için
                     'visitors' => !empty($finalVisitorIds) ? $finalVisitorIds : null,
@@ -573,7 +593,7 @@ class PlanVisit extends Component
                     'visit_file' => $currentFiles,
                     'status' => 'Beklemede',
                     'rejection_reason_superadmin' => null,
-                    'planner_revision_note' => (($this->iaa->ziyaretPlani->status ?? '') === 'Revize İsteniyor') ? $this->plannerRevisionNote : null,
+                    'planner_revision_note' => (($this->getVisit()->status ?? '') === 'Revize İsteniyor') ? $this->plannerRevisionNote : null,
                 ]
             );
 
@@ -661,7 +681,7 @@ class PlanVisit extends Component
                 if (!empty($this->plannerRevisionNote)) {
                     $aciklama .= " Yapılan değişiklikler: \"" . $this->plannerRevisionNote . "\"";
                 }
-            } elseif ($this->iaa->ziyaretPlani && $this->iaa->ziyaretPlani->exists) {
+            } elseif ($this->getVisit() && $this->getVisit()->exists) {
                 $eylem = 'Ziyaret Planı Güncellendi';
                 $aciklama = Auth::user()->name . " tarafından ziyaret planı güncellendi ve onaya sunuldu.";
             }
@@ -802,7 +822,7 @@ class PlanVisit extends Component
             'estimatedReturnDate.after_or_equal' => 'Dönüş tarihi bugünden önce olamaz.',
         ]);
 
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
 
         if ($ziyaretPlani)
         {
@@ -879,7 +899,7 @@ class PlanVisit extends Component
 
     public function revertApproval()
     {
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
         if (!$ziyaretPlani) return;
 
         $user = Auth::user();
@@ -938,8 +958,8 @@ class PlanVisit extends Component
 
     public function openUpdateReturnDateModal()
     {
-        if ($this->iaa->ziyaretPlani) {
-            $this->newReturnDate = $this->iaa->ziyaretPlani->estimated_return_date ? \Carbon\Carbon::parse($this->iaa->ziyaretPlani->estimated_return_date)->format('Y-m-d') : null;
+        if ($this->getVisit()) {
+            $this->newReturnDate = $this->getVisit()->estimated_return_date ? \Carbon\Carbon::parse($this->getVisit()->estimated_return_date)->format('Y-m-d') : null;
             $this->showUpdateReturnDateModal = true;
         }
     }
@@ -958,7 +978,7 @@ class PlanVisit extends Component
             'newReturnDate.after_or_equal' => 'Dönüş tarihi bugünden önce olamaz.',
         ]);
 
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
         if (!$ziyaretPlani) return;
 
         $eskiTarih = $ziyaretPlani->estimated_return_date ? \Carbon\Carbon::parse($ziyaretPlani->estimated_return_date)->format('d.m.Y') : 'Belirtilmedi';
@@ -1002,7 +1022,7 @@ class PlanVisit extends Component
             'returnDateRevisionReason.min' => 'Revizyon gerekçesi en az 10 karakter olmalıdır.'
         ]);
 
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
         if (!$ziyaretPlani) return;
 
         $ziyaretPlani->return_date_revision_status = 'Bekliyor';
@@ -1027,7 +1047,7 @@ class PlanVisit extends Component
 
     public function cancelReturnDateRevision()
     {
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
         if (!$ziyaretPlani || !in_array($ziyaretPlani->return_date_revision_status, ['Bekliyor', 'Direktör Onayı Bekliyor'])) {
             return;
         }
@@ -1071,7 +1091,7 @@ class PlanVisit extends Component
 
     public function respondToReturnDateRevision()
     {
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
         if (!$ziyaretPlani) return;
 
         if ($this->returnDateRevisionAction === 'reject') {
@@ -1138,7 +1158,7 @@ class PlanVisit extends Component
             'rejectionReason.min' => 'Ret sebebi en az 10 karakter olmalıdır.',
         ]);
 
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
 
         if ($ziyaretPlani)
         {
@@ -1196,7 +1216,7 @@ class PlanVisit extends Component
             'revisionReason.min' => 'Revizyon talebi en az 10 karakter olmalıdır.',
         ]);
 
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
 
         if ($ziyaretPlani)
         {
@@ -1268,7 +1288,7 @@ class PlanVisit extends Component
             'cancelReason.min' => 'İptal gerekçesi en az 10 karakter olmalıdır.',
         ]);
 
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
 
         if ($ziyaretPlani && $ziyaretPlani->status === 'Onaylandı')
         {
@@ -1316,7 +1336,7 @@ class PlanVisit extends Component
 
     public function revertVisit()
     {
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
 
         if ($ziyaretPlani && $ziyaretPlani->status === 'Beklemede')
         {
@@ -1351,7 +1371,7 @@ class PlanVisit extends Component
     public function completeVisit()
     {
         // 1. Yerel Veritabanında Tamamla ve Final Verileri Güncelle
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
 
         if (!$ziyaretPlani)
             return;
@@ -1464,7 +1484,7 @@ class PlanVisit extends Component
 
     public function syncAuthorization()
     {
-        $localVisit = $this->iaa->ziyaretPlani;
+        $localVisit = $this->getVisit();
         if ($localVisit)
         {
             $user = Auth::user();
@@ -1551,7 +1571,7 @@ class PlanVisit extends Component
         if ($this->isReadOnly)
             return;
 
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
         if ($ziyaretPlani && isset($ziyaretPlani->visit_file[$index]))
         {
             $files = $ziyaretPlani->visit_file;
@@ -1604,7 +1624,7 @@ class PlanVisit extends Component
             return;
         }
 
-        $ziyaretPlani = $this->iaa->ziyaretPlani;
+        $ziyaretPlani = $this->getVisit();
         if ($ziyaretPlani) {
             $currentVal = $ziyaretPlani->{$field};
             $newVal = !$currentVal;

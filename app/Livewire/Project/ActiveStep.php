@@ -25,6 +25,8 @@ class ActiveStep extends Component
     public $currentStep;
     public ?IaaProgressUpdate $progressUpdateModel = null;
 
+    protected $listeners = ['visit-synced' => '$refresh'];
+
     public $formData = [];
     public $toolsData = [
         'five_whys' => ['why1' => '', 'why2' => '', 'why3' => '', 'why4' => '', 'why5' => ''],
@@ -526,6 +528,20 @@ class ActiveStep extends Component
 
     public function save()
     {
+        $iaaId = is_object($this->iaa) ? $this->iaa->id : (is_array($this->iaa) ? ($this->iaa['id'] ?? null) : $this->iaa);
+        
+        // Ziyaret Planı Validasyonu
+        $pendingVisit = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaaId)
+            ->where('iaa_workflow_step_id', $this->currentStep['id'])
+            ->whereNotIn('status', ['Tamamlandı', 'İptal Edildi'])
+            ->first();
+
+        if ($pendingVisit) {
+            session()->flash('error', 'Bu adımda planlanmış ve henüz sonuçlandırılmamış bir müşteri ziyareti bulunmaktadır. Ziyaret sonuçları girilmeden adım tamamlanamaz.');
+            $this->dispatch('show-error', 'Bu adımda planlanmış ve henüz sonuçlandırılmamış bir müşteri ziyareti bulunmaktadır. Ziyaret sonuçları girilmeden adım tamamlanamaz.');
+            return null;
+        }
+
         try {
             DB::transaction(function () {
                 $widgetTypesInThisStep = isset($this->currentStep['widgets']) ? collect($this->currentStep['widgets'])->pluck('type') : collect();
@@ -830,6 +846,15 @@ class ActiveStep extends Component
     }
     // ===================================
 
+
+    public function hasPendingVisit()
+    {
+        $iaaId = is_object($this->iaa) ? $this->iaa->id : (is_array($this->iaa) ? ($this->iaa['id'] ?? null) : $this->iaa);
+        return \App\Models\IaaZiyaretPlani::where('iaa_id', $iaaId)
+            ->where('iaa_workflow_step_id', $this->currentStep['id'])
+            ->whereNotIn('status', ['Tamamlandı', 'İptal Edildi'])
+            ->exists();
+    }
 
     public function render()
     {

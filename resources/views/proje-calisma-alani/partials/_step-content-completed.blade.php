@@ -654,6 +654,24 @@
         @endforeach
         {{-- === DİNAMİK GÖSTERİM BİTİŞİ === --}}
     @endif {{-- End if !$reportData --}}
+
+    {{-- EĞER BU ADIMA AİT BİR ZİYARET VARSA GÖSTER --}}
+    @php
+        $iaaId = isset($iaa) ? (is_object($iaa) ? $iaa->id : $iaa['id']) : ($progressUpdate->iaa_talep_id ?? null);
+        $stepId = isset($step) ? (is_object($step) ? $step->id : $step['id']) : ($progressUpdate->iaa_workflow_step_id ?? null);
+        $completedVisit = null;
+        if ($iaaId && $stepId) {
+            $completedVisit = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaaId)
+                ->where('iaa_workflow_step_id', $stepId)
+                ->first();
+        }
+    @endphp
+    @if($completedVisit)
+        <div class="mt-8 border-t-2 border-dashed border-gray-300 pt-6">
+            <h5 class="text-lg font-bold text-gray-800 mb-4">Ziyaret Planı ve Sonuçları</h5>
+            <livewire:project.plan-visit :iaa="$iaa" :embedded="true" :stepId="$stepId" :wire:key="'plan-visit-completed-'.$stepId" />
+        </div>
+    @endif
 </div>
 
 {{-- Fancybox & Chart.js Scriptleri (Sadece bir kere yüklenir) --}}

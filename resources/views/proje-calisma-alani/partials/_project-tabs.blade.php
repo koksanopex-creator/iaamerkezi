@@ -94,6 +94,43 @@
                 @endif
             </button>
         @endif
+
+        {{-- 5. Ziyaretler --}}
+        @php
+            $visitsQueryTab = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)->whereNotIn('status', ['İptal Edildi']);
+            $allTabVisits = $visitsQueryTab->get();
+            
+            $isCustomerTab = auth()->check() && (auth()->user()->hasRole('Müşteri') || auth()->user()->hasRole('Müşteri Temsilcisi') || auth()->user()->hasRole('Müşteri Saha Temsilcisi') || !auth()->user()->is_personnel);
+            
+            if ($isCustomerTab) {
+                $allTabVisits = $allTabVisits->filter(function($visit) {
+                    if (!$visit->iaa_workflow_step_id) return true;
+                    $iaaTalepId = \App\Models\IaaTalep::where('iaa_id', $visit->iaa_id)->value('id');
+                    $progressUpdate = null;
+                    if ($iaaTalepId) {
+                        $progressUpdate = \App\Models\IaaProgressUpdate::where('iaa_talep_id', $iaaTalepId)
+                            ->where('iaa_workflow_step_id', $visit->iaa_workflow_step_id)
+                            ->first();
+                    }
+                    return !($progressUpdate && $progressUpdate->is_hidden_from_customer);
+                });
+            }
+            $visitCount = $allTabVisits->count();
+        @endphp
+        @if($visitCount > 0)
+            <button @click="activeTab = 'visits'" :class="{ 
+                                'text-blue-700 font-bold border-b-2 border-blue-500 bg-blue-50/50': activeTab === 'visits', 
+                                'text-gray-500 font-medium hover:text-blue-600 hover:bg-gray-50': activeTab !== 'visits' 
+                            }"
+                class="flex items-center gap-2 px-6 py-4 transition-colors whitespace-nowrap focus:outline-none flex-1 justify-center relative">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Ziyaretler
+                <span class="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold leading-none text-blue-100 bg-blue-600 rounded-full">{{ $visitCount }}</span>
+            </button>
+        @endif
     </div>
 
     {{-- SEKME İÇERİKLERİ --}}
@@ -154,6 +191,15 @@
                         </div>
                     @endif
                 </div>
+            </div>
+        @endif
+
+        {{-- İÇERİK 5: ZİYARETLER --}}
+        @if($visitCount > 0)
+            <div x-show="activeTab === 'visits'" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                style="display: none;">
+                @include('proje-calisma-alani.partials._visits-tab', ['iaa' => $iaa])
             </div>
         @endif
 

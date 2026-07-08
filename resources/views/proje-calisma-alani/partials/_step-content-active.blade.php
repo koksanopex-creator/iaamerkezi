@@ -35,6 +35,14 @@
             'currentStep' => $currentStep, 
             'progressUpdate' => $progressUpdate
         ])
+
+        <div class="mt-8">
+            @livewire('project.plan-visit', [
+                'iaa' => $iaa, 
+                'embedded' => true, 
+                'stepId' => $currentStep['id']
+            ])
+        </div>
     @else
         {{-- GÖZLEMCİ MODU --}}
         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-r-lg shadow mt-4">

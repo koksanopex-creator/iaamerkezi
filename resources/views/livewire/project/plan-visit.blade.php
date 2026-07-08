@@ -15,21 +15,23 @@
         $status = $savedVisit['status'] ?? ($this->iaa->ziyaretPlani->status ?? 'Beklemede');
     @endphp
     <div class="{{ $embedded ? 'p-4' : 'bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 border-t-4 border-indigo-500' }}">
-        @if(!$embedded)
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-800 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Müşteri Ziyareti Planla
-                </h3>
-                @if(!$savedVisit && !($iaa->ziyaretPlani && $iaa->ziyaretPlani->status === 'Onaylandı'))
-                    <button wire:click="toggleForm" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring ring-indigo-300 disabled:opacity-25 transition ease-in-out duration-150">
-                        {{ $isOpen ? 'Formu Kapat' : 'Yeni Ziyaret Planı Oluştur' }}
-                    </button>
-                @endif
-            </div>
-        @endif
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 {{ $embedded ? 'bg-indigo-50/50 p-4 rounded-xl border border-indigo-100' : '' }}">
+            <h3 class="{{ $embedded ? 'text-md' : 'text-lg' }} font-bold text-gray-800 flex items-center mb-2 sm:mb-0">
+                <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {{ $embedded ? 'Adım İçi Ziyaret (Opsiyonel)' : 'Müşteri Ziyareti Planla' }}
+            </h3>
+            @if(!$savedVisit && !($iaa->ziyaretPlani && $iaa->ziyaretPlani->status === 'Onaylandı'))
+                <button wire:click="toggleForm" wire:loading.attr="disabled" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring ring-indigo-300 disabled:opacity-50 transition ease-in-out duration-150 shadow-sm relative overflow-hidden">
+                    <span wire:loading.remove wire:target="toggleForm">{{ $isOpen ? 'Formu Kapat' : 'Yeni Ziyaret Planı Oluştur' }}</span>
+                    <span wire:loading wire:target="toggleForm" class="inline-flex items-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Açılıyor...
+                    </span>
+                </button>
+            @endif
+        </div>
 
         @if($successMessage)
             <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4" role="alert">
@@ -1130,6 +1132,25 @@
                 
             </div>
         @elseif($isOpen)
+            @if($embedded)
+                <div class="fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" wire:click="toggleForm"></div>
+                        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                        <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full border border-gray-100">
+                            
+                            <div class="bg-indigo-50/50 border-b border-indigo-100 px-6 py-4 flex justify-between items-center">
+                                <h3 class="text-lg font-black text-indigo-900 flex items-center tracking-tight">
+                                    <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    Adım İçi Ziyaret Planla
+                                </h3>
+                                <button type="button" wire:click="toggleForm" class="text-indigo-400 hover:text-indigo-600 bg-white hover:bg-indigo-50 rounded-full p-1 transition shadow-sm border border-indigo-100">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                            
+                            <div class="p-6">
+            @endif
             <form wire:submit.prevent="save" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                     <!-- SOL SÜTUN: ZİYARET PLANLAMA BİLGİLERİ -->
@@ -1162,14 +1183,45 @@
                                 @error('formData.visit_date') <span class="text-red-500 text-[10px]">{{ $message }}</span> @enderror
                             </div>
 
-                            <div>
+                            <div x-data="{ 
+                                search: '', 
+                                open: false, 
+                                selected: @entangle('formData.visit_reason').live,
+                                reasons: {{ json_encode($customerData['visit_reasons'] ?? ['Şikayet İnceleme', 'Ürün Denemesi', 'Teknik Destek', 'Periyodik Ziyaret', 'Rutin Ziyaret', 'Diğer']) }},
+                                toggle(item) {
+                                    if ({{ $isReadOnly ? 'true' : 'false' }}) return;
+                                    if (!Array.isArray(this.selected)) this.selected = [];
+                                    if (this.selected.includes(item)) {
+                                        this.selected = this.selected.filter(i => i !== item);
+                                    } else {
+                                        this.selected.push(item);
+                                    }
+                                },
+                                getSelectedNames() {
+                                    if (!this.selected || !Array.isArray(this.selected) || this.selected.length === 0) return 'Ziyaret Nedeni Seçiniz...';
+                                    return this.selected.join(', ');
+                                }
+                            }" class="relative w-full">
                                 <label class="block text-xs font-bold text-gray-700 mb-1">Ziyaret Nedeni (*)</label>
-                                <select wire:model="formData.visit_reason" class="w-full text-sm border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500" required {{ $isReadOnly ? 'disabled' : '' }}>
-                                    <option value="">Nedeni Seçiniz...</option>
-                                    @foreach($customerData['visit_reasons'] ?? ['Şikayet İnceleme', 'Ürün Denemesi', 'Teknik Destek', 'Periyodik Ziyaret', 'Rutin Ziyaret', 'Diğer'] as $reason)
-                                        <option value="{{ $reason }}">{{ $reason }}</option>
-                                    @endforeach
-                                </select>
+                                
+                                <div @click="{{ $isReadOnly ? '' : 'open = !open' }}" @click.away="open = false" class="w-full text-sm border border-gray-300 rounded-xl px-3 py-2.5 bg-white cursor-pointer flex justify-between items-center" :class="{ 'opacity-50 cursor-not-allowed': {{ $isReadOnly ? 'true' : 'false' }} }">
+                                    <span x-text="getSelectedNames()" class="truncate block max-w-[90%]"></span>
+                                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+
+                                <div x-show="open" x-transition class="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto" style="display: none;">
+                                    <div class="p-2 sticky top-0 bg-white border-b border-gray-100">
+                                        <input type="text" x-model="search" placeholder="Neden ara..." class="w-full text-xs border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 py-1.5" @click.stop>
+                                    </div>
+                                    <div class="p-1">
+                                        <template x-for="reason in reasons.filter(r => r.toLowerCase().includes(search.toLowerCase()))" :key="reason">
+                                            <div @click="toggle(reason)" class="px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 cursor-pointer rounded-lg flex items-center justify-between" :class="selected.includes(reason) ? 'bg-indigo-50 font-bold text-indigo-700' : ''">
+                                                <span x-text="reason"></span>
+                                                <svg x-show="selected.includes(reason)" class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
 
                             <div>
@@ -1182,14 +1234,54 @@
                                 </select>
                             </div>
 
-                            <div>
+                            <div x-data="{ 
+                                search: '', 
+                                open: false, 
+                                selected: @entangle('formData.customer_product_id').live,
+                                products: {{ json_encode($customerData['products'] ?? []) }},
+                                toggle(id) {
+                                    if ({{ $isReadOnly ? 'true' : 'false' }}) return;
+                                    if (!Array.isArray(this.selected)) this.selected = [];
+                                    let strId = String(id);
+                                    if (this.selected.includes(strId)) {
+                                        this.selected = this.selected.filter(i => i !== strId);
+                                    } else {
+                                        this.selected.push(strId);
+                                    }
+                                },
+                                getSelectedNames() {
+                                    if (!this.selected || !Array.isArray(this.selected) || this.selected.length === 0) return 'Ürün Seçiniz...';
+                                    let names = [];
+                                    this.selected.forEach(id => {
+                                        let prod = this.products.find(p => String(p.id) === String(id));
+                                        if (prod) names.push(prod.name);
+                                    });
+                                    return names.join(', ') || 'Ürün Seçiniz...';
+                                }
+                            }" class="relative w-full">
                                 <label class="block text-xs font-bold text-gray-700 mb-1">Ürün Tanımı (Takvim'den)</label>
-                                <select wire:model="formData.customer_product_id" class="w-full text-sm border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="">Ürün Seçiniz...</option>
-                                    @foreach($customerData['products'] ?? [] as $product)
-                                        <option value="{{ $product['id'] }}">{{ $product['name'] }}</option>
-                                    @endforeach
-                                </select>
+                                
+                                <div @click="{{ $isReadOnly ? '' : 'open = !open' }}" @click.away="open = false" class="w-full text-sm border border-gray-300 rounded-xl px-3 py-2.5 bg-white cursor-pointer flex justify-between items-center" :class="{ 'opacity-50 cursor-not-allowed': {{ $isReadOnly ? 'true' : 'false' }} }">
+                                    <span x-text="getSelectedNames()" class="truncate block max-w-[90%]"></span>
+                                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </div>
+
+                                <div x-show="open" x-transition class="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto" style="display: none;">
+                                    <div class="p-2 sticky top-0 bg-white border-b border-gray-100">
+                                        <input type="text" x-model="search" placeholder="Ürün ara..." class="w-full text-xs border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 py-1.5" @click.stop>
+                                    </div>
+                                    <div class="p-1">
+                                        <template x-for="product in products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))" :key="product.id">
+                                            <div @click="toggle(product.id)" class="px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 cursor-pointer rounded-lg flex items-center justify-between" :class="selected.includes(String(product.id)) ? 'bg-indigo-50 font-bold text-indigo-700' : ''">
+                                                <span x-text="product.name"></span>
+                                                <svg x-show="selected.includes(String(product.id))" class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            </div>
+                                        </template>
+                                        <template x-if="products.length === 0">
+                                            <div class="px-3 py-2 text-sm text-gray-400 italic">Müşteriye ait ürün bulunamadı.</div>
+                                        </template>
+                                    </div>
+                                </div>
                             </div>
 
                             <div x-data="{ 
@@ -1541,6 +1633,12 @@
                             Vazgeç / Kapat
                         </button>
                     @endif
+
+                    @if($savedVisit && ($savedVisit['status'] ?? 'Beklemede') === 'Beklemede' && !$isReadOnly)
+                        <button type="button" wire:click="deleteDraftVisit" wire:confirm="Bu taslak ziyaret planını tamamen silmek istediğinize emin misiniz? (Bu işlem geri alınamaz ve yeniden oluşturmanız gerekir)" class="px-8 py-3 bg-red-50 border border-red-200 text-red-600 font-bold rounded-2xl hover:bg-red-100 transition shadow-sm">
+                            Taslağı Sil
+                        </button>
+                    @endif
                     
                     @if(!$isReadOnly)
                         @if($isEnteringResults || ($savedVisit['status'] ?? ($this->iaa->ziyaretPlani->status ?? '')) === 'Onaylandı')
@@ -1563,6 +1661,13 @@
                     @endif
                 </div>
             </form>
+
+            @if($embedded)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
 
         @endif
 

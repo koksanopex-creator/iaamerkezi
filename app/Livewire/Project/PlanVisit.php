@@ -198,20 +198,53 @@ class PlanVisit extends Component
 
     public function loadCustomerData()
     {
-        if (!$this->iaa->musteriSikayeti || !$this->iaa->musteriSikayeti->customer)
+        $takvimUrl = config('services.takvim.url');
+
+        // 1. Fetch Business Units (Müşteri olmasa bile her zaman gerekli)
+        if (empty($this->businessUnits))
         {
-            $this->errorMessage = 'Müşteri bilgisi bulunamadı.';
-            return;
+            try {
+                $buResponse = Http::timeout(10)->get($takvimUrl . '/api/business-units');
+                if ($buResponse->successful())
+                {
+                    $this->businessUnits = $buResponse->json();
+                }
+            } catch (\Exception $e) {
+                Log::error('Takvim Business Units çekilirken hata: ' . $e->getMessage());
+            }
         }
 
         // === BÖLÜM EŞLEŞMESİ KONTROLÜ ===
-        if (empty($this->formData['business_unit_id']) && $this->iaa->bolum && $this->iaa->bolum->takvim_business_unit_id)
+        $defaultBuId = null;
+        if ($this->iaa->musteriSikayeti && $this->iaa->musteriSikayeti->sikayetKategori && $this->iaa->musteriSikayeti->sikayetKategori->bolum) {
+            $defaultBuId = $this->iaa->musteriSikayeti->sikayetKategori->bolum->takvim_business_unit_id;
+        } elseif ($this->iaa->bolum) {
+            $defaultBuId = $this->iaa->bolum->takvim_business_unit_id;
+        }
+
+        if (empty($this->formData['business_unit_id']) && $defaultBuId)
         {
-            $this->formData['business_unit_id'] = $this->iaa->bolum->takvim_business_unit_id;
+            $this->formData['business_unit_id'] = $defaultBuId;
+        }
+
+        $buId = $this->formData['business_unit_id'];
+
+        // 2. Müşteri Şikayeti Değilse Sadece Yerel Personeli Doldur ve Çık
+        if (!$this->iaa->musteriSikayeti || !$this->iaa->musteriSikayeti->customer)
+        {
+            if (empty($this->customerData['users'])) {
+                $localUsers = \App\Models\User::where('is_personnel', 1)->get(['id', 'name', 'email']);
+                $this->customerData['users'] = $localUsers->map(function($u) {
+                    return ['id' => 'local_'.$u->id, 'name' => $u->name, 'email' => $u->email];
+                })->toArray();
+            }
+            if (!isset($this->customerData['visit_reasons'])) {
+                $this->customerData['visit_reasons'] = ['Şikayet İnceleme', 'Ürün Denemesi', 'Teknik Destek', 'Periyodik Ziyaret', 'Rutin Ziyaret', 'Proje Görüşmesi', 'Diğer'];
+            }
+            return;
         }
 
         $customerName = $this->iaa->musteriSikayeti->customer->name;
-        $buId = $this->formData['business_unit_id'];
 
         // Optimizasyon: Eğer veriler zaten varsa ve BU değişmediyse tekrar çekme
         if (!empty($this->customerData) && ($this->customerData['business_unit_id'] ?? null) == $buId)
@@ -221,18 +254,6 @@ class PlanVisit extends Component
 
         try
         {
-            $takvimUrl = config('services.takvim.url');
-
-            // Fetch Business Units if not loaded
-            if (empty($this->businessUnits))
-            {
-                $buResponse = Http::timeout(10)->get($takvimUrl . '/api/business-units');
-                if ($buResponse->successful())
-                {
-                    $this->businessUnits = $buResponse->json();
-                }
-            }
-
             $response = Http::timeout(15)->get($takvimUrl . '/api/customers/visit-data', [
                 'customer_name' => trim($customerName),
                 'remote_id' => $this->iaa->id,
@@ -282,6 +303,13 @@ class PlanVisit extends Component
                     $localVisit->load('planner');
                     $this->savedVisit = $localVisit->toArray();
                     $this->savedVisit['planner_name'] = $localVisit->planner->name ?? 'Planlayan Kişi';
+                    
+                    // Nedenleri birleştir
+                    $allReasons = [];
+                    if ($localVisit->visit_reason) $allReasons[] = $localVisit->visit_reason;
+                    if (is_array($localVisit->visit_reasons)) $allReasons = array_merge($allReasons, $localVisit->visit_reasons);
+                    $this->savedVisit['visit_reason'] = !empty($allReasons) ? implode(', ', $allReasons) : 'Belirtilmedi';
+
                     $this->customerData['existing_visit'] = $this->savedVisit;
 
                     // Business unit name for array
@@ -363,25 +391,46 @@ class PlanVisit extends Component
                         $this->savedVisit['users'] = [['name' => $localVisit->visitor_name]];
                     }
 
-                    // Product name for array
-                    if ($localVisit->customer_product_id)
-                    {
-                        foreach ($this->customerData['products'] ?? [] as $product)
-                        {
-                            if ($product['id'] == $localVisit->customer_product_id)
-                            {
-                                $this->savedVisit['product'] = $product;
-                                break;
-                            }
+                    // Products name for array
+                    $savedProducts = [];
+                    $allProductIds = [];
+                    if ($localVisit->customer_product_id) {
+                        $allProductIds[] = (string)$localVisit->customer_product_id;
+                    }
+                    
+                    if (is_array($localVisit->additional_products)) {
+                        foreach ($localVisit->additional_products as $ap) {
+                            $allProductIds[] = (string)$ap;
                         }
                     }
+                    
+                    foreach ($this->customerData['products'] ?? [] as $product)
+                    {
+                        if (in_array((string)$product['id'], $allProductIds))
+                        {
+                            $savedProducts[] = $product['name'];
+                        }
+                    }
+                    $this->savedVisit['product_names'] = $savedProducts;
+                    $this->savedVisit['product'] = ['name' => implode(', ', $savedProducts)];
 
                     // Populate formData for editing
                     $this->formData['visit_date'] = Carbon::parse($localVisit->visit_date)->format('Y-m-d\TH:i');
-                    $this->formData['visit_reason'] = $localVisit->visit_reason;
+                    
+                    $reasons = [];
+                    if ($localVisit->visit_reason) $reasons[] = $localVisit->visit_reason;
+                    if (is_array($localVisit->visit_reasons)) $reasons = array_merge($reasons, $localVisit->visit_reasons);
+                    $this->formData['visit_reason'] = !empty($reasons) ? $reasons : [];
+
                     $this->formData['visit_notes'] = $localVisit->visit_notes;
                     $this->formData['contact_persons'] = $localVisit->contact_persons ?? [];
-                    $this->formData['customer_product_id'] = $localVisit->customer_product_id;
+
+                    $products = [];
+                    if ($localVisit->customer_product_id) $products[] = (string)$localVisit->customer_product_id;
+                    if (is_array($localVisit->additional_products)) {
+                        foreach($localVisit->additional_products as $p) $products[] = (string)$p;
+                    }
+                    $this->formData['customer_product_id'] = !empty($products) ? $products : [];
                     $this->formData['barcode'] = $localVisit->barcode;
                     $this->formData['lot_no'] = $localVisit->lot_no;
                     $this->formData['findings'] = $localVisit->findings;
@@ -573,6 +622,14 @@ class PlanVisit extends Component
                 }
             }
 
+            $productIds = is_array($this->formData['customer_product_id']) ? $this->formData['customer_product_id'] : [$this->formData['customer_product_id']];
+            $primaryProduct = !empty($productIds) ? array_shift($productIds) : null;
+            $additionalProducts = !empty($productIds) ? array_values($productIds) : null;
+
+            $reasons = is_array($this->formData['visit_reason']) ? $this->formData['visit_reason'] : [$this->formData['visit_reason']];
+            $primaryReason = !empty($reasons) ? array_shift($reasons) : null;
+            $additionalReasons = !empty($reasons) ? array_values($reasons) : null;
+
             $ziyaretPlani = \App\Models\IaaZiyaretPlani::updateOrCreate(
                 [
                     'iaa_id' => $this->iaa->id,
@@ -584,12 +641,14 @@ class PlanVisit extends Component
                     'visitor_name' => $visitorNameString,
                     'planner_id' => Auth::id(),
                     'business_unit_id' => $this->formData['business_unit_id'],
-                    'customer_product_id' => $this->formData['customer_product_id'] ?: null,
+                    'customer_product_id' => $primaryProduct,
+                    'additional_products' => $additionalProducts,
                     'barcode' => $this->formData['barcode'] ?: null,
                     'lot_no' => $this->formData['lot_no'] ?: null,
                     'contact_persons' => $contactPersons,
                     'visit_date' => clone Carbon::parse($this->formData['visit_date']),
-                    'visit_reason' => $this->formData['visit_reason'],
+                    'visit_reason' => $primaryReason,
+                    'visit_reasons' => $additionalReasons,
                     'visit_notes' => $this->formData['visit_notes'],
                     'visit_file' => $currentFiles,
                     'status' => 'Beklemede',
@@ -602,6 +661,11 @@ class PlanVisit extends Component
 
         // Fetch to ensure we have the array formatting correct for the view
         $this->savedVisit = $ziyaretPlani->fresh()->toArray();
+        
+        $allReasons = [];
+        if ($this->savedVisit['visit_reason'] ?? false) $allReasons[] = $this->savedVisit['visit_reason'];
+        if (!empty($this->savedVisit['visit_reasons']) && is_array($this->savedVisit['visit_reasons'])) $allReasons = array_merge($allReasons, $this->savedVisit['visit_reasons']);
+        $this->savedVisit['visit_reason'] = !empty($allReasons) ? implode(', ', $allReasons) : 'Belirtilmedi';
 
         foreach ($this->businessUnits as $bu)
         {
@@ -647,23 +711,28 @@ class PlanVisit extends Component
                 $this->savedVisit['user'] = ['name' => $visitorNames[0]];
             }
 
-            if ($this->formData['customer_product_id'])
+            if (!empty($this->formData['customer_product_id']))
             {
+                $productIds = is_array($this->formData['customer_product_id']) ? $this->formData['customer_product_id'] : [$this->formData['customer_product_id']];
+                $savedProducts = [];
+                
                 foreach ($this->customerData['products'] ?? [] as $product)
                 {
-                    if ($product['id'] == $this->formData['customer_product_id'])
+                    if (in_array((string)$product['id'], $productIds))
                     {
-                        $this->savedVisit['product'] = $product;
+                        $savedProducts[] = $product['name'];
                         
-                        // Ziyaret planında seçilen ürünü müşteri şikayetine de yansıt ki listelerde "Ürün belirtilmedi" yazmasın
-                        if ($this->iaa->musteriSikayeti) {
+                        // Ziyaret planında seçilen ilk ürünü müşteri şikayetine de yansıt ki listelerde "Ürün belirtilmedi" yazmasın
+                        if (empty($this->savedVisit['product']) && $this->iaa->musteriSikayeti) {
                             $this->iaa->musteriSikayeti->update([
                                 'musteri_urun_veya_hizmet' => $product['name']
                             ]);
                         }
-                        break;
                     }
                 }
+                
+                $this->savedVisit['product_names'] = $savedProducts;
+                $this->savedVisit['product'] = ['name' => implode(', ', $savedProducts)];
             }
             $this->successMessage = 'Ziyaret planı başarıyla kaydedildi ve onaya sunuldu.';
             $this->isOpen = false;
@@ -1332,6 +1401,41 @@ class PlanVisit extends Component
 
             $this->closeCancelModal();
             $this->loadCustomerData();
+        }
+    }
+
+    public function deleteDraftVisit()
+    {
+        $ziyaretPlani = $this->getVisit();
+
+        if ($ziyaretPlani && $ziyaretPlani->status === 'Beklemede')
+        {
+            // Delete locally
+            $ziyaretPlani->delete();
+
+            // Try to delete from Takvim API
+            try {
+                $takvimUrl = rtrim(config('services.takvim.url'), '/');
+                Http::timeout(5)->post($takvimUrl . '/api/visits/delete', [
+                    'remote_id' => $this->iaa->id
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Takvim visit delete error on draft delete: ' . $e->getMessage());
+            }
+
+            IaaLog::create([
+                'iaa_id' => $this->iaa->id,
+                'user_id' => Auth::id(),
+                'eylem' => 'Ziyaret Planı Taslağı Silindi',
+                'aciklama' => Auth::user()->name . " tarafından ziyaret planı taslağı tamamen silindi."
+            ]);
+
+            $this->iaa->update(['visit_planned' => false]);
+            $this->successMessage = 'Taslak ziyaret planı tamamen silindi.';
+
+            $this->cancelEdit(); // close modal and clear savedVisit
+            $this->savedVisit = null; 
+            unset($this->customerData['existing_visit']); // clear from cache
         }
     }
 

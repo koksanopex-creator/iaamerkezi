@@ -28,10 +28,13 @@
     $iadeVarMi = $mevcutIade ? 'true' : 'false';
 
     // Ziyaret Bekliyor Mu?
-    $ziyaretBekliyorMu = false;
-    if ($iaa->ziyaretPlani && in_array($iaa->ziyaretPlani->status, ['Beklemede', 'Bölüm Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Yönetim Onayı Bekliyor', 'Revizyon Bekliyor'])) {
-        $ziyaretBekliyorMu = true;
-    }
+    $ziyaretBekliyorMu = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)
+        ->whereIn('status', ['Beklemede', 'Bölüm Onayı Bekliyor', 'Direktör Onayı Bekliyor', 'Yönetim Onayı Bekliyor', 'Revizyon Bekliyor'])
+        ->exists();
+
+    // Genel Ziyaret Kontrolü
+    $genelZiyaret = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)->whereNull('iaa_workflow_step_id')->first();
+    $genelZiyaretVarMi = $genelZiyaret ? 'true' : 'false';
 @endphp
 
 {{-- Sadece aktif süreçte ve %100 tamamlandıysa göster --}}
@@ -47,12 +50,12 @@
                 <div class="w-full">
                     <h4 class="text-lg font-bold text-blue-900">Tüm Adımlar Tamamlandı</h4>
                     <p class="text-sm text-blue-700">
-                        @if($iaa->ziyaretPlani)
+                        @if($genelZiyaret)
                             @php
                                 $onaylayacakKisiMakam = 'Yönetici';
-                                if ($iaa->ziyaretPlani->status === 'Direktör Onayı Bekliyor') $onaylayacakKisiMakam = 'Direktör';
-                                elseif ($iaa->ziyaretPlani->status === 'Yönetim Onayı Bekliyor') $onaylayacakKisiMakam = 'Yönetim';
-                                elseif ($iaa->ziyaretPlani->status === 'Bölüm Onayı Bekliyor') $onaylayacakKisiMakam = 'Bölüm Yöneticisi';
+                                if ($genelZiyaret->status === 'Direktör Onayı Bekliyor') $onaylayacakKisiMakam = 'Direktör';
+                                elseif ($genelZiyaret->status === 'Yönetim Onayı Bekliyor') $onaylayacakKisiMakam = 'Yönetim';
+                                elseif ($genelZiyaret->status === 'Bölüm Onayı Bekliyor') $onaylayacakKisiMakam = 'Bölüm Yöneticisi';
                             @endphp
                             Tüm Adımlar Tamamlandı. Proje Lideri ({{ $iaa->atananTakim->lider->name ?? 'Lider' }}) bir müşteri ziyareti planladı. Ziyaret planı {{ $onaylayacakKisiMakam }} tarafından onaylandıktan sonra süreç devam edecektir.
                         @else
@@ -63,7 +66,7 @@
             </div>
             
             {{-- Lider olmayanlar (Direktör, Müşteri Temsilcisi vb.) için Ziyaret Bilgisi --}}
-            @if($iaa->ziyaretPlani)
+            @if($genelZiyaret)
                 <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden p-2">
                     @livewire('project.plan-visit', ['iaa' => $iaa, 'embedded' => true], key('visit-form-readonly-'.$iaa->id))
                 </div>
@@ -91,7 +94,7 @@
                 {{-- DURUM 1: MÜŞTERİ ŞİKAYETİ İSE (İADE SORUSU SORULUR) --}}
                 @if($iaa->musteriSikayeti)
                     
-                    <div x-data="{ iadeVar: {{ $iadeVarMi }}, ziyaretVar: {{ $iaa->visit_planned ? 'true' : 'false' }} }" @visit-synced.window="ziyaretVar = true">
+                    <div x-data="{ iadeVar: {{ $iadeVarMi }}, ziyaretVar: {{ $genelZiyaretVarMi }} }" @visit-synced.window="ziyaretVar = true">
                         
                         {{-- 1. ADIM: MÜŞTERİ ZİYARETİ --}}
                         <div class="mb-8 overflow-hidden rounded-2xl border border-indigo-100 shadow-sm">
@@ -114,15 +117,15 @@
                                     <div 
                                         class="flex items-center gap-2 font-bold text-[10px] uppercase"
                                         :class="{ 
-                                            'text-green-600 cursor-pointer hover:text-green-700': !({{ ($iaa->ziyaretPlani && $iaa->ziyaretPlani->status === 'Tamamlandı') ? 'true' : 'false' }}),
-                                            'text-green-500 opacity-75 cursor-not-allowed': {{ ($iaa->ziyaretPlani && $iaa->ziyaretPlani->status === 'Tamamlandı') ? 'true' : 'false' }}
+                                            'text-green-600 cursor-pointer hover:text-green-700': !({{ ($genelZiyaret && $genelZiyaret->status === 'Tamamlandı') ? 'true' : 'false' }}),
+                                            'text-green-500 opacity-75 cursor-not-allowed': {{ ($genelZiyaret && $genelZiyaret->status === 'Tamamlandı') ? 'true' : 'false' }}
                                         }"
-                                        @if(!($iaa->ziyaretPlani && $iaa->ziyaretPlani->status === 'Tamamlandı'))
+                                        @if(!($genelZiyaret && $genelZiyaret->status === 'Tamamlandı'))
                                             @click="ziyaretVar = false"
                                         @endif
                                     >
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                                        Planlandı{{ ($iaa->ziyaretPlani && $iaa->ziyaretPlani->status === 'Tamamlandı') ? '' : ' (Kilidi Aç)' }}
+                                        Planlandı{{ ($genelZiyaret && $genelZiyaret->status === 'Tamamlandı') ? '' : ' (Kilidi Aç)' }}
                                     </div>
                                 </template>
                             </div>

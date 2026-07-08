@@ -57,7 +57,7 @@ class ZiyaretListesi extends Component
         $user = Auth::user();
         $allowedBolumIds = $user->getAllowedBolumIds();
 
-        $query = \App\Models\IaaZiyaretPlani::with(['iaa.musteriSikayeti.customer', 'visitor']);
+        $query = \App\Models\IaaZiyaretPlani::with(['iaa.musteriSikayeti.customer', 'visitor', 'step']);
 
         if ($allowedBolumIds !== '*') {
             $query->where(function ($q) use ($allowedBolumIds, $user) {
@@ -141,7 +141,8 @@ class ZiyaretListesi extends Component
                 'completed_at' => $visit->completed_at ? \Carbon\Carbon::parse($visit->completed_at)->format('Y-m-d H:i:s') : null,
                 'cancelled_at' => $visit->cancelled_at ? \Carbon\Carbon::parse($visit->cancelled_at)->format('Y-m-d H:i:s') : null,
                 'remote_id' => $visit->iaa->musteriSikayeti->id ?? null,
-                'remote_url' => route('proje.workspace.show', $visit->iaa_id)
+                'remote_url' => route('proje.workspace.show', $visit->iaa_id),
+                'step_name' => $visit->step->name ?? 'Proje Kapanış',
             ];
         })->toArray();
 

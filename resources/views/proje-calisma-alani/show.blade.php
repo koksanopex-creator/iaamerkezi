@@ -210,14 +210,10 @@
                 }
             @endphp
 
-            {{-- 1. İADE VE ZİYARET DETAY KARTLARI (FORM GÖSTERİLMİYORSA VEYA SAHA TEMSİLCİSİ İSE) --}}
+            {{-- 1. İADE DETAY KARTLARI (FORM GÖSTERİLMİYORSA VEYA SAHA TEMSİLCİSİ İSE) --}}
             @if(!$showCompletionForm || auth()->user()->hasRole('Müşteri Saha Temsilcisi'))
                 @if($iadeVar && $kartGoster)
                     @include('proje-calisma-alani.partials._return-details-card')
-                @endif
-
-                @if(isset($iaa->visit_planned) && $iaa->visit_planned)
-                    @include('proje-calisma-alani.partials._visit-details-card')
                 @endif
             @endif
 

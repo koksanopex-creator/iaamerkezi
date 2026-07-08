@@ -212,6 +212,12 @@
                                                 @endif
                                                 <span class="text-[10px] text-amber-600 font-black tracking-widest uppercase">{{ $complaint->bolum->ad ?? 'Bölüm Yok' }}</span>
                                             </div>
+                                            <div class="mt-1">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wider shadow-sm">
+                                                    <svg class="w-3 h-3 mr-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                                    {{ $visit['step_name'] ?? 'Proje Kapanış' }}
+                                                </span>
+                                            </div>
                                         </div>
                                     @else
                                         <span class="text-xs text-gray-400 italic">Şikayet Bulunamadı</span>
@@ -438,6 +444,12 @@
                                         <img src="{{ asset('storage/' . $complaint->bolum->logo_yolu) }}" alt="{{ $complaint->bolum->ad }}" class="h-4 w-4 object-contain rounded-sm">
                                     @endif
                                     <span class="text-[10px] text-amber-600 font-black tracking-widest uppercase">{{ $complaint->bolum->ad ?? 'Bölüm Yok' }}</span>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wider shadow-sm">
+                                        <svg class="w-3 h-3 mr-1 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                        {{ $visit['step_name'] ?? 'Proje Kapanış' }}
+                                    </span>
                                 </div>
                             </div>
                         @endif

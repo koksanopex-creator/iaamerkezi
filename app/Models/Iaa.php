@@ -174,11 +174,19 @@ class Iaa extends Model
     }
 
     /**
-     * Bu IAA projesi için planlanan Ziyaret
+     * Bu IAA projesi için planlanan EN SON veya TEK Ziyaret (Geriye Dönük Uyumluluk İçin)
      */
     public function ziyaretPlani()
     {
-        return $this->hasOne(IaaZiyaretPlani::class, 'iaa_id');
+        return $this->hasOne(IaaZiyaretPlani::class, 'iaa_id')->latestOfMany();
+    }
+
+    /**
+     * Bu IAA projesi için planlanan TÜM Ziyaretler
+     */
+    public function ziyaretPlanlari()
+    {
+        return $this->hasMany(IaaZiyaretPlani::class, 'iaa_id');
     }
 
     /**

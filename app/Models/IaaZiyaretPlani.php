@@ -13,6 +13,7 @@ class IaaZiyaretPlani extends Model
 
     protected $fillable = [
         'iaa_id',
+        'iaa_workflow_step_id',
         'visitor_id',
         'visitors',
         'visitor_name',
@@ -40,9 +41,10 @@ class IaaZiyaretPlani extends Model
         'completed_at',
         'visit_file',
         'is_visit_notes_visible_to_customer',
-        'is_visit_file_visible_to_customer',
         'is_findings_visible_to_customer',
         'is_result_visible_to_customer',
+        'additional_products',
+        'visit_reasons',
     ];
 
     protected $casts = [
@@ -53,14 +55,20 @@ class IaaZiyaretPlani extends Model
         'completed_at' => 'datetime',
         'visit_file' => 'array',
         'is_visit_notes_visible_to_customer' => 'boolean',
-        'is_visit_file_visible_to_customer' => 'boolean',
         'is_findings_visible_to_customer' => 'boolean',
         'is_result_visible_to_customer' => 'boolean',
+        'additional_products' => 'array',
+        'visit_reasons' => 'array',
     ];
 
     public function iaa()
     {
         return $this->belongsTo(Iaa::class, 'iaa_id');
+    }
+
+    public function step()
+    {
+        return $this->belongsTo(IaaWorkflowStep::class, 'iaa_workflow_step_id');
     }
 
     public function planner()

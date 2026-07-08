@@ -202,20 +202,42 @@
                     </button>
                 @endif
 
+                @php
+                    $pendingVisitLocked = $this->hasPendingVisit();
+                    $isButtonDisabled = $isLockedForUser || $pendingVisitLocked;
+                    
+                    $buttonTitle = "";
+                    if ($pendingVisitLocked) {
+                        $buttonTitle = "Bu adımda planlanmış ve henüz sonuçlandırılmamış bir ziyaret bulunmaktadır.";
+                    } elseif ($isLockedForUser) {
+                        $buttonTitle = "Bu adım $assigneeName sorumluluğundadır.";
+                    }
+                    
+                    $buttonClass = $isButtonDisabled 
+                        ? 'bg-gray-400 cursor-not-allowed hover:bg-gray-400' 
+                        : 'bg-indigo-600 hover:bg-indigo-700';
+                        
+                    $buttonText = 'Adımı Tamamla ve Kaydet';
+                    if ($pendingVisitLocked) {
+                        $buttonText = 'Ziyaret Sonucu Bekleniyor';
+                    } elseif ($isLockedForUser) {
+                        $buttonText = $assigneeName . ' Bekleniyor';
+                    }
+                @endphp
+
                 {{-- KAYDET BUTONU --}}
                 <button type="submit"
-                        @if($isLockedForUser) disabled @endif
-                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest shadow-md transition-colors
-                        {{ $isLockedForUser ? 'bg-gray-400 cursor-not-allowed hover:bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700' }}"
-                        @if($isLockedForUser) title="Bu adım {{ $assigneeName }} sorumluluğundadır." @endif>
+                        @if($isButtonDisabled) disabled @endif
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest shadow-md transition-colors {{ $buttonClass }}"
+                        @if($isButtonDisabled) title="{{ $buttonTitle }}" @endif>
                     
-                    @if(!$isLockedForUser)
+                    @if(!$isButtonDisabled)
                         <div wire:loading wire:target="save" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                     @else
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                     @endif
 
-                    {{ $isLockedForUser ? ($assigneeName . ' Bekleniyor') : 'Adımı Tamamla ve Kaydet' }}
+                    {{ $buttonText }}
                 </button>
             </div>
         </form> 

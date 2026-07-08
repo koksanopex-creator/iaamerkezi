@@ -55,6 +55,16 @@ class ProjeAdimIslemleriService
         // Sorumluluk Kontrolü
         $this->checkStepResponsibility($iaa, $step);
 
+        // Ziyaret Kontrolü: Bu adıma ait onay bekleyen veya tamamlanmamış bir ziyaret varsa adım kapatılamaz.
+        $pendingVisit = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)
+            ->where('iaa_workflow_step_id', $step->id)
+            ->whereNotIn('status', ['Tamamlandı', 'İptal Edildi'])
+            ->exists();
+
+        if ($pendingVisit) {
+            abort(403, 'Bu adıma ait onay bekleyen veya henüz tamamlanmamış bir müşteri ziyareti planı bulunmaktadır. Adımı kapatabilmek için ziyaretin tamamlanmasını beklemelisiniz.');
+        }
+
         // Bildirim Gönderilecek mi kontrolü (Daha önce tamamlanmamışsa gönderilecek)
         $isFirstCompletion = !IaaProgressUpdate::where('iaa_talep_id', $assignment->id)
             ->where('iaa_workflow_step_id', $step->id)
@@ -400,6 +410,25 @@ class ProjeAdimIslemleriService
                     \Illuminate\Support\Facades\Storage::delete($data['after_image_path']);
                 }
             }
+        }
+
+        // Adıma bağlı Ziyaret Planını sil
+        $visit = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)
+            ->where('iaa_workflow_step_id', $progressUpdate->iaa_workflow_step_id)
+            ->first();
+
+        if ($visit) {
+            // Takvim'e silme isteği at
+            try {
+                $takvimUrl = rtrim(config('services.takvim.url'), '/');
+                \Illuminate\Support\Facades\Http::timeout(5)->post($takvimUrl . '/api/visits/delete', [
+                    'remote_id' => $iaa->id
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Takvim visit delete error on undo step: ' . $e->getMessage());
+            }
+
+            $visit->delete();
         }
 
         // Adımı Sil (IaaProgressUpdate veritabanından kaldır)

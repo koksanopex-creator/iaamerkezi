@@ -73,5 +73,9 @@ return [
         'password_confirmation' => 'Şifre Tekrarı',
         'phone' => 'Telefon',
         'telefon' => 'Telefon',
+        'dosyalar' => 'Ekli dosyalar',
+        'dosyalar.*' => 'Yüklenen dosya',
+        'resimler' => 'Ekli resimler',
+        'resimler.*' => 'Yüklenen resim',
     ],
 ];

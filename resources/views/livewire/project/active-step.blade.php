@@ -203,13 +203,11 @@
                 @endif
 
                 @php
-                    $pendingVisitLocked = $this->hasPendingVisit();
-                    $isButtonDisabled = $isLockedForUser || $pendingVisitLocked;
+                    // $pendingVisitLocked = $this->hasPendingVisit(); // Kullanıcı isteği üzerine kaldırıldı
+                    $isButtonDisabled = $isLockedForUser; // || $pendingVisitLocked;
                     
                     $buttonTitle = "";
-                    if ($pendingVisitLocked) {
-                        $buttonTitle = "Bu adımda planlanmış ve henüz sonuçlandırılmamış bir ziyaret bulunmaktadır.";
-                    } elseif ($isLockedForUser) {
+                    if ($isLockedForUser) {
                         $buttonTitle = "Bu adım $assigneeName sorumluluğundadır.";
                     }
                     
@@ -218,9 +216,7 @@
                         : 'bg-indigo-600 hover:bg-indigo-700';
                         
                     $buttonText = 'Adımı Tamamla ve Kaydet';
-                    if ($pendingVisitLocked) {
-                        $buttonText = 'Ziyaret Sonucu Bekleniyor';
-                    } elseif ($isLockedForUser) {
+                    if ($isLockedForUser) {
                         $buttonText = $assigneeName . ' Bekleniyor';
                     }
                 @endphp

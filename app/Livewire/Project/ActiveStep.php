@@ -530,17 +530,8 @@ class ActiveStep extends Component
     {
         $iaaId = is_object($this->iaa) ? $this->iaa->id : (is_array($this->iaa) ? ($this->iaa['id'] ?? null) : $this->iaa);
         
-        // Ziyaret Planı Validasyonu
-        $pendingVisit = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaaId)
-            ->where('iaa_workflow_step_id', $this->currentStep['id'])
-            ->whereNotIn('status', ['Tamamlandı', 'İptal Edildi'])
-            ->first();
-
-        if ($pendingVisit) {
-            session()->flash('error', 'Bu adımda planlanmış ve henüz sonuçlandırılmamış bir müşteri ziyareti bulunmaktadır. Ziyaret sonuçları girilmeden adım tamamlanamaz.');
-            $this->dispatch('show-error', 'Bu adımda planlanmış ve henüz sonuçlandırılmamış bir müşteri ziyareti bulunmaktadır. Ziyaret sonuçları girilmeden adım tamamlanamaz.');
-            return null;
-        }
+        // Ziyaret Planı Validasyonu Kullanıcı İsteği İle Kapatıldı
+        // (Ziyaret tamamlanmasa da adım kaydedilebilecek)
 
         try {
             DB::transaction(function () {

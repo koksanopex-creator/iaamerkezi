@@ -3,7 +3,7 @@
     $isCustomer = auth()->check() && (auth()->user()->hasRole('Müşteri') || auth()->user()->hasRole('Müşteri Temsilcisi') || auth()->user()->hasRole('Müşteri Saha Temsilcisi') || !auth()->user()->is_personnel);
     
     $visitsQuery = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)
-        ->whereNotIn('status', ['İptal Edildi'])
+        ->orderBy('created_at', 'desc')
         ->with('step');
         
     $visits = $visitsQuery->get();

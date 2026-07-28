@@ -4,19 +4,37 @@
 ?>
 
 <?php if($isAuthorizedToSeeVotingBanner && isset($activeVotingCases) && $activeVotingCases->isNotEmpty()): ?>
-    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 mt-6">
+    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 mt-6" x-data="{
+        scrollNext() {
+            $refs.votingScrollContainer.scrollBy({ left: 380, behavior: 'smooth' });
+        },
+        scrollPrev() {
+            $refs.votingScrollContainer.scrollBy({ left: -380, behavior: 'smooth' });
+        }
+    }">
         <div class="flex items-center justify-between mb-4 px-2">
             <h3 class="text-sm font-black text-indigo-900/50 uppercase tracking-widest flex items-center gap-2">
                 <span class="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
                 Aktif Disiplin Oylamaları (<?php echo e($activeVotingCases->count()); ?>)
             </h3>
             <?php if($activeVotingCases->count() > 3): ?>
-                <span class="text-[10px] font-bold text-indigo-400 animate-pulse">Tümünü görmek için sağa kaydırın &rarr;</span>
+                <div class="flex items-center gap-2">
+                    <button @click="scrollPrev()" type="button" class="p-1.5 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition" title="Sola Kaydır">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button @click="scrollNext()" type="button" class="text-[11px] font-bold text-indigo-500 hover:text-indigo-700 animate-pulse flex items-center gap-1 cursor-pointer select-none bg-indigo-50/80 hover:bg-indigo-100/80 px-2.5 py-1 rounded-lg border border-indigo-200/50 transition">
+                        <span>Tümünü görmek için sağa kaydırın</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                    <button @click="scrollNext()" type="button" class="p-1.5 text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition" title="Sağa Kaydır">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
             <?php endif; ?>
         </div>
         
         
-        <div class="flex overflow-x-auto pb-4 gap-4 snap-x scroll-smooth no-scrollbar">
+        <div x-ref="votingScrollContainer" class="flex overflow-x-auto pb-4 gap-4 snap-x scroll-smooth no-scrollbar">
             <?php $__currentLoopData = $activeVotingCases; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $votingCase): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                 <div class="flex-shrink-0 w-full sm:w-[calc(50%-8px)] lg:w-[calc(33.333%-11px)] snap-start group relative overflow-hidden bg-white border border-indigo-100 rounded-2xl p-4 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 hover:border-indigo-300 transition-all duration-300">
                     

@@ -114,12 +114,19 @@
                                                                         if(isset($w['after_image_path'])) $fileCount++;
                                                                     }
                                                                 }
+                                                                // Hiyerarşik ziyaret kontrolü: Bu adımda veya aktif olan sonraki adımda ziyaret var mı?
+                                                                $visitCount = \App\Models\IaaZiyaretPlani::where('iaa_id', $progressUpdate->iaa_talep_id)
+                                                                    ->where('iaa_workflow_step_id', '>=', $progressUpdate->iaa_workflow_step_id)
+                                                                    ->count();
                                                             @endphp
                                                             <li>Adıma girilen <strong>{{ $fieldCount }} adet</strong> form/widget verisi</li>
                                                             @if($fileCount > 0)
                                                                 <li>Sunucuya yüklenen <strong>{{ $fileCount }} adet</strong> dosya/görsel</li>
                                                             @endif
                                                             <li>Adımın tamamlanma onayı ve atanan sorumluluklar (varsa)</li>
+                                                            @if($visitCount > 0)
+                                                                <li>Bu adıma veya sonraki aktif adıma ait <strong>{{ $visitCount }} adet Ziyaret Planı</strong> (Takvim uygulamasından da silinecektir)</li>
+                                                            @endif
                                                         </ul>
                                                         <p class="mt-3 text-sm font-medium text-gray-700">
                                                             Bu işlem kesinlikle geri alınamaz. Devam etmek istiyor musunuz?

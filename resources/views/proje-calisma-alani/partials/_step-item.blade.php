@@ -45,6 +45,14 @@
             }
         }
     }
+
+    // 7. Ziyaret Planı var mı?
+    $stepVisit = null;
+    if ($iaa && $step) {
+        $stepVisit = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)
+            ->where('iaa_workflow_step_id', $step->id)
+            ->first();
+    }
 @endphp
 
 <div id="step-card-{{ $step->id }}" class="mb-10 ml-6" x-data="{ open: {{ $isCompleted ? 'false' : ($isCurrent ? 'true' : 'false') }} }">
@@ -154,7 +162,7 @@
                         </div>
                     @else
                         {{-- Tamamlanmış ve AÇIK (Detay Butonu) --}}
-                        <div class="flex items-center gap-2 mb-4">
+                        <div class="flex items-center gap-2 mb-4 flex-wrap">
                             <button @click.stop="open = !open" type="button" class="group flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 border-2 border-gray-100 hover:bg-indigo-50 hover:border-indigo-200 transition-all duration-300 shadow-sm">
                                 <div class="relative flex h-2 w-2">
                                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
@@ -163,6 +171,23 @@
                                 <span class="text-[10px] font-black tracking-widest text-gray-600 group-hover:text-indigo-700 uppercase" x-text="open ? 'DETAYLARI KAPAT' : 'İÇERİĞİ GÖSTERMEK İÇİN TIKLAYIN'"></span>
                                 <svg class="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-transform duration-500" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
                             </button>
+                            
+                            @if($stepVisit)
+                                @php
+                                    $vStatusColor = match($stepVisit->status) {
+                                        'Tamamlandı' => 'bg-green-50 border-green-200 text-green-700',
+                                        'Beklemede' => 'bg-yellow-50 border-yellow-200 text-yellow-700',
+                                        'Onaylandı' => 'bg-blue-50 border-blue-200 text-blue-700',
+                                        'İptal Edildi' => 'bg-red-50 border-red-200 text-red-700',
+                                        'Revize İsteniyor' => 'bg-orange-50 border-orange-200 text-orange-700',
+                                        default => 'bg-gray-50 border-gray-200 text-gray-700',
+                                    };
+                                @endphp
+                                <div class="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold shadow-sm {{ $vStatusColor }}" x-show="!open" x-transition>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    <span>Ziyaret Planı ({{ mb_strtoupper($stepVisit->status, 'UTF-8') }})</span>
+                                </div>
+                            @endif
                         </div>
                         <div x-show="open" x-transition>
                             @include('proje-calisma-alani.partials._step-content-completed', [
@@ -307,7 +332,7 @@
 
             {{-- İÇERİĞİ GÖSTER/KAPAT BUTONU --}}
             @if($isCompleted)
-                <div class="flex items-center gap-2 mb-4">
+                <div class="flex items-center gap-2 mb-4 flex-wrap">
                     <button @click.stop="open = !open" type="button" class="group flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 border-2 border-gray-100 hover:bg-indigo-50 hover:border-indigo-200 transition-all duration-300 shadow-sm">
                         <div class="relative flex h-2 w-2">
                             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
@@ -316,6 +341,23 @@
                         <span class="text-[10px] font-black tracking-widest text-gray-600 group-hover:text-indigo-700 uppercase" x-text="open ? 'DETAYLARI KAPAT' : 'İÇERİĞİ GÖSTERMEK İÇİN TIKLAYIN'"></span>
                         <svg class="w-4 h-4 text-gray-400 group-hover:text-indigo-600 transition-transform duration-500" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
+
+                    @if($stepVisit)
+                        @php
+                            $vStatusColor = match($stepVisit->status) {
+                                'Tamamlandı' => 'bg-green-50 border-green-200 text-green-700',
+                                'Beklemede' => 'bg-yellow-50 border-yellow-200 text-yellow-700',
+                                'Onaylandı' => 'bg-blue-50 border-blue-200 text-blue-700',
+                                'İptal Edildi' => 'bg-red-50 border-red-200 text-red-700',
+                                'Revize İsteniyor' => 'bg-orange-50 border-orange-200 text-orange-700',
+                                default => 'bg-gray-50 border-gray-200 text-gray-700',
+                            };
+                        @endphp
+                        <div class="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold shadow-sm {{ $vStatusColor }}" x-show="!open" x-transition>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span>Ziyaret Planı ({{ mb_strtoupper($stepVisit->status, 'UTF-8') }})</span>
+                        </div>
+                    @endif
                 </div>
             @endif
 

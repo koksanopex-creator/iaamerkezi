@@ -91,6 +91,8 @@ class SikayetTriyajModal extends Component
         $this->yeni_ek_sure_aciklamasi = '';
 
         $this->showModal = true;
+        
+        $this->dispatch('triyaj-modal-opened');
     }
 
 
@@ -131,18 +133,15 @@ class SikayetTriyajModal extends Component
                 // ==========================================================
                 // === YENİ (KURUL OTOMASYONU) BAŞLANGIÇ ===================
                 // ==========================================================
-                if ($user->hasRole('Müşteri Şikayeti Kurulu') && !$user->hasRole('Superadmin')) {
-                    // ... (Mevcut Kurul Otomasyonu kodunuz - Değişiklik yok)
-                    if (empty($this->musteri_cozum_son_tarihi)) {
-                        $this->musteri_cozum_son_tarihi = now()->addHours(72);
-                        $logAciklamalari[] = "Çözüm son tarihi otomatik olarak 72 saat sonrasına ayarlandı.";
-                    }
-                    if (empty($this->etki_puani) && empty($this->karmasiklik_puani)) {
-                        $defaultPuan = (int) (Setting::where('key', 'kurul_default_puan')->value('value') ?? 0);
-                        if ($defaultPuan > 0) {
-                            $this->musteri_puan = $defaultPuan;
-                            $logAciklamalari[] = "Kurul atamasıyla otomatik olarak {$defaultPuan} default puan ayarlandı.";
-                        }
+                if (empty($this->musteri_cozum_son_tarihi)) {
+                    $this->musteri_cozum_son_tarihi = now()->addHours(72);
+                    $logAciklamalari[] = "Çözüm son tarihi otomatik olarak 72 saat sonrasına ayarlandı.";
+                }
+                if (empty($this->etki_puani) && empty($this->karmasiklik_puani)) {
+                    $defaultPuan = (int) (Setting::where('key', 'kurul_default_puan')->value('value') ?? 0);
+                    if ($defaultPuan > 0) {
+                        $this->musteri_puan = $defaultPuan;
+                        $logAciklamalari[] = "Otomatik olarak {$defaultPuan} default puan ayarlandı.";
                     }
                 }
                 // ==========================================================

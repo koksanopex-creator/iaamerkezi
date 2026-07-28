@@ -412,12 +412,12 @@ class ProjeAdimIslemleriService
             }
         }
 
-        // Adıma bağlı Ziyaret Planını sil
-        $visit = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)
-            ->where('iaa_workflow_step_id', $progressUpdate->iaa_workflow_step_id)
-            ->first();
+        // Adıma ve sonraki adımlara bağlı Ziyaret Planlarını sil (Hiyerarşik)
+        $visits = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)
+            ->where('iaa_workflow_step_id', '>=', $progressUpdate->iaa_workflow_step_id)
+            ->get();
 
-        if ($visit) {
+        foreach ($visits as $visit) {
             // Takvim'e silme isteği at
             try {
                 $takvimUrl = rtrim(config('services.takvim.url'), '/');

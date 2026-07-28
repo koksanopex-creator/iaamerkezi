@@ -641,7 +641,8 @@ class DashboardController extends Controller
             $nextWeek = $today->copy()->addDays($upcomingRange);
             $lastDays = $today->copy()->subDays($pastRange);
 
-            $internalUsersQuery = User::where('is_personnel', true)
+            $internalUsersQuery = User::select('id', 'name', 'dogum_tarihi', 'hire_date', 'bolum_id', 'profile_photo_path')
+                ->where('is_personnel', true)
                 ->whereNotNull('dogum_tarihi')
                 ->whereDoesntHave('roles', function ($q)
                 {
@@ -718,7 +719,8 @@ class DashboardController extends Controller
             $nextWeek = $today->copy()->addDays($uRange);
             $lastDays = $today->copy()->subDays($pRange);
 
-            $internalUsersQuery = User::where('is_personnel', true)
+            $internalUsersQuery = User::select('id', 'name', 'dogum_tarihi', 'hire_date', 'bolum_id', 'profile_photo_path')
+                ->where('is_personnel', true)
                 ->whereNotNull('hire_date')
                 ->whereDoesntHave('roles', function ($q)
                 {

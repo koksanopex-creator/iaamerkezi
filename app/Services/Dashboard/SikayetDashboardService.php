@@ -99,7 +99,8 @@ class SikayetDashboardService
 
         if ($stats['has_teams']) {
             // --- TÜM ZAMANLAR VERİLERİ (Filtresiz) ---
-            $allTimeQuery = MusteriSikayeti::whereIn('atanan_cozum_takimi_id', $liderinTakimlariIds);
+            $allTimeQuery = MusteriSikayeti::whereIn('atanan_cozum_takimi_id', $liderinTakimlariIds)
+                ->with(['iaaProjesi', 'sikayetKategori.bolum']);
             $allTimeSikayetler = $allTimeQuery->get();
 
             $stats['toplam_sikayet_sayisi_all_time'] = $allTimeSikayetler->count();
@@ -199,8 +200,9 @@ class SikayetDashboardService
                 return false;
             })->sortByDesc('updated_at');
             
-            // Onaylayacak Kişiyi Ekle
-            $onayBekleyenler->each(function($sikayet) {
+            // Onaylayacak Kişiyi Ekle (Superadmin sorgusunu döngü dışına alma)
+            $defaultSuperAdmin = User::role('Superadmin')->first();
+            $onayBekleyenler->each(function($sikayet) use ($defaultSuperAdmin) {
                 $durum = $sikayet->iaaProjesi ? $sikayet->iaaProjesi->durum : $sikayet->musteri_durum;
                 $approver = null;
 
@@ -209,8 +211,7 @@ class SikayetDashboardService
                 } elseif (str_contains($durum, 'Direktör Onayı') || str_contains($durum, '_direktor')) {
                     $approver = $sikayet->sikayetKategori->bolum->director ?? null;
                 } elseif (str_contains($durum, 'Yönetici Onayı') || str_contains($durum, '_superadmin')) {
-                    // Superadminlerden birini bul veya genel etiket
-                    $approver = User::role('Superadmin')->first();
+                    $approver = $defaultSuperAdmin;
                 }
 
                 $sikayet->onaya_gonderilme_tarihi = $sikayet->updated_at;

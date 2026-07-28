@@ -44,7 +44,7 @@ class KullaniciIstatistikService
             ->count();
 
         // 3. Puan ve Sıralama
-        $puan = $this->puanService->calculateTotalScore($user);
+        $puan = $user->toplam_puan ?? $this->puanService->calculateTotalScore($user);
 
         // Sıralama (Basit Count)
         $siralama = 0;

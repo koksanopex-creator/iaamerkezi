@@ -21,16 +21,22 @@ class SsoController extends Controller
     {
         $token = $request->query('token');
 
-        $centralUrl = rtrim(env('CENTRAL_SSO_URL', 'http://localhost:8001'), '/');
+        $centralUrl = rtrim(env('CENTRAL_SSO_URL', 'http://127.0.0.1:8001'), '/');
+        $internalHttpUrl = str_replace('localhost', '127.0.0.1', $centralUrl);
 
         if (!$token) {
             return redirect($centralUrl);
         }
 
-        // Merkezi API'ye token'ı doğrulat
-        $response = Http::get($centralUrl . '/api/auth/verify-sso-token', [
-            'token' => $token
-        ]);
+        // Merkezi API'ye token'ı doğrulat (Windows cURL localhost IPv6 gecikmesini önlemek için 127.0.0.1 ve timeout kullanılıyor)
+        try {
+            $response = Http::timeout(5)->get($internalHttpUrl . '/api/auth/verify-sso-token', [
+                'token' => $token
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('SSO Doğrulama isteği zaman aşımına uğradı veya başarısız oldu: ' . $e->getMessage());
+            return redirect($centralUrl)->with('error', 'Merkezi oturum sunucusuna erişilemedi.');
+        }
 
         if ($response->failed()) {
             return redirect($centralUrl)->with('error', 'Merkezi oturum doğrulanamadı.');

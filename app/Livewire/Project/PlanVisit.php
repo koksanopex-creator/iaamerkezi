@@ -30,6 +30,8 @@ class PlanVisit extends Component
     public $iaa;
     public $embedded = false;
     public $stepId = null;
+    public $isStepEnd = false;
+    public $customTitle = null;
     public $customerData = [];
     public $businessUnits = [];
     public $savedVisit = null;
@@ -86,11 +88,13 @@ class PlanVisit extends Component
     public $showCancelModal = false;
     public $cancelReason = null;
 
-    public function mount(Iaa $iaa, $embedded = false, $stepId = null)
+    public function mount(Iaa $iaa, $embedded = false, $stepId = null, $isStepEnd = false, $customTitle = null)
     {
         $this->iaa = $iaa;
         $this->embedded = $embedded;
         $this->stepId = $stepId;
+        $this->isStepEnd = $isStepEnd;
+        $this->customTitle = $customTitle;
         $this->formData['visit_date'] = now()->format('Y-m-d\TH:i');
 
 
@@ -112,6 +116,19 @@ class PlanVisit extends Component
 
         $currentVisit = $this->getVisit();
         if ($currentVisit) {
+            // Sayfa yüklendiğinde özet kutusunun çıkması için existing_visit'i doldur
+            $currentVisit->load('planner');
+            $this->savedVisit = $currentVisit->toArray();
+            $this->savedVisit['planner_name'] = $currentVisit->planner->name ?? 'Planlayan Kişi';
+            
+            // Nedenleri birleştir
+            $allReasons = [];
+            if ($currentVisit->visit_reason) $allReasons[] = $currentVisit->visit_reason;
+            if (is_array($currentVisit->visit_reasons)) $allReasons = array_merge($allReasons, $currentVisit->visit_reasons);
+            $this->savedVisit['visit_reason'] = !empty($allReasons) ? implode(', ', $allReasons) : 'Belirtilmedi';
+
+            $this->customerData['existing_visit'] = $this->savedVisit;
+            
             $vpStatus = $currentVisit->status;
             if (in_array($vpStatus, ['Beklemede', 'Revize İsteniyor'])) {
                 $this->isReadOnly = false;
@@ -254,9 +271,10 @@ class PlanVisit extends Component
 
         try
         {
+            $currentVisitForSync = $this->getVisit();
             $response = Http::timeout(15)->get($takvimUrl . '/api/customers/visit-data', [
                 'customer_name' => trim($customerName),
-                'remote_id' => $this->iaa->id,
+                'remote_id' => $currentVisitForSync ? $currentVisitForSync->id : null,
                 'business_unit_id' => $buId
             ]);
 
@@ -624,6 +642,7 @@ class PlanVisit extends Component
 
             $productIds = is_array($this->formData['customer_product_id']) ? $this->formData['customer_product_id'] : [$this->formData['customer_product_id']];
             $primaryProduct = !empty($productIds) ? array_shift($productIds) : null;
+            if ($primaryProduct === '') $primaryProduct = null;
             $additionalProducts = !empty($productIds) ? array_values($productIds) : null;
 
             $reasons = is_array($this->formData['visit_reason']) ? $this->formData['visit_reason'] : [$this->formData['visit_reason']];
@@ -1417,7 +1436,7 @@ class PlanVisit extends Component
             try {
                 $takvimUrl = rtrim(config('services.takvim.url'), '/');
                 Http::timeout(5)->post($takvimUrl . '/api/visits/delete', [
-                    'remote_id' => $this->iaa->id
+                    'remote_id' => $ziyaretPlani->id
                 ]);
             } catch (\Exception $e) {
                 Log::error('Takvim visit delete error on draft delete: ' . $e->getMessage());
@@ -1436,6 +1455,8 @@ class PlanVisit extends Component
             $this->cancelEdit(); // close modal and clear savedVisit
             $this->savedVisit = null; 
             unset($this->customerData['existing_visit']); // clear from cache
+
+            return redirect(request()->header('Referer'));
         }
     }
 
@@ -1470,6 +1491,33 @@ class PlanVisit extends Component
 
             $this->successMessage = 'Ziyaret planı geri alındı ve ilgili bildirimler temizlendi.';
             $this->loadCustomerData();
+
+            // Sayfanın tamamen yenilenmesi (Tüm component'lerin state'ini sıfırlamak için)
+            return redirect(request()->header('Referer'));
+        }
+    }
+
+    public function undoStatusAction()
+    {
+        $ziyaretPlani = $this->getVisit();
+        
+        if ($ziyaretPlani && in_array($ziyaretPlani->status, ['İptal Edildi', 'Revize İsteniyor'])) {
+            $eskiDurum = $ziyaretPlani->status;
+            
+            // Eğer revizyon veya iptal ise, Beklemede durumuna geri çekelim.
+            $ziyaretPlani->status = 'Beklemede';
+            $ziyaretPlani->save();
+            
+            IaaLog::create([
+                'iaa_id' => $this->iaa->id,
+                'user_id' => Auth::id(),
+                'eylem' => "Ziyaret Planı {$eskiDurum} Kararı Geri Alındı",
+                'aciklama' => Auth::user()->name . " tarafından ziyaret planı '{$eskiDurum}' durumu geri alınarak 'Beklemede' aşamasına çekildi."
+            ]);
+            
+            $this->successMessage = "Ziyaret planı '{$eskiDurum}' durumu başarıyla geri alındı.";
+            $this->loadCustomerData(); // Verileri yenile
+            $this->syncAuthorization();
         }
     }
 
@@ -1531,7 +1579,7 @@ class PlanVisit extends Component
                 'contact_persons' => $ziyaretPlani->contact_persons,
                 'barcode' => $ziyaretPlani->barcode,
                 'lot_no' => $ziyaretPlani->lot_no,
-                'remote_id' => $this->iaa->id,
+                'remote_id' => $ziyaretPlani->id,
                 'remote_system' => 'iaa',
                 'remote_url' => route('proje.workspace.show', $this->iaa->id),
                 'findings' => $ziyaretPlani->findings,

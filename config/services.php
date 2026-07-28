@@ -40,7 +40,7 @@ return [
     ],
 
     'takvim' => [
-        'url' => env('TAKVIM_URL', 'http://localhost:8001'),
+        'url' => str_replace('localhost', '127.0.0.1', env('TAKVIM_URL', 'http://127.0.0.1:8002')),
     ],
 
     // === MICROSOFT GRAPH API (Mail Sistemi) ===
@@ -53,7 +53,7 @@ return [
 
     // === MERKEZİ SSO SİSTEMİ ===
     'central_sso' => [
-        'url' => env('CENTRAL_SSO_URL', 'http://localhost:8001'),
+        'url' => str_replace('localhost', '127.0.0.1', env('CENTRAL_SSO_URL', 'http://127.0.0.1:8000')),
         'app_code' => env('CENTRAL_SSO_APP_CODE', 'iaa-yonetim-sistemi'),
         'api_key' => env('CENTRAL_SSO_API_KEY'),
     ],

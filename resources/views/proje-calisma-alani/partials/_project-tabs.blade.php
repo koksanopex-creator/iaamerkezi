@@ -97,7 +97,7 @@
 
         {{-- 5. Ziyaretler --}}
         @php
-            $visitsQueryTab = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)->whereNotIn('status', ['İptal Edildi']);
+            $visitsQueryTab = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id);
             $allTabVisits = $visitsQueryTab->get();
             
             $isCustomerTab = auth()->check() && (auth()->user()->hasRole('Müşteri') || auth()->user()->hasRole('Müşteri Temsilcisi') || auth()->user()->hasRole('Müşteri Saha Temsilcisi') || !auth()->user()->is_personnel);
@@ -117,6 +117,24 @@
             }
             $visitCount = $allTabVisits->count();
         @endphp
+        @php
+            $tabBadgeBg = 'bg-blue-600';
+            $tabBadgeText = 'text-blue-100';
+            
+            if ($visitCount > 0) {
+                // Sona eklenen ziyareti baz al
+                $latestVisitStatus = $allTabVisits->last()->status;
+                $tabBadgeBg = match($latestVisitStatus) {
+                    'Tamamlandı' => 'bg-green-600',
+                    'Beklemede' => 'bg-yellow-500',
+                    'Onaylandı' => 'bg-blue-600',
+                    'İptal Edildi' => 'bg-red-600',
+                    'Revize İsteniyor' => 'bg-orange-500',
+                    default => 'bg-gray-600',
+                };
+                $tabBadgeText = 'text-white';
+            }
+        @endphp
         @if($visitCount > 0)
             <button @click="activeTab = 'visits'" :class="{ 
                                 'text-blue-700 font-bold border-b-2 border-blue-500 bg-blue-50/50': activeTab === 'visits', 
@@ -128,7 +146,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 </svg>
                 Ziyaretler
-                <span class="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold leading-none text-blue-100 bg-blue-600 rounded-full">{{ $visitCount }}</span>
+                <span class="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold leading-none {{ $tabBadgeText }} {{ $tabBadgeBg }} rounded-full">{{ $visitCount }}</span>
             </button>
         @endif
     </div>

@@ -206,12 +206,17 @@
 
                                 {{-- 2. YÖNET (Kurul/Admin) --}}
                                 @role('Superadmin|Müşteri Şikayeti Kurulu|Müşteri Şikayeti Kurulu - Yurt İçi|Müşteri Şikayeti Kurulu - Yurt Dışı|Müşteri Şikayeti Kurulu Yöneticisi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi|Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı')
-                                    <button wire:click="$dispatch('openTriyajModal', { id: {{ $sikayet->id }} })"
-                                        class="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors" title="Yönet">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <button x-data="{ loading: false }"
+                                        @click="loading = true; $wire.$dispatch('openTriyajModal', { id: {{ $sikayet->id }} })"
+                                        @triyaj-modal-opened.window="loading = false"
+                                        :disabled="loading"
+                                        :class="loading ? 'opacity-50 cursor-wait bg-amber-50' : 'hover:bg-amber-50'"
+                                        class="p-1.5 rounded-lg text-amber-600 transition-colors" title="Yönet">
+                                        <svg x-show="!loading" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 00-1.065-2.572z" />
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
+                                        <svg x-show="loading" style="display: none;" class="animate-spin w-4 h-4 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                                     </button>
                                 @endrole
 

@@ -68,7 +68,7 @@
             {{-- Lider olmayanlar (Direktör, Müşteri Temsilcisi vb.) için Ziyaret Bilgisi --}}
             @if($genelZiyaret)
                 <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden p-2">
-                    @livewire('project.plan-visit', ['iaa' => $iaa, 'embedded' => true], key('visit-form-readonly-'.$iaa->id))
+                    @livewire('project.plan-visit', ['iaa' => $iaa, 'embedded' => true, 'isStepEnd' => true], key('visit-form-readonly-'.$iaa->id))
                 </div>
             @endif
         </div>
@@ -131,7 +131,7 @@
                             </div>
 
                             <div x-show="ziyaretVar" x-transition class="p-2 bg-white">
-                                @livewire('project.plan-visit', ['iaa' => $iaa, 'embedded' => true], key('visit-form-leader-'.$iaa->id))
+                                @livewire('project.plan-visit', ['iaa' => $iaa, 'embedded' => true, 'isStepEnd' => true], key('visit-form-leader-'.$iaa->id))
                             </div>
                         </div>
 

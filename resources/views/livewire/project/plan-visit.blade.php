@@ -12,7 +12,26 @@
 @open-revision-submit-modal.window="showSubmitRevision = true"
 >
     @php
-        $status = $savedVisit['status'] ?? ($this->iaa->ziyaretPlani->status ?? 'Beklemede');
+        $status = $savedVisit['status'] ?? 'Beklemede';
+        $cardTitle = $customTitle;
+        if (!$cardTitle) {
+            if ($isStepEnd) {
+                $cardTitle = 'Adım Sonu Ziyaret (Opsiyonel)';
+            } elseif ($embedded) {
+                $cardTitle = 'Adım İçi Ziyaret (Opsiyonel)';
+            } else {
+                $cardTitle = 'Müşteri Ziyareti Planla';
+            }
+        }
+
+        if ($savedVisit && isset($savedVisit['id'])) {
+            $allVisitsCard = \App\Models\IaaZiyaretPlani::where('iaa_id', $this->iaa->id)->orderBy('id', 'asc')->pluck('id')->toArray();
+            $vIdxCard = array_search($savedVisit['id'], $allVisitsCard);
+            if ($vIdxCard !== false) {
+                $cardOrderNum = $vIdxCard + 1;
+                $cardTitle .= " ({$cardOrderNum}. Ziyaret)";
+            }
+        }
     @endphp
     <div class="{{ $embedded ? 'p-4' : 'bg-white overflow-hidden shadow-xl sm:rounded-lg p-6 border-t-4 border-indigo-500' }}">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 {{ $embedded ? 'bg-indigo-50/50 p-4 rounded-xl border border-indigo-100' : '' }}">
@@ -20,9 +39,9 @@
                 <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                {{ $embedded ? 'Adım İçi Ziyaret (Opsiyonel)' : 'Müşteri Ziyareti Planla' }}
+                {{ $cardTitle }}
             </h3>
-            @if(!$savedVisit && !($iaa->ziyaretPlani && $iaa->ziyaretPlani->status === 'Onaylandı'))
+            @if(!$savedVisit)
                 <button wire:click="toggleForm" wire:loading.attr="disabled" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 focus:outline-none focus:border-indigo-900 focus:ring ring-indigo-300 disabled:opacity-50 transition ease-in-out duration-150 shadow-sm relative overflow-hidden">
                     <span wire:loading.remove wire:target="toggleForm">{{ $isOpen ? 'Formu Kapat' : 'Yeni Ziyaret Planı Oluştur' }}</span>
                     <span wire:loading wire:target="toggleForm" class="inline-flex items-center">
@@ -64,7 +83,7 @@
                             
                             @if($canEdit)
                                 @php
-                                    $isRevizeIsteniyor = ($savedVisit['status'] ?? ($this->iaa->ziyaretPlani->status ?? '')) === 'Revize İsteniyor';
+                                    $isRevizeIsteniyor = ($savedVisit['status'] ?? '') === 'Revize İsteniyor';
                                 @endphp
                                 <button wire:click="editVisit" class="inline-flex items-center px-3 py-1.5 {{ $isRevizeIsteniyor ? 'bg-orange-100 border-orange-300 text-orange-700 animate-pulse hover:bg-orange-200 ring-2 ring-orange-400 ring-offset-1' : 'bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50' }} rounded-lg text-xs font-bold transition shadow-sm">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -84,8 +103,8 @@
                                 $cancellerName = null;
                                 $cancelledAt = null;
 
-                                if ($this->iaa->ziyaretPlani) {
-                                    $zp = $this->iaa->ziyaretPlani;
+                                $zp = $this->getVisit();
+                                if ($zp) {
                                     $rejectionMsg = $zp->rejection_reason_director ?: ($zp->rejection_reason_quality ?: ($zp->rejection_reason_superadmin ?: $zp->reject_reason));
                                     
                                     if ($zp->status === 'İptal Edildi') {
@@ -1118,7 +1137,13 @@
 
                         @if($status === 'Beklemede' && $canEdit)
                             <button wire:click="revertVisit" onclick="confirm('Ziyaret planını tamamen silmek ve gönderilen bildirimleri geri almak istediğinize emin misiniz?') || event.stopImmediatePropagation()" class="px-4 py-2 bg-rose-50 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 hover:bg-rose-100 transition shadow-sm">
-                                Geri Al
+                                Planı Sil
+                            </button>
+                        @endif
+
+                        @if(in_array($status, ['İptal Edildi', 'Revize İsteniyor']) && $canEdit)
+                            <button wire:click="undoStatusAction" onclick="confirm('{{ $status }} kararını geri alıp ziyaret planını tekrar Beklemede aşamasına çekmek istediğinize emin misiniz?') || event.stopImmediatePropagation()" class="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-bold rounded-lg border border-gray-200 hover:bg-gray-200 transition shadow-sm">
+                                {{ $status === 'İptal Edildi' ? 'İptali Geri Al' : 'Revizyonu Geri Al' }}
                             </button>
                         @endif
 
@@ -1140,9 +1165,36 @@
                         <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full border border-gray-100">
                             
                             <div class="bg-indigo-50/50 border-b border-indigo-100 px-6 py-4 flex justify-between items-center">
+                                @php
+                                    $modalTitle = $customTitle;
+                                    if (!$modalTitle) {
+                                        if ($isStepEnd) {
+                                            $modalTitle = 'Adım Sonu Ziyaret Planla';
+                                        } elseif ($embedded) {
+                                            $modalTitle = 'Adım İçi Ziyaret Planla';
+                                        } else {
+                                            $modalTitle = 'Müşteri Ziyareti Planla';
+                                        }
+                                    }
+
+                                    $totalVisitsCount = \App\Models\IaaZiyaretPlani::where('iaa_id', $this->iaa->id)->count();
+                                    if ($savedVisit && isset($savedVisit['id'])) {
+                                        $allVisits = \App\Models\IaaZiyaretPlani::where('iaa_id', $this->iaa->id)->orderBy('id', 'asc')->pluck('id')->toArray();
+                                        $vIdx = array_search($savedVisit['id'], $allVisits);
+                                        if ($vIdx !== false) {
+                                            $orderNum = $vIdx + 1;
+                                            $modalTitle .= " ({$orderNum}. Ziyaret)";
+                                        }
+                                    } else {
+                                        $orderNum = $totalVisitsCount + 1;
+                                        if ($totalVisitsCount > 0) {
+                                            $modalTitle .= " ({$orderNum}. Ziyaret)";
+                                        }
+                                    }
+                                @endphp
                                 <h3 class="text-lg font-black text-indigo-900 flex items-center tracking-tight">
                                     <svg class="w-6 h-6 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                    Adım İçi Ziyaret Planla
+                                    {{ $modalTitle }}
                                 </h3>
                                 <button type="button" wire:click="toggleForm" class="text-indigo-400 hover:text-indigo-600 bg-white hover:bg-indigo-50 rounded-full p-1 transition shadow-sm border border-indigo-100">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -1465,7 +1517,7 @@
                             </div>
                         @endif
 
-                        @if(($savedVisit['status'] ?? ($this->iaa->ziyaretPlani->status ?? '')) === 'Revize İsteniyor')
+                        @if(($savedVisit['status'] ?? '') === 'Revize İsteniyor')
                             <div class="mt-6 bg-orange-50/50 p-5 rounded-3xl border border-orange-200 shadow-sm relative overflow-hidden">
                                 <div class="absolute left-0 top-0 bottom-0 w-1 bg-orange-400"></div>
                                 <h4 class="text-sm font-extrabold text-orange-700 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -1505,10 +1557,10 @@
                                 
                                 <div class="space-y-4">
                                     {{-- MEVCUT KAYITLI DOSYALAR --}}
-                                    @if(($savedVisit && isset($savedVisit['visit_file']) && count($savedVisit['visit_file']) > 0) || ($iaa->ziyaretPlani && $iaa->ziyaretPlani->visit_file && count($iaa->ziyaretPlani->visit_file) > 0))
+                                    @if($savedVisit && isset($savedVisit['visit_file']) && is_array($savedVisit['visit_file']) && count($savedVisit['visit_file']) > 0)
                                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
                                             @php
-                                                $filesToShow = ($savedVisit && isset($savedVisit['visit_file'])) ? $savedVisit['visit_file'] : ($iaa->ziyaretPlani ? $iaa->ziyaretPlani->visit_file : []);
+                                                $filesToShow = $savedVisit['visit_file'];
                                             @endphp
                                             @foreach($filesToShow as $index => $file)
                                                 @php
@@ -1641,7 +1693,7 @@
                     @endif
                     
                     @if(!$isReadOnly)
-                        @if($isEnteringResults || ($savedVisit['status'] ?? ($this->iaa->ziyaretPlani->status ?? '')) === 'Onaylandı')
+                        @if($isEnteringResults || ($savedVisit['status'] ?? '') === 'Onaylandı')
                             <button type="button" wire:click="completeVisit" wire:loading.attr="disabled" class="px-10 py-3 bg-emerald-600 text-white font-black rounded-2xl hover:bg-emerald-700 transition shadow-lg hover:shadow-emerald-500/30 flex items-center gap-2">
                                 <span wire:loading.remove>Ziyareti Tamamla & Takvime Gönder</span>
                                 <span wire:loading class="flex items-center gap-2">

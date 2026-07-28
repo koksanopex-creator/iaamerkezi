@@ -114,9 +114,17 @@
                     
                     @role('Superadmin')
                     <div>
-                        <button type="button" wire:click="removeAtama" class="inline-flex items-center px-4 py-2 bg-red-50 border border-red-300 rounded-lg font-semibold text-sm text-red-700 hover:bg-red-100 transition"
-                                onclick="return confirm('Atamayı kaldırmak ve durumu \'Yeni\'ye döndürmek istediğinizden emin misiniz?');">
-                            Atamayı Kaldır
+                        <button type="button" wire:click="removeAtama" 
+                                wire:confirm="Atamayı kaldırmak ve durumu 'Yeni'ye döndürmek istediğinizden emin misiniz?"
+                                wire:loading.attr="disabled"
+                                wire:target="removeAtama"
+                                wire:loading.class="opacity-50 cursor-not-allowed"
+                                class="inline-flex items-center px-4 py-2 bg-red-50 border border-red-300 rounded-lg font-semibold text-sm text-red-700 hover:bg-red-100 transition">
+                            <span wire:loading.remove wire:target="removeAtama">Atamayı Kaldır</span>
+                            <span wire:loading wire:target="removeAtama">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-red-700 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                                İşleniyor...
+                            </span>
                         </button>
                     </div>
                     @endrole
@@ -124,8 +132,16 @@
                         <button type="button" @click="showModal = false" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-sm text-gray-700 hover:bg-gray-50 transition">
                             İptal
                         </button>
-                        <button type="submit" class="inline-flex items-center ml-3 px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-sm text-white hover:bg-indigo-700 transition">
-                            Güncelle ve Kaydet
+                        <button type="submit" 
+                                wire:loading.attr="disabled"
+                                wire:target="save"
+                                wire:loading.class="opacity-50 cursor-not-allowed"
+                                class="inline-flex items-center ml-3 px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-sm text-white hover:bg-indigo-700 transition">
+                            <span wire:loading.remove wire:target="save">Güncelle ve Kaydet</span>
+                            <span wire:loading wire:target="save">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                                Kaydediliyor...
+                            </span>
                         </button>
                     </div>
                 </div>

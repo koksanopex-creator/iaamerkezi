@@ -1,0 +1,225 @@
+
+<?php
+    $hasComplaintDetails = isset($iaa) && $iaa->musteriSikayeti;
+    $hasFaultyPanel = isset($isComplaintProject) && $isComplaintProject && Auth::check() && !Auth::user()->hasAnyRole(['Müşteri', 'Müşteri Temsilcisi', 'Müşteri Saha Temsilcisi']) && is_null(Auth::user()->customer_id);
+    
+    // YENİ: Eğer kullanıcı Bölüm Kalite Yöneticisi ise ve müdahale yetkisi kapalıysa operasyonel sekmeleri görmemeli (Lider değilse)
+    if (Auth::check() && Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && !Auth::user()->hasRole('Superadmin') && !($isQualityManagerInterventionPower ?? false)) {
+        // Eğer bu QM aynı zamanda takım lideri değilse (çok nadir bir durum ama kontrol edelim), panelleri gizle
+        $isActualLeader = $iaa->atananTakim && Auth::id() == $iaa->atananTakim->lider_user_id;
+        if (!$isActualLeader) {
+            $hasFaultyPanel = false;
+        }
+    }
+
+    $hasCustomerNotification = $hasComplaintDetails && Auth::check() && Auth::user()->hasRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri', 'Bölüm Kalite Yöneticisi']);
+    
+    // Müşteri İletişimi sekmesi için de aynı kısıtlamayı uygulayalım
+    if (Auth::check() && Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && !Auth::user()->hasRole('Superadmin') && !($isQualityManagerInterventionPower ?? false)) {
+        $hasCustomerNotification = Auth::user()->hasAnyRole(['Superadmin', 'Müşteri Şikayeti Kurulu', 'Müşteri Şikayeti Çözüm Lideri']);
+    }
+    $isGuestOrCustomer = !Auth::check();
+    $defaultTab = $isGuestOrCustomer ? 'squad' : 'details';
+?>
+
+<div x-data="{ activeTab: '<?php echo e($defaultTab); ?>' }" class="mb-8">
+    
+    <div
+        class="bg-white rounded-t-xl shadow-sm border border-b-0 border-indigo-100 flex flex-nowrap overflow-x-auto hide-scrollbar">
+        
+        <?php if(!$isGuestOrCustomer): ?>
+            <button @click="activeTab = 'details'" :class="{ 
+                            'text-indigo-700 font-bold border-b-2 border-indigo-600 bg-indigo-50/50': activeTab === 'details', 
+                            'text-gray-500 font-medium hover:text-indigo-600 hover:bg-gray-50': activeTab !== 'details' 
+                        }"
+                class="flex items-center gap-2 px-6 py-4 transition-colors whitespace-nowrap focus:outline-none flex-1 justify-center relative">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Proje Detayları
+            </button>
+        <?php endif; ?>
+
+        
+        <?php if($hasComplaintDetails): ?>
+            <button @click="activeTab = 'squad'" :class="{ 
+                                'text-indigo-700 font-bold border-b-2 border-indigo-600 bg-indigo-50/50': activeTab === 'squad', 
+                                'text-gray-500 font-medium hover:text-indigo-600 hover:bg-gray-50': activeTab !== 'squad' 
+                            }"
+                class="flex items-center gap-2 px-6 py-4 transition-colors whitespace-nowrap focus:outline-none flex-1 justify-center relative">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Proje Ekibi (Squad)
+                <?php $aktifUyeCount = $iaa->projeEkibi->filter(fn($u) => $u->pivot->rol == 'Lider' || $u->pivot->durum == 'onaylandi')->count(); ?>
+                <?php if($aktifUyeCount > 0): ?>
+                    <span
+                        class="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold leading-none text-indigo-100 bg-indigo-600 rounded-full"><?php echo e($aktifUyeCount); ?></span>
+                <?php endif; ?>
+            </button>
+        <?php endif; ?>
+
+        
+        <?php if($hasCustomerNotification): ?>
+            <button @click="activeTab = 'customer'" :class="{ 
+                                'text-indigo-700 font-bold border-b-2 border-indigo-600 bg-indigo-50/50': activeTab === 'customer', 
+                                'text-gray-500 font-medium hover:text-indigo-600 hover:bg-gray-50': activeTab !== 'customer' 
+                            }"
+                class="flex items-center gap-2 px-6 py-4 transition-colors whitespace-nowrap focus:outline-none flex-1 justify-center relative">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Müşteri İletişimi
+            </button>
+        <?php endif; ?>
+
+        
+        <?php if($hasFaultyPanel): ?>
+            <button @click="activeTab = 'issues'" :class="{ 
+                                'text-red-700 font-bold border-b-2 border-red-500 bg-red-50/50': activeTab === 'issues', 
+                                'text-gray-500 font-medium hover:text-red-600 hover:bg-gray-50': activeTab !== 'issues' 
+                            }"
+                class="flex items-center gap-2 px-6 py-4 transition-colors whitespace-nowrap focus:outline-none flex-1 justify-center relative">
+                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Operasyonel Sorunlar
+                <?php if(str_contains($iaa->durum, 'hatali_bildirim_onayi_bekliyor') || str_contains($iaa->durum, 'talep_onayi_bekliyor')): ?>
+                    <span class="absolute top-3 right-4 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+                    <span class="absolute top-3 right-4 w-2 h-2 bg-red-500 rounded-full"></span>
+                <?php endif; ?>
+            </button>
+        <?php endif; ?>
+
+        
+        <?php
+            $visitsQueryTab = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id);
+            $allTabVisits = $visitsQueryTab->get();
+            
+            $isCustomerTab = auth()->check() && (auth()->user()->hasRole('Müşteri') || auth()->user()->hasRole('Müşteri Temsilcisi') || auth()->user()->hasRole('Müşteri Saha Temsilcisi') || !auth()->user()->is_personnel);
+            
+            if ($isCustomerTab) {
+                $allTabVisits = $allTabVisits->filter(function($visit) {
+                    if (!$visit->iaa_workflow_step_id) return true;
+                    $iaaTalepId = \App\Models\IaaTalep::where('iaa_id', $visit->iaa_id)->value('id');
+                    $progressUpdate = null;
+                    if ($iaaTalepId) {
+                        $progressUpdate = \App\Models\IaaProgressUpdate::where('iaa_talep_id', $iaaTalepId)
+                            ->where('iaa_workflow_step_id', $visit->iaa_workflow_step_id)
+                            ->first();
+                    }
+                    return !($progressUpdate && $progressUpdate->is_hidden_from_customer);
+                });
+            }
+            $visitCount = $allTabVisits->count();
+        ?>
+        <?php
+            $tabBadgeBg = 'bg-blue-600';
+            $tabBadgeText = 'text-blue-100';
+            
+            if ($visitCount > 0) {
+                // Sona eklenen ziyareti baz al
+                $latestVisitStatus = $allTabVisits->last()->status;
+                $tabBadgeBg = match($latestVisitStatus) {
+                    'Tamamlandı' => 'bg-green-600',
+                    'Beklemede' => 'bg-yellow-500',
+                    'Onaylandı' => 'bg-blue-600',
+                    'İptal Edildi' => 'bg-red-600',
+                    'Revize İsteniyor' => 'bg-orange-500',
+                    default => 'bg-gray-600',
+                };
+                $tabBadgeText = 'text-white';
+            }
+        ?>
+        <?php if($visitCount > 0): ?>
+            <button @click="activeTab = 'visits'" :class="{ 
+                                'text-blue-700 font-bold border-b-2 border-blue-500 bg-blue-50/50': activeTab === 'visits', 
+                                'text-gray-500 font-medium hover:text-blue-600 hover:bg-gray-50': activeTab !== 'visits' 
+                            }"
+                class="flex items-center gap-2 px-6 py-4 transition-colors whitespace-nowrap focus:outline-none flex-1 justify-center relative">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Ziyaretler
+                <span class="ml-1 inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-bold leading-none <?php echo e($tabBadgeText); ?> <?php echo e($tabBadgeBg); ?> rounded-full"><?php echo e($visitCount); ?></span>
+            </button>
+        <?php endif; ?>
+    </div>
+
+    
+    <div class="bg-white rounded-b-xl shadow-sm border border-indigo-100 p-6">
+
+        
+        <?php if(!$isGuestOrCustomer): ?>
+            <div x-show="activeTab === 'details'" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                style="display: none;">
+                <?php echo $__env->make('proje-calisma-alani.partials._technical-details', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            </div>
+        <?php endif; ?>
+
+        
+        <?php if($hasComplaintDetails): ?>
+            <div x-show="activeTab === 'squad'" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                style="display: none;">
+                <?php echo $__env->make('proje-calisma-alani.partials._squad', ['iaa' => $iaa], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            </div>
+        <?php endif; ?>
+
+        
+        <?php if($hasCustomerNotification): ?>
+            <div x-show="activeTab === 'customer'" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                style="display: none;">
+                <?php echo $__env->make('proje-calisma-alani.partials._customer-notification', ['iaa' => $iaa], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            </div>
+        <?php endif; ?>
+
+        
+        <?php if($hasFaultyPanel): ?>
+            <div x-show="activeTab === 'issues'" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                style="display: none;">
+                <div class="space-y-6">
+                    <?php echo $__env->make('proje-calisma-alani.partials._talep-notification', ['iaa' => $iaa], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                    <?php echo $__env->make('proje-calisma-alani.partials._faulty-notification', ['iaa' => $iaa], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+
+                    <?php
+                        $isLeaderOrManager = Auth::check() && (
+                            ($iaa->atananTakim && Auth::id() == $iaa->atananTakim->lider_user_id) || 
+                            (Auth::user()->hasRole('Bölüm Kalite Yöneticisi') && ($isQualityManagerInterventionPower ?? false)) ||
+                            Auth::user()->hasRole('Superadmin')
+                        );
+                        $hasAnyReport = $iaa->hatali_bildirim_gerekcesi || $iaa->talep_gerekcesi;
+                    ?>
+
+                    <?php if(!$hasAnyReport && !$isLeaderOrManager): ?>
+                        <div class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl p-8 text-center flex flex-col items-center justify-center">
+                            <svg class="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <h4 class="text-sm font-bold text-gray-500 mb-1">Operasyonel Kayıt Bulunmuyor</h4>
+                            <p class="text-xs text-gray-400 max-w-md mx-auto">Bu proje için henüz bir hatalı bildirim (şikayetin geçersiz sayılması) veya talep dönüşümü (şikayet yerine müşteri talebi olarak değerlendirilmesi) raporlanmamıştır.</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        
+        <?php if($visitCount > 0): ?>
+            <div x-show="activeTab === 'visits'" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+                style="display: none;">
+                <?php echo $__env->make('proje-calisma-alani.partials._visits-tab', ['iaa' => $iaa], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            </div>
+        <?php endif; ?>
+
+    </div>
+</div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/proje-calisma-alani/partials/_project-tabs.blade.php ENDPATH**/ ?>

@@ -1,0 +1,4 @@
+<div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-yellow-200">
+    <div class="bg-gradient-to-r from-yellow-50 to-white px-6 py-5 border-b border-yellow-200"><h3 class="text-lg font-semibold text-yellow-800">Kayıtlı Kullanıcılardan Gelen Öneriler (<?php echo e($onayBekleyenKullanicilar->count()); ?>)</h3></div>
+    <?php echo $__env->make('admin.iaa-yonetim.partials.table-content', ['iaas' => $onayBekleyenKullanicilar, 'type' => 'onay'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+</div><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/admin/iaa-yonetim/partials/onay-bekleyen-kullanicilar-table.blade.php ENDPATH**/ ?>

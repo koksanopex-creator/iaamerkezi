@@ -145,7 +145,7 @@
                         <select name="ek_kullanici_ids[]" multiple class="block w-full rounded-2xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 font-bold text-slate-700 select2-searchable">
                             @foreach($users as $user)
                                 <option value="{{ $user->id }}" {{ in_array($user->id, old('ek_kullanici_ids', $kural->ek_kullanici_ids ?? [])) ? 'selected' : '' }}>
-                                    {{ $user->name }} ({{ $user->getRoleNames()->first() ?? 'Rol Yok' }})
+                                    {{ $user->name }} ({{ $user->getPublicRoleNames()->first() ?? 'Rol Yok' }})
                                 </option>
                             @endforeach
                         </select>

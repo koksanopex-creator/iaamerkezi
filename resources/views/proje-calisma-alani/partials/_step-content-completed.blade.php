@@ -202,7 +202,7 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 ADIM RAPORU / İÇERİK
             </div>
-            <div class="leading-relaxed text-gray-700">
+            <div class="leading-relaxed text-gray-700 break-words">
                 {{ $progressUpdate->content ?: 'Herhangi bir not girilmemiş.' }}
             </div>
         </div>
@@ -233,7 +233,7 @@
                     <div class="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
                          {{-- Başlığı widget tanımından al --}}
                          <h5 class="text-base font-semibold text-blue-800 mb-2">{{ $widgetConfigDefaults['title'] ?? 'Bilgilendirme' }}</h5>
-                        <div class="mt-1 text-sm text-blue-700 prose prose-sm max-w-none">
+                        <div class="mt-1 text-sm text-blue-700 prose prose-sm max-w-none break-words">
                            {!! nl2br(e($widgetConfigDefaults['content'] ?? '')) !!}
                         </div>
                     </div>
@@ -245,7 +245,7 @@
                          <h5 class="text-base font-semibold text-gray-800 mb-2">{{ $widgetConfigDefaults['title'] ?? Str::ucfirst(str_replace('_', ' ', $widgetType)) }}</h5>
 
                          @if($widgetType === 'textbox')
-                         <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200">
+                         <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200 break-all">
                          {!! !empty($widgetValue['text']) ? nl2br(e($widgetValue['text'])) : '<span class="text-gray-400 italic">Girilmemiş</span>' !!}
                             </p>
                         @elseif($widgetType === 'user_select' || $widgetType === 'user_select_info')
@@ -545,33 +545,53 @@
                     <div class="text-sm max-w-none">
                         <h5 class="text-base font-semibold text-gray-800 mb-3">{{ $widgetConfigDefaults['title'] ?? 'Önce/Sonra Karşılaştırma' }}</h5>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-                                <div class="flex flex-col gap-3">
+                            <div class="bg-red-50 border border-red-200 rounded-xl p-4 h-full flex flex-col">
+                                <div class="flex flex-col gap-3 h-full">
                                     <div class="flex items-center gap-2">
                                         <span class="px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">ÖNCE</span>
                                     </div>
-                                    @if(!empty($widgetValue['before_image_path']))
-                                        <a href="{{ asset('storage/' . $widgetValue['before_image_path']) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="ÖNCESİ">
-                                            <img src="{{ asset('storage/' . $widgetValue['before_image_path']) }}" alt="Önce" class="w-full h-48 object-cover rounded-lg border border-red-300 shadow-sm">
-                                        </a>
+                                    @php 
+                                        $savedBefore = $widgetValue['before_images'] ?? []; 
+                                        if (empty($savedBefore) && !empty($widgetValue['before_image_path'])) {
+                                            $savedBefore = [$widgetValue['before_image_path']]; 
+                                        }
+                                    @endphp
+                                    @if(!empty($savedBefore))
+                                        <div class="grid grid-cols-2 gap-2">
+                                        @foreach($savedBefore as $imgPath)
+                                            <a href="{{ asset('storage/' . $imgPath) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="ÖNCESİ">
+                                                <img src="{{ asset('storage/' . $imgPath) }}" alt="Önce" class="w-full h-32 object-cover rounded-lg border border-red-300 shadow-sm hover:opacity-90">
+                                            </a>
+                                        @endforeach
+                                        </div>
                                     @endif
                                     @if(!empty($widgetValue['before_text']))
-                                        <p class="text-gray-700 whitespace-pre-wrap">{{ $widgetValue['before_text'] }}</p>
+                                        <p class="text-gray-700 whitespace-pre-wrap mt-auto pt-2 border-t border-red-200">{{ $widgetValue['before_text'] }}</p>
                                     @endif
                                 </div>
                             </div>
-                            <div class="bg-green-50 border border-green-200 rounded-xl p-4">
-                                <div class="flex flex-col gap-3">
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-4 h-full flex flex-col">
+                                <div class="flex flex-col gap-3 h-full">
                                     <div class="flex items-center gap-2">
                                         <span class="px-2.5 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full">SONRA</span>
                                     </div>
-                                    @if(!empty($widgetValue['after_image_path']))
-                                        <a href="{{ asset('storage/' . $widgetValue['after_image_path']) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="SONRASI">
-                                            <img src="{{ asset('storage/' . $widgetValue['after_image_path']) }}" alt="Sonra" class="w-full h-48 object-cover rounded-lg border border-green-300 shadow-sm">
-                                        </a>
+                                    @php 
+                                        $savedAfter = $widgetValue['after_images'] ?? []; 
+                                        if (empty($savedAfter) && !empty($widgetValue['after_image_path'])) {
+                                            $savedAfter = [$widgetValue['after_image_path']]; 
+                                        }
+                                    @endphp
+                                    @if(!empty($savedAfter))
+                                        <div class="grid grid-cols-2 gap-2">
+                                        @foreach($savedAfter as $imgPath)
+                                            <a href="{{ asset('storage/' . $imgPath) }}" data-fancybox="gallery-{{$step->id}}-{{$index}}" data-caption="SONRASI">
+                                                <img src="{{ asset('storage/' . $imgPath) }}" alt="Sonra" class="w-full h-32 object-cover rounded-lg border border-green-300 shadow-sm hover:opacity-90">
+                                            </a>
+                                        @endforeach
+                                        </div>
                                     @endif
                                     @if(!empty($widgetValue['after_text']))
-                                        <p class="text-gray-700 whitespace-pre-wrap">{{ $widgetValue['after_text'] }}</p>
+                                        <p class="text-gray-700 whitespace-pre-wrap mt-auto pt-2 border-t border-green-200">{{ $widgetValue['after_text'] }}</p>
                                     @endif
                                 </div>
                             </div>
@@ -661,6 +681,15 @@
         @endforeach
         {{-- === DİNAMİK GÖSTERİM BİTİŞİ === --}}
     @endif {{-- End if !$reportData --}}
+
+    {{-- ARAÇLAR WIDGET'I --}}
+    <div class="mt-8 border-t pt-6">
+        <livewire:project.step-tools-manager 
+            :iaa="$iaa" 
+            :step_id="is_object($step) ? $step->id : $step['id']" 
+            :is_completed="true"
+            :wire:key="'tools-completed-'.(is_object($step) ? $step->id : $step['id'])" />
+    </div>
 
     {{-- EĞER BU ADIMA AİT BİR ZİYARET VARSA GÖSTER --}}
     @php

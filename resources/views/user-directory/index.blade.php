@@ -109,12 +109,15 @@
                                 @endif
 
                                 @if($user->is_personnel && !$user->is_mavi_yaka)
-                                    @foreach($user->roles as $role)
+                                    @php 
+                                        $rolesToDisplay = auth()->user()->hasRole('Superadmin') ? $user->roles->pluck('name') : $user->getPublicRoleNames();
+                                    @endphp
+                                    @foreach($rolesToDisplay as $roleName)
                                         <span class="px-2 py-1 text-xs font-medium rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                                            {{ $role->name }}
+                                            {{ $roleName }}
                                         </span>
                                     @endforeach
-                                    @if($user->roles->isEmpty())
+                                    @if($rolesToDisplay->isEmpty())
                                         <span class="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
                                             Personel
                                         </span>

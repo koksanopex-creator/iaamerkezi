@@ -445,6 +445,7 @@ class HealthCheckController extends Controller
                     if ($routeName !== '...' && !in_array($routeName, $routes) && strpos($routeName, '$') === false && !str_starts_with($routeName, 'ignition.')) {
                         $errors[] = [
                             'file' => $file->getRelativePathname(),
+                            'absolute_path' => $file->getPathname(),
                             'route' => $routeName
                         ];
                     }

@@ -209,7 +209,8 @@ class DisiplinKuruluController extends Controller
             ->when($bolumId, fn($q) => $q->whereHas('user', fn($qu) => $qu->where('bolum_id', $bolumId)))
             ->with(['user.bolum', 'behavior'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(10, ['*'], 'arsiv_page')
+            ->appends($request->query());
 
         $toplamOy = DisciplinaryVote::whereBetween('created_at', [$baslangic, $bitis])->count();
         $ortalamKatilim = $toplamToplanti > 0 && $tumUyeler->count() > 0
@@ -245,7 +246,7 @@ class DisiplinKuruluController extends Controller
             ->when($bolumId, fn($q) => $q->whereHas('user', fn($qu) => $qu->where('bolum_id', $bolumId)))
             ->with(['user', 'behavior'])
             ->orderBy('karar_tarihi', 'desc')
-            ->take(8)
+            ->take(10)
             ->get();
 
         // Toplantı Geçmişi (Tamamlananlar)
@@ -259,12 +260,12 @@ class DisiplinKuruluController extends Controller
             ->get();
 
         // [YENİ] TÜM GÜNDEM VE TOPLANTILARIN ENTEGRASYONU
-        // Hem kuruldaki dosyaları hem de tüm toplantıları (geçmiş/gelecek) birleştiriyoruz
-        $gundemItems = collect();
+        $genelBakisItems = collect();
+        $takvimItems = collect();
 
         // 1. Kuruldaki Dosyalar (Toplantı formatına çevirerek ekliyoruz)
         foreach ($kuruldakiDosyalar as $case) {
-            $gundemItems->push((object)[
+            $item = (object)[
                 'id' => 'case_' . $case->id,
                 'original_id' => $case->id,
                 'type' => 'case',
@@ -273,16 +274,17 @@ class DisiplinKuruluController extends Controller
                 'tur' => 'DİSİPLİN DOSYASI',
                 'durum' => 'gündem_bekliyor',
                 'yer' => 'Toplantı Planlanmadı',
-                'olusturan' => null, // Dosyayı oluşturan yerine sistem veya bölüm lideri gelebilir
-                'katilimcilar' => collect(), // Henüz katılımcı yok
+                'olusturan' => null,
+                'katilimcilar' => collect(),
                 'disiplinDosyalari' => collect([$case]),
                 'icerik' => $case->behavior->tanim ?? ''
-            ]);
+            ];
+            $genelBakisItems->push($item);
         }
 
         // 2. Yaklaşan Toplantılar
         foreach ($yaklasanToplantılar as $toplanti) {
-            $gundemItems->push((object)[
+            $item = (object)[
                 'id' => 'meeting_' . $toplanti->id,
                 'original_id' => $toplanti->id,
                 'type' => 'meeting',
@@ -295,12 +297,14 @@ class DisiplinKuruluController extends Controller
                 'katilimcilar' => $toplanti->katilimcilar,
                 'disiplinDosyalari' => $toplanti->disiplinDosyalari,
                 'icerik' => $toplanti->icerik
-            ]);
+            ];
+            $genelBakisItems->push($item);
+            $takvimItems->push($item);
         }
 
         // 3. Geçmiş Toplantılar
         foreach ($toplantıGecmisi as $toplanti) {
-            $gundemItems->push((object)[
+            $item = (object)[
                 'id' => 'meeting_' . $toplanti->id,
                 'original_id' => $toplanti->id,
                 'type' => 'meeting',
@@ -313,11 +317,31 @@ class DisiplinKuruluController extends Controller
                 'katilimcilar' => $toplanti->katilimcilar,
                 'disiplinDosyalari' => $toplanti->disiplinDosyalari,
                 'icerik' => $toplanti->icerik
-            ]);
+            ];
+            $takvimItems->push($item);
         }
 
-        // Tarihe göre azalan sırada diz (En yeni en üstte)
-        $gundemItems = $gundemItems->sortByDesc('baslangic_tarihi');
+        $genelBakisItems = $genelBakisItems->sortByDesc('baslangic_tarihi');
+        $takvimItems = $takvimItems->sortByDesc('baslangic_tarihi');
+
+        // Sayfalandırma işlemleri
+        $pageGenel = $request->input('genel_page', 1);
+        $paginatedGenelBakis = new \Illuminate\Pagination\LengthAwarePaginator(
+            $genelBakisItems->forPage($pageGenel, 10),
+            $genelBakisItems->count(),
+            10,
+            $pageGenel,
+            ['path' => $request->url(), 'pageName' => 'genel_page', 'query' => $request->query()]
+        );
+
+        $pageTakvim = $request->input('takvim_page', 1);
+        $paginatedTakvim = new \Illuminate\Pagination\LengthAwarePaginator(
+            $takvimItems->forPage($pageTakvim, 10),
+            $takvimItems->count(),
+            10,
+            $pageTakvim,
+            ['path' => $request->url(), 'pageName' => 'takvim_page', 'query' => $request->query()]
+        );
 
         // İSTATİSTİKLER (Kartlar için)
         $planlananToplantiSayisi = $yaklasanToplantılar->count();
@@ -360,7 +384,7 @@ class DisiplinKuruluController extends Controller
             'uyelikGecmisi', 'bolumler', 'kuruldakiDosyalar', 'secilebilirDosyalar',
             'baslangic', 'bitis', 'bolumId', 'tumPersonel',
             'planlananToplantiSayisi', 'tamamlananToplantiSayisi', 'bekleyenGundemSayisi',
-            'activeTab', 'arsivdekiDosyalar', 'gundemItems'
+            'activeTab', 'arsivdekiDosyalar', 'paginatedGenelBakis', 'paginatedTakvim'
         ));
     }
 

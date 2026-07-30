@@ -10,7 +10,7 @@
         .section { margin-bottom: 15px; }
         .section-title { font-size: 12px; font-weight: bold; background: #f1f5f9; padding: 6px; border-left: 4px solid #1e40af; margin-bottom: 8px; text-transform: uppercase; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }
-        th, td { border: 1px solid #cbd5e1; padding: 5px; text-align: left; word-wrap: break-word; }
+        th, td { border: 1px solid #cbd5e1; padding: 5px; text-align: left; word-wrap: break-word; word-break: break-all; }
         th { background: #f8fafc; font-weight: bold; color: #475569; }
         .footer { position: fixed; bottom: -60px; left: 0; right: 0; height: 30px; text-align: center; font-size: 8px; color: #94a3b8; }
         .text-center { text-align: center; }
@@ -129,7 +129,7 @@
                 $update = $progressUpdates[$step->id] ?? null;
                 $isCompleted = in_array($step->id, $completedStepIds);
             @endphp
-            <div style="margin-bottom: 20px; border: 1px solid #e2e8f0; padding: 10px; page-break-inside: avoid;">
+            <div style="margin-bottom: 20px; border: 1px solid #e2e8f0; padding: 10px;">
                 <div style="font-weight: bold; border-bottom: 2px solid #1e40af; padding-bottom: 5px; margin-bottom: 10px; color: #1e40af; font-size: 12px;">
                     {{ $loop->iteration }}. {{ $step->name }} 
                     <span style="float: right; font-size: 9px; font-weight: normal; color: #64748b;">
@@ -356,18 +356,442 @@
                             </div>
                         @endif
 
+                        {{-- === GRAFİKLER (Bar Chart & Line Chart) === --}}
+                        @if(isset($tools['bar_chart_data']) && is_array($tools['bar_chart_data']))
+                            @foreach($tools['bar_chart_data'] as $bIndex => $bData)
+                                @if(!empty($bData['rows']))
+                                <div style="margin-top: 10px; margin-bottom: 15px;">
+                                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #1e40af;">{{ $bData['title'] ?? 'Sütun Grafiği' }}</div>
+                                    <table style="border: 1px solid #cbd5e1; width: 100%;">
+                                        <thead>
+                                            <tr style="background: #f1f5f9;">
+                                                <th style="font-size: 9px;">{{ $bData['axis_x_label'] ?? 'Kategoriler' }}</th>
+                                                <th style="font-size: 9px;">{{ $bData['axis_y_label'] ?? 'Değerler' }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($bData['rows'] as $r)
+                                                @if(isset($r['label']) && $r['label'] !== '')
+                                                <tr>
+                                                    <td style="font-size: 9px;">{{ $r['label'] }}</td>
+                                                    <td style="font-size: 9px;">{{ $r['value'] ?? 0 }}</td>
+                                                </tr>
+                                                @endif
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @endif
+                            @endforeach
+                        @endif
+
+                        @if(isset($tools['line_chart_data']) && is_array($tools['line_chart_data']))
+                            @foreach($tools['line_chart_data'] as $lIndex => $lData)
+                                @if(!empty($lData['rows']))
+                                <div style="margin-top: 10px; margin-bottom: 15px;">
+                                    <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #1e40af;">{{ $lData['title'] ?? 'Çizgi Grafiği' }}</div>
+                                    <table style="border: 1px solid #cbd5e1; width: 100%;">
+                                        <thead>
+                                            <tr style="background: #f1f5f9;">
+                                                <th style="font-size: 9px;">{{ $lData['axis_x_label'] ?? 'Kategoriler' }}</th>
+                                                <th style="font-size: 9px;">{{ $lData['axis_y_label'] ?? 'Değerler' }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($lData['rows'] as $r)
+                                                @if(isset($r['label']) && $r['label'] !== '')
+                                                <tr>
+                                                    <td style="font-size: 9px;">{{ $r['label'] }}</td>
+                                                    <td style="font-size: 9px;">{{ $r['value'] ?? 0 }}</td>
+                                                </tr>
+                                                @endif
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @endif
+                            @endforeach
+                        @endif
+
+                        {{-- === ZİYARET PLANLARI === --}}
+                        @php
+                            $stepVisits = \App\Models\IaaZiyaretPlani::where('iaa_id', $iaa->id)
+                                ->where('iaa_workflow_step_id', $step->id)
+                                ->get();
+                        @endphp
+                        @if($stepVisits->isNotEmpty())
+                            <div style="margin-top: 10px; margin-bottom: 15px;">
+                                <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #1e40af;">Ziyaret Planı ve Sonuçları</div>
+                                @foreach($stepVisits as $sv)
+                                    <div style="margin-bottom: 8px; padding: 8px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; font-size: 9px;">
+                                        <strong>Müşteri:</strong> {{ $iaa->musteriSikayeti->customer->name ?? $iaa->musteriSikayeti->musteri_adi ?? 'Müşteri' }} |
+                                        <strong>Tarih:</strong> {{ $sv->visit_date ? \Carbon\Carbon::parse($sv->visit_date)->format('d.m.Y H:i') : '-' }} |
+                                        <strong>Durum:</strong> {{ $sv->status }}<br>
+                                        <strong>Personel:</strong> {{ $sv->visitor_name ?? ($sv->visitor->name ?? 'Belirtilmedi') }} |
+                                        <strong>Tahmini Dönüş:</strong> {{ $sv->estimated_return_date ? \Carbon\Carbon::parse($sv->estimated_return_date)->format('d.m.Y') : '-' }}
+                                        @if($sv->result)
+                                            <br><strong>Sonuç:</strong> {{ $sv->result }}
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
                         {{-- Diğer Form Verileri --}}
                         <div style="margin-top: 10px;">
                             @if(isset($content['form_data']) && is_array($content['form_data']))
                                 @foreach($content['form_data'] as $field)
                                     @if(isset($field['text']) && !empty($field['text']))
-                                        <div style="margin-bottom: 8px; padding: 8px; background: #f8fafc; border-radius: 4px; border-left: 3px solid #1e40af; font-size: 9px;">
+                                        <div style="margin-bottom: 8px; padding: 8px; background: #f8fafc; border-radius: 4px; border-left: 3px solid #1e40af; font-size: 9px; word-wrap: break-word; word-break: break-word; white-space: pre-wrap; overflow-wrap: break-word;">
                                             {{ $field['text'] }}
                                         </div>
+                                    @endif
+
+                                    @php $stdFiles = $field['files'] ?? $field['images'] ?? []; @endphp
+                                    @if(is_array($stdFiles) && !empty($stdFiles))
+                                        <div style="margin-bottom: 8px;">
+                                            @foreach($stdFiles as $file)
+                                                @if(is_string($file) && file_exists(public_path('storage/' . $file)))
+                                                    @php $fileSize = filesize(public_path('storage/' . $file)); @endphp
+                                                    @if($fileSize < 10485760) {{-- 10MB --}}
+                                                        <img src="{{ public_path('storage/' . $file) }}" style="width: 140px; height: 140px; object-fit: cover; margin-bottom: 5px; border: 1px solid #cbd5e1; border-radius: 4px; display: inline-block; margin-right: 5px;">
+                                                    @else
+                                                        <div style="font-size: 8px; color: #64748b; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 5px; background-color: #f8fafc; display: inline-block;">
+                                                            [Büyük Görsel: {{ round($fileSize/1024/1024, 2) }} MB]
+                                                        </div>
+                                                    @endif
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
+
+                                    @if(isset($field['before_text']) || isset($field['after_text']))
+                                        <div style="margin-bottom: 10px; font-size: 9px;">
+                                            <div style="font-weight: bold; color: #1e40af; margin-bottom: 4px;">Önce/Sonra Karşılaştırma</div>
+                                            <table style="width: 100%; border: none;">
+                                                <tr>
+                                                    <td style="width: 50%; vertical-align: top; padding: 5px; border: 1px solid #fca5a5; background: #fef2f2;">
+                                                        <strong style="color: #ef4444;">ÖNCE</strong><br>
+                                                        @php 
+                                                            $bImgs = $field['before_images'] ?? [];
+                                                            if (empty($bImgs) && !empty($field['before_image_path'])) $bImgs = [$field['before_image_path']];
+                                                        @endphp
+                                                        @if(!empty($bImgs))
+                                                            <div style="margin-top: 5px; margin-bottom: 5px;">
+                                                                @foreach($bImgs as $file)
+                                                                    @if(is_string($file) && file_exists(public_path('storage/' . $file)))
+                                                                        @php $fileSize = filesize(public_path('storage/' . $file)); @endphp
+                                                                        @if($fileSize < 10485760) {{-- 10MB --}}
+                                                                            <img src="{{ public_path('storage/' . $file) }}" style="width: 140px; height: 140px; object-fit: cover; margin-bottom: 5px; border: 1px solid #fca5a5; border-radius: 4px; display: inline-block; margin-right: 5px;">
+                                                                        @else
+                                                                            <div style="font-size: 8px; color: #64748b; padding: 4px; border: 1px solid #fca5a5; border-radius: 4px; margin-bottom: 5px; background-color: #fff1f1;">
+                                                                                [Büyük Görsel: {{ round($fileSize/1024/1024, 2) }} MB]
+                                                                            </div>
+                                                                        @endif
+                                                                    @endif
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                        <div style="word-wrap: break-word; word-break: break-word; white-space: pre-wrap; margin-top: 5px;">{{ $field['before_text'] ?? '-' }}</div>
+                                                    </td>
+                                                    <td style="width: 50%; vertical-align: top; padding: 5px; border: 1px solid #86efac; background: #f0fdf4;">
+                                                        <strong style="color: #10b981;">SONRA</strong><br>
+                                                        @php 
+                                                            $aImgs = $field['after_images'] ?? [];
+                                                            if (empty($aImgs) && !empty($field['after_image_path'])) $aImgs = [$field['after_image_path']];
+                                                        @endphp
+                                                        @if(!empty($aImgs))
+                                                            <div style="margin-top: 5px; margin-bottom: 5px;">
+                                                                @foreach($aImgs as $img)
+                                                                    @if(is_string($img) && file_exists(public_path('storage/' . $img)))
+                                                                        @php $imgSize = filesize(public_path('storage/' . $img)); @endphp
+                                                                        @if($imgSize < 10485760) {{-- 10MB --}}
+                                                                            <img src="{{ public_path('storage/' . $img) }}" style="width: 140px; height: 140px; object-fit: cover; margin-bottom: 5px; border: 1px solid #86efac; border-radius: 4px; display: inline-block; margin-right: 5px;">
+                                                                        @else
+                                                                            <div style="font-size: 8px; color: #64748b; padding: 4px; border: 1px solid #86efac; border-radius: 4px; margin-bottom: 5px; background-color: #f0fdf4;">
+                                                                                [Büyük Görsel: {{ round($imgSize/1024/1024, 2) }} MB]
+                                                                            </div>
+                                                                        @endif
+                                                                    @endif
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                        <div style="word-wrap: break-word; word-break: break-word; white-space: pre-wrap; margin-top: 5px;">{{ $field['after_text'] ?? '-' }}</div>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    @endif
+
+                                    @if(isset($field['user_ids']) || isset($field['info_user_ids']))
+                                        @php
+                                            $uIds = $field['info_user_ids'] ?? $field['user_ids'] ?? [];
+                                            $uNames = [];
+                                            if (is_array($uIds) && !empty($uIds)) {
+                                                $uNames = \App\Models\User::whereIn('id', $uIds)->pluck('name')->toArray();
+                                            }
+                                        @endphp
+                                        @if(!empty($uNames))
+                                            <div style="margin-bottom: 8px; padding: 8px; background: #f1f5f9; border-radius: 4px; font-size: 9px;">
+                                                <strong>Seçilen Kullanıcılar:</strong> {{ implode(', ', $uNames) }}
+                                            </div>
+                                        @endif
                                     @endif
                                 @endforeach
                             @endif
                         </div>
+                
+                {{-- === HARİCİ EKLENEN ARAÇLAR (PHASE 2) === --}}
+                @php
+                    $stepTools = \App\Models\IaaStepTool::where('iaa_id', $iaa->id)
+                        ->where('iaa_workflow_step_id', $step->id)
+                        ->orderBy('order')
+                        ->get();
+                @endphp
+                @foreach($stepTools as $tool)
+                    @php $tData = is_array($tool->data) ? $tool->data : json_decode($tool->data, true); @endphp
+                    
+                    {{-- PARETO --}}
+                    @if($tool->tool_type === 'pareto' && isset($tData['items']) && count($tData['items']) > 0)
+                        @php 
+                            $pRows = collect($tData['items'])->filter(fn($r) => !empty($r['category']) && is_numeric($r['frequency']))->sortByDesc('frequency')->values();
+                            $pTotal = $pRows->sum('frequency');
+                            $pMax = $pRows->max('frequency') ?: 1;
+                            $pCum = 0;
+                        @endphp
+                        @if($pRows->isNotEmpty())
+                            <div style="margin-top: 10px; margin-bottom: 15px;">
+                                <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #1e40af;">{{ $tool->title ?? 'Pareto Analizi' }}</div>
+                                <table style="border: none;">
+                                    <thead style="border-bottom: 1px solid #94a3b8;">
+                                        <tr>
+                                            <th width="30%" style="border:none; background:none;">Kategori</th>
+                                            <th width="45%" style="border:none; background:none;">Sıklık / Grafik</th>
+                                            <th width="10%" style="border:none; background:none;">Adet</th>
+                                            <th width="15%" style="border:none; background:none;">Kümülatif %</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($pRows as $row)
+                                            @php 
+                                                $pCum += (float)$row['frequency'];
+                                                $pPerc = $pTotal > 0 ? ($pCum / $pTotal) * 100 : 0;
+                                                $pBarW = ($row['frequency'] / $pMax) * 100;
+                                            @endphp
+                                            <tr>
+                                                <td style="border:none; padding: 4px 0; font-size: 9px;">{{ $row['category'] }}</td>
+                                                <td style="border:none; padding: 4px 5px;">
+                                                    <div style="background: #e2e8f0; width: 100%; height: 10px; border-radius: 2px;">
+                                                        <div style="background: #3b82f6; width: {{ $pBarW }}%; height: 100%; border-radius: 2px;"></div>
+                                                    </div>
+                                                </td>
+                                                <td style="border:none; text-align: right; font-weight: bold; font-size: 9px;">{{ $row['frequency'] }}</td>
+                                                <td style="border:none; text-align: right; color: #ef4444; font-weight: bold; font-size: 9px;">{{ round($pPerc) }}%</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    
+                    {{-- FISHBONE --}}
+                    @elseif($tool->tool_type === 'fishbone')
+                        @php $cats = $tData['categories'] ?? []; @endphp
+                        <table class="fishbone-table">
+                            <tr>
+                                <td colspan="3" class="fishbone-header">
+                                    {{ $tool->title ?? 'BALIK KILÇIĞI ANALİZİ' }} 
+                                    @if(!empty($tData['problem_statement'])) - PROBLEM: {{ $tData['problem_statement'] }} @endif
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fishbone-cell">
+                                    <div class="fishbone-cat-title">İNSAN</div>
+                                    <ul style="font-size: 8px; margin:0; padding-left:10px;">
+                                        @foreach(($cats['insan']??[]) as $item) <li>{{ $item['text'] ?? $item }}</li> @endforeach
+                                    </ul>
+                                </td>
+                                <td class="fishbone-cell">
+                                    <div class="fishbone-cat-title">YÖNTEM</div>
+                                    <ul style="font-size: 8px; margin:0; padding-left:10px;">
+                                        @foreach(($cats['metot']??[]) as $item) <li>{{ $item['text'] ?? $item }}</li> @endforeach
+                                    </ul>
+                                </td>
+                                <td class="fishbone-cell">
+                                    <div class="fishbone-cat-title">MAKİNE</div>
+                                    <ul style="font-size: 8px; margin:0; padding-left:10px;">
+                                        @foreach(($cats['makine']??[]) as $item) <li>{{ $item['text'] ?? $item }}</li> @endforeach
+                                    </ul>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fishbone-cell">
+                                    <div class="fishbone-cat-title">MALZEME</div>
+                                    <ul style="font-size: 8px; margin:0; padding-left:10px;">
+                                        @foreach(($cats['malzeme']??[]) as $item) <li>{{ $item['text'] ?? $item }}</li> @endforeach
+                                    </ul>
+                                </td>
+                                <td class="fishbone-cell">
+                                    <div class="fishbone-cat-title">ÖLÇÜM</div>
+                                    <ul style="font-size: 8px; margin:0; padding-left:10px;">
+                                        @foreach(($cats['olcum']??[]) as $item) <li>{{ $item['text'] ?? $item }}</li> @endforeach
+                                    </ul>
+                                </td>
+                                <td class="fishbone-cell">
+                                    <div class="fishbone-cat-title">ÇEVRE</div>
+                                    <ul style="font-size: 8px; margin:0; padding-left:10px;">
+                                        @foreach(($cats['cevre']??[]) as $item) <li>{{ $item['text'] ?? $item }}</li> @endforeach
+                                    </ul>
+                                </td>
+                            </tr>
+                        </table>
+                    
+                    {{-- 4M REPORT --}}
+                    @elseif($tool->tool_type === '4m_report')
+                        <div style="margin-top: 10px; margin-bottom: 15px;">
+                            <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #1e40af;">{{ $tool->title ?? '4M Gelişim Raporu' }}</div>
+                            <table style="background: #f0f7ff;">
+                                <tr>
+                                    <td style="padding: 5px; border: 1px solid #bfdbfe;"><strong>İnsan (Man):</strong><br>{!! nl2br(e($tData['items']['man'] ?? '-')) !!}</td>
+                                    <td style="padding: 5px; border: 1px solid #bfdbfe;"><strong>Makine (Machine):</strong><br>{!! nl2br(e($tData['items']['machine'] ?? '-')) !!}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px; border: 1px solid #bfdbfe;"><strong>Malzeme (Material):</strong><br>{!! nl2br(e($tData['items']['material'] ?? '-')) !!}</td>
+                                    <td style="padding: 5px; border: 1px solid #bfdbfe;"><strong>Metot (Method):</strong><br>{!! nl2br(e($tData['items']['method'] ?? '-')) !!}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                    {{-- CHECKLIST --}}
+                    @elseif($tool->tool_type === 'checklist')
+                        <div style="margin-top: 10px; margin-bottom: 15px;">
+                            <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #1e40af;">{{ $tool->title ?? 'Kontrol Listesi' }}</div>
+                            <ul style="font-size: 9px; margin:0; padding-left:10px;">
+                                @foreach(($tData['items']??[]) as $item)
+                                    <li>[{{ !empty($item['checked']) ? 'X' : ' ' }}] {{ $item['text'] }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    
+                    {{-- ACTION LIST --}}
+                    @elseif($tool->tool_type === 'action_list')
+                        <div style="margin-top: 10px; margin-bottom: 15px;">
+                            <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #1e40af;">{{ $tool->title ?? 'Aksiyon Listesi' }}</div>
+                            <table style="font-size: 8px;">
+                                <thead>
+                                    <tr style="background: #f8fafc;">
+                                        <th>Durum</th>
+                                        <th>Aksiyon</th>
+                                        <th>Sorumlu</th>
+                                        <th>Tarih</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach(($tData['items']??[]) as $item)
+                                        <tr>
+                                            <td>[{{ !empty($item['status']) && $item['status'] == 'completed' ? 'X' : ' ' }}]</td>
+                                            <td>{{ $item['action'] ?? '' }}</td>
+                                            <td>{{ $item['owner'] ?? '' }}</td>
+                                            <td>{{ $item['target_date'] ?? '' }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    
+                    {{-- SWOT --}}
+                    @elseif($tool->tool_type === 'swot')
+                        <div style="margin-top: 10px; margin-bottom: 15px;">
+                            <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #1e40af;">{{ $tool->title ?? 'SWOT Analizi' }}</div>
+                            <table class="swot-table">
+                                <tr>
+                                    <td class="swot-cell swot-s">
+                                        <span class="swot-title"><span class="swot-icon">S</span> Güçlü Yönler</span>
+                                        <div style="font-size: 8px;">{!! nl2br(e($tData['strengths'] ?? '-')) !!}</div>
+                                    </td>
+                                    <td class="swot-cell swot-w">
+                                        <span class="swot-title"><span class="swot-icon">W</span> Zayıf Yönler</span>
+                                        <div style="font-size: 8px;">{!! nl2br(e($tData['weaknesses'] ?? '-')) !!}</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="swot-cell swot-o">
+                                        <span class="swot-title"><span class="swot-icon">O</span> Fırsatlar</span>
+                                        <div style="font-size: 8px;">{!! nl2br(e($tData['opportunities'] ?? '-')) !!}</div>
+                                    </td>
+                                    <td class="swot-cell swot-t">
+                                        <span class="swot-title"><span class="swot-icon">T</span> Tehditler</span>
+                                        <div style="font-size: 8px;">{!! nl2br(e($tData['threats'] ?? '-')) !!}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                    {{-- 5 NEDEN ANALİZİ --}}
+                    @elseif($tool->tool_type === '5why')
+                        @if(!empty($tData['whys']) && count(array_filter($tData['whys'])) > 0)
+                            <div style="margin-top: 10px; margin-bottom: 15px;">
+                                <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #4338ca;">{{ $tool->title ?? '5 Neden Analizi' }}</div>
+                                @if(!empty($tData['problemStatement']))
+                                    <div style="font-weight: bold; font-size: 9px; margin-bottom: 5px;">PROBLEM: {{ $tData['problemStatement'] }}</div>
+                                @endif
+                                <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 4px; padding: 8px;">
+                                    @foreach($tData['whys'] as $index => $why)
+                                        @if(!empty($why))
+                                            <div style="margin-bottom: 5px;">
+                                                <span style="font-weight: bold; color: #6d28d9; font-size: 9px;">{{ $index + 1 }}. Neden?</span>
+                                                <div style="font-size: 9px; padding-left: 10px; border-left: 2px solid #ddd6fe; margin-top: 2px;">{{ $why }}</div>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                    @if(!empty($tData['rootCause']))
+                                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #c4b5fd;">
+                                            <span style="font-weight: bold; color: #b91c1c; font-size: 9px;">KÖK NEDEN:</span>
+                                            <div style="font-size: 9px; padding-left: 10px; color: #b91c1c;">{{ $tData['rootCause'] }}</div>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                        
+                    {{-- GRAFİK ANALİZİ --}}
+                    @elseif($tool->tool_type === 'chart')
+                        @if(!empty($tData['labels']) && (!empty($tData['values']) || !empty($tData['series'])))
+                            <div style="margin-top: 10px; margin-bottom: 15px;">
+                                <div style="font-weight: bold; font-size: 11px; margin-bottom: 5px; color: #e11d48;">{{ $tool->title ?? 'Grafik Analizi' }} @if(!empty($tData['chartTitle'])) - {{ $tData['chartTitle'] }} @endif</div>
+                                <table style="border: 1px solid #cbd5e1; width: 100%; table-layout: fixed;">
+                                    <thead>
+                                        <tr style="background: #f1f5f9;">
+                                            <th style="font-size: 9px; padding: 4px; word-wrap: break-word;">Kategori</th>
+                                            @if(!empty($tData['series']))
+                                                @foreach($tData['series'] as $s)
+                                                    <th style="font-size: 9px; padding: 4px;">{{ $s['name'] ?? 'Değer' }}</th>
+                                                @endforeach
+                                            @else
+                                                <th style="font-size: 9px; padding: 4px;">Değer</th>
+                                            @endif
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($tData['labels'] as $index => $label)
+                                            <tr>
+                                                <td style="font-size: 9px; padding: 4px;">{{ $label }}</td>
+                                                @if(!empty($tData['series']))
+                                                    @foreach($tData['series'] as $s)
+                                                        <td style="font-size: 9px; padding: 4px;">{{ $s['data'][$index] ?? 0 }}</td>
+                                                    @endforeach
+                                                @else
+                                                    <td style="font-size: 9px; padding: 4px;">{{ $tData['values'][$index] ?? 0 }}</td>
+                                                @endif
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    @endif
+                @endforeach
+                
                     @endif
                 @else
                     <p style="font-style: italic; color: #94a3b8; font-size: 9px; text-align: center; padding: 10px; background: #f8fafc;">Bu adım henüz tamamlanmamıştır.</p>
@@ -378,7 +802,7 @@
 
     {{-- === 4. İADE VE HURDA BİLDİRİMİ === --}}
     @if(isset($iade) && $iade)
-    <div class="section" style="page-break-inside: avoid;">
+    <div class="section">
         <div class="section-title">4. İade ve Hurda Bildirimi</div>
         <table>
             <tr>
@@ -424,7 +848,7 @@
 
     {{-- === 5. MÜŞTERİ ZİYARET BİLGİLERİ === --}}
     @if(isset($visitData) && $visitData)
-    <div class="section" style="page-break-inside: avoid;">
+    <div class="section">
         <div class="section-title">{{ isset($iade) && $iade ? '5' : '4' }}. Müşteri Ziyaret Bilgileri</div>
         <table>
             <tr>

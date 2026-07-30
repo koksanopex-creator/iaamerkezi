@@ -50,7 +50,7 @@
                                     class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
                                     <option value="">-- Kişi Seçin --</option>
                                     @foreach($users as $u)
-                                        <option value="{{ $u->id }}">{{ $u->name }} @if(method_exists($u, 'getRoleNames') && $u->getRoleNames()->count() > 0) ({{ $u->getRoleNames()->first() }}) @endif</option>
+                                        <option value="{{ $u->id }}">{{ $u->name }} @if(method_exists($u, 'getPublicRoleNames') && $u->getPublicRoleNames()->count() > 0) ({{ $u->getPublicRoleNames()->first() }}) @endif</option>
                                     @endforeach
                                 </select>
                             </td>

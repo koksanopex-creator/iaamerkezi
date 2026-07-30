@@ -183,9 +183,28 @@
                     @endforeach
                 @endif
             </div>
+        </form>
 
-            {{-- ANA FORMUN BUTON ALANI --}}
-            <div class="mt-8 flex justify-end items-center gap-3 border-t pt-6">
+        {{-- ARAÇLAR WIDGET'I (KAYDET BUTONUNUN ÜSTÜNDE OLACAK) --}}
+        <div class="mt-8">
+            <livewire:project.step-tools-manager 
+                :iaa="$iaa" 
+                :step_id="$currentStep['id']" 
+                :is_completed="false"
+                :wire:key="'tools-active-'.$currentStep['id']" />
+        </div>
+
+        {{-- ZİYARET PLANI (KAYDET BUTONUNUN ÜSTÜNDE OLACAK) --}}
+        <div class="mt-8 border-t border-gray-200 pt-6">
+            <livewire:project.plan-visit 
+                :iaa="$iaa" 
+                :embedded="true" 
+                :stepId="$currentStep['id']" 
+                :wire:key="'plan-visit-active-'.$currentStep['id']" />
+        </div>
+
+        {{-- ANA FORMUN BUTON ALANI --}}
+        <div class="mt-8 flex justify-end items-center gap-3 border-t pt-6">
                 
                 {{-- Bu buton sadece GÖRSEL amaçlıdır, tıklandığında aşağıdaki gizli formu tetikler --}}
                 @if(isset($progressUpdate) && $progressUpdate && $progressUpdate->id)
@@ -222,7 +241,7 @@
                 @endphp
 
                 {{-- KAYDET BUTONU --}}
-                <button type="submit"
+                <button type="submit" form="main-form"
                         @if($isButtonDisabled) disabled @endif
                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest shadow-md transition-colors {{ $buttonClass }}"
                         @if($isButtonDisabled) title="{{ $buttonTitle }}" @endif>
@@ -236,8 +255,7 @@
                     {{ $buttonText }}
                 </button>
             </div>
-        </form> 
-        {{-- DİKKAT: </form> BURADA BİTTİ. VAZGEÇ FORMU BUNUN ALTINDA OLMALI --}}
+        {{-- DİKKAT: </form> BURADA BİTTİ DİYORDUK AMA ARTIK YUKARIDA BİTTİ. VAZGEÇ FORMU BUNUN ALTINDA OLMALI --}}
 
 
         {{-- === GİZLİ VAZGEÇME FORMU (BAĞIMSIZ) === --}}

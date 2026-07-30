@@ -522,6 +522,7 @@
             @endif
         @endif {{-- SENARYO SONU --}}
 
+            {{-- Araçlar widget'ı adımın içindeki aktif ve tamamlanmış içerik sayfalarına taşındı --}}
             {{-- ======================================================================== --}}
             {{-- 3. YORUMLAR (HERKESE AÇIK) - Müşteri de Personel de görür, yazar --}}
             {{-- ======================================================================== --}}

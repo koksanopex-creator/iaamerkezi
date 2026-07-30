@@ -75,7 +75,7 @@
                                                 {{ $user->name }}
                                             </a>
                                             <span class="text-[10px] text-gray-400 font-bold uppercase truncate">
-                                                {{ !$user->is_personnel ? 'Müşteri Temsilcisi' : ($user->unvan ?? ($user->getRoleNames()->first() ?? 'Personel')) }}
+                                                {{ !$user->is_personnel ? 'Müşteri Temsilcisi' : ($user->unvan ?? ($user->getPublicRoleNames()->first() ?? 'Personel')) }}
                                             </span>
 
                                             {{-- Tooltip içeriği buradan kaldırıldı, aşağıya taşındı --}}

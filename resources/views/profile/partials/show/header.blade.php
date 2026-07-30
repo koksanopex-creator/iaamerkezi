@@ -39,13 +39,14 @@
                     @endif
                 </div>
                 <div class="flex flex-wrap items-center justify-start gap-2 mt-3">
-                    @foreach($user->roles as $role)
+                    @php $publicRoles = $user->getPublicRoleNames(); @endphp
+                    @foreach($publicRoles as $roleName)
                         <span
                             class="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-md border border-indigo-400/50">
-                            {{ $role->name }}
+                            {{ $roleName }}
                         </span>
                     @endforeach
-                    @if($user->roles->isEmpty())
+                    @if($publicRoles->isEmpty())
                         <span
                             class="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-md border border-indigo-400/50">
                             Kullanıcı

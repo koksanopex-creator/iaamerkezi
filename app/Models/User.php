@@ -700,7 +700,30 @@ class User extends Authenticatable implements MustVerifyEmail // <-- Interface I
     }
 
     /**
-     * Kullanıcının ünvanını veya ünvan yoksa sistemdeki rollerini döner.
+     * Hassas olmayan, kullanıcıya açık olarak gösterilebilecek rolleri döner.
+     */
+    public function getPublicRoleNames()
+    {
+        $hiddenRoles = [
+            'Disiplin Kurulu Başkanı', 'Disiplin Kurulu Üyesi', 'Superadmin', 
+            'Yonetim', 'Yönetim', 'Dış Avukat', 'Hukuk Admini', 'Hukuk Yöneticisi', 
+            'Arabuluculuk Personel', 'Müşteri Şikayeti Kurulu', 
+            'Müşteri Şikayeti Kurulu - Yurt İçi', 'Müşteri Şikayeti Kurulu - Yurt Dışı', 
+            'Müşteri Şikayeti Kurulu Yöneticisi', 'Müşteri Şikayeti Kurulu Yöneticisi - Yurt İçi', 
+            'Müşteri Şikayeti Kurulu Yöneticisi - Yurt Dışı',
+            'Arabuluculuk Finans', 'arabuluculuk finans',
+            'Arabuluculuk Kurulu Başkanı', 'arabuluculuk kurulu başkanı',
+            'Arabuluculuk Kurulu Üyesi', 'arabuluculuk kurulu üyesi',
+            'Arabuluculuk Personel Lideri', 'arabuluculuk personel lideri'
+        ];
+
+        return $this->roles->pluck('name')->filter(function ($role) use ($hiddenRoles) {
+            return !in_array($role, $hiddenRoles);
+        });
+    }
+
+    /**
+     * Kullanıcının ünvanını veya ünvan yoksa sistemdeki herkese açık (public) rollerini döner.
      */
     public function getDisplayUnvanAttribute()
     {
@@ -708,14 +731,14 @@ class User extends Authenticatable implements MustVerifyEmail // <-- Interface I
             return $this->unvan;
         }
 
-        // Atanan tüm rollerin isimlerini virgülle birleştir
-        $roleNames = $this->roles->pluck('name');
+        // Atanan rollerden hassas olanları çıkararak al
+        $publicRoleNames = $this->getPublicRoleNames();
         
-        if ($roleNames->isNotEmpty()) {
-            return $roleNames->implode(', ');
+        if ($publicRoleNames->isNotEmpty()) {
+            return $publicRoleNames->implode(', ');
         }
 
-        return 'Personel';
+        return 'Kullanıcı'; // veya 'Personel'
     }
 
     /**

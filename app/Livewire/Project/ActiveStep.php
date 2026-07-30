@@ -96,8 +96,8 @@ class ActiveStep extends Component
                     $items = !empty($config['items']) ? array_filter(array_map('trim', explode("\n", $config['items']))) : [];
                     $this->formData[$index] = ['checklist' => array_fill(0, count($items), false)];
                 } elseif ($widget['type'] === 'before_after') {
-                    $this->formData[$index] = ['before_text' => '', 'after_text' => '', 'before_image_path' => null, 'after_image_path' => null];
-                    $this->newImageUploads[$index] = ['before' => null, 'after' => null];
+                    $this->formData[$index] = ['before_text' => '', 'after_text' => '', 'before_image_path' => null, 'after_image_path' => null, 'before_images' => [], 'after_images' => []];
+                    $this->newImageUploads[$index] = ['before' => [], 'after' => []];
                 } elseif ($widget['type'] === 'image_upload') {
                     $this->formData[$index] = ['files' => []]; // Çoklu desteklerse diye array
                     $this->newImageUploads[$index] = ['files' => []];
@@ -474,9 +474,17 @@ class ActiveStep extends Component
     public function removePreviewImage($widgetIndex, $type, $index = null)
     {
         if ($type === 'before') {
-            $this->newImageUploads[$widgetIndex]['before'] = null;
+            if ($index !== null && is_array($this->newImageUploads[$widgetIndex]['before'])) {
+                array_splice($this->newImageUploads[$widgetIndex]['before'], $index, 1);
+            } else {
+                $this->newImageUploads[$widgetIndex]['before'] = [];
+            }
         } elseif ($type === 'after') {
-            $this->newImageUploads[$widgetIndex]['after'] = null;
+            if ($index !== null && is_array($this->newImageUploads[$widgetIndex]['after'])) {
+                array_splice($this->newImageUploads[$widgetIndex]['after'], $index, 1);
+            } else {
+                $this->newImageUploads[$widgetIndex]['after'] = [];
+            }
         } elseif ($type === 'files' && $index !== null) {
             array_splice($this->newImageUploads[$widgetIndex]['files'], $index, 1);
         }
@@ -485,9 +493,25 @@ class ActiveStep extends Component
     public function removeExistingImage($widgetIndex, $type, $filePath = null)
     {
         if ($type === 'before') {
-            $this->formData[$widgetIndex]['before_image_path'] = null;
+            if ($filePath !== null && isset($this->formData[$widgetIndex]['before_images'])) {
+                $this->formData[$widgetIndex]['before_images'] = array_values(array_filter(
+                    $this->formData[$widgetIndex]['before_images'],
+                    fn($file) => $file !== $filePath
+                ));
+            }
+            if ($filePath === null || $this->formData[$widgetIndex]['before_image_path'] === $filePath) {
+                $this->formData[$widgetIndex]['before_image_path'] = null;
+            }
         } elseif ($type === 'after') {
-            $this->formData[$widgetIndex]['after_image_path'] = null;
+            if ($filePath !== null && isset($this->formData[$widgetIndex]['after_images'])) {
+                $this->formData[$widgetIndex]['after_images'] = array_values(array_filter(
+                    $this->formData[$widgetIndex]['after_images'],
+                    fn($file) => $file !== $filePath
+                ));
+            }
+            if ($filePath === null || $this->formData[$widgetIndex]['after_image_path'] === $filePath) {
+                $this->formData[$widgetIndex]['after_image_path'] = null;
+            }
         } elseif ($type === 'files' && $filePath !== null) {
             if (isset($this->formData[$widgetIndex]['files'])) {
                 $this->formData[$widgetIndex]['files'] = array_values(array_filter(
@@ -508,7 +532,69 @@ class ActiveStep extends Component
             Log::warning('Dosya uzantısı alınamadı.', ['file' => $file?->getClientOriginalName() ?? 'N/A']);
             return null;
         }
+        
         $extension = strtolower($file->getClientOriginalExtension());
+        $mimeType = $file->getMimeType();
+        
+        // GÜVENLİK: Sadece İzin Verilen Uzantılar ve MIME Tipleri (Whitelist Yaklaşımı)
+        $allowedExtensions = [
+            // Resimler
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg',
+            // Belgeler
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'rtf',
+            // Medya
+            'mp4', 'mov', 'avi', 'mp3', 'wav',
+            // Arşivler
+            'zip', 'rar', '7z'
+        ];
+
+        $allowedMimePrefixes = [
+            'image/',
+            'video/',
+            'audio/',
+            'text/'
+        ];
+
+        $allowedExactMimes = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
+            'application/rtf',
+            'application/zip',
+            'application/x-rar-compressed',
+            'application/x-7z-compressed',
+            'application/csv'
+        ];
+
+        $isMimeAllowed = false;
+        foreach ($allowedMimePrefixes as $prefix) {
+            if (str_starts_with($mimeType, $prefix)) {
+                $isMimeAllowed = true;
+                break;
+            }
+        }
+        if (!$isMimeAllowed && in_array($mimeType, $allowedExactMimes)) {
+            $isMimeAllowed = true;
+        }
+
+        if (!in_array($extension, $allowedExtensions) || !$isMimeAllowed) {
+            Log::warning('Güvenlik İhlali: Yasaklı dosya türü yüklenmek istendi.', [
+                'file' => $file->getClientOriginalName(),
+                'mime' => $mimeType,
+                'extension' => $extension
+            ]);
+            // Kullanıcıya uyarı ver
+            $this->dispatch('sweetalert', [
+                'type' => 'error',
+                'title' => 'Güvenlik İhlali',
+                'text' => 'Yüklemeye çalıştığınız dosyanın içeriği güvenlik politikalarımıza aykırıdır (Çalıştırılabilir dosya tespiti).'
+            ]);
+            return null;
+        }
         $iaaId = is_object($this->iaa) ? $this->iaa->id : (is_array($this->iaa) ? ($this->iaa['id'] ?? 'unknown_iaa') : $this->iaa);
         $stepId = is_object($this->currentStep) ? $this->currentStep->id : ($this->currentStep['id'] ?? 'unknown_step');
         
@@ -561,21 +647,53 @@ class ActiveStep extends Component
 
                     // --- Yeni Özel Resim Yüklemeleri (Before/After & Image Upload) ---
                     if (isset($widget['type']) && $widget['type'] === 'before_after') {
-                        if (!empty($this->newImageUploads[$index]['before'])) {
-                            $storedPath = $this->storeUploadedFile($this->newImageUploads[$index]['before']);
-                            if ($storedPath) {
-                                $processedFormData[$index]['before_image_path'] = $storedPath;
+                        if (!isset($processedFormData[$index]['before_images']) || !is_array($processedFormData[$index]['before_images'])) {
+                            $processedFormData[$index]['before_images'] = [];
+                        }
+                        $existingBeforePaths = $processedFormData[$index]['before_images'];
+                        $newBeforePaths = [];
+                        
+                        $beforeUploads = $this->newImageUploads[$index]['before'] ?? [];
+                        if (!empty($beforeUploads)) {
+                            if (!is_array($beforeUploads)) { $beforeUploads = [$beforeUploads]; }
+                            // Maksimum 4 resim sınırı (Önce)
+                            $remainingBeforeSlots = max(0, 4 - count($existingBeforePaths));
+                            $beforeUploads = array_slice($beforeUploads, 0, $remainingBeforeSlots);
+
+                            foreach ($beforeUploads as $file) {
+                                $storedPath = $this->storeUploadedFile($file);
+                                if ($storedPath) {
+                                    $newBeforePaths[] = $storedPath;
+                                }
                             }
                         }
-                        if (!empty($this->newImageUploads[$index]['after'])) {
-                            $storedPath = $this->storeUploadedFile($this->newImageUploads[$index]['after']);
-                            if ($storedPath) {
-                                $processedFormData[$index]['after_image_path'] = $storedPath;
+                        $processedFormData[$index]['before_images'] = array_merge($existingBeforePaths, $newBeforePaths);
+
+                        if (!isset($processedFormData[$index]['after_images']) || !is_array($processedFormData[$index]['after_images'])) {
+                            $processedFormData[$index]['after_images'] = [];
+                        }
+                        $existingAfterPaths = $processedFormData[$index]['after_images'];
+                        $newAfterPaths = [];
+                        
+                        $afterUploads = $this->newImageUploads[$index]['after'] ?? [];
+                        if (!empty($afterUploads)) {
+                            if (!is_array($afterUploads)) { $afterUploads = [$afterUploads]; }
+                            // Maksimum 4 resim sınırı (Sonra)
+                            $remainingAfterSlots = max(0, 4 - count($existingAfterPaths));
+                            $afterUploads = array_slice($afterUploads, 0, $remainingAfterSlots);
+
+                            foreach ($afterUploads as $file) {
+                                $storedPath = $this->storeUploadedFile($file);
+                                if ($storedPath) {
+                                    $newAfterPaths[] = $storedPath;
+                                }
                             }
                         }
+                        $processedFormData[$index]['after_images'] = array_merge($existingAfterPaths, $newAfterPaths);
+
                         // Resetliyoruz
-                        $this->newImageUploads[$index]['before'] = null;
-                        $this->newImageUploads[$index]['after'] = null;
+                        $this->newImageUploads[$index]['before'] = [];
+                        $this->newImageUploads[$index]['after'] = [];
                     }
 
                     if (isset($widget['type']) && $widget['type'] === 'image_upload' && isset($this->newImageUploads[$index]['files'])) {

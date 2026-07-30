@@ -253,7 +253,8 @@ class SikayetTriyajModal extends Component
                         // 2. Projenin atanan takımını ve o andaki liderini güncelle
                         $mevcutProje->update([
                             'atanan_takim_id' => $this->atanan_cozum_takimi_id,
-                            'atamadaki_lider_id' => $yeniAtananTakim->lider_user_id ?? null
+                            'atamadaki_lider_id' => $yeniAtananTakim->lider_user_id ?? null,
+                            'durum' => 'Atandı'
                         ]);
 
                         // 3. Talep kaydını güncelle (iaa_talepleri)
@@ -430,53 +431,46 @@ class SikayetTriyajModal extends Component
 
         $takimAdi = $sikayet->cozumTakimi->ad ?? 'Bilinmeyen Takım';
 
-        // === GÜNCELLEME BURADA ===
-        $sikayet->update([
-            'atanan_cozum_takimi_id' => null,
-            'musteri_durum' => 'Yeni', // Durumu 'Yeni'ye geri çek
-            'musteri_cozum_son_tarihi' => null,
-            'edit_locked_at' => null, // Düzenleme kilidini kaldır
-            // Puanlama alanlarını da sıfırlayabiliriz (isteğe bağlı)
-            // 'etki_puani' => null,
-            // 'karmasiklik_puani' => null,
-            // 'musteri_puan' => null,
-        ]);
-
         // === YENİ KOD: ATAMAYI KALDIR & PROJEYİ SIFIRLA ===
         if (!is_null($sikayet->iaa_id)) {
             $mevcutProje = Iaa::find($sikayet->iaa_id);
             if ($mevcutProje) {
                 // 1. Eski Lideri Çıkar
-                // $sikayet->cozumTakimi ilişkisi, update öncesi yüklendiyse eskiyi getirir.
-                // Ancak update sonrası null dönebilir. O yüzden $takimAdi'ni aldığımız yerde id'yi de almalıydık.
-                // Neyse ki $sikayet->cozumTakimi çağrısı yukarıda yapıldı ($takimAdi için).
-                // Ama garanti olsun diye tekrar bakalım:
-                // Eloquent cache mekanizması bazen yanıltabilir, o yüzden manuel query daha güvenli olabilir
-                // Ama $takimAdi satırında $sikayet->cozumTakimi çağrıldığı için ilişki yüklü olmalı.
                 if ($sikayet->cozumTakimi && $sikayet->cozumTakimi->lider_user_id) {
                     $mevcutProje->projeEkibi()->detach($sikayet->cozumTakimi->lider_user_id);
                 }
 
-                // 2. Projeyi Güncelle (Takımsız Hale Getir)
+                // 2. Projeyi Güncelle (İptal Edildi)
                 $mevcutProje->update([
                     'atanan_takim_id' => null,
-                    'durum' => 'Yeni' // Projeyi başlangıç durumuna çek
+                    'durum' => 'İptal Edildi' // Projeyi iptal durumuna çek
                 ]);
 
                 // 3. Talep Kaydını Güncelle
                 DB::table('iaa_talepleri')
                     ->where('iaa_id', $mevcutProje->id)
-                    ->update(['takim_id' => null, 'durum' => 'bekliyor']); // Talep durumunu da sıfırla
+                    ->update(['takim_id' => null, 'durum' => 'iptal']); // Talep durumunu da iptal et
 
-                // Log ekle (Transaction içinde değiliz burada ama olsun)
+                // Log ekle
                 $sikayet->loglar()->create([
                     'user_id' => $user->id,
                     'eylem' => 'Atama Kaldırıldı (Senkronizasyon)',
-                    'aciklama' => "Şikayet ataması kaldırıldığı için bağlı proje (ID:{$mevcutProje->id}) de takımsız hale getirildi."
+                    'aciklama' => "Şikayet ataması kaldırıldığı için bağlı proje (ID:{$mevcutProje->id}) iptal edildi."
                 ]);
             }
         }
         // === GÜNCELLEME SONU ===
+
+        $sikayet->update([
+            'atanan_cozum_takimi_id' => null,
+            'musteri_durum' => 'Yeni', // Durumu 'Yeni'ye geri çek
+            'musteri_cozum_son_tarihi' => null,
+            'edit_locked_at' => null, // Düzenleme kilidini kaldır
+            'iaa_id' => null, // PROJE BAĞINI KOPAR
+            'etki_puani' => null,
+            'karmasiklik_puani' => null,
+            'musteri_puan' => null,
+        ]);
 
         $sikayet->loglar()->create([
             'user_id' => $user->id,

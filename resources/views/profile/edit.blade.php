@@ -56,7 +56,7 @@
                             {{-- Rol Etiketi --}}
                             <span
                                 class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                {{ $user->roles->first()->name ?? 'Kullanıcı' }}
+                                {{ $user->getPublicRoleNames()->first() ?? 'Kullanıcı' }}
                             </span>
 
                             {{-- Herkese Açık Profil Linki (Sadece Personel Görsün) --}}

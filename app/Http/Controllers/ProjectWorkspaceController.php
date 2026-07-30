@@ -57,6 +57,10 @@ class ProjectWorkspaceController extends Controller
             'ziyaretPlani'
         ])->findOrFail($id);
 
+        if ($iaa->durum === 'İptal Edildi') {
+            abort(404, 'Bu proje iptal edilmiştir veya bulunmamaktadır.');
+        }
+
         // 2. Yetki Kontrolü (Servis)
         $isAuthorized = $this->calismaAlaniService->authorizeUser($iaa);
 
@@ -421,6 +425,9 @@ class ProjectWorkspaceController extends Controller
      */
     public function exportPdf($id)
     {
+        ini_set('max_execution_time', 300);
+        ini_set('memory_limit', '512M');
+
         $iaa = Iaa::findOrFail($id);
         
         // Yetki Kontrolü
@@ -445,7 +452,12 @@ class ProjectWorkspaceController extends Controller
         // Ziyaret Bilgileri (Takvim API'sinden)
         $data['visitData'] = $this->fetchVisitDataForExport($iaa);
 
-        $pdf = Pdf::loadView('proje-calisma-alani.export.pdf', $data);
+        $pdf = Pdf::setOptions([
+            'isFontSubsettingEnabled' => false,
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'chroot' => base_path()
+        ])->loadView('proje-calisma-alani.export.pdf', $data);
         
         $fileName = str_replace(' ', '_', $iaa->baslik) . '_Proje_Raporu.pdf';
         return $pdf->download($fileName);
@@ -496,7 +508,7 @@ class ProjectWorkspaceController extends Controller
 
         try {
             $baseUrl = rtrim(config('services.takvim.url', 'http://localhost:8001'), '/');
-            $response = \Illuminate\Support\Facades\Http::get($baseUrl . '/api/customers/visit-data', [
+            $response = \Illuminate\Support\Facades\Http::timeout(3)->get($baseUrl . '/api/customers/visit-data', [
                 'customer_name' => $iaa->musteriSikayeti->customer->name,
                 'remote_id' => $iaa->id
             ]);

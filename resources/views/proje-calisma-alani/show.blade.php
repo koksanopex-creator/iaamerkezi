@@ -25,13 +25,13 @@
                 
                 {{-- PROJE ÇIKTI ALMA BUTONLARI (ÜST) --}}
                 <div class="flex items-center space-x-2 border-l pl-4 ml-4 border-gray-200">
-                    <a href="{{ route('proje.export.pdf', $iaa->id) }}" class="inline-flex items-center px-3 py-1.5 bg-red-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:border-red-800 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm" title="PDF Raporu İndir">
-                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                        PDF
+                    <a href="{{ route('proje.export.pdf', $iaa->id) }}" onclick="handleDownload(event, this)" class="inline-flex items-center px-3 py-1.5 bg-red-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:border-red-800 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm" title="PDF Raporu İndir">
+                        <svg class="w-4 h-4 mr-1.5 icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        <span class="btn-text">PDF</span>
                     </a>
-                    <a href="{{ route('proje.export.excel', $iaa->id) }}" class="inline-flex items-center px-3 py-1.5 bg-green-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm" title="Excel Raporu İndir">
-                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Excel
+                    <a href="{{ route('proje.export.excel', $iaa->id) }}" onclick="handleDownload(event, this)" class="inline-flex items-center px-3 py-1.5 bg-green-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm" title="Excel Raporu İndir">
+                        <svg class="w-4 h-4 mr-1.5 icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span class="btn-text">Excel</span>
                     </a>
                 </div>
             </div>
@@ -271,13 +271,13 @@
                 </div>
                 
                 <div class="p-6 md:p-8 flex flex-col sm:flex-row justify-center items-center gap-4 bg-slate-50">
-                    <a href="{{ route('proje.export.pdf', $iaa->id) }}" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3.5 bg-red-600 border border-transparent rounded-xl font-bold text-sm text-white tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:border-red-800 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-md">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                        PDF RAPORU İNDİR
+                    <a href="{{ route('proje.export.pdf', $iaa->id) }}" onclick="handleDownload(event, this)" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3.5 bg-red-600 border border-transparent rounded-xl font-bold text-sm text-white tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:border-red-800 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-md">
+                        <svg class="w-5 h-5 mr-2 icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        <span class="btn-text">PDF RAPORU İNDİR</span>
                     </a>
-                    <a href="{{ route('proje.export.excel', $iaa->id) }}" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3.5 bg-green-600 border border-transparent rounded-xl font-bold text-sm text-white tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-md">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        EXCEL VERİSİ İNDİR
+                    <a href="{{ route('proje.export.excel', $iaa->id) }}" onclick="handleDownload(event, this)" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3.5 bg-green-600 border border-transparent rounded-xl font-bold text-sm text-white tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-md">
+                        <svg class="w-5 h-5 mr-2 icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span class="btn-text">EXCEL VERİSİ İNDİR</span>
                     </a>
                 </div>
             </div>
@@ -288,4 +288,37 @@
     {{-- 7. SCRIPTS --}}
     @include('proje-calisma-alani.partials._scripts')
 
+    <script>
+        function handleDownload(event, element) {
+            if (element.classList.contains('pointer-events-none')) {
+                event.preventDefault();
+                return;
+            }
+            
+            const originalHtml = element.innerHTML;
+            const isPdf = element.href.includes('export-pdf');
+            const isSmall = element.classList.contains('px-3');
+            
+            element.classList.add('opacity-75', 'pointer-events-none', 'cursor-not-allowed');
+            
+            const spinner = `<svg class="animate-spin ${isSmall ? 'h-4 w-4 mr-1.5' : 'h-5 w-5 mr-2'} text-white inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>`;
+            const textEl = element.querySelector('.btn-text');
+            if (textEl) {
+                textEl.innerHTML = isPdf ? (isSmall ? 'YÜKLENİYOR' : 'PDF HAZIRLANIYOR...') : (isSmall ? 'YÜKLENİYOR' : 'EXCEL HAZIRLANIYOR...');
+            }
+            
+            const svg = element.querySelector('.icon');
+            if (svg) svg.style.display = 'none';
+            element.insertAdjacentHTML('afterbegin', spinner);
+            
+            const resetBtn = () => {
+                element.classList.remove('opacity-75', 'pointer-events-none', 'cursor-not-allowed');
+                element.innerHTML = originalHtml;
+                window.removeEventListener('focus', resetBtn);
+            };
+            
+            window.addEventListener('focus', resetBtn);
+            setTimeout(resetBtn, 30000); // 30 sn timeout korumasi
+        }
+    </script>
 </x-app-layout>

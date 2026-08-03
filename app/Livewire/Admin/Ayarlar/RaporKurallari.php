@@ -66,9 +66,12 @@ class RaporKurallari extends Component
             ->orderBy('name')
             ->get(); 
             
+        $rolesMap = $roller->pluck('name', 'id')->toArray();
+        $usersMap = $users->pluck('name', 'id')->toArray();
+            
         $disiplinKategorileri = \App\Models\DisciplinaryCategory::orderBy('ad')->get();
 
-        return view('livewire.admin.ayarlar.rapor-kurallari', compact('roller', 'users', 'disiplinKategorileri'));
+        return view('livewire.admin.ayarlar.rapor-kurallari', compact('roller', 'users', 'disiplinKategorileri', 'rolesMap', 'usersMap'));
     }
 
     public function yeniKural()

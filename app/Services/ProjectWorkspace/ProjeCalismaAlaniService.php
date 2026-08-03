@@ -47,14 +47,14 @@ class ProjeCalismaAlaniService
         }
 
         $allProgressUpdates = IaaProgressUpdate::with('user')->where('iaa_talep_id', $assignment->id)->get();
-        $completedStepIds = $allProgressUpdates->whereNotNull('completed_at')->pluck('iaa_workflow_step_id')->toArray();
+        $completedStepIds = $allProgressUpdates->whereNotNull('completed_at')->pluck('iaa_workflow_step_id')->unique()->toArray();
         $stepAssignments = DB::table('iaa_step_assignments')->where('iaa_id', $iaa->id)->get()->groupBy('iaa_workflow_step_id');
         $progressUpdates = $allProgressUpdates->keyBy('iaa_workflow_step_id');
 
         // İlerleme Yüzdesi
         $totalStepsCount = $steps->count();
         $completedStepsCount = count($completedStepIds);
-        $progressPercentage = $totalStepsCount > 0 ? ($completedStepsCount / $totalStepsCount) * 100 : 0;
+        $progressPercentage = $totalStepsCount > 0 ? min(100, ($completedStepsCount / $totalStepsCount) * 100) : 0;
 
         // Takım Üyesi Kontrolü
         $isTeamMember = $this->isTeamMember($iaa);

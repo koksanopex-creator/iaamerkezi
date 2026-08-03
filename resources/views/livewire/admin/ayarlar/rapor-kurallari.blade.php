@@ -46,57 +46,85 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            @forelse($kurallar as $kural)
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm font-medium text-gray-900">{{ $kural->baslik }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 uppercase">
-                                            {{ $kural->periyot }}
-                                        </span>
-                                        <div class="text-sm text-gray-500 mt-1">
-                                            {{ \Carbon\Carbon::parse($kural->gonderim_saati)->format('H:i') }}
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="text-xs text-gray-500">
-                                            <div class="flex items-center gap-1">
-                                                <span class="font-bold">Roller:</span> {{ count($kural->alicilar['roller'] ?? []) }}
-                                            </div>
-                                            <div class="flex items-center gap-1">
-                                                <span class="font-bold">Kişiler:</span> {{ count($kural->alicilar['users'] ?? []) }}
-                                            </div>
-                                            @if(!empty($kural->alicilar['emails']))
-                                            <div class="flex items-center gap-1 text-amber-600">
-                                                <span class="font-bold">Harici:</span> Var
-                                            </div>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <div class="flex flex-wrap gap-1">
-                                            @foreach($kural->icerik_ayarlari as $key => $val)
-                                                @if($val) 
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                                        {{ str_replace('_', ' ', ucfirst($key)) }}
-                                                    </span> 
-                                                @endif
-                                            @endforeach
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                                        <button type="button" wire:click="manuelGonder({{ $kural->id }})" class="text-amber-600 hover:text-amber-900" title="Şimdi Gönder">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                                        </button>
-                                        <button type="button" wire:click="duzenle({{ $kural->id }})" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                        </button>
-                                        <button type="button" wire:click="sil({{ $kural->id }})" onclick="confirm('Bu kuralı silmek istediğinize emin misiniz?') || event.stopImmediatePropagation()" class="text-red-600 hover:text-red-900" title="Sil">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                        </button>
+                            @php
+                                $grupluKurallar = $kurallar->groupBy(function($kural) {
+                                    $icerik = $kural->icerik_ayarlari ?? [];
+                                    if (!empty($icerik['sikayet_ozet']) || !empty($icerik['sikayet_detay'])) {
+                                        return 'Müşteri Şikayetleri Raporları';
+                                    } elseif (!empty($icerik['iaa_ozet']) || !empty($icerik['iaa_havuz'])) {
+                                        return 'İyileştirmeye Açık Alan (İAA) Raporları';
+                                    } elseif (!empty($icerik['disiplin_ozet'])) {
+                                        return 'Disiplin Süreci Raporları';
+                                    } elseif (!empty($icerik['arabuluculuk_ozet'])) {
+                                        return 'Arabuluculuk Raporları';
+                                    } else {
+                                        return 'Genel / Karma Raporlar';
+                                    }
+                                });
+                            @endphp
+
+                            @forelse($grupluKurallar as $kategoriAdi => $kategoriKurallari)
+                                <tr class="bg-gray-100">
+                                    <td colspan="5" class="px-6 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-50 border-y border-gray-200">
+                                        {{ $kategoriAdi }}
                                     </td>
                                 </tr>
+                                @foreach($kategoriKurallari as $kural)
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">{{ $kural->baslik }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 uppercase">
+                                                {{ $kural->periyot }}
+                                            </span>
+                                            <div class="text-sm text-gray-500 mt-1">
+                                                {{ \Carbon\Carbon::parse($kural->gonderim_saati)->format('H:i') }}
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="text-xs text-gray-500">
+                                                @php
+                                                    $rolIsimleri = collect($kural->alicilar['roller'] ?? [])->map(fn($id) => $rolesMap[$id] ?? 'Bilinmeyen')->implode(', ');
+                                                    $kisiIsimleri = collect($kural->alicilar['users'] ?? [])->map(fn($id) => $usersMap[$id] ?? 'Bilinmeyen')->implode(', ');
+                                                @endphp
+                                                <div class="flex items-center gap-1 cursor-help" title="{{ $rolIsimleri ?: 'Rol seçilmemiş' }}">
+                                                    <span class="font-bold border-b border-dashed border-gray-400">Roller:</span> {{ count($kural->alicilar['roller'] ?? []) }}
+                                                </div>
+                                                <div class="flex items-center gap-1 cursor-help mt-1" title="{{ $kisiIsimleri ?: 'Kişi seçilmemiş' }}">
+                                                    <span class="font-bold border-b border-dashed border-gray-400">Kişiler:</span> {{ count($kural->alicilar['users'] ?? []) }}
+                                                </div>
+                                                @if(!empty($kural->alicilar['emails']))
+                                                <div class="flex items-center gap-1 text-amber-600 mt-1 cursor-help" title="{{ is_array($kural->alicilar['emails']) ? implode(', ', $kural->alicilar['emails']) : $kural->alicilar['emails'] }}">
+                                                    <span class="font-bold border-b border-dashed border-gray-400">Harici:</span> Var
+                                                </div>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="flex flex-wrap gap-1">
+                                                @foreach($kural->icerik_ayarlari as $key => $val)
+                                                    @if($val) 
+                                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                                            {{ str_replace('_', ' ', ucfirst($key)) }}
+                                                        </span> 
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                            <button type="button" wire:click="manuelGonder({{ $kural->id }})" class="text-amber-600 hover:text-amber-900" title="Şimdi Gönder">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                                            </button>
+                                            <button type="button" wire:click="duzenle({{ $kural->id }})" class="text-indigo-600 hover:text-indigo-900" title="Düzenle">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                            </button>
+                                            <button type="button" wire:click="sil({{ $kural->id }})" onclick="confirm('Bu kuralı silmek istediğinize emin misiniz?') || event.stopImmediatePropagation()" class="text-red-600 hover:text-red-900" title="Sil">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
                             @empty
                                 <tr>
                                     <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">

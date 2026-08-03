@@ -364,6 +364,8 @@ class PublicSikayetController extends Controller
                 // Tamamlanan adım sayısını bul
                 $completedSteps = IaaProgressUpdate::where('iaa_talep_id', $assignment->id)
                     ->whereNotNull('completed_at')
+                    ->pluck('iaa_workflow_step_id')
+                    ->unique()
                     ->count();
             }
         }

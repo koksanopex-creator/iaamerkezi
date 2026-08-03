@@ -226,6 +226,8 @@ class ProjeAdimIslemleriService
             $totalCount = count($stepList);
             $completedCount = IaaProgressUpdate::where('iaa_talep_id', $assignment->id)
                 ->whereNotNull('completed_at')
+                ->pluck('iaa_workflow_step_id')
+                ->unique()
                 ->count();
 
             Log::info("Bildirim Gönderiliyor: {$completedCount}/{$totalCount}");

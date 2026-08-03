@@ -639,9 +639,11 @@ class Iaa extends Model
         // Tamamlanmış adım sayısını bul
         $completedSteps = IaaProgressUpdate::where('iaa_talep_id', $assignment->id)
             ->whereNotNull('completed_at')
+            ->pluck('iaa_workflow_step_id')
+            ->unique()
             ->count();
 
-        $percentage = $totalSteps > 0 ? round(($completedSteps / $totalSteps) * 100) : 0;
+        $percentage = $totalSteps > 0 ? min(100, round(($completedSteps / $totalSteps) * 100)) : 0;
 
         // Kaç gündür devam ediyor?
         $baslangicTarihi = $assignment->start_date ?? $this->created_at;

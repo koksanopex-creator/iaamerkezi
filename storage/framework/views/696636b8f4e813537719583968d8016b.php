@@ -184,9 +184,50 @@
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
                 <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
             </div>
+        </form>
 
-            
-            <div class="mt-8 flex justify-end items-center gap-3 border-t pt-6">
+        
+        <div class="mt-8">
+            <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('project.step-tools-manager', ['stepId' => $currentStep['id'],'isCompleted' => false,'iaa' => $iaa,'step_id' => $currentStep['id'],'is_completed' => false]);
+
+$__html = app('livewire')->mount($__name, $__params, 'tools-active-'.$currentStep['id'], $__slots ?? [], get_defined_vars());
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__split);
+if (isset($__slots)) unset($__slots);
+?>
+        </div>
+
+        
+        <div class="mt-8 border-t border-gray-200 pt-6">
+            <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('project.plan-visit', ['iaa' => $iaa,'embedded' => true,'stepId' => $currentStep['id']]);
+
+$__html = app('livewire')->mount($__name, $__params, 'plan-visit-active-'.$currentStep['id'], $__slots ?? [], get_defined_vars());
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__split);
+if (isset($__slots)) unset($__slots);
+?>
+        </div>
+
+        
+        <div class="mt-8 flex justify-end items-center gap-3 border-t pt-6">
                 
                 
                 <!--[if BLOCK]><![endif]--><?php if(isset($progressUpdate) && $progressUpdate && $progressUpdate->id): ?>
@@ -223,7 +264,7 @@
                 ?>
 
                 
-                <button type="submit"
+                <button type="submit" form="main-form"
                         <?php if($isButtonDisabled): ?> disabled <?php endif; ?>
                         class="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest shadow-md transition-colors <?php echo e($buttonClass); ?>"
                         <?php if($isButtonDisabled): ?> title="<?php echo e($buttonTitle); ?>" <?php endif; ?>>
@@ -238,7 +279,6 @@
 
                 </button>
             </div>
-        </form> 
         
 
 

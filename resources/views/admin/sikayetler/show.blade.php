@@ -48,6 +48,35 @@
                     @endif
                     
                     @include('admin.sikayet-hatirlatma.partials._hatirlatma-butonu', ['sikayet' => $sikayet])
+
+                {{-- PAYLAŞIM BUTONLARI --}}
+                @php
+                    $shareMusteri = $sikayet->customer ? $sikayet->customer->name : 'Belirtilmemiş';
+                    $shareKategori = $sikayet->sikayetKategori ? $sikayet->sikayetKategori->ad : 'Genel';
+                    $shareBaslik = $sikayet->musteri_sikayet_konusu;
+                    
+                    $shareSubject = "Müşteri Şikayeti Bilgilendirmesi: " . $shareBaslik;
+                    $shareBody = "Sayın İlgili,\n\nAşağıda detayları bulunan müşteri şikayeti ile ilgili sistem üzerinden bilgilendirme sağlanmaktadır.\n\n" .
+                                 "📌 Şikayet Konusu: " . $shareBaslik . "\n" .
+                                 "🏢 İlgili Bölüm: " . $shareKategori . "\n" .
+                                 "👥 İlgili Müşteri: " . $shareMusteri . "\n\n" .
+                                 "Detaylı bilgi ve inceleme için lütfen aşağıdaki sistem bağlantısını ziyaret ediniz:\n" . url()->current();
+                @endphp
+                <div class="flex items-center gap-2 bg-white/50 p-1 rounded-2xl border border-slate-200 shadow-sm">
+                    <a href="https://wa.me/?text={{ rawurlencode($shareBody) }}" target="_blank"
+                        class="inline-flex items-center px-3 py-2 bg-green-500 border border-transparent rounded-xl font-bold text-[11px] text-white uppercase tracking-widest hover:bg-green-600 transition-all shadow-sm" title="WhatsApp ile Paylaş">
+                        <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.148 1.602 5.946L.141 24l6.196-1.624a11.968 11.968 0 005.694 1.43h.005c6.645 0 12.03-5.386 12.03-12.031C24 5.385 18.615 0 12.031 0zm0 21.782h-.003a9.96 9.96 0 01-5.074-1.383l-.364-.216-3.774.989.998-3.68-.237-.377a9.962 9.962 0 01-1.516-5.31C2.062 6.486 6.549 2 12.034 2c5.484 0 9.97 4.486 9.97 9.97 0 5.484-4.486 9.97-9.97 9.97zm5.474-7.464c-.3-.15-1.774-.875-2.048-.975-.274-.1-.475-.15-.675.15s-.774.975-.95 1.175c-.174.2-.35.225-.65.075-.3-.15-1.266-.467-2.41-1.486-.887-.79-1.486-1.765-1.66-2.065-.175-.3-.018-.462.132-.612.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5.1-.2.05-.375-.025-.525-.075-.15-.675-1.625-.925-2.225-.243-.585-.49-.505-.675-.515-.175-.008-.375-.008-.575-.008-.2 0-.525.075-.8.375-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.115 3.225 5.122 4.525 2.115.914 2.87.825 3.96.675 1.09-.15 3.325-1.35 3.79-2.65.466-1.3.466-2.415.326-2.65-.14-.235-.515-.385-.815-.535z"/>
+                        </svg>
+                        WhatsApp
+                    </a>
+                    <a href="mailto:?subject={{ rawurlencode($shareSubject) }}&body={{ rawurlencode($shareBody) }}"
+                        class="inline-flex items-center px-3 py-2 bg-blue-600 border border-transparent rounded-xl font-bold text-[11px] text-white uppercase tracking-widest hover:bg-blue-700 transition-all shadow-sm" title="E-posta ile Paylaş">
+                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        E-posta
+                    </a>
                 </div>
             </div>
         </div>

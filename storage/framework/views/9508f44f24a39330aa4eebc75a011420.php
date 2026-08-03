@@ -142,7 +142,7 @@
                                 <td class="px-6 py-4">
                                     <div class="flex flex-col">
                                         <span class="text-xs font-semibold text-gray-600"><?php echo e($performer->bolum->ad ?? 'Bölüm Yok'); ?></span>
-                                        <span class="text-[10px] text-gray-400 font-medium uppercase tracking-wider"><?php echo e($performer->getRoleNames()->first() ?? 'Personel'); ?></span>
+                                        <span class="text-[10px] text-gray-400 font-medium uppercase tracking-wider"><?php echo e($performer->getPublicRoleNames()->first() ?? 'Personel'); ?></span>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-right whitespace-nowrap">

@@ -79,28 +79,7 @@ unset($__split);
 if (isset($__slots)) unset($__slots);
 ?>
 
-        <div class="mt-8">
-            <?php
-$__split = function ($name, $params = []) {
-    return [$name, $params];
-};
-[$__name, $__params] = $__split('project.plan-visit', [
-                'iaa' => $iaa, 
-                'embedded' => true, 
-                'stepId' => $currentStep['id']
-            ]);
 
-$__html = app('livewire')->mount($__name, $__params, 'lw-2634632524-1', $__slots ?? [], get_defined_vars());
-
-echo $__html;
-
-unset($__html);
-unset($__name);
-unset($__params);
-unset($__split);
-if (isset($__slots)) unset($__slots);
-?>
-        </div>
     <?php else: ?>
         
         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-r-lg shadow mt-4">

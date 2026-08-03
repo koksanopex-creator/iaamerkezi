@@ -232,7 +232,7 @@ unset($__defined_vars, $__key, $__value); ?>
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 ADIM RAPORU / İÇERİK
             </div>
-            <div class="leading-relaxed text-gray-700">
+            <div class="leading-relaxed text-gray-700 break-words">
                 <?php echo e($progressUpdate->content ?: 'Herhangi bir not girilmemiş.'); ?>
 
             </div>
@@ -264,7 +264,7 @@ unset($__defined_vars, $__key, $__value); ?>
                     <div class="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg">
                          
                          <h5 class="text-base font-semibold text-blue-800 mb-2"><?php echo e($widgetConfigDefaults['title'] ?? 'Bilgilendirme'); ?></h5>
-                        <div class="mt-1 text-sm text-blue-700 prose prose-sm max-w-none">
+                        <div class="mt-1 text-sm text-blue-700 prose prose-sm max-w-none break-words">
                            <?php echo nl2br(e($widgetConfigDefaults['content'] ?? '')); ?>
 
                         </div>
@@ -277,7 +277,7 @@ unset($__defined_vars, $__key, $__value); ?>
                          <h5 class="text-base font-semibold text-gray-800 mb-2"><?php echo e($widgetConfigDefaults['title'] ?? Str::ucfirst(str_replace('_', ' ', $widgetType))); ?></h5>
 
                          <?php if($widgetType === 'textbox'): ?>
-                         <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200">
+                         <p class="mt-1 text-gray-800 font-medium bg-gray-50 p-3 rounded-lg border border-gray-200 break-all">
                          <?php echo !empty($widgetValue['text']) ? nl2br(e($widgetValue['text'])) : '<span class="text-gray-400 italic">Girilmemiş</span>'; ?>
 
                             </p>
@@ -583,33 +583,53 @@ unset($__defined_vars, $__key, $__value); ?>
                     <div class="text-sm max-w-none">
                         <h5 class="text-base font-semibold text-gray-800 mb-3"><?php echo e($widgetConfigDefaults['title'] ?? 'Önce/Sonra Karşılaştırma'); ?></h5>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-                                <div class="flex flex-col gap-3">
+                            <div class="bg-red-50 border border-red-200 rounded-xl p-4 h-full flex flex-col">
+                                <div class="flex flex-col gap-3 h-full">
                                     <div class="flex items-center gap-2">
                                         <span class="px-2.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">ÖNCE</span>
                                     </div>
-                                    <?php if(!empty($widgetValue['before_image_path'])): ?>
-                                        <a href="<?php echo e(asset('storage/' . $widgetValue['before_image_path'])); ?>" data-fancybox="gallery-<?php echo e($step->id); ?>-<?php echo e($index); ?>" data-caption="ÖNCESİ">
-                                            <img src="<?php echo e(asset('storage/' . $widgetValue['before_image_path'])); ?>" alt="Önce" class="w-full h-48 object-cover rounded-lg border border-red-300 shadow-sm">
-                                        </a>
+                                    <?php 
+                                        $savedBefore = $widgetValue['before_images'] ?? []; 
+                                        if (empty($savedBefore) && !empty($widgetValue['before_image_path'])) {
+                                            $savedBefore = [$widgetValue['before_image_path']]; 
+                                        }
+                                    ?>
+                                    <?php if(!empty($savedBefore)): ?>
+                                        <div class="grid grid-cols-2 gap-2">
+                                        <?php $__currentLoopData = $savedBefore; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $imgPath): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <a href="<?php echo e(asset('storage/' . $imgPath)); ?>" data-fancybox="gallery-<?php echo e($step->id); ?>-<?php echo e($index); ?>" data-caption="ÖNCESİ">
+                                                <img src="<?php echo e(asset('storage/' . $imgPath)); ?>" alt="Önce" class="w-full h-32 object-cover rounded-lg border border-red-300 shadow-sm hover:opacity-90">
+                                            </a>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                        </div>
                                     <?php endif; ?>
                                     <?php if(!empty($widgetValue['before_text'])): ?>
-                                        <p class="text-gray-700 whitespace-pre-wrap"><?php echo e($widgetValue['before_text']); ?></p>
+                                        <p class="text-gray-700 whitespace-pre-wrap mt-auto pt-2 border-t border-red-200"><?php echo e($widgetValue['before_text']); ?></p>
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <div class="bg-green-50 border border-green-200 rounded-xl p-4">
-                                <div class="flex flex-col gap-3">
+                            <div class="bg-green-50 border border-green-200 rounded-xl p-4 h-full flex flex-col">
+                                <div class="flex flex-col gap-3 h-full">
                                     <div class="flex items-center gap-2">
                                         <span class="px-2.5 py-0.5 bg-green-500 text-white text-xs font-bold rounded-full">SONRA</span>
                                     </div>
-                                    <?php if(!empty($widgetValue['after_image_path'])): ?>
-                                        <a href="<?php echo e(asset('storage/' . $widgetValue['after_image_path'])); ?>" data-fancybox="gallery-<?php echo e($step->id); ?>-<?php echo e($index); ?>" data-caption="SONRASI">
-                                            <img src="<?php echo e(asset('storage/' . $widgetValue['after_image_path'])); ?>" alt="Sonra" class="w-full h-48 object-cover rounded-lg border border-green-300 shadow-sm">
-                                        </a>
+                                    <?php 
+                                        $savedAfter = $widgetValue['after_images'] ?? []; 
+                                        if (empty($savedAfter) && !empty($widgetValue['after_image_path'])) {
+                                            $savedAfter = [$widgetValue['after_image_path']]; 
+                                        }
+                                    ?>
+                                    <?php if(!empty($savedAfter)): ?>
+                                        <div class="grid grid-cols-2 gap-2">
+                                        <?php $__currentLoopData = $savedAfter; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $imgPath): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <a href="<?php echo e(asset('storage/' . $imgPath)); ?>" data-fancybox="gallery-<?php echo e($step->id); ?>-<?php echo e($index); ?>" data-caption="SONRASI">
+                                                <img src="<?php echo e(asset('storage/' . $imgPath)); ?>" alt="Sonra" class="w-full h-32 object-cover rounded-lg border border-green-300 shadow-sm hover:opacity-90">
+                                            </a>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                        </div>
                                     <?php endif; ?>
                                     <?php if(!empty($widgetValue['after_text'])): ?>
-                                        <p class="text-gray-700 whitespace-pre-wrap"><?php echo e($widgetValue['after_text']); ?></p>
+                                        <p class="text-gray-700 whitespace-pre-wrap mt-auto pt-2 border-t border-green-200"><?php echo e($widgetValue['after_text']); ?></p>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -701,6 +721,26 @@ unset($__defined_vars, $__key, $__value); ?>
     <?php endif; ?> 
 
     
+    <div class="mt-8 border-t pt-6">
+        <?php
+$__split = function ($name, $params = []) {
+    return [$name, $params];
+};
+[$__name, $__params] = $__split('project.step-tools-manager', ['stepId' => is_object($step) ? $step->id : $step['id'],'isCompleted' => true,'iaa' => $iaa,'step_id' => is_object($step) ? $step->id : $step['id'],'is_completed' => true]);
+
+$__html = app('livewire')->mount($__name, $__params, 'tools-completed-'.(is_object($step) ? $step->id : $step['id']), $__slots ?? [], get_defined_vars());
+
+echo $__html;
+
+unset($__html);
+unset($__name);
+unset($__params);
+unset($__split);
+if (isset($__slots)) unset($__slots);
+?>
+    </div>
+
+    
     <?php
         $iaaId = isset($iaa) ? (is_object($iaa) ? $iaa->id : $iaa['id']) : ($progressUpdate->iaa_talep_id ?? null);
         $stepId = isset($step) ? (is_object($step) ? $step->id : $step['id']) : ($progressUpdate->iaa_workflow_step_id ?? null);
@@ -735,7 +775,7 @@ if (isset($__slots)) unset($__slots);
 </div>
 
 
-<?php if (! $__env->hasRenderedOnce('4d55fb28-5966-4a7f-a2f7-3afbaf2fdbe3')): $__env->markAsRenderedOnce('4d55fb28-5966-4a7f-a2f7-3afbaf2fdbe3');
+<?php if (! $__env->hasRenderedOnce('a69f5bf4-27aa-4f62-88f3-f180434030dc')): $__env->markAsRenderedOnce('a69f5bf4-27aa-4f62-88f3-f180434030dc');
 $__env->startPush('scripts'); ?>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />

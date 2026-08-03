@@ -211,7 +211,7 @@
                             $beklemeSuresi = ceil($beklemeSaat / 24);
                         ?>
                         <div 
-                            class="rounded-2xl border border-gray-100 hover:border-purple-300 hover:shadow-xl bg-white transition-all duration-300 flex flex-col justify-between overflow-hidden matched-approval"
+                            class="relative rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:shadow-[0_12px_30px_-10px_rgba(147,51,234,0.15)] hover:border-purple-300 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden matched-approval group"
                             x-data="{
                                 info: {
                                     t: '<?php echo e(strtolower($sikayet->musteri_sikayet_konusu)); ?>',
@@ -235,26 +235,28 @@
                             x-transition:enter-start="opacity-0 transform scale-95"
                             x-transition:enter-end="opacity-100 transform scale-100"
                         >
-                            <div class="p-6">
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-purple-500 to-fuchsia-600 opacity-70 group-hover:opacity-100 transition-opacity"></div>
+                            
+                            <div class="p-6 pl-8">
                                 <div class="space-y-4">
                                     
                                     <div>
-                                        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Şikayet Konusu</span>
-                                        <a href="<?php echo e(route('admin.sikayetler.show', $sikayet->id)); ?>" class="text-sm font-black text-gray-900 hover:text-purple-600 transition-colors leading-tight block">
+                                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Şikayet Konusu</span>
+                                        <a href="<?php echo e(route('admin.sikayetler.show', $sikayet->id)); ?>" class="text-base font-black text-slate-800 group-hover:text-purple-600 transition-colors leading-tight block">
                                             <?php echo e($sikayet->musteri_sikayet_konusu); ?>
 
                                         </a>
                                     </div>
 
                                     
-                                    <div class="grid grid-cols-2 gap-4">
+                                    <div class="grid grid-cols-2 gap-4 bg-slate-50/70 p-3 rounded-xl border border-slate-100">
                                         <div>
-                                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Kategori</span>
-                                            <span class="text-xs font-bold text-gray-700 block"><?php echo e($sikayet->sikayetKategori->ad ?? 'Genel'); ?></span>
+                                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Kategori</span>
+                                            <span class="text-xs font-bold text-slate-700 block"><?php echo e($sikayet->sikayetKategori->ad ?? 'Genel'); ?></span>
                                         </div>
                                         <div>
-                                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Müşteri / Firma</span>
-                                            <a href="<?php echo e(route('musteri.profil.show', $sikayet->customer_id)); ?>" class="text-xs font-bold text-indigo-700 hover:text-indigo-50 block truncate transition-colors underline decoration-indigo-200 underline-offset-2">
+                                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Müşteri / Firma</span>
+                                            <a href="<?php echo e(route('musteri.profil.show', $sikayet->customer_id)); ?>" class="text-xs font-bold text-purple-700 hover:text-purple-600 block truncate transition-colors underline decoration-purple-200 underline-offset-2">
                                                 <?php echo e($sikayet->customer->firma_adi ?? $sikayet->customer->name ?? 'N/A'); ?>
 
                                             </a>
@@ -262,9 +264,9 @@
                                     </div>
 
                                     
-                                    <div class="flex items-center justify-between pt-2 border-t border-gray-50">
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-2 gap-4">
                                         <div class="flex flex-col">
-                                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Güncel Durum</span>
+                                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Güncel Durum</span>
                                             <div class="flex items-center gap-2">
                                                 <?php echo $sikayet->musteri_durum_badge; ?>
 
@@ -278,31 +280,33 @@
                                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                                     <?php echo e($beklemeSuresi); ?> GÜNDÜR ONAY BEKLİYOR
                                                 </div>
-                                                <div class="flex items-center gap-1 mt-1 text-[8px] font-medium text-gray-400 opacity-75">
-                                                    Onaya Gönderim: <?php echo e($sikayet->onaya_gonderilme_tarihi->format('d.m.Y H:i')); ?>
-
-                                                </div>
                                             <?php endif; ?>
                                         </div>
                                         <?php if($sikayet->onaylayacak_kisi): ?>
-                                            <div class="text-right">
-                                                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Onaylayacak Kişi</span>
-                                                <div class="flex items-center justify-end gap-2">
-                                                    <div class="flex flex-col items-end">
-                                                        <span class="text-xs font-bold text-gray-900 leading-none"><?php echo e($sikayet->onaylayacak_kisi->name); ?></span>
-                                                        <span class="text-[10px] text-gray-500 mt-1"><?php echo e($sikayet->onaylayacak_kisi->unvan); ?></span>
+                                            <div class="flex flex-col items-start sm:items-end w-full sm:w-auto">
+                                                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Onaylayacak Kişi</span>
+                                                <div class="flex items-center gap-2 bg-slate-50 pl-3 pr-1.5 py-1.5 rounded-full border border-slate-100">
+                                                    <div class="flex flex-col items-end text-right">
+                                                        <span class="text-[11px] font-bold text-slate-800 leading-none"><?php echo e($sikayet->onaylayacak_kisi->name); ?></span>
+                                                        <span class="text-[9px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider"><?php echo e($sikayet->onaylayacak_kisi->unvan); ?></span>
                                                     </div>
-                                                    <img src="<?php echo e($sikayet->onaylayacak_kisi->profile_photo_url); ?>" class="w-8 h-8 rounded-full border border-gray-100 shadow-sm" alt="">
+                                                    <img src="<?php echo e($sikayet->onaylayacak_kisi->profile_photo_url); ?>" class="w-7 h-7 rounded-full border border-slate-200 shadow-sm" alt="">
                                                 </div>
+                                                <?php if($sikayet->onaya_gonderilme_tarihi): ?>
+                                                    <div class="flex items-center gap-1 mt-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                                        Gönderim: <?php echo e($sikayet->onaya_gonderilme_tarihi->format('d.m.Y H:i')); ?>
+
+                                                    </div>
+                                                <?php endif; ?>
                                             </div>
                                         <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="px-6 py-4 bg-purple-50 border-t border-purple-100 flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-purple-400 uppercase tracking-widest">ONAY BEKLİYOR</span>
-                                <a href="<?php echo e($sikayet->iaa_id ? route('proje.workspace.show', $sikayet->iaa_id) : route('admin.sikayetler.show', $sikayet->id)); ?>" class="text-xs font-black text-purple-600 hover:text-purple-800 underline decoration-purple-200 underline-offset-2">İncele &rarr;</a>
+                            <div class="px-6 pl-8 py-4 bg-purple-50/80 border-t border-purple-100 flex items-center justify-between">
+                                <span class="text-[10px] font-black text-purple-600 uppercase tracking-widest">ONAY BEKLİYOR</span>
+                                <a href="<?php echo e($sikayet->iaa_id ? route('proje.workspace.show', $sikayet->iaa_id) : route('admin.sikayetler.show', $sikayet->id)); ?>" class="text-[11px] font-black text-purple-700 hover:text-purple-900 underline decoration-purple-300 hover:decoration-purple-500 underline-offset-4 transition-all">İncele &rarr;</a>
                             </div>
                         </div>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
@@ -394,7 +398,7 @@
                             ];
                         ?>
                         <div 
-                            class="rounded-2xl border border-gray-100 hover:border-blue-300 hover:shadow-xl bg-white transition-all duration-300 flex flex-col justify-between overflow-hidden sikayet-card matched-complaint group"
+                            class="relative rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:shadow-[0_12px_30px_-10px_rgba(37,99,235,0.15)] hover:border-blue-300 hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between overflow-hidden sikayet-card matched-complaint group"
                             x-data="{ 
                                 info: <?php echo e(json_encode($cardData)); ?>,
                                 isVisible() {
@@ -410,27 +414,28 @@
                             x-transition:enter-start="opacity-0 transform scale-95"
                             x-transition:enter-end="opacity-100 transform scale-100"
                         >
+                            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-500 to-indigo-600 opacity-70 group-hover:opacity-100 transition-opacity"></div>
                             
-                            <div class="p-6">
+                            <div class="p-6 pl-8">
                                 <div class="space-y-4">
                                     
                                     <div>
-                                        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Şikayet Konusu</span>
-                                        <a href="<?php echo e(route('admin.sikayetler.show', $sikayet->id)); ?>" class="text-sm font-black text-gray-900 group-hover:text-blue-600 transition-colors leading-tight block">
+                                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Şikayet Konusu</span>
+                                        <a href="<?php echo e(route('admin.sikayetler.show', $sikayet->id)); ?>" class="text-base font-black text-slate-800 group-hover:text-blue-600 transition-colors leading-tight block">
                                             <?php echo e($sikayet->musteri_sikayet_konusu); ?>
 
                                         </a>
                                     </div>
 
                                     
-                                    <div class="grid grid-cols-2 gap-4">
+                                    <div class="grid grid-cols-2 gap-4 bg-slate-50/70 p-3 rounded-xl border border-slate-100">
                                         <div>
-                                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Kategori</span>
-                                            <span class="text-xs font-bold text-gray-700 block"><?php echo e($sikayet->sikayetKategori->ad ?? 'Genel'); ?></span>
+                                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Kategori</span>
+                                            <span class="text-xs font-bold text-slate-700 block"><?php echo e($sikayet->sikayetKategori->ad ?? 'Genel'); ?></span>
                                         </div>
                                         <div>
-                                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Müşteri / Firma</span>
-                                            <a href="<?php echo e(route('musteri.profil.show', $sikayet->customer_id)); ?>" class="text-xs font-bold text-blue-700 hover:text-blue-500 block truncate transition-colors underline decoration-blue-200 underline-offset-2">
+                                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Müşteri / Firma</span>
+                                            <a href="<?php echo e(route('musteri.profil.show', $sikayet->customer_id)); ?>" class="text-xs font-bold text-blue-700 hover:text-blue-600 block truncate transition-colors underline decoration-blue-200 underline-offset-2">
                                                 <?php echo e($sikayet->customer->firma_adi ?? $sikayet->customer->name ?? 'N/A'); ?>
 
                                             </a>
@@ -438,9 +443,9 @@
                                     </div>
 
                                     
-                                    <div class="flex items-center justify-between pt-2 border-t border-gray-50">
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-2 gap-4">
                                         <div class="flex flex-col">
-                                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Güncel Durum</span>
+                                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Güncel Durum</span>
                                             <div class="flex items-center gap-2">
                                                 <?php echo $sikayet->musteri_durum_badge; ?>
 
@@ -449,18 +454,18 @@
                                                 $aktifBeklemeSaat = $sikayet->updated_at->diffInHours(now());
                                                 $aktifBeklemeSuresi = ceil($aktifBeklemeSaat / 24);
                                             ?>
-                                            <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black tracking-tight border <?php echo e($aktifBeklemeSuresi >= 5 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse shadow-sm' : 'bg-blue-50 text-blue-700 border-blue-200'); ?>">
+                                            <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black tracking-tight border <?php echo e($aktifBeklemeSuresi >= 5 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200'); ?>">
                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                                 <?php echo e($aktifBeklemeSuresi); ?> GÜNDÜR ÇÖZÜMÜNÜZÜ BEKLİYOR
                                             </div>
-                                            <div class="flex items-center gap-1 mt-1 text-[8px] font-medium text-gray-400 opacity-75">
+                                        </div>
+                                        <div class="text-left sm:text-right flex flex-col items-start sm:items-end w-full sm:w-auto">
+                                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Takım</span>
+                                            <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100"><?php echo e($squad ? $squad->ad : 'Atanmadı'); ?></span>
+                                            <div class="flex items-center gap-1 mt-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                                                 Son İşlem: <?php echo e($sikayet->updated_at->format('d.m.Y H:i')); ?>
 
                                             </div>
-                                        </div>
-                                        <div class="text-right">
-                                            <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Takım</span>
-                                            <span class="text-xs font-bold text-indigo-600"><?php echo e($squad ? $squad->ad : 'Atanmadı'); ?></span>
                                         </div>
                                     </div>
                                 </div>
@@ -468,23 +473,23 @@
 
                             
                             <?php if($workflow && $workflow['toplam'] > 0): ?>
-                                <div class="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                                <div class="px-6 pl-8 py-4 bg-slate-50/80 border-t border-slate-100">
                                     <div class="flex justify-between items-center mb-2">
-                                        <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">PROJE İLERLEME</span>
+                                        <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">PROJE İLERLEME</span>
                                         <span class="text-xs font-black text-blue-600">%<?php echo e(round($workflow['yuzde'])); ?></span>
                                     </div>
-                                    <div class="w-full bg-white rounded-full h-2 shadow-inner p-0.5 border border-gray-200">
-                                        <div class="bg-gradient-to-r from-blue-500 to-indigo-600 h-1 rounded-full transition-all duration-700 shadow-sm" style="width: <?php echo e($workflow['yuzde']); ?>%"></div>
+                                    <div class="w-full bg-slate-200/50 rounded-full h-2 shadow-inner p-0.5 border border-slate-200/50">
+                                        <div class="bg-gradient-to-r from-blue-500 via-indigo-500 to-indigo-600 h-1 rounded-full transition-all duration-700 shadow-[0_1px_4px_rgba(79,70,229,0.4)]" style="width: <?php echo e($workflow['yuzde']); ?>%"></div>
                                     </div>
-                                    <div class="mt-2 flex items-center justify-between">
-                                        <span class="text-[9px] font-bold text-gray-400 uppercase">Aktif Aşama:</span>
+                                    <div class="mt-3 flex items-center justify-between bg-white px-3 py-1.5 rounded-lg border border-slate-100 shadow-sm">
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Aktif Aşama:</span>
                                         <span class="text-[9px] font-black text-indigo-700 uppercase tracking-tight"><?php echo e($sikayet->iaaProjesi->aktif_asama_metni ?? 'İşlem Bekleniyor'); ?></span>
                                     </div>
                                 </div>
                             <?php else: ?>
-                                <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">İş Akışı Bekleniyor</span>
-                                    <a href="<?php echo e(route('admin.sikayetler.show', $sikayet->id)); ?>" class="text-[10px] font-black text-blue-600 hover:text-blue-800 underline decoration-blue-200 underline-offset-2">Süreç Başlat &rarr;</a>
+                                <div class="px-6 pl-8 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">İş Akışı Bekleniyor</span>
+                                    <a href="<?php echo e(route('admin.sikayetler.show', $sikayet->id)); ?>" class="text-[11px] font-black text-blue-600 hover:text-blue-800 underline decoration-blue-200 hover:decoration-blue-400 underline-offset-4 transition-all">Süreç Başlat &rarr;</a>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -500,7 +505,7 @@
                 </div>
             </div>
 
-            <div class="bg-gray-50 border-t border-gray-100 p-3 text-center" x-show="document.querySelectorAll('.matched-complaint').length > limit">
+            <div class="bg-gray-50 border-t border-gray-100 p-3 text-center" x-show="document.querySelectorAll('.matched-complaint').length > 4 || expanded">
                 <button type="button" @click="expanded = !expanded; limit = expanded ? 999 : 4" class="text-xs font-bold text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
                     <span x-text="expanded ? 'Gizle' : 'Tümünü Göster (' + document.querySelectorAll('.matched-complaint').length + ')' "></span>
                     <svg class="w-4 h-4 transition-transform" :class="expanded ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>

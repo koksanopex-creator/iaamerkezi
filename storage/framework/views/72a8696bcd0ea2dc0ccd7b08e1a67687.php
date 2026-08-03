@@ -273,9 +273,9 @@
         </div>
 
         <!-- TAB NAVİGASYONU -->
-        <div id="kurul-tabs" class="flex items-center gap-2 border-b border-gray-100 p-1.5 bg-white/40 backdrop-blur-md rounded-[1.5rem] w-fit shadow-lg shadow-indigo-500/5 ring-1 ring-black/5">
-            <button @click="setActiveTab('overview')" :class="activeTab === 'overview' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3 relative">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+        <div id="kurul-tabs" class="flex items-center gap-2 border-b border-gray-100 p-1.5 bg-white/40 backdrop-blur-md rounded-[1.5rem] w-full overflow-x-auto custom-scrollbar shadow-lg shadow-indigo-500/5 ring-1 ring-black/5">
+            <button @click="setActiveTab('overview')" :class="activeTab === 'overview' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="flex-1 justify-center whitespace-nowrap px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3 relative">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
                 Genel Bakış
                 <?php if($bekleyenGundemSayisi > 0): ?>
                     <span class="absolute -top-1 -right-1 flex h-3 w-3">
@@ -284,12 +284,12 @@
                     </span>
                 <?php endif; ?>
             </button>
-            <button @click="setActiveTab('members')" :class="activeTab === 'members' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354l1.1 2.226c.458.923 1.63 1.776 2.603 1.895l1.98.243c.974.12 1.258.995.632 1.623l-1.44 1.442c-.443.444-.68 1.155-.526 1.76l.342 1.983c.153.605-.516 1.246-1.12.827l-1.782-1.236c-.504-.35-1.328-.35-1.832 0l-1.782 1.236c-.604.42-1.273-.222-1.12-.827l.342-1.983c.154-.605-.083-1.216-.526-1.76l-1.44-1.442c-.626-.628-.342-1.503.632-1.623l1.98-.243c.973-.12 2.145-.972 2.603-1.895L12 4.354z"/></svg>
+            <button @click="setActiveTab('members')" :class="activeTab === 'members' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="flex-1 justify-center whitespace-nowrap px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354l1.1 2.226c.458.923 1.63 1.776 2.603 1.895l1.98.243c.974.12 1.258.995.632 1.623l-1.44 1.442c-.443.444-.68 1.155-.526 1.76l.342 1.983c.153.605-.516 1.246-1.12.827l-1.782-1.236c-.504-.35-1.328-.35-1.832 0l-1.782 1.236c-.604.42-1.273-.222-1.12-.827l.342-1.983c.154-.605-.083-1.216-.526-1.76l-1.44-1.442c-.626-.628-.342-1.503.632-1.623l1.98-.243c.973-.12 2.145-.972 2.603-1.895L12 4.354z"/></svg>
                 Üyeler & Performans
             </button>
-            <button @click="setActiveTab('meetings')" :class="activeTab === 'meetings' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3 relative">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <button @click="setActiveTab('meetings')" :class="activeTab === 'meetings' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="flex-1 justify-center whitespace-nowrap px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3 relative">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                 Toplantı Takvimi
                 <?php if($planlananToplantiSayisi > 0): ?>
                     <span class="absolute -top-1 -right-1 flex h-3 w-3">
@@ -298,12 +298,12 @@
                     </span>
                 <?php endif; ?>
             </button>
-            <button @click="setActiveTab('archive')" :class="activeTab === 'archive' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <button @click="setActiveTab('archive')" :class="activeTab === 'archive' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="flex-1 justify-center whitespace-nowrap px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Dosya Arşivi
             </button>
-            <button @click="setActiveTab('history')" :class="activeTab === 'history' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <button @click="setActiveTab('history')" :class="activeTab === 'history' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/50'" class="flex-1 justify-center whitespace-nowrap px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-3">
+                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 Üyelik Arşivi
             </button>
         </div>
@@ -312,230 +312,250 @@
         <div class="space-y-8">
             
             <!-- GENEL BAKIŞ TABI -->
-            <div x-show="activeTab === 'overview'" x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 translate-y-8" x-transition:enter-end="opacity-100 translate-y-0" class="space-y-8">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div x-show="activeTab === 'overview'" x-transition:enter="transition ease-out duration-500" x-transition:enter-start="opacity-0 translate-y-8" x-transition:enter-end="opacity-100 translate-y-0" class="space-y-12">
+                
+                <!-- SON KARARLAR (ÜST PANEL - YATAY KAYDIRMALI) -->
+                <div class="space-y-6">
+                    <h4 class="text-gray-800 font-black text-xl flex items-center gap-3 px-2">
+                        <span class="w-2 h-6 bg-gradient-to-b from-purple-400 to-purple-600 rounded-full"></span>
+                        Son Kararlar
+                    </h4>
                     
-                    <!-- YAKLAŞAN TOPLANTILAR -->
-                        <div class="lg:col-span-2 space-y-6" id="kurul-gundemi">
-                            <div class="flex items-center justify-between px-2">
-                                <h4 class="text-gray-800 font-black text-xl flex items-center gap-3">
-                                    <span class="w-2 h-6 bg-gradient-to-b from-indigo-400 to-indigo-600 rounded-full"></span>
-                                    Kurul Gündemi & Toplantı Akışı
-                                </h4>
-                                <div class="flex items-center gap-4">
-                                    
-                                    <div class="relative group">
-                                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg class="w-4 h-4 text-gray-400 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <div x-data="{
+                            scrollInterval: null,
+                            startScroll() {
+                                this.scrollInterval = setInterval(() => {
+                                    let maxScroll = this.$el.scrollWidth - this.$el.clientWidth;
+                                    if (this.$el.scrollLeft >= maxScroll - 10) {
+                                        this.$el.scrollTo({ left: 0, behavior: 'smooth' });
+                                    } else {
+                                        this.$el.scrollBy({ left: 344, behavior: 'smooth' });
+                                    }
+                                }, 3000);
+                            },
+                            stopScroll() {
+                                clearInterval(this.scrollInterval);
+                            }
+                         }"
+                         x-init="startScroll()"
+                         @mouseenter="stopScroll()"
+                         @mouseleave="startScroll()"
+                         class="flex overflow-x-auto gap-6 pb-6 custom-scrollbar snap-x scroll-smooth">
+                        <?php $__currentLoopData = $sonKararlar; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $karar): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <div class="min-w-[320px] max-w-[320px] shrink-0 snap-start bg-white p-5 rounded-3xl border border-gray-100 shadow-xl shadow-gray-500/5 hover:border-purple-200 transition-colors relative overflow-hidden group">
+                                <div class="flex items-center gap-4 relative z-10">
+                                    <div class="relative">
+                                        <div class="w-12 h-12 rounded-2xl overflow-hidden ring-4 ring-purple-50 group-hover:ring-purple-100 transition-all">
+                                            <?php if($karar->user): ?>
+                                                <img src="<?php echo e($karar->user->profile_photo_url); ?>" class="w-full h-full object-cover">
+                                            <?php else: ?>
+                                                <div class="w-full h-full bg-gray-100 flex items-center justify-center">
+                                                    <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
-                                        <input type="text" x-model="meetingSearch" placeholder="Başlık veya gündem ara..." class="block w-full sm:w-64 pl-11 pr-4 py-2 bg-white border-gray-200 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all font-bold text-xs placeholder-gray-400">
+                                        <div class="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full border-2 border-white shadow-sm"></div>
                                     </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h6 class="text-sm font-black text-gray-800 truncate"><?php echo e($karar->user->name ?? 'Silinmiş Personel'); ?></h6>
+                                        
+                                        <?php
+                                            $iMeeting = $karar->toplantilar()->where('durum', 'tamamlandı')->latest()->first();
+                                        ?>
 
-                                    <div class="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-full ring-1 ring-indigo-100">
-                                        <?php echo e($gundemItems->count()); ?> Toplam Kayıt
+                                        <?php if($iMeeting && $iMeeting->kararMaddeleri->count() > 0): ?>
+                                            <div class="mt-1 space-y-1">
+                                                <?php $__currentLoopData = $iMeeting->kararMaddeleri->take(2); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                    <p class="text-[9px] font-bold text-slate-500 line-clamp-1 flex items-center gap-1">
+                                                        <span class="w-1 h-1 bg-purple-400 rounded-full shrink-0"></span>
+                                                        <span class="truncate"><?php echo e($m->icerik); ?></span>
+                                                    </p>
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <p class="text-[9px] font-black text-purple-400 uppercase tracking-tighter truncate mt-0.5"><?php echo e($karar->behavior->tanim ?? 'Disiplin Vukuatı'); ?></p>
+                                        <?php endif; ?>
+
+                                        <div class="flex items-center gap-2 mt-3">
+                                            <span class="text-[10px] text-gray-400 font-bold font-mono"><?php echo e($karar->karar_tarihi ? $karar->karar_tarihi->format('d.m.Y') : $karar->created_at->format('d.m.Y')); ?></span>
+                                            <a href="<?php echo e(route('admin.disiplin.show', $karar)); ?>" class="text-[10px] font-black text-indigo-500 hover:text-indigo-700 underline decoration-indigo-200 underline-offset-2">Arşive Git</a>
+                                        </div>
                                     </div>
-                                    
-                                    
-                                    <div class="flex items-center gap-2">
-                                        <select x-model="meetingStatusFilter" class="bg-white border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-wider focus:ring-indigo-500 focus:border-indigo-500 py-2 pr-8 transition-all">
-                                            <option value="">TÜM DURUMLAR</option>
-                                            <option value="gündem_bekliyor">GÜNDEM BEKLEYENLER</option>
-                                            <option value="planlandı">PLANLANANLAR</option>
-                                            <option value="devam_ediyor">DEVAM EDENLER</option>
-                                            <option value="tamamlandı">TAMAMLANANLAR</option>
-                                        </select>
-                                    </div>
+                                </div>
+                                <div class="absolute right-[-10px] bottom-[-10px] opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <svg class="w-16 h-16 text-purple-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm-1-11v-3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1zm0 5v-3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1z"/></svg>
                                 </div>
                             </div>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                        <?php if($sonKararlar->isEmpty()): ?>
+                            <div class="w-full bg-gray-50/50 border border-dashed border-gray-200 p-8 rounded-3xl text-center">
+                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Henüz karar kaydı yok</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
 
-                            <div class="bg-white/70 backdrop-blur-2xl rounded-[2.5rem] border border-white/50 shadow-2xl shadow-indigo-500/5 ring-1 ring-black/[0.02] overflow-hidden">
-                                <div class="overflow-x-auto custom-scrollbar">
-                                    <table class="w-full text-left border-collapse min-w-[1000px]">
-                                        <thead>
-                                            <tr class="bg-gray-50/50 border-b border-gray-100">
-                                                <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[9px] w-12 text-center">No</th>
-                                                <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">İşlem / Gündem</th>
-                                                <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Tarih & Saat</th>
-                                                <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Tür / Lokasyon</th>
-                                                <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Sorumlu / Planlayan</th>
-                                                <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Katılımcılar</th>
-                                                <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Durum</th>
-                                                <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px] w-48 text-right">İşlemler</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-gray-50">
-                                            <?php $__empty_1 = true; $__currentLoopData = $gundemItems->whereIn('durum', ['gündem_bekliyor', 'planlandı', 'devam_ediyor']); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
-                                                <tr class="hover:bg-indigo-50/20 transition-all group" 
-                                                    x-show="(meetingSearch === '' || <?php echo e(json_encode(strtolower($t->baslik))); ?>.includes(meetingSearch.toLowerCase())) && (meetingStatusFilter === '' || '<?php echo e($t->durum); ?>' === meetingStatusFilter)">
-                                                    <td class="px-6 py-6 text-center">
-                                                        <span class="text-xs font-black text-gray-300">#<?php echo e($loop->iteration); ?></span>
-                                                    </td>
-                                                    <td class="px-5 py-6">
-                                                        <div class="font-black text-gray-800 text-base group-hover:text-indigo-600 transition-colors"><?php echo e($t->baslik); ?></div>
-                                                        <?php if($t->disiplinDosyalari->count() > 0): ?>
-                                                            <div class="text-[10px] text-indigo-400 font-black mt-1.5 flex flex-wrap items-center gap-1.5 uppercase tracking-tighter">
-                                                                <?php $__currentLoopData = $t->disiplinDosyalari; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dosya): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                                                    <div class="flex items-center gap-1 bg-indigo-50/50 px-1.5 py-0.5 rounded border border-indigo-100/50">
-                                                                        <span class="text-indigo-600">REF: #<?php echo e($dosya->id); ?></span>
-                                                                        <?php if($dosya->user): ?>
-                                                                            <span class="text-gray-400">|</span>
-                                                                            <span class="text-gray-600"><?php echo e($dosya->user->name); ?></span>
-                                                                        <?php endif; ?>
-                                                                    </div>
-                                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td class="px-5 py-6 whitespace-nowrap">
-                                                        <?php if($t->baslangic_tarihi): ?>
-                                                            <div class="text-gray-800 font-black"><?php echo e(\Carbon\Carbon::parse($t->baslangic_tarihi)->translatedFormat('d F Y')); ?></div>
-                                                            <div class="text-[11px] text-gray-400 font-bold mt-0.5"><?php echo e(\Carbon\Carbon::parse($t->baslangic_tarihi)->format('H:i')); ?></div>
-                                                        <?php else: ?>
-                                                            <span class="text-[10px] font-bold text-gray-300 italic">Atanmadı</span>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                    <td class="px-5 py-6">
-                                                        <div class="px-2 py-0.5 inline-block rounded-lg bg-gray-100 text-[10px] font-black uppercase text-gray-500 mb-1.5"><?php echo e($t->tur); ?></div>
-                                                        <div class="text-xs text-gray-800 font-medium italic flex items-center gap-1">
-                                                            <svg class="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                                            <?php echo e($t->yer ?: '-'); ?>
-
-                                                        </div>
-                                                    </td>
-                                                    <td class="px-5 py-6">
-                                                        <div class="flex items-center gap-2">
-                                                            <?php if($t->olusturan): ?>
-                                                                <img src="<?php echo e($t->olusturan->profile_photo_url); ?>" class="w-6 h-6 rounded-full border border-gray-100">
-                                                                <span class="text-[11px] font-black text-gray-700"><?php echo e($t->olusturan->name); ?></span>
-                                                            <?php else: ?>
-                                                                <div class="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100">
-                                                                    <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                                                                </div>
-                                                                <span class="text-[11px] font-black text-gray-400 italic">Sistem / Beklemede</span>
-                                                            <?php endif; ?>
-                                                        </div>
-                                                    </td>
-                                                    <td class="px-5 py-6">
-                                                        <div class="flex -space-x-3 hover:-space-x-1 transition-all duration-300">
-                                                            <?php $__empty_2 = true; $__currentLoopData = $t->katilimcilar->take(5); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $kat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_2 = false; ?>
-                                                                <?php if($kat->user): ?>
-                                                                    <img src="<?php echo e($kat->user->profile_photo_url); ?>" class="w-8 h-8 rounded-full border-2 border-white shadow-sm ring-1 ring-gray-100" title="<?php echo e($kat->user->name); ?>">
-                                                                <?php endif; ?>
-                                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_2): ?>
-                                                                <span class="text-[9px] font-bold text-gray-300 italic">-</span>
-                                                            <?php endif; ?>
-                                                            <?php if($t->katilimcilar->count() > 5): ?>
-                                                                <div class="w-8 h-8 rounded-full bg-gray-50 border-2 border-white shadow-sm flex items-center justify-center text-[8px] text-gray-500 font-black">+<?php echo e($t->katilimcilar->count() - 5); ?></div>
-                                                            <?php endif; ?>
-                                                        </div>
-                                                    </td>
-                                                    <td class="px-5 py-6">
-                                                        <?php
-                                                            $statusClasses = match($t->durum) {
-                                                                'planlandı' => 'bg-blue-50 text-blue-600 ring-blue-100',
-                                                                'devam_ediyor' => 'bg-amber-50 text-amber-600 ring-amber-200 animate-pulse',
-                                                                'tamamlandı' => 'bg-emerald-50 text-emerald-600 ring-emerald-100',
-                                                                'iptal' => 'bg-rose-50 text-rose-600 ring-rose-100',
-                                                                'gündem_bekliyor' => 'bg-gray-100 text-gray-500 ring-gray-200',
-                                                                default => 'bg-gray-50 text-gray-400 ring-gray-100'
-                                                            };
-                                                            $statusLabel = match($t->durum) {
-                                                                'planlandı' => 'PLANLANDI',
-                                                                'devam_ediyor' => 'DEVAM EDİYOR',
-                                                                'tamamlandı' => 'TAMAMLANDI',
-                                                                'iptal' => 'İPTAL EDİLDİ',
-                                                                'gündem_bekliyor' => 'GÜNDEM BEKLEYEN',
-                                                                default => strtoupper($t->durum)
-                                                            };
-                                                        ?>
-                                                        <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest ring-1 <?php echo e($statusClasses); ?>">
-                                                            <?php echo e($statusLabel); ?>
-
-                                                        </span>
-                                                    </td>
-                                                    <td class="px-5 py-6 text-right">
-                                                        <?php if($t->type === 'meeting'): ?>
-                                                            <a href="<?php echo e(route('admin.disiplin.kurul.toplanti.show', $t->original_id)); ?>" class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-50 text-gray-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm group/btn">
-                                                                <svg class="w-5 h-5 group-hover/btn:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-                                                            </a>
-                                                        <?php else: ?>
-                                                            <a href="<?php echo e(route('admin.disiplin.show', $t->original_id)); ?>" class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm group/btn">
-                                                                <svg class="w-5 h-5 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                                            </a>
-                                                        <?php endif; ?>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
-                                                <tr>
-                                                    <td colspan="8" class="px-6 py-12 text-center text-gray-400 italic font-medium">Henüz kayıtlı bir gündem veya toplantı bulunmuyor.</td>
-                                                </tr>
-                                            <?php endif; ?>
-                                        </tbody>
-                                    </table>
+                <!-- KURUL GÜNDEMİ & TOPLANTI AKIŞI (ALT PANEL) -->
+                <div class="space-y-6" id="kurul-gundemi">
+                    <div class="flex items-center justify-between px-2">
+                        <h4 class="text-gray-800 font-black text-xl flex items-center gap-3">
+                            <span class="w-2 h-6 bg-gradient-to-b from-indigo-400 to-indigo-600 rounded-full"></span>
+                            Kurul Gündemi & Toplantı Akışı
+                        </h4>
+                        <div class="flex items-center gap-4">
+                            
+                            <div class="relative group">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <svg class="w-4 h-4 text-gray-400 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                 </div>
+                                <input type="text" x-model="meetingSearch" placeholder="Başlık veya gündem ara..." class="block w-full sm:w-64 pl-11 pr-4 py-2 bg-white border-gray-200 focus:ring-2 focus:ring-indigo-500/20 rounded-xl transition-all font-bold text-xs placeholder-gray-400">
+                            </div>
+
+                            <div class="px-3 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-full ring-1 ring-indigo-100">
+                                <?php echo e($paginatedGenelBakis->total()); ?> Toplam Kayıt
+                            </div>
+                            
+                            
+                            <div class="flex items-center gap-2">
+                                <select x-model="meetingStatusFilter" class="bg-white border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-wider focus:ring-indigo-500 focus:border-indigo-500 py-2 pr-8 transition-all">
+                                    <option value="">TÜM DURUMLAR</option>
+                                    <option value="gündem_bekliyor">GÜNDEM BEKLEYENLER</option>
+                                    <option value="planlandı">PLANLANANLAR</option>
+                                    <option value="devam_ediyor">DEVAM EDENLER</option>
+                                    <option value="tamamlandı">TAMAMLANANLAR</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- SON KARARLAR (SAĞ PANEL) -->
-                    <div class="space-y-6">
-                        <h4 class="text-gray-800 font-black text-xl flex items-center gap-3 px-2">
-                            <span class="w-2 h-6 bg-gradient-to-b from-purple-400 to-purple-600 rounded-full"></span>
-                            Son Kararlar
-                        </h4>
-                        
-                        <div class="space-y-4">
-                            <?php $__currentLoopData = $sonKararlar; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $karar): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                <div class="bg-white p-4 rounded-3xl border border-gray-100 shadow-xl shadow-gray-500/5 hover:border-purple-200 transition-colors relative overflow-hidden group">
-                                    <div class="flex items-center gap-4 relative z-10">
-                                        <div class="relative">
-                                            <div class="w-12 h-12 rounded-2xl overflow-hidden ring-4 ring-purple-50 group-hover:ring-purple-100 transition-all">
-                                                <?php if($karar->user): ?>
-                                                    <img src="<?php echo e($karar->user->profile_photo_url); ?>" class="w-full h-full object-cover">
-                                                <?php else: ?>
-                                                    <div class="w-full h-full bg-gray-100 flex items-center justify-center">
-                                                        <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    <div class="bg-white/70 backdrop-blur-2xl rounded-[2.5rem] border border-white/50 shadow-2xl shadow-indigo-500/5 ring-1 ring-black/[0.02] overflow-hidden">
+                        <div class="overflow-x-auto custom-scrollbar">
+                            <table class="w-full text-left border-collapse min-w-[1000px]">
+                                <thead>
+                                    <tr class="bg-gray-50/50 border-b border-gray-100">
+                                        <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[9px] w-12 text-center">No</th>
+                                        <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">İşlem / Gündem</th>
+                                        <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Tarih & Saat</th>
+                                        <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Tür / Lokasyon</th>
+                                        <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Sorumlu / Planlayan</th>
+                                        <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Katılımcılar</th>
+                                        <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px]">Durum</th>
+                                        <th class="px-4 py-5 font-black text-gray-400 uppercase tracking-[0.2em] text-[10px] w-48 text-right">İşlemler</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    <?php $__empty_1 = true; $__currentLoopData = $paginatedGenelBakis; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                                        <tr class="hover:bg-indigo-50/20 transition-all group" 
+                                            x-show="(meetingSearch === '' || <?php echo e(json_encode(strtolower($t->baslik))); ?>.includes(meetingSearch.toLowerCase())) && (meetingStatusFilter === '' || '<?php echo e($t->durum); ?>' === meetingStatusFilter)">
+                                            <td class="px-6 py-6 text-center">
+                                                <span class="text-xs font-black text-gray-300">#<?php echo e($loop->iteration); ?></span>
+                                            </td>
+                                            <td class="px-5 py-6">
+                                                <div class="font-black text-gray-800 text-base group-hover:text-indigo-600 transition-colors"><?php echo e($t->baslik); ?></div>
+                                                <?php if($t->disiplinDosyalari->count() > 0): ?>
+                                                    <div class="text-[10px] text-indigo-400 font-black mt-1.5 flex flex-wrap items-center gap-1.5 uppercase tracking-tighter">
+                                                        <?php $__currentLoopData = $t->disiplinDosyalari; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $dosya): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                            <div class="flex items-center gap-1 bg-indigo-50/50 px-1.5 py-0.5 rounded border border-indigo-100/50">
+                                                                <span class="text-indigo-600">REF: #<?php echo e($dosya->id); ?></span>
+                                                                <?php if($dosya->user): ?>
+                                                                    <span class="text-gray-400">|</span>
+                                                                    <span class="text-gray-600"><?php echo e($dosya->user->name); ?></span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                                     </div>
                                                 <?php endif; ?>
-                                            </div>
-                                            <div class="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full border-2 border-white shadow-sm"></div>
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <h6 class="text-sm font-black text-gray-800 truncate"><?php echo e($karar->user->name ?? 'Silinmiş Personel'); ?></h6>
-                                            
-                                            <?php
-                                                $iMeeting = $karar->toplantilar()->where('durum', 'tamamlandı')->latest()->first();
-                                            ?>
+                                            </td>
+                                            <td class="px-5 py-6 whitespace-nowrap">
+                                                <?php if($t->baslangic_tarihi && $t->durum !== 'gündem_bekliyor'): ?>
+                                                    <div class="text-gray-800 font-black"><?php echo e(\Carbon\Carbon::parse($t->baslangic_tarihi)->translatedFormat('d F Y')); ?></div>
+                                                    <div class="text-[11px] text-gray-400 font-bold mt-0.5"><?php echo e(\Carbon\Carbon::parse($t->baslangic_tarihi)->format('H:i')); ?></div>
+                                                <?php else: ?>
+                                                    <span class="text-[10px] font-bold text-gray-300 italic">Atanmadı</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="px-5 py-6">
+                                                <div class="px-2 py-0.5 inline-block rounded-lg bg-gray-100 text-[10px] font-black uppercase text-gray-500 mb-1.5"><?php echo e($t->tur); ?></div>
+                                                <div class="text-xs text-gray-800 font-medium italic flex items-center gap-1">
+                                                    <svg class="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                                                    <?php echo e($t->yer ?: '-'); ?>
 
-                                            <?php if($iMeeting && $iMeeting->kararMaddeleri->count() > 0): ?>
-                                                <div class="mt-1 space-y-1">
-                                                    <?php $__currentLoopData = $iMeeting->kararMaddeleri->take(2); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                                        <p class="text-[9px] font-bold text-slate-500 line-clamp-1 flex items-center gap-1">
-                                                            <span class="w-1 h-1 bg-purple-400 rounded-full"></span>
-                                                            <?php echo e($m->icerik); ?>
-
-                                                        </p>
-                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                                 </div>
-                                            <?php else: ?>
-                                                <p class="text-[9px] font-black text-purple-400 uppercase tracking-tighter truncate mt-0.5"><?php echo e($karar->behavior->tanim ?? 'Disiplin Vukuatı'); ?></p>
-                                            <?php endif; ?>
+                                            </td>
+                                            <td class="px-5 py-6">
+                                                <div class="flex items-center gap-2">
+                                                    <?php if($t->olusturan): ?>
+                                                        <img src="<?php echo e($t->olusturan->profile_photo_url); ?>" class="w-6 h-6 rounded-full border border-gray-100">
+                                                        <span class="text-[11px] font-black text-gray-700"><?php echo e($t->olusturan->name); ?></span>
+                                                    <?php else: ?>
+                                                        <div class="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100">
+                                                            <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                                        </div>
+                                                        <span class="text-[11px] font-black text-gray-400 italic">Sistem / Beklemede</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                            <td class="px-5 py-6">
+                                                <div class="flex -space-x-3 hover:-space-x-1 transition-all duration-300">
+                                                    <?php $__empty_2 = true; $__currentLoopData = $t->katilimcilar->take(5); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $kat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_2 = false; ?>
+                                                        <?php if($kat->user): ?>
+                                                            <img src="<?php echo e($kat->user->profile_photo_url); ?>" class="w-8 h-8 rounded-full border-2 border-white shadow-sm ring-1 ring-gray-100" title="<?php echo e($kat->user->name); ?>">
+                                                        <?php endif; ?>
+                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_2): ?>
+                                                        <span class="text-[9px] font-bold text-gray-300 italic">-</span>
+                                                    <?php endif; ?>
+                                                    <?php if($t->katilimcilar->count() > 5): ?>
+                                                        <div class="w-8 h-8 rounded-full bg-gray-50 border-2 border-white shadow-sm flex items-center justify-center text-[8px] text-gray-500 font-black">+<?php echo e($t->katilimcilar->count() - 5); ?></div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                            <td class="px-5 py-6 whitespace-nowrap">
+                                                <?php
+                                                    $statusClasses = match($t->durum) {
+                                                        'planlandı' => 'bg-blue-50 text-blue-600 ring-blue-100',
+                                                        'devam_ediyor' => 'bg-amber-50 text-amber-600 ring-amber-200 animate-pulse',
+                                                        'tamamlandı' => 'bg-emerald-50 text-emerald-600 ring-emerald-100',
+                                                        'iptal' => 'bg-rose-50 text-rose-600 ring-rose-100',
+                                                        'gündem_bekliyor' => 'bg-gray-100 text-gray-500 ring-gray-200',
+                                                        default => 'bg-gray-50 text-gray-400 ring-gray-100'
+                                                    };
+                                                    $statusLabel = match($t->durum) {
+                                                        'planlandı' => 'PLANLANDI',
+                                                        'devam_ediyor' => 'DEVAM EDİYOR',
+                                                        'tamamlandı' => 'TAMAMLANDI',
+                                                        'iptal' => 'İPTAL EDİLDİ',
+                                                        'gündem_bekliyor' => 'GÜNDEM BEKLEYEN',
+                                                        default => strtoupper($t->durum)
+                                                    };
+                                                ?>
+                                                <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-widest ring-1 <?php echo e($statusClasses); ?>">
+                                                    <?php echo e($statusLabel); ?>
 
-                                            <div class="flex items-center gap-2 mt-2">
-                                                <span class="text-[10px] text-gray-400 font-bold font-mono"><?php echo e($karar->karar_tarihi ? $karar->karar_tarihi->format('d.m.Y') : $karar->created_at->format('d.m.Y')); ?></span>
-                                                <a href="<?php echo e(route('admin.disiplin.show', $karar)); ?>" class="text-[10px] font-black text-indigo-500 hover:text-indigo-700 underline decoration-indigo-200 underline-offset-2">Arşive Git</a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="absolute right-[-10px] bottom-[-10px] opacity-10 group-hover:opacity-20 transition-opacity">
-                                        <svg class="w-12 h-12 text-purple-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm-1-11v-3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1zm0 5v-3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1z"/></svg>
-                                    </div>
-                                </div>
-                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                            <?php if($sonKararlar->isEmpty()): ?>
-                                <div class="bg-gray-50/50 border border-dashed border-gray-200 p-8 rounded-3xl text-center">
-                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Henüz karar kaydı yok</p>
-                                </div>
-                            <?php endif; ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-5 py-6 text-right">
+                                                <?php if($t->type === 'meeting'): ?>
+                                                    <a href="<?php echo e(route('admin.disiplin.kurul.toplanti.show', $t->original_id)); ?>" class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-gray-50 text-gray-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm group/btn">
+                                                        <svg class="w-5 h-5 group-hover/btn:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <a href="<?php echo e(route('admin.disiplin.show', $t->original_id)); ?>" class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm group/btn">
+                                                        <svg class="w-5 h-5 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+                                        <tr>
+                                            <td colspan="8" class="px-6 py-12 text-center text-gray-400 italic font-medium">Henüz kayıtlı bir gündem veya toplantı bulunmuyor.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="p-4 border-t border-gray-100 bg-gray-50/50">
+                            <?php echo e($paginatedGenelBakis->links()); ?>
+
                         </div>
                     </div>
                 </div>
@@ -768,10 +788,7 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-50">
-                                <?php
-                                    $allMeetings = collect($yaklasanToplantılar)->merge($toplantıGecmisi)->sortByDesc('baslangic_tarihi');
-                                ?>
-                                <?php $__empty_1 = true; $__currentLoopData = $allMeetings; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                                <?php $__empty_1 = true; $__currentLoopData = $paginatedTakvim; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $t): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                                     <tr class="hover:bg-indigo-50/20 transition-all group"
                                         x-show="(meetingSearch === '' || <?php echo e(json_encode(strtolower($t->baslik))); ?>.includes(meetingSearch.toLowerCase())) && (meetingStatusFilter === '' || '<?php echo e($t->durum); ?>' === meetingStatusFilter)">
                                         <td class="px-6 py-6 text-center">
@@ -811,7 +828,7 @@
                                         </td>
                                         <td class="px-5 py-6 text-right">
                                             <div class="flex items-center justify-end gap-2">
-                                                <a href="<?php echo e(route('admin.disiplin.kurul.toplanti.show', $t)); ?>" class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-black text-white hover:bg-indigo-600 transition-all">
+                                                <a href="<?php echo e(route('admin.disiplin.kurul.toplanti.show', $t->original_id)); ?>" class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-black text-white hover:bg-indigo-600 transition-all">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                                                 </a>
                                             </div>
@@ -834,7 +851,7 @@
                         Disiplin Dosyası Arşivi
                     </h4>
                     <div class="px-4 py-1.5 bg-purple-50 text-purple-600 text-[10px] font-black uppercase tracking-widest rounded-full ring-1 ring-purple-100">
-                        <?php echo e($arsivdekiDosyalar->count()); ?> Toplam Kayıt
+                        <?php echo e($arsivdekiDosyalar->total()); ?> Toplam Kayıt
                     </div>
                 </div>
 
@@ -913,6 +930,10 @@
                                 <?php endif; ?>
                             </tbody>
                         </table>
+                    </div>
+                    <div class="p-4 border-t border-gray-100 bg-gray-50/50">
+                        <?php echo e($arsivdekiDosyalar->links()); ?>
+
                     </div>
                 </div>
             </div>

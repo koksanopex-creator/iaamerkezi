@@ -34,14 +34,51 @@
                 
                 
                 <div class="flex items-center space-x-2 border-l pl-4 ml-4 border-gray-200">
-                    <a href="<?php echo e(route('proje.export.pdf', $iaa->id)); ?>" class="inline-flex items-center px-3 py-1.5 bg-red-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:border-red-800 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm" title="PDF Raporu İndir">
-                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                        PDF
+                    <a href="<?php echo e(route('proje.export.pdf', $iaa->id)); ?>" onclick="handleDownload(event, this)" class="inline-flex items-center px-3 py-1.5 bg-red-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:border-red-800 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm" title="PDF Raporu İndir">
+                        <svg class="w-4 h-4 mr-1.5 icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        <span class="btn-text">PDF</span>
                     </a>
-                    <a href="<?php echo e(route('proje.export.excel', $iaa->id)); ?>" class="inline-flex items-center px-3 py-1.5 bg-green-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm" title="Excel Raporu İndir">
-                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Excel
+                    <a href="<?php echo e(route('proje.export.excel', $iaa->id)); ?>" onclick="handleDownload(event, this)" class="inline-flex items-center px-3 py-1.5 bg-green-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-sm" title="Excel Raporu İndir">
+                        <svg class="w-4 h-4 mr-1.5 icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span class="btn-text">Excel</span>
                     </a>
+                    
+                    <?php
+                        $isComplaint = $iaa->musteriSikayeti ? true : false;
+                        $shareMusteri = $isComplaint && $iaa->musteriSikayeti->customer ? $iaa->musteriSikayeti->customer->name : null;
+                        $shareKategori = $isComplaint && $iaa->musteriSikayeti->sikayetKategori ? $iaa->musteriSikayeti->sikayetKategori->ad : 'Genel İyileştirme Projesi';
+                        $shareBaslik = $isComplaint ? $iaa->musteriSikayeti->musteri_sikayet_konusu : $iaa->baslik;
+                        
+                        $shareTypeStr = $isComplaint ? "müşteri şikayeti" : "iyileştirme projesi (İAA)";
+                        $shareSubjectType = $isComplaint ? "Müşteri Şikayeti" : "İyileştirme Projesi";
+                        
+                        $shareSubject = $shareSubjectType . " Bilgilendirmesi: " . $shareBaslik;
+                        $shareBody = "Sayın İlgili,\n\nAşağıda detayları bulunan " . $shareTypeStr . " ile ilgili sistem üzerinden bilgilendirme sağlanmaktadır.\n\n" .
+                                     "📌 Konu: " . $shareBaslik . "\n" .
+                                     "🏢 İlgili Bölüm: " . $shareKategori . "\n";
+                        if($shareMusteri) {
+                            $shareBody .= "👥 İlgili Müşteri: " . $shareMusteri . "\n";
+                        }
+                        $shareBody .= "\nDetaylı bilgi ve inceleme için lütfen aşağıdaki sistem bağlantısını ziyaret ediniz:\n" . url()->current();
+                    ?>
+
+                    
+                    <div class="flex items-center space-x-2 border-l pl-4 ml-2 border-gray-200">
+                        <a href="https://wa.me/?text=<?php echo e(rawurlencode($shareBody)); ?>" target="_blank"
+                            class="inline-flex items-center px-3 py-1.5 bg-green-500 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-green-600 active:bg-green-700 focus:outline-none focus:border-green-700 focus:ring ring-green-300 transition ease-in-out duration-150 shadow-sm" title="WhatsApp ile Paylaş">
+                            <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.148 1.602 5.946L.141 24l6.196-1.624a11.968 11.968 0 005.694 1.43h.005c6.645 0 12.03-5.386 12.03-12.031C24 5.385 18.615 0 12.031 0zm0 21.782h-.003a9.96 9.96 0 01-5.074-1.383l-.364-.216-3.774.989.998-3.68-.237-.377a9.962 9.962 0 01-1.516-5.31C2.062 6.486 6.549 2 12.034 2c5.484 0 9.97 4.486 9.97 9.97 0 5.484-4.486 9.97-9.97 9.97zm5.474-7.464c-.3-.15-1.774-.875-2.048-.975-.274-.1-.475-.15-.675.15s-.774.975-.95 1.175c-.174.2-.35.225-.65.075-.3-.15-1.266-.467-2.41-1.486-.887-.79-1.486-1.765-1.66-2.065-.175-.3-.018-.462.132-.612.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5.1-.2.05-.375-.025-.525-.075-.15-.675-1.625-.925-2.225-.243-.585-.49-.505-.675-.515-.175-.008-.375-.008-.575-.008-.2 0-.525.075-.8.375-.275.3-1.05 1.025-1.05 2.5s1.075 2.9 1.225 3.1c.15.2 2.115 3.225 5.122 4.525 2.115.914 2.87.825 3.96.675 1.09-.15 3.325-1.35 3.79-2.65.466-1.3.466-2.415.326-2.65-.14-.235-.515-.385-.815-.535z"/>
+                            </svg>
+                            WhatsApp
+                        </a>
+                        <a href="mailto:?subject=<?php echo e(rawurlencode($shareSubject)); ?>&body=<?php echo e(rawurlencode($shareBody)); ?>"
+                            class="inline-flex items-center px-3 py-1.5 bg-blue-600 border border-transparent rounded-lg font-bold text-xs text-white uppercase tracking-widest hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:border-blue-800 focus:ring ring-blue-300 transition ease-in-out duration-150 shadow-sm" title="E-posta ile Paylaş">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                            </svg>
+                            E-posta
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -281,13 +318,13 @@
                 </div>
                 
                 <div class="p-6 md:p-8 flex flex-col sm:flex-row justify-center items-center gap-4 bg-slate-50">
-                    <a href="<?php echo e(route('proje.export.pdf', $iaa->id)); ?>" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3.5 bg-red-600 border border-transparent rounded-xl font-bold text-sm text-white tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:border-red-800 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-md">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                        PDF RAPORU İNDİR
+                    <a href="<?php echo e(route('proje.export.pdf', $iaa->id)); ?>" onclick="handleDownload(event, this)" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3.5 bg-red-600 border border-transparent rounded-xl font-bold text-sm text-white tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:border-red-800 focus:ring ring-red-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-md">
+                        <svg class="w-5 h-5 mr-2 icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        <span class="btn-text">PDF RAPORU İNDİR</span>
                     </a>
-                    <a href="<?php echo e(route('proje.export.excel', $iaa->id)); ?>" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3.5 bg-green-600 border border-transparent rounded-xl font-bold text-sm text-white tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-md">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        EXCEL VERİSİ İNDİR
+                    <a href="<?php echo e(route('proje.export.excel', $iaa->id)); ?>" onclick="handleDownload(event, this)" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3.5 bg-green-600 border border-transparent rounded-xl font-bold text-sm text-white tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:border-green-800 focus:ring ring-green-300 disabled:opacity-25 transition ease-in-out duration-150 shadow-md">
+                        <svg class="w-5 h-5 mr-2 icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span class="btn-text">EXCEL VERİSİ İNDİR</span>
                     </a>
                 </div>
             </div>
@@ -298,6 +335,39 @@
     
     <?php echo $__env->make('proje-calisma-alani.partials._scripts', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
+    <script>
+        function handleDownload(event, element) {
+            if (element.classList.contains('pointer-events-none')) {
+                event.preventDefault();
+                return;
+            }
+            
+            const originalHtml = element.innerHTML;
+            const isPdf = element.href.includes('export-pdf');
+            const isSmall = element.classList.contains('px-3');
+            
+            element.classList.add('opacity-75', 'pointer-events-none', 'cursor-not-allowed');
+            
+            const spinner = `<svg class="animate-spin ${isSmall ? 'h-4 w-4 mr-1.5' : 'h-5 w-5 mr-2'} text-white inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>`;
+            const textEl = element.querySelector('.btn-text');
+            if (textEl) {
+                textEl.innerHTML = isPdf ? (isSmall ? 'YÜKLENİYOR' : 'PDF HAZIRLANIYOR...') : (isSmall ? 'YÜKLENİYOR' : 'EXCEL HAZIRLANIYOR...');
+            }
+            
+            const svg = element.querySelector('.icon');
+            if (svg) svg.style.display = 'none';
+            element.insertAdjacentHTML('afterbegin', spinner);
+            
+            const resetBtn = () => {
+                element.classList.remove('opacity-75', 'pointer-events-none', 'cursor-not-allowed');
+                element.innerHTML = originalHtml;
+                window.removeEventListener('focus', resetBtn);
+            };
+            
+            window.addEventListener('focus', resetBtn);
+            setTimeout(resetBtn, 30000); // 30 sn timeout korumasi
+        }
+    </script>
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal9ac128a9029c0e4701924bd2d73d7f54)): ?>

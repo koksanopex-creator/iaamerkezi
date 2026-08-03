@@ -347,7 +347,14 @@ if (isset($__slots)) unset($__slots);
                                         <tbody class="divide-y divide-slate-100">
                                             <template x-for="(err, index) in routeResults" :key="index">
                                                 <tr class="hover:bg-slate-50 transition-colors">
-                                                    <td class="px-4 py-3 font-mono text-xs text-slate-600" x-text="err.file"></td>
+                                                    <td class="px-4 py-3 font-mono text-xs text-slate-600">
+                                                        <a :href="'vscode://file/' + err.absolute_path.replace(/\\/g, '/')" 
+                                                           class="hover:text-indigo-600 hover:underline flex items-center gap-1 group" 
+                                                           title="VS Code üzerinde aç">
+                                                            <svg class="w-3 h-3 text-slate-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                                            <span x-text="err.file"></span>
+                                                        </a>
+                                                    </td>
                                                     <td class="px-4 py-3 font-mono font-bold text-rose-600 bg-rose-50/30" x-text="err.route"></td>
                                                 </tr>
                                             </template>

@@ -788,7 +788,7 @@ class DashboardController extends Controller
         // --- YENİ: Aktif Oylama Uyarıları (Relevant Roles) ---
         $activeVotingCases = \App\Models\DisciplinaryCase::where('oylama_aktif', true)
             ->whereNotIn('durum', ['Karar Verildi', 'İptal Edildi', 'İptal'])
-            ->with(['user', 'behavior'])
+            ->with(['user'])
             ->get();
 
         // SSO Başvurusu Onay Bekleyenler Sayısı (Superadmin ve Bölüm Lideri için)

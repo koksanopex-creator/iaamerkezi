@@ -564,6 +564,7 @@ unset($__defined_vars, $__key, $__value); ?>
             
             
             
+            
 
             <?php if($isCompleted || $isCurrent): ?>
                 <div class="mt-8 mb-4 px-6 md:px-10 border-t border-gray-100 pt-6">

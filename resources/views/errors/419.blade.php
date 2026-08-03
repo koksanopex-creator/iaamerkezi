@@ -138,4 +138,11 @@
             </div>
         </div>
     </div>
+
+    <!-- 3 Saniye Sonra Otomatik Yönlendirme -->
+    <script>
+        setTimeout(function() {
+            window.location.href = "{{ route('login') }}";
+        }, 3000);
+    </script>
 </x-app-layout>

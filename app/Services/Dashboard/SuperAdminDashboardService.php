@@ -363,7 +363,7 @@ class SuperAdminDashboardService
 
         // 4. DİSİPLİN DOSYALARI
         if (!$tur || $tur == 'Disiplin') {
-            $disiplinler = DisciplinaryCase::with(['user.bolum', 'reporter', 'behavior'])
+            $disiplinler = DisciplinaryCase::with(['user.bolum', 'reporter'])
                 ->whereNotIn('durum', ['Karar Verildi', 'İptal Edildi', 'Taslak']);
 
             if (!$isDisiplinGlobal) {
@@ -501,7 +501,7 @@ class SuperAdminDashboardService
         $ekstraTablolar['son_tamamlanan_iaa'] = Iaa::sadeceOneriler()->where('durum', 'Tamamlandı')->with('atananTakim')->latest('updated_at')->take(10)->get();
 
         // 4. DİSİPLİN VAKALARI (YENİ)
-        $ekstraTablolar['son_disiplin_vakalari'] = DisciplinaryCase::with(['user', 'behavior'])->latest()->take(10)->get();
+        $ekstraTablolar['son_disiplin_vakalari'] = DisciplinaryCase::with(['user'])->latest()->take(10)->get();
 
         // 5. DİĞERLERİ
         $ekstraTablolar['son_yorumlar'] = ProjeYorumu::with('iaa')->latest()->take(10)->get();

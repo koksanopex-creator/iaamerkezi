@@ -78,7 +78,7 @@
 
                                             </a>
                                             <span class="text-[10px] text-gray-400 font-bold uppercase truncate">
-                                                <?php echo e(!$user->is_personnel ? 'Müşteri Temsilcisi' : ($user->unvan ?? ($user->getRoleNames()->first() ?? 'Personel'))); ?>
+                                                <?php echo e(!$user->is_personnel ? 'Müşteri Temsilcisi' : ($user->unvan ?? ($user->getPublicRoleNames()->first() ?? 'Personel'))); ?>
 
                                             </span>
 

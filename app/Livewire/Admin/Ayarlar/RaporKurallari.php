@@ -27,6 +27,10 @@ class RaporKurallari extends Component
 
     public $gunler = []; // <-- YENİ DEĞİŞKEN (Günleri tutacak dizi)
     
+    // Disiplin Kapsam ve Filtreleri
+    public $disiplin_kapsam = 'tum_veriler';
+    public $disiplin_suc_kategorileri = [];
+    
     // ALICILAR
     public $secili_roller = [];
     public $secili_users = [];
@@ -61,8 +65,10 @@ class RaporKurallari extends Component
             ->where('is_mavi_yaka', false)
             ->orderBy('name')
             ->get(); 
+            
+        $disiplinKategorileri = \App\Models\DisciplinaryCategory::orderBy('ad')->get();
 
-        return view('livewire.admin.ayarlar.rapor-kurallari', compact('roller', 'users'));
+        return view('livewire.admin.ayarlar.rapor-kurallari', compact('roller', 'users', 'disiplinKategorileri'));
     }
 
     public function yeniKural()
@@ -87,6 +93,10 @@ class RaporKurallari extends Component
         $this->secili_roller = $kural->alicilar['roller'] ?? [];
         $this->secili_users = $kural->alicilar['users'] ?? [];
         $this->harici_mailler = $kural->alicilar['emails'] ?? '';
+
+        // Disiplin Ayarları
+        $this->disiplin_kapsam = $kural->disiplin_kapsam ?? 'tum_veriler';
+        $this->disiplin_suc_kategorileri = $kural->disiplin_suc_kategorileri ?? [];
 
         // İçerikleri parse et
         // Mevcut varsayılan ayarlar ile veritabanından gelenleri birleştir
@@ -140,6 +150,8 @@ class RaporKurallari extends Component
                 'periyot' => $this->periyot,
                 'gonderim_saati' => $this->gonderim_saati,
                 'gunler' => $kaydedilecekGunler, // <-- BURAYA EKLENDİ
+                'disiplin_kapsam' => $this->disiplin_kapsam,
+                'disiplin_suc_kategorileri' => empty($this->disiplin_suc_kategorileri) ? null : $this->disiplin_suc_kategorileri,
                 'alicilar' => $alicilarData,
                 'icerik_ayarlari' => $this->icerik,
             ]);
@@ -151,6 +163,8 @@ class RaporKurallari extends Component
                 'periyot' => $this->periyot,
                 'gonderim_saati' => $this->gonderim_saati,
                 'gunler' => $kaydedilecekGunler, // <-- BURAYA EKLENDİ
+                'disiplin_kapsam' => $this->disiplin_kapsam,
+                'disiplin_suc_kategorileri' => empty($this->disiplin_suc_kategorileri) ? null : $this->disiplin_suc_kategorileri,
                 'alicilar' => $alicilarData,
                 'icerik_ayarlari' => $this->icerik,
             ]);
@@ -171,9 +185,7 @@ class RaporKurallari extends Component
     {
         $kural = RaporKurali::findOrFail($id);
         
-        // 1. Verileri Topla
-        $servis = new RaporVeriServisi();
-        $raporData = $servis->verileriTopla($kural->icerik_ayarlari ?? []);
+        // Veri toplama işlemi döngü içine taşındığı için buradan kaldırıldı.
 
         // 2. Alıcı Listesini Oluştur
         $alicilar = collect();
@@ -209,7 +221,6 @@ class RaporKurallari extends Component
             $alicilar = $alicilar->merge($externalEmails);
         }
 
-        // Tekilleştir ve Boşları Temizle
         $alicilar = $alicilar->filter()->unique();
 
         // 3. Mail Gönder
@@ -218,10 +229,45 @@ class RaporKurallari extends Component
             return;
         }
 
+        // Eğer rapor disiplin detaylarını içeriyor ve "kendi_bolumu" seçilmişse:
+        $isDisiplinScoped = ($kural->icerik_ayarlari['disiplin_ozet'] ?? false) && $kural->disiplin_kapsam === 'kendi_bolumu';
+
         foreach ($alicilar as $email) {
             if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 try {
-                    Mail::to($email)->queue(new OtomatikYoneticiRaporu($raporData, $kural->baslik));
+                    $user = User::where('email', $email)->first();
+                    $raporIcerikData = null;
+
+                    // Eğer disiplin için kişiye özel kapsam gerekiyorsa, o kişiye özel veri oluştur
+                    if ($isDisiplinScoped && $user) {
+                        $kisiselServis = new RaporVeriServisi();
+                        $kisiselServis->setUser($user); // user set edildiği için bolum_id filtrelemesi yapılacak
+                        
+                        // Kuralda seçilen spesifik kategorileri servise iletelim
+                        if (!empty($kural->disiplin_suc_kategorileri)) {
+                            $kisiselServis->setDisiplinKategoriFiltresi($kural->disiplin_suc_kategorileri);
+                        }
+
+                        $raporIcerikData = $kisiselServis->verileriTopla($kural->icerik_ayarlari ?? []);
+                    } elseif ($user && !empty($kural->disiplin_suc_kategorileri) && ($kural->icerik_ayarlari['disiplin_ozet'] ?? false)) {
+                        // Kendi bölümü değil ama spesifik kategori filtresi varsa
+                        $kisiselServis = new RaporVeriServisi();
+                        $kisiselServis->setUser(null); // Tüm bölümler (Global)
+                        $kisiselServis->setDisiplinKategoriFiltresi($kural->disiplin_suc_kategorileri);
+                        $raporIcerikData = $kisiselServis->verileriTopla($kural->icerik_ayarlari ?? []);
+                    } else {
+                        // Global (Herkes için aynı üretilmiş olan) veri
+                        if (!isset($globalRaporData)) {
+                            $globalServis = new RaporVeriServisi();
+                            if (!empty($kural->disiplin_suc_kategorileri)) {
+                                $globalServis->setDisiplinKategoriFiltresi($kural->disiplin_suc_kategorileri);
+                            }
+                            $globalRaporData = $globalServis->verileriTopla($kural->icerik_ayarlari ?? []);
+                        }
+                        $raporIcerikData = $globalRaporData;
+                    }
+
+                    Mail::to($email)->queue(new OtomatikYoneticiRaporu($raporIcerikData, $kural->baslik));
                 } catch (\Exception $e) {
                     \Log::error("Rapor mail hatası ($email): " . $e->getMessage());
                 }
@@ -237,7 +283,7 @@ class RaporKurallari extends Component
     private function resetForm()
     {
         // 'gunler' değişkenini de sıfırlamayı unutmuyoruz
-        $this->reset(['baslik', 'periyot', 'gonderim_saati', 'gunler', 'secili_roller', 'secili_users', 'harici_mailler', 'aktifKuralId']);
+        $this->reset(['baslik', 'periyot', 'gonderim_saati', 'gunler', 'secili_roller', 'secili_users', 'harici_mailler', 'aktifKuralId', 'disiplin_kapsam', 'disiplin_suc_kategorileri']);
         
         foreach($this->icerik as $key => $val) {
             $this->icerik[$key] = false;

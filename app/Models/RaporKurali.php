@@ -13,6 +13,7 @@ class RaporKurali extends Model
         'alicilar' => 'array',       // JSON veriyi otomatik diziye çevirir
         'icerik_ayarlari' => 'array',
         'gunler' => 'array', 
+        'disiplin_suc_kategorileri' => 'array',
         'aktif' => 'boolean',
         'son_gonderim_tarihi' => 'datetime',
     ];

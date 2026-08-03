@@ -405,6 +405,7 @@ Route::middleware(['auth', BlockCustomerAccess::class])->group(function ()
 
     // Raporlar (Orijinal ReportController'a geri dönüldü)
     Route::get('/admin/reports/daily-complaints', [ReportController::class, 'dailyComplaintReport'])->name('admin.reports.daily_complaints');
+    Route::get('/admin/reports/daily-disiplin', [ReportController::class, 'dailyDisiplinReport'])->name('admin.reports.daily_disiplin');
 
     // API Rotaları (Web içinde tutuyoruz çünkü Session Auth kullanıyoruz)
     Route::get('/musteriler', MusteriYonetimi::class)

@@ -266,12 +266,12 @@ unset($__errorArgs, $__bag); ?><!--[if ENDBLOCK]><![endif]-->
                                     <span class="block text-xs font-bold text-purple-700 mb-1">Şikayet Sistemi</span>
                                     <div class="space-y-2">
                                         <label class="inline-flex items-center">
-                                            <input type="checkbox" wire:model="icerik.sikayet_ozet" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
+                                            <input type="checkbox" wire:model.live="icerik.sikayet_ozet" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
                                             <span class="ml-2 text-sm text-gray-600">Genel Özet</span>
                                         </label>
                                         <br>
                                         <label class="inline-flex items-center">
-                                            <input type="checkbox" wire:model="icerik.sikayet_detay" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
+                                            <input type="checkbox" wire:model.live="icerik.sikayet_detay" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
                                             <span class="ml-2 text-sm text-gray-600">Bölüm Dağılımı</span>
                                         </label>
                                     </div>
@@ -280,12 +280,12 @@ unset($__errorArgs, $__bag); ?><!--[if ENDBLOCK]><![endif]-->
                                     <span class="block text-xs font-bold text-purple-700 mb-1">İAA Projeleri</span>
                                     <div class="space-y-2">
                                         <label class="inline-flex items-center">
-                                            <input type="checkbox" wire:model="icerik.iaa_ozet" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
+                                            <input type="checkbox" wire:model.live="icerik.iaa_ozet" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
                                             <span class="ml-2 text-sm text-gray-600">Genel Durum</span>
                                         </label>
                                         <br>
                                         <label class="inline-flex items-center">
-                                            <input type="checkbox" wire:model="icerik.iaa_havuz" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
+                                            <input type="checkbox" wire:model.live="icerik.iaa_havuz" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
                                             <span class="ml-2 text-sm text-gray-600">Havuz Bekleyen</span>
                                         </label>
                                     </div>
@@ -294,18 +294,66 @@ unset($__errorArgs, $__bag); ?><!--[if ENDBLOCK]><![endif]-->
                                     <span class="block text-xs font-bold text-purple-700 mb-1">Diğer</span>
                                     <div class="space-y-2">
                                         <label class="inline-flex items-center">
-                                            <input type="checkbox" wire:model="icerik.disiplin_ozet" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
+                                            <input type="checkbox" wire:model.live="icerik.disiplin_ozet" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
                                             <span class="ml-2 text-sm text-gray-600">Disiplin Özet</span>
                                         </label>
                                         <br>
                                         <label class="inline-flex items-center">
-                                            <input type="checkbox" wire:model="icerik.arabuluculuk_ozet" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
+                                            <input type="checkbox" wire:model.live="icerik.arabuluculuk_ozet" class="rounded border-gray-300 text-purple-600 shadow-sm focus:border-purple-300 focus:ring focus:ring-purple-200 focus:ring-opacity-50">
                                             <span class="ml-2 text-sm text-gray-600">Arabuluculuk</span>
                                         </label>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        
+                        <!--[if BLOCK]><![endif]--><?php if(!empty($icerik['disiplin_ozet']) && $icerik['disiplin_ozet'] !== 'false' && $icerik['disiplin_ozet'] !== false): ?>
+                        <hr class="my-4">
+                        <div x-data="{ 
+                            initDisiplinSelect2() {
+                                $('.select2-disiplin').select2({
+                                    placeholder: 'Tüm Suç Kategorileri (Boş bırakırsanız hepsi gider)',
+                                    width: '100%',
+                                    allowClear: true
+                                });
+                                $('#disiplin_suc_select').on('change', function (e) {
+                                    window.Livewire.find('<?php echo e($_instance->getId()); ?>').set('disiplin_suc_kategorileri', $(this).val());
+                                });
+                            }
+                        }" x-init="setTimeout(() => initDisiplinSelect2(), 50)">
+                            <h4 class="text-sm font-bold text-indigo-700 mb-2">Disiplin Raporu Özel Ayarları</h4>
+                            <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 space-y-4">
+                                
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Veri Kapsamı (Kime Ne Gidecek?)</label>
+                                    <div class="space-y-2">
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" wire:model.live="disiplin_kapsam" value="tum_veriler" class="text-indigo-600 focus:ring-indigo-500">
+                                            <span class="ml-2 text-sm text-gray-700"><strong>Tüm Veriler:</strong> Seçilen tüm alıcılara şirketin genel disiplin raporu gider. (Örn: Yönetim)</span>
+                                        </label>
+                                        <br>
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" wire:model.live="disiplin_kapsam" value="kendi_bolumu" class="text-indigo-600 focus:ring-indigo-500">
+                                            <span class="ml-2 text-sm text-gray-700"><strong>Sadece Kendi Bölümü:</strong> Alıcılara sadece <u class="font-bold">kendi bölümlerinde</u> gerçekleşen olayların raporu gider. (Örn: Bölüm Liderleri)</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                
+                                <div wire:ignore>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Suç / İhlal Kategorisi Filtresi</label>
+                                    <select id="disiplin_suc_select" multiple class="select2-disiplin mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border">
+                                        <!--[if BLOCK]><![endif]--><?php $__currentLoopData = $disiplinKategorileri; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $kat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <option value="<?php echo e($kat->id); ?>" <?php if(in_array($kat->id, $disiplin_suc_kategorileri)): echo 'selected'; endif; ?>><?php echo e($kat->ad); ?></option>
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?><!--[if ENDBLOCK]><![endif]-->
+                                    </select>
+                                    <p class="text-xs text-gray-500 mt-1">Örn: Sadece İSG ihlallerini göndermek isterseniz İSG'yi seçin. Boş bırakırsanız tüm olaylar gider.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?><!--[if ENDBLOCK]><![endif]-->
 
                     </div>
                 </div>

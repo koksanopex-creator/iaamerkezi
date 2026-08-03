@@ -50,6 +50,84 @@ class ReportController extends Controller
     }
 
     /**
+     * Günlük Disiplin Süreçleri Raporu Sayfası
+     */
+    public function dailyDisiplinReport(Request $request)
+    {
+        $user = Auth::user();
+
+        $kural_id = $request->get('kural_id');
+        $simulated_user_id = $request->get('user_id');
+
+        $seciliKural = null;
+        $simulatedUser = null;
+        $kuralAlicilari = collect();
+
+        $servis = new \App\Services\RaporVeriServisi();
+
+        $icerikAyarlari = [
+            'sikayet_ozet' => false,
+            'sikayet_detay' => false,
+            'iaa_ozet' => false,
+            'disiplin_ozet' => true,
+            'arabuluculuk_ozet' => false
+        ];
+
+        if ($kural_id) {
+            $seciliKural = \App\Models\RaporKurali::find($kural_id);
+            if ($seciliKural) {
+                // Eğer kural disiplin içeriyorsa ayarları kuraldan alabiliriz ama dashboard olduğu için sabit tutabiliriz
+                $icerikAyarlari = array_merge($icerikAyarlari, $seciliKural->icerik_ayarlari ?? []);
+                
+                // Kategorileri filtreye ekle
+                if (!empty($seciliKural->disiplin_suc_kategorileri)) {
+                    $servis->setDisiplinKategoriFiltresi($seciliKural->disiplin_suc_kategorileri);
+                }
+
+                // Alıcıları bul (simülasyon için)
+                if (!empty($seciliKural->alicilar['roller'])) {
+                    foreach ($seciliKural->alicilar['roller'] as $roleId) {
+                        $role = \Spatie\Permission\Models\Role::find($roleId);
+                        if ($role) {
+                            $kuralAlicilari = $kuralAlicilari->merge(\App\Models\User::role($role->name)->get());
+                        }
+                    }
+                }
+                if (!empty($seciliKural->alicilar['users'])) {
+                    $kuralAlicilari = $kuralAlicilari->merge(\App\Models\User::whereIn('id', $seciliKural->alicilar['users'])->get());
+                }
+                $kuralAlicilari = $kuralAlicilari->unique('id')->sortBy('name');
+                
+                if ($simulated_user_id) {
+                    $simulatedUser = \App\Models\User::find($simulated_user_id);
+                }
+            }
+        }
+
+        // Servis kullanıcısını ayarla
+        if ($seciliKural && $seciliKural->disiplin_kapsam !== 'kendi_bolumu') {
+            $servis->setUser(null); // Tüm veriler (Simülasyonda kim seçilirse seçilsin herkes aynı global veriyi görecek)
+        } elseif ($simulatedUser) {
+            $servis->setUser($simulatedUser); // Kendi bölümü seçildiyse, seçilen kişiyi taklit et
+        } else {
+            $servis->setUser($user); // Varsayılan (Mevcut giriş yapan kullanıcı)
+        }
+
+        $raporData = $servis->verileriTopla($icerikAyarlari);
+        
+        $tumKurallar = \App\Models\RaporKurali::all();
+
+        return view('admin.reports.daily-disiplin-report', [
+            'raporData' => $raporData,
+            'tarih' => now()->translatedFormat('d F Y l'),
+            'tumKurallar' => $tumKurallar,
+            'seciliKural' => $seciliKural,
+            'kuralAlicilari' => $kuralAlicilari,
+            'simulatedUser' => $simulatedUser
+        ]);
+    }
+
+    /**
      * Genel Raporlar İndeksi
      */
     public function index()

@@ -66,22 +66,12 @@ class RaporlariKontrolEt extends Command
 
             $this->info("   -> Rapor hazırlanıyor ve gönderiliyor...");
 
-            // C. Verileri Hazırla ve Gönder
-            // (Buradaki kodlarınız aynen kalacak, sadece debug ekliyoruz)
-            
-            $servis = new RaporVeriServisi();
-            $raporData = $servis->verileriTopla($kural->icerik_ayarlari ?? []);
-
+            // C. Alıcıları Topla
             $alicilar = collect();
 
-            // Alıcı toplama mantığı...
             if (!empty($kural->alicilar['roller'])) {
                 $roleIds = $kural->alicilar['roller'];
-                
-                // HATA ÇÖZÜMÜ: ID'leri Role isimlerine çeviriyoruz
-                // Çünkü User::role() fonksiyonu ID verildiğinde bazen string sanıp hata verebiliyor.
                 $roleNames = \Spatie\Permission\Models\Role::whereIn('id', (array)$roleIds)->pluck('name')->toArray();
-                
                 if (!empty($roleNames)) {
                     $users = User::role($roleNames)->get(); 
                     foreach ($users as $user) {
@@ -100,27 +90,63 @@ class RaporlariKontrolEt extends Command
                 if (is_array($rawEmails)) {
                     $external = $rawEmails;
                 } else {
-                    // Kullanıcı alt satıra geçmiş olabilir, noktalı virgül kullanmış olabilir.
-                    // Hepsini virgüle çevirip parçalıyoruz.
                     $normalized = str_replace(["\r\n", "\r", "\n", ";"], ',', $rawEmails);
                     $external = explode(',', $normalized);
                 }
                 
-                // Sağdaki soldaki boşlukları temizle (trim) ve boş olanları filtrele
                 $external = array_filter(array_map('trim', $external));
-                
                 $alicilar = $alicilar->merge($external);
             }
 
             $alicilar = $alicilar->filter()->unique();
 
+            if ($alicilar->isEmpty()) {
+                $this->warn("      -> Alıcı bulunamadı, gönderim iptal.");
+                continue;
+            }
+
+            // D. Disiplin Özel Kuralları
+            $isDisiplinScoped = ($kural->icerik_ayarlari['disiplin_ozet'] ?? false) && $kural->disiplin_kapsam === 'kendi_bolumu';
+
             foreach ($alicilar as $email) {
-                try {
-                    Mail::to($email)->queue(new OtomatikYoneticiRaporu($raporData, $kural->baslik));
-                    $this->info("      -> Mail Gönderildi: $email");
-                } catch (\Exception $e) {
-                    $this->error("      -> HATA: $email - " . $e->getMessage());
-                    Log::error("Rapor Hatası: " . $e->getMessage());
+                if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    try {
+                        $user = User::where('email', $email)->first();
+                        $raporIcerikData = null;
+
+                        // Eğer disiplin için kişiye özel kapsam gerekiyorsa, o kişiye özel veri oluştur
+                        if ($isDisiplinScoped && $user) {
+                            $kisiselServis = new RaporVeriServisi();
+                            $kisiselServis->setUser($user);
+                            
+                            if (!empty($kural->disiplin_suc_kategorileri)) {
+                                $kisiselServis->setDisiplinKategoriFiltresi($kural->disiplin_suc_kategorileri);
+                            }
+
+                            $raporIcerikData = $kisiselServis->verileriTopla($kural->icerik_ayarlari ?? []);
+                        } elseif ($user && !empty($kural->disiplin_suc_kategorileri) && ($kural->icerik_ayarlari['disiplin_ozet'] ?? false)) {
+                            $kisiselServis = new RaporVeriServisi();
+                            $kisiselServis->setUser(null); // Tüm bölümler (Global)
+                            $kisiselServis->setDisiplinKategoriFiltresi($kural->disiplin_suc_kategorileri);
+                            $raporIcerikData = $kisiselServis->verileriTopla($kural->icerik_ayarlari ?? []);
+                        } else {
+                            // Global veri
+                            if (!isset($globalRaporData)) {
+                                $globalServis = new RaporVeriServisi();
+                                if (!empty($kural->disiplin_suc_kategorileri)) {
+                                    $globalServis->setDisiplinKategoriFiltresi($kural->disiplin_suc_kategorileri);
+                                }
+                                $globalRaporData = $globalServis->verileriTopla($kural->icerik_ayarlari ?? []);
+                            }
+                            $raporIcerikData = $globalRaporData;
+                        }
+
+                        Mail::to($email)->queue(new OtomatikYoneticiRaporu($raporIcerikData, $kural->baslik));
+                        $this->info("      -> Mail Gönderildi: $email");
+                    } catch (\Exception $e) {
+                        $this->error("      -> HATA: $email - " . $e->getMessage());
+                        Log::error("Rapor Hatası: " . $e->getMessage());
+                    }
                 }
             }
 

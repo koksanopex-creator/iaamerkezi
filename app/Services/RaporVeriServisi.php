@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 class RaporVeriServisi
 {
     protected $user = null;
+    protected $disiplinKategoriFiltresi = [];
 
     // Tarih değişkenlerini sınıf özelliği olarak tanımlıyoruz (Scope hatasını önler)
     protected $bugun;
@@ -48,6 +49,15 @@ class RaporVeriServisi
     public function setUser($user)
     {
         $this->user = $user;
+        return $this;
+    }
+
+    /**
+     * Disiplin raporu için suç kategorisi (DisciplinaryCategory id) filtresini set eder.
+     */
+    public function setDisiplinKategoriFiltresi(array $kategoriler)
+    {
+        $this->disiplinKategoriFiltresi = $kategoriler;
         return $this;
     }
 
@@ -238,25 +248,102 @@ class RaporVeriServisi
 
         // --- 3. DİSİPLİN & ARABULUCULUK ---
         if (!empty($icerikAyarlari['disiplin_ozet'])) {
-            $disiplinQuery = DisciplinaryCase::query();
+            $disiplinQuery = DisciplinaryCase::query()->with(['user.bolum', 'behavior.category']);
             if ($this->shouldFilter()) {
-                $disiplinQuery->where(function($q) {
-                    $q->whereHas('user', fn($u) => $u->where('bolum_id', $this->user->bolum_id))
-                      ->orWhereHas('reporter', fn($u) => $u->where('bolum_id', $this->user->bolum_id));
+                $allowedBolumIds = $this->user->getAllowedBolumIds();
+                if ($allowedBolumIds !== '*') {
+                    if (empty($allowedBolumIds)) {
+                        $disiplinQuery->whereRaw('1 = 0'); // No access to any department
+                    } else {
+                        $disiplinQuery->whereHas('user', fn($u) => $u->whereIn('bolum_id', $allowedBolumIds));
+                    }
+                }
+            }
+            
+            if (!empty($this->disiplinKategoriFiltresi)) {
+                $disiplinQuery->whereHas('behavior', function($q) {
+                    $q->whereIn('category_id', $this->disiplinKategoriFiltresi);
                 });
             }
 
+            $cases = $disiplinQuery->get();
+
             $data['disiplin'] = [
-                'acik' => (clone $disiplinQuery)->whereNotIn('durum', ['dosya_kapatildi', 'reddedildi'])->count(),
-                'savunma' => (clone $disiplinQuery)->where('durum', 'savunma_bekleniyor')->count(),
-                'bu_ay' => (clone $disiplinQuery)->where('created_at', '>=', $this->buAyBasi)->count(),
+                'genel' => [
+                    'tum' => $this->getDisiplinStats($cases),
+                    'bu_yil' => $this->getDisiplinStats($cases, $this->buYilBasi),
+                    'bu_ay' => $this->getDisiplinStats($cases, $this->buAyBasi),
+                    'bu_hafta' => $this->getDisiplinStats($cases, $this->buHaftaBasi),
+                ],
+                'ceyrekler' => [
+                    'Q1' => $this->getDisiplinStats($cases, Carbon::now()->startOfYear(), Carbon::create(null, 3, 31)->endOfDay()),
+                    'Q2' => $this->getDisiplinStats($cases, Carbon::create(null, 4, 1)->startOfDay(), Carbon::create(null, 6, 30)->endOfDay()),
+                    'Q3' => $this->getDisiplinStats($cases, Carbon::create(null, 7, 1)->startOfDay(), Carbon::create(null, 9, 30)->endOfDay()),
+                    'Q4' => $this->getDisiplinStats($cases, Carbon::create(null, 10, 1)->startOfDay(), Carbon::now()->endOfYear()),
+                ],
+                'bolumler' => [],
+                'kategoriler' => [],
+                'yakalar' => [],
             ];
+
+            // Bölümlere göre gruplama
+            $bolumler = $cases->groupBy(function ($case) {
+                return optional(optional($case->user)->bolum)->ad ?? 'Belirtilmemiş';
+            });
+            foreach ($bolumler as $bolumAd => $bCases) {
+                $data['disiplin']['bolumler'][] = [
+                    'ad' => $bolumAd,
+                    'tum' => $this->getDisiplinStats($bCases),
+                    'bu_yil' => $this->getDisiplinStats($bCases, $this->buYilBasi),
+                    'bu_ay' => $this->getDisiplinStats($bCases, $this->buAyBasi),
+                    'bu_hafta' => $this->getDisiplinStats($bCases, $this->buHaftaBasi),
+                ];
+            }
+            // En çok dosya olana göre sırala
+            usort($data['disiplin']['bolumler'], fn($a, $b) => $b['tum']['toplam'] <=> $a['tum']['toplam']);
+
+            // Kategorilere göre gruplama
+            $kategoriler = $cases->groupBy(function ($case) {
+                return $case->settings_snapshot['category_ad'] ?? optional(optional($case->behavior)->category)->ad ?? 'Diğer';
+            });
+            foreach ($kategoriler as $katAd => $kCases) {
+                $data['disiplin']['kategoriler'][] = [
+                    'ad' => $katAd,
+                    'tum' => $this->getDisiplinStats($kCases),
+                    'bu_yil' => $this->getDisiplinStats($kCases, $this->buYilBasi),
+                    'bu_ay' => $this->getDisiplinStats($kCases, $this->buAyBasi),
+                    'bu_hafta' => $this->getDisiplinStats($kCases, $this->buHaftaBasi),
+                ];
+            }
+            usort($data['disiplin']['kategoriler'], fn($a, $b) => $b['tum']['toplam'] <=> $a['tum']['toplam']);
+
+            // Yakaya göre gruplama (Mavi/Beyaz)
+            $yakalar = $cases->groupBy(function ($case) {
+                if (!$case->user) return 'Bilinmiyor';
+                return $case->user->is_mavi_yaka ? 'Mavi Yaka' : 'Beyaz Yaka';
+            });
+            foreach ($yakalar as $yakaAd => $yCases) {
+                $data['disiplin']['yakalar'][] = [
+                    'ad' => $yakaAd,
+                    'tum' => $this->getDisiplinStats($yCases),
+                    'bu_yil' => $this->getDisiplinStats($yCases, $this->buYilBasi),
+                    'bu_ay' => $this->getDisiplinStats($yCases, $this->buAyBasi),
+                    'bu_hafta' => $this->getDisiplinStats($yCases, $this->buHaftaBasi),
+                ];
+            }
         }
 
         if (!empty($icerikAyarlari['arabuluculuk_ozet'])) {
             $arabuluculukQuery = ArabuluculukCase::query();
             if ($this->shouldFilter()) {
-                $arabuluculukQuery->whereHas('calisan', fn($u) => $u->where('bolum_id', $this->user->bolum_id));
+                $allowedBolumIds = $this->user->getAllowedBolumIds();
+                if ($allowedBolumIds !== '*') {
+                    if (empty($allowedBolumIds)) {
+                        $arabuluculukQuery->whereRaw('1 = 0');
+                    } else {
+                        $arabuluculukQuery->whereHas('calisan', fn($u) => $u->whereIn('bolum_id', $allowedBolumIds));
+                    }
+                }
             }
 
             $data['arabuluculuk'] = [
@@ -288,6 +375,26 @@ class RaporVeriServisi
         return [
             'gelen' => $queryGelen->count(),
             'biten' => $queryBiten->count(),
+        ];
+    }
+
+    private function getDisiplinStats($cases, $startDate = null, $endDate = null)
+    {
+        $filtered = $cases;
+        if ($startDate) {
+            $filtered = $filtered->where('created_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $filtered = $filtered->where('created_at', '<=', $endDate);
+        }
+        
+        return [
+            'toplam' => $filtered->where('durum', '!=', 'Taslak')->count(),
+            'acik' => $filtered->whereNotIn('durum', ['Karar Verildi', 'İptal', 'Taslak'])->count(),
+            'savunma' => $filtered->where('durum', 'Savunma Bekleniyor')->count(),
+            'yonetici' => $filtered->where('durum', 'Yönetici Değerlendirmesi')->count(),
+            'kurul' => $filtered->where('durum', 'Kurulda')->count(),
+            'kapali' => $filtered->where('durum', 'Karar Verildi')->count(),
         ];
     }
 }

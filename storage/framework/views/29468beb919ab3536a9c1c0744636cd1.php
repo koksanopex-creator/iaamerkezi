@@ -221,12 +221,12 @@
         <table class="main-table">
             <tr>
                 <td class="header">
-                    <h1>{{ $raporBasligi }}</h1>
-                    <p>{{ $tarih }} tarihli sistem durum raporudur.</p>
+                    <h1><?php echo e($raporBasligi); ?></h1>
+                    <p><?php echo e($tarih); ?> tarihli sistem durum raporudur.</p>
                 </td>
             </tr>
 
-            @if(isset($raporData['sikayet_genel']))
+            <?php if(isset($raporData['sikayet_genel'])): ?>
                 <tr>
                     <td>
                         <div class="section-title">
@@ -238,36 +238,40 @@
                                 <div class="summary-item" style="background-color: #fdf2f8; border-color: #fce7f3;">
                                     <div class="summary-label" style="color: #be185d;">Toplam</div>
                                     <div class="summary-value" style="color: #be185d;">
-                                        <a href="{{ route('admin.reports.daily_complaints') }}"
+                                        <a href="<?php echo e(route('admin.reports.daily_complaints')); ?>"
                                             style="text-decoration:none; color:inherit;">
-                                            {{ $raporData['sikayet_genel']['toplam_kayit'] }}
+                                            <?php echo e($raporData['sikayet_genel']['toplam_kayit']); ?>
+
                                         </a>
                                     </div>
                                 </div>
                                 <div class="summary-item">
                                     <div class="summary-label">Yeni</div>
                                     <div class="summary-value" style="color: #ef4444;">
-                                        <a href="{{ route('admin.reports.daily_complaints') }}"
+                                        <a href="<?php echo e(route('admin.reports.daily_complaints')); ?>"
                                             style="text-decoration:none; color:inherit;">
-                                            {{ $raporData['sikayet_genel']['bekleyen_yeni'] }}
+                                            <?php echo e($raporData['sikayet_genel']['bekleyen_yeni']); ?>
+
                                         </a>
                                     </div>
                                 </div>
                                 <div class="summary-item">
                                     <div class="summary-label">İşlemde</div>
                                     <div class="summary-value" style="color: #f59e0b;">
-                                        <a href="{{ route('admin.reports.daily_complaints') }}"
+                                        <a href="<?php echo e(route('admin.reports.daily_complaints')); ?>"
                                             style="text-decoration:none; color:inherit;">
-                                            {{ $raporData['sikayet_genel']['islemde_olan'] }}
+                                            <?php echo e($raporData['sikayet_genel']['islemde_olan']); ?>
+
                                         </a>
                                     </div>
                                 </div>
                                 <div class="summary-item">
                                     <div class="summary-label">Çözülen</div>
                                     <div class="summary-value" style="color: #10b981;">
-                                        <a href="{{ route('admin.reports.daily_complaints') }}"
+                                        <a href="<?php echo e(route('admin.reports.daily_complaints')); ?>"
                                             style="text-decoration:none; color:inherit;">
-                                            {{ $raporData['sikayet_genel']['cozumlenen'] }}
+                                            <?php echo e($raporData['sikayet_genel']['cozumlenen']); ?>
+
                                         </a>
                                     </div>
                                 </div>
@@ -284,62 +288,63 @@
                                 <tbody>
                                     <tr>
                                         <td><strong>Bugün</strong></td>
-                                        <td>{{ $raporData['sikayet_zaman']['bugun']['gelen'] }}</td>
+                                        <td><?php echo e($raporData['sikayet_zaman']['bugun']['gelen']); ?></td>
                                         <td>
-                                            {{ $raporData['sikayet_zaman']['bugun']['kapanan'] }}
-                                            @if($raporData['sikayet_zaman']['bugun']['kapanan'] > $raporData['sikayet_zaman']['bugun']['gelen'])
+                                            <?php echo e($raporData['sikayet_zaman']['bugun']['kapanan']); ?>
+
+                                            <?php if($raporData['sikayet_zaman']['bugun']['kapanan'] > $raporData['sikayet_zaman']['bugun']['gelen']): ?>
                                                 <span class="extra-info">(Geçmişten:
-                                                    +{{ $raporData['sikayet_zaman']['bugun']['kapanan'] - $raporData['sikayet_zaman']['bugun']['gelen'] }})</span>
-                                            @endif
+                                                    +<?php echo e($raporData['sikayet_zaman']['bugun']['kapanan'] - $raporData['sikayet_zaman']['bugun']['gelen']); ?>)</span>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Bu Hafta / Geçen H.</td>
-                                        <td>{{ $raporData['sikayet_zaman']['bu_hafta']['gelen'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['sikayet_zaman']['gecen_hafta']['gelen'] }}</span>
+                                        <td><?php echo e($raporData['sikayet_zaman']['bu_hafta']['gelen']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['sikayet_zaman']['gecen_hafta']['gelen']); ?></span>
                                         </td>
                                         <td>
-                                            {{ $raporData['sikayet_zaman']['bu_hafta']['kapanan'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['sikayet_zaman']['gecen_hafta']['kapanan'] }}</span>
-                                            {{-- Sadece bu hafta için fark kontrolü --}}
-                                            @if($raporData['sikayet_zaman']['bu_hafta']['kapanan'] > $raporData['sikayet_zaman']['bu_hafta']['gelen'])
+                                            <?php echo e($raporData['sikayet_zaman']['bu_hafta']['kapanan']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['sikayet_zaman']['gecen_hafta']['kapanan']); ?></span>
+                                            
+                                            <?php if($raporData['sikayet_zaman']['bu_hafta']['kapanan'] > $raporData['sikayet_zaman']['bu_hafta']['gelen']): ?>
                                                 <span class="extra-info">(Geçmişten:
-                                                    +{{ $raporData['sikayet_zaman']['bu_hafta']['kapanan'] - $raporData['sikayet_zaman']['bu_hafta']['gelen'] }})</span>
-                                            @endif
+                                                    +<?php echo e($raporData['sikayet_zaman']['bu_hafta']['kapanan'] - $raporData['sikayet_zaman']['bu_hafta']['gelen']); ?>)</span>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Bu Ay / Geçen Ay</td>
-                                        <td>{{ $raporData['sikayet_zaman']['bu_ay']['gelen'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['sikayet_zaman']['gecen_ay']['gelen'] }}</span>
+                                        <td><?php echo e($raporData['sikayet_zaman']['bu_ay']['gelen']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['sikayet_zaman']['gecen_ay']['gelen']); ?></span>
                                         </td>
                                         <td>
-                                            {{ $raporData['sikayet_zaman']['bu_ay']['kapanan'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['sikayet_zaman']['gecen_ay']['kapanan'] }}</span>
-                                            @if($raporData['sikayet_zaman']['bu_ay']['kapanan'] > $raporData['sikayet_zaman']['bu_ay']['gelen'])
+                                            <?php echo e($raporData['sikayet_zaman']['bu_ay']['kapanan']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['sikayet_zaman']['gecen_ay']['kapanan']); ?></span>
+                                            <?php if($raporData['sikayet_zaman']['bu_ay']['kapanan'] > $raporData['sikayet_zaman']['bu_ay']['gelen']): ?>
                                                 <span class="extra-info">(Geçmişten:
-                                                    +{{ $raporData['sikayet_zaman']['bu_ay']['kapanan'] - $raporData['sikayet_zaman']['bu_ay']['gelen'] }})</span>
-                                            @endif
+                                                    +<?php echo e($raporData['sikayet_zaman']['bu_ay']['kapanan'] - $raporData['sikayet_zaman']['bu_ay']['gelen']); ?>)</span>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Bu Yıl / Geçen Yıl</td>
-                                        <td>{{ $raporData['sikayet_zaman']['bu_yil']['gelen'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['sikayet_zaman']['gecen_yil']['gelen'] }}</span>
+                                        <td><?php echo e($raporData['sikayet_zaman']['bu_yil']['gelen']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['sikayet_zaman']['gecen_yil']['gelen']); ?></span>
                                         </td>
                                         <td>
-                                            {{ $raporData['sikayet_zaman']['bu_yil']['kapanan'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['sikayet_zaman']['gecen_yil']['kapanan'] }}</span>
-                                            @if($raporData['sikayet_zaman']['bu_yil']['kapanan'] > $raporData['sikayet_zaman']['bu_yil']['gelen'])
+                                            <?php echo e($raporData['sikayet_zaman']['bu_yil']['kapanan']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['sikayet_zaman']['gecen_yil']['kapanan']); ?></span>
+                                            <?php if($raporData['sikayet_zaman']['bu_yil']['kapanan'] > $raporData['sikayet_zaman']['bu_yil']['gelen']): ?>
                                                 <span class="extra-info">(Geçmişten:
-                                                    +{{ $raporData['sikayet_zaman']['bu_yil']['kapanan'] - $raporData['sikayet_zaman']['bu_yil']['gelen'] }})</span>
-                                            @endif
+                                                    +<?php echo e($raporData['sikayet_zaman']['bu_yil']['kapanan'] - $raporData['sikayet_zaman']['bu_yil']['gelen']); ?>)</span>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
 
-                            @if(isset($raporData['sikayet_ceyrekler']))
+                            <?php if(isset($raporData['sikayet_ceyrekler'])): ?>
                                 <table class="data-table" style="margin-top: 15px;">
                                     <thead>
                                         <tr>
@@ -350,33 +355,34 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($raporData['sikayet_ceyrekler'] as $key => $qData)
+                                        <?php $__currentLoopData = $raporData['sikayet_ceyrekler']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $qData): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <tr>
-                                                <td><strong>{{ date('Y') }} {{ $key }}</strong></td>
-                                                <td>{{ $qData['gelen'] }}</td>
+                                                <td><strong><?php echo e(date('Y')); ?> <?php echo e($key); ?></strong></td>
+                                                <td><?php echo e($qData['gelen']); ?></td>
                                                 <td>
-                                                    {{ $qData['kapanan'] }}
-                                                    {{-- Çeyrek bazlı geçmiş kontrolü --}}
-                                                    @if($qData['kapanan'] > $qData['gelen'])
+                                                    <?php echo e($qData['kapanan']); ?>
+
+                                                    
+                                                    <?php if($qData['kapanan'] > $qData['gelen']): ?>
                                                         <span class="extra-info" style="color:#10b981;">(Geçmişten:
-                                                            +{{ $qData['kapanan'] - $qData['gelen'] }})</span>
-                                                    @endif
+                                                            +<?php echo e($qData['kapanan'] - $qData['gelen']); ?>)</span>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    @if($qData['gelen'] > 0)
+                                                    <?php if($qData['gelen'] > 0): ?>
                                                         <span
-                                                            style="font-size:10px; color:#6b7280;">%{{ round(($qData['kapanan'] / $qData['gelen']) * 100) }}</span>
-                                                    @else
+                                                            style="font-size:10px; color:#6b7280;">%<?php echo e(round(($qData['kapanan'] / $qData['gelen']) * 100)); ?></span>
+                                                    <?php else: ?>
                                                         <span style="font-size:10px; color:#ccc;">-</span>
-                                                    @endif
+                                                    <?php endif; ?>
                                                 </td>
                                             </tr>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </tbody>
                                 </table>
-                            @endif
+                            <?php endif; ?>
 
-                            @if(isset($raporData['sikayet_bolumler']))
+                            <?php if(isset($raporData['sikayet_bolumler'])): ?>
                                 <div
                                     style="margin-top: 15px; font-weight: bold; font-size: 13px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">
                                     Kategori Bazlı Dağılım</div>
@@ -391,38 +397,40 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($raporData['sikayet_bolumler'] as $row)
+                                        <?php $__currentLoopData = $raporData['sikayet_bolumler']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $row): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <tr>
                                                 <td>
-                                                    <a href="{{ route('admin.reports.daily_complaints', ['search' => $row['kategori_adi']]) }}"
+                                                    <a href="<?php echo e(route('admin.reports.daily_complaints', ['search' => $row['kategori_adi']])); ?>"
                                                         style="text-decoration:none; color:inherit;">
-                                                        {{ $row['kategori_adi'] }}
+                                                        <?php echo e($row['kategori_adi']); ?>
+
                                                     </a>
                                                 </td>
                                                 <td style="font-weight:bold;">
-                                                    <a href="{{ route('admin.reports.daily_complaints', ['search' => $row['kategori_adi']]) }}"
+                                                    <a href="<?php echo e(route('admin.reports.daily_complaints', ['search' => $row['kategori_adi']])); ?>"
                                                         style="text-decoration:none; color:inherit;">
-                                                        {{ $row['toplam'] }}
+                                                        <?php echo e($row['toplam']); ?>
+
                                                     </a>
                                                 </td>
-                                                <td>@if($row['yeni'] > 0) <span class="badge bg-new">{{ $row['yeni'] }}</span> @else
-                                                - @endif</td>
-                                                <td>@if($row['islemde'] > 0) <span
-                                                class="badge bg-process">{{ $row['islemde'] }}</span> @else - @endif</td>
-                                                <td>@if($row['kapali'] > 0) <span class="badge bg-done">{{ $row['kapali'] }}</span>
-                                                @else - @endif</td>
+                                                <td><?php if($row['yeni'] > 0): ?> <span class="badge bg-new"><?php echo e($row['yeni']); ?></span> <?php else: ?>
+                                                - <?php endif; ?></td>
+                                                <td><?php if($row['islemde'] > 0): ?> <span
+                                                class="badge bg-process"><?php echo e($row['islemde']); ?></span> <?php else: ?> - <?php endif; ?></td>
+                                                <td><?php if($row['kapali'] > 0): ?> <span class="badge bg-done"><?php echo e($row['kapali']); ?></span>
+                                                <?php else: ?> - <?php endif; ?></td>
                                             </tr>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </tbody>
                                 </table>
-                            @endif
+                            <?php endif; ?>
 
                         </div>
                     </td>
                 </tr>
-            @endif
+            <?php endif; ?>
 
-            @if(isset($raporData['iaa_ozet']))
+            <?php if(isset($raporData['iaa_ozet'])): ?>
                 <tr>
                     <td>
                         <div class="section-title">
@@ -435,21 +443,23 @@
                                     style="background-color: #eff6ff; border-color: #dbeafe; width: 33%;">
                                     <div class="summary-label" style="color: #1e40af;">Genel Toplam Tamamlanan</div>
                                     <div class="summary-value" style="color: #1e40af;">
-                                        {{ $raporData['iaa_ozet']['genel_tamamlanan'] }} <span
+                                        <?php echo e($raporData['iaa_ozet']['genel_tamamlanan']); ?> <span
                                             style="font-size:10px; color:#93c5fd; font-weight:normal;">/
-                                            {{ $raporData['iaa_ozet']['toplam'] }}</span>
+                                            <?php echo e($raporData['iaa_ozet']['toplam']); ?></span>
                                     </div>
                                 </div>
                                 <div class="summary-item" style="width: 33%;">
                                     <div class="summary-label">Bu Yıl Tamamlanan</div>
                                     <div class="summary-value" style="color: #2563eb;">
-                                        {{ $raporData['iaa_ozet']['bu_yil_biten'] }}
+                                        <?php echo e($raporData['iaa_ozet']['bu_yil_biten']); ?>
+
                                     </div>
                                 </div>
                                 <div class="summary-item" style="width: 33%;">
                                     <div class="summary-label">Bu Ay Tamamlanan</div>
                                     <div class="summary-value" style="color: #3b82f6;">
-                                        {{ $raporData['iaa_ozet']['bu_ay_biten'] }}
+                                        <?php echo e($raporData['iaa_ozet']['bu_ay_biten']); ?>
+
                                     </div>
                                 </div>
                             </div>
@@ -459,17 +469,19 @@
                             <div class="summary-grid">
                                 <div class="summary-item" style="width: 33%;">
                                     <div class="summary-label">Havuzda</div>
-                                    <div class="summary-value">{{ $raporData['iaa_ozet']['havuz'] }}</div>
+                                    <div class="summary-value"><?php echo e($raporData['iaa_ozet']['havuz']); ?></div>
                                 </div>
                                 <div class="summary-item" style="width: 33%;">
                                     <div class="summary-label">Devam Eden</div>
-                                    <div class="summary-value" style="color: #f59e0b;">{{ $raporData['iaa_ozet']['devam'] }}
+                                    <div class="summary-value" style="color: #f59e0b;"><?php echo e($raporData['iaa_ozet']['devam']); ?>
+
                                     </div>
                                 </div>
                                 <div class="summary-item" style="width: 33%;">
                                     <div class="summary-label">Ort. Çözüm Hızı</div>
                                     <div class="summary-value" style="color: #059669; font-size: 14px;">
-                                        {{ $raporData['iaa_hiz'] }}
+                                        <?php echo e($raporData['iaa_hiz']); ?>
+
                                     </div>
                                 </div>
                             </div>
@@ -485,48 +497,48 @@
                                 <tbody>
                                     <tr>
                                         <td>Bu Hafta / Geçen H.</td>
-                                        <td>{{ $raporData['iaa_zaman']['bu_hafta']['gelen'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['iaa_zaman']['gecen_hafta']['gelen'] }}</span>
+                                        <td><?php echo e($raporData['iaa_zaman']['bu_hafta']['gelen']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['iaa_zaman']['gecen_hafta']['gelen']); ?></span>
                                         </td>
-                                        <td>{{ $raporData['iaa_zaman']['bu_hafta']['biten'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['iaa_zaman']['gecen_hafta']['biten'] }}</span>
+                                        <td><?php echo e($raporData['iaa_zaman']['bu_hafta']['biten']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['iaa_zaman']['gecen_hafta']['biten']); ?></span>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Bu Ay / Geçen Ay</td>
-                                        <td>{{ $raporData['iaa_zaman']['bu_ay']['gelen'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['iaa_zaman']['gecen_ay']['gelen'] }}</span>
+                                        <td><?php echo e($raporData['iaa_zaman']['bu_ay']['gelen']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['iaa_zaman']['gecen_ay']['gelen']); ?></span>
                                         </td>
-                                        <td>{{ $raporData['iaa_zaman']['bu_ay']['biten'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['iaa_zaman']['gecen_ay']['biten'] }}</span>
+                                        <td><?php echo e($raporData['iaa_zaman']['bu_ay']['biten']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['iaa_zaman']['gecen_ay']['biten']); ?></span>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td>Bu Yıl / Geçen Yıl</td>
-                                        <td>{{ $raporData['iaa_zaman']['bu_yil']['gelen'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['iaa_zaman']['gecen_yil']['gelen'] }}</span>
+                                        <td><?php echo e($raporData['iaa_zaman']['bu_yil']['gelen']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['iaa_zaman']['gecen_yil']['gelen']); ?></span>
                                         </td>
-                                        <td>{{ $raporData['iaa_zaman']['bu_yil']['biten'] }} / <span
-                                                style="color:#9ca3af;">{{ $raporData['iaa_zaman']['gecen_yil']['biten'] }}</span>
+                                        <td><?php echo e($raporData['iaa_zaman']['bu_yil']['biten']); ?> / <span
+                                                style="color:#9ca3af;"><?php echo e($raporData['iaa_zaman']['gecen_yil']['biten']); ?></span>
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
 
-                            @if(isset($raporData['iaa_durum_detay']) && count($raporData['iaa_durum_detay']) > 0)
+                            <?php if(isset($raporData['iaa_durum_detay']) && count($raporData['iaa_durum_detay']) > 0): ?>
                                 <div
                                     style="margin-top:15px; font-size:11px; font-weight:bold; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:5px;">
                                     Detaylı Durum Dağılımı
                                 </div>
                                 <table class="data-table">
-                                    @foreach($raporData['iaa_durum_detay'] as $durum => $sayi)
+                                    <?php $__currentLoopData = $raporData['iaa_durum_detay']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $durum => $sayi): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                         <tr>
-                                            <td>{{ $durum }}</td>
-                                            <td><strong>{{ $sayi }}</strong></td>
+                                            <td><?php echo e($durum); ?></td>
+                                            <td><strong><?php echo e($sayi); ?></strong></td>
                                         </tr>
-                                    @endforeach
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </table>
-                            @endif
+                            <?php endif; ?>
 
                             <div
                                 style="margin-top: 15px; background: #f9fafb; padding: 10px; border-radius: 6px; font-size: 11px; color: #4b5563;">
@@ -534,46 +546,49 @@
                                     <div style="flex: 1;">
                                         <div class="highlight-box">
                                             <span class="highlight-title">🏆 En Çok Öneri Veren Bölüm</span>
-                                            {{ $raporData['iaa_en_cok_bolum'] }}
+                                            <?php echo e($raporData['iaa_en_cok_bolum']); ?>
+
                                         </div>
                                     </div>
                                     <div style="flex: 1;">
                                         <div class="highlight-box"
                                             style="background-color:#fff7ed; border-color:#ffedd5; color:#9a3412;">
                                             <span class="highlight-title">🚀 En Hızlı Çözen Takım</span>
-                                            {{ $raporData['iaa_en_cok_takim'] }}
+                                            <?php echo e($raporData['iaa_en_cok_takim']); ?>
+
                                         </div>
                                     </div>
                                 </div>
-                                @if($raporData['iaa_son'])
+                                <?php if($raporData['iaa_son']): ?>
                                     <div style="border-top: 1px dashed #e5e7eb; padding-top: 5px;">
-                                        <strong>📅 Son Öneri:</strong> {{ $raporData['iaa_son']['tarih'] }}
+                                        <strong>📅 Son Öneri:</strong> <?php echo e($raporData['iaa_son']['tarih']); ?>
+
                                         <span class="badge"
-                                            style="background-color: #6b7280; font-size: 9px; padding: 1px 4px;">{{ $raporData['iaa_son']['tur'] }}</span>
+                                            style="background-color: #6b7280; font-size: 9px; padding: 1px 4px;"><?php echo e($raporData['iaa_son']['tur']); ?></span>
                                         <br>
-                                        <i>"{{ Str::limit($raporData['iaa_son']['baslik'], 50) }}"</i>
+                                        <i>"<?php echo e(Str::limit($raporData['iaa_son']['baslik'], 50)); ?>"</i>
                                     </div>
-                                @endif
+                                <?php endif; ?>
                             </div>
 
                         </div>
                     </td>
                 </tr>
-            @endif
+            <?php endif; ?>
 
-            @if(isset($raporData['disiplin']) || isset($raporData['arabuluculuk']))
+            <?php if(isset($raporData['disiplin']) || isset($raporData['arabuluculuk'])): ?>
                 <tr>
                     <td>
                         <div class="section-title">
                             <span class="dot" style="background-color: #d97706;"></span> DİĞER SÜREÇLER
                         </div>
                         <div class="content-block">
-                            @if(isset($raporData['disiplin']))
+                            <?php if(isset($raporData['disiplin'])): ?>
                                 <div style="margin-top: 5px; margin-bottom: 10px; font-weight: bold; font-size: 14px; color: #b45309; text-transform: uppercase;">
                                     Disiplin Süreçleri Raporu
                                 </div>
                                 
-                                {{-- GENEL ÖZET --}}
+                                
                                 <div style="margin-top: 10px; font-weight: bold; font-size: 13px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">
                                     Genel Özet
                                 </div>
@@ -589,60 +604,60 @@
                                     <tbody>
                                         <tr>
                                             <td><strong>Tüm Zamanlar</strong></td>
-                                            <td>{{ $raporData['disiplin']['genel']['tum']['toplam'] }}</td>
+                                            <td><?php echo e($raporData['disiplin']['genel']['tum']['toplam']); ?></td>
                                             <td>
-                                                @if($raporData['disiplin']['genel']['tum']['acik'] > 0)
-                                                    <span class="badge bg-new" style="margin-bottom:2px;">{{ $raporData['disiplin']['genel']['tum']['acik'] }} Açık</span><br>
-                                                    @if($raporData['disiplin']['genel']['tum']['savunma'] > 0)<span style="font-size:9px; color:#d97706; font-weight:bold;">↳ {{ $raporData['disiplin']['genel']['tum']['savunma'] }} Savunma</span><br>@endif
-                                                    @php $k = $raporData['disiplin']['genel']['tum']['kurul'] + $raporData['disiplin']['genel']['tum']['yonetici']; @endphp
-                                                    @if($k > 0)<span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ {{ $k }} Kurul/Yön.</span>@endif
-                                                @else - @endif
+                                                <?php if($raporData['disiplin']['genel']['tum']['acik'] > 0): ?>
+                                                    <span class="badge bg-new" style="margin-bottom:2px;"><?php echo e($raporData['disiplin']['genel']['tum']['acik']); ?> Açık</span><br>
+                                                    <?php if($raporData['disiplin']['genel']['tum']['savunma'] > 0): ?><span style="font-size:9px; color:#d97706; font-weight:bold;">↳ <?php echo e($raporData['disiplin']['genel']['tum']['savunma']); ?> Savunma</span><br><?php endif; ?>
+                                                    <?php $k = $raporData['disiplin']['genel']['tum']['kurul'] + $raporData['disiplin']['genel']['tum']['yonetici']; ?>
+                                                    <?php if($k > 0): ?><span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ <?php echo e($k); ?> Kurul/Yön.</span><?php endif; ?>
+                                                <?php else: ?> - <?php endif; ?>
                                             </td>
-                                            <td>@if($raporData['disiplin']['genel']['tum']['kapali'] > 0)<span class="badge bg-done">{{ $raporData['disiplin']['genel']['tum']['kapali'] }}</span>@else - @endif</td>
+                                            <td><?php if($raporData['disiplin']['genel']['tum']['kapali'] > 0): ?><span class="badge bg-done"><?php echo e($raporData['disiplin']['genel']['tum']['kapali']); ?></span><?php else: ?> - <?php endif; ?></td>
                                         </tr>
                                         <tr>
                                             <td>Bu Yıl</td>
-                                            <td>{{ $raporData['disiplin']['genel']['bu_yil']['toplam'] }}</td>
+                                            <td><?php echo e($raporData['disiplin']['genel']['bu_yil']['toplam']); ?></td>
                                             <td>
-                                                @if($raporData['disiplin']['genel']['bu_yil']['acik'] > 0)
-                                                    <span class="badge bg-new" style="margin-bottom:2px;">{{ $raporData['disiplin']['genel']['bu_yil']['acik'] }} Açık</span><br>
-                                                    @if($raporData['disiplin']['genel']['bu_yil']['savunma'] > 0)<span style="font-size:9px; color:#d97706; font-weight:bold;">↳ {{ $raporData['disiplin']['genel']['bu_yil']['savunma'] }} Savunma</span><br>@endif
-                                                    @php $k = $raporData['disiplin']['genel']['bu_yil']['kurul'] + $raporData['disiplin']['genel']['bu_yil']['yonetici']; @endphp
-                                                    @if($k > 0)<span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ {{ $k }} Kurul/Yön.</span>@endif
-                                                @else - @endif
+                                                <?php if($raporData['disiplin']['genel']['bu_yil']['acik'] > 0): ?>
+                                                    <span class="badge bg-new" style="margin-bottom:2px;"><?php echo e($raporData['disiplin']['genel']['bu_yil']['acik']); ?> Açık</span><br>
+                                                    <?php if($raporData['disiplin']['genel']['bu_yil']['savunma'] > 0): ?><span style="font-size:9px; color:#d97706; font-weight:bold;">↳ <?php echo e($raporData['disiplin']['genel']['bu_yil']['savunma']); ?> Savunma</span><br><?php endif; ?>
+                                                    <?php $k = $raporData['disiplin']['genel']['bu_yil']['kurul'] + $raporData['disiplin']['genel']['bu_yil']['yonetici']; ?>
+                                                    <?php if($k > 0): ?><span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ <?php echo e($k); ?> Kurul/Yön.</span><?php endif; ?>
+                                                <?php else: ?> - <?php endif; ?>
                                             </td>
-                                            <td>@if($raporData['disiplin']['genel']['bu_yil']['kapali'] > 0)<span class="badge bg-done">{{ $raporData['disiplin']['genel']['bu_yil']['kapali'] }}</span>@else - @endif</td>
+                                            <td><?php if($raporData['disiplin']['genel']['bu_yil']['kapali'] > 0): ?><span class="badge bg-done"><?php echo e($raporData['disiplin']['genel']['bu_yil']['kapali']); ?></span><?php else: ?> - <?php endif; ?></td>
                                         </tr>
                                         <tr>
                                             <td>Bu Ay</td>
-                                            <td>{{ $raporData['disiplin']['genel']['bu_ay']['toplam'] }}</td>
+                                            <td><?php echo e($raporData['disiplin']['genel']['bu_ay']['toplam']); ?></td>
                                             <td>
-                                                @if($raporData['disiplin']['genel']['bu_ay']['acik'] > 0)
-                                                    <span class="badge bg-new" style="margin-bottom:2px;">{{ $raporData['disiplin']['genel']['bu_ay']['acik'] }} Açık</span><br>
-                                                    @if($raporData['disiplin']['genel']['bu_ay']['savunma'] > 0)<span style="font-size:9px; color:#d97706; font-weight:bold;">↳ {{ $raporData['disiplin']['genel']['bu_ay']['savunma'] }} Savunma</span><br>@endif
-                                                    @php $k = $raporData['disiplin']['genel']['bu_ay']['kurul'] + $raporData['disiplin']['genel']['bu_ay']['yonetici']; @endphp
-                                                    @if($k > 0)<span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ {{ $k }} Kurul/Yön.</span>@endif
-                                                @else - @endif
+                                                <?php if($raporData['disiplin']['genel']['bu_ay']['acik'] > 0): ?>
+                                                    <span class="badge bg-new" style="margin-bottom:2px;"><?php echo e($raporData['disiplin']['genel']['bu_ay']['acik']); ?> Açık</span><br>
+                                                    <?php if($raporData['disiplin']['genel']['bu_ay']['savunma'] > 0): ?><span style="font-size:9px; color:#d97706; font-weight:bold;">↳ <?php echo e($raporData['disiplin']['genel']['bu_ay']['savunma']); ?> Savunma</span><br><?php endif; ?>
+                                                    <?php $k = $raporData['disiplin']['genel']['bu_ay']['kurul'] + $raporData['disiplin']['genel']['bu_ay']['yonetici']; ?>
+                                                    <?php if($k > 0): ?><span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ <?php echo e($k); ?> Kurul/Yön.</span><?php endif; ?>
+                                                <?php else: ?> - <?php endif; ?>
                                             </td>
-                                            <td>@if($raporData['disiplin']['genel']['bu_ay']['kapali'] > 0)<span class="badge bg-done">{{ $raporData['disiplin']['genel']['bu_ay']['kapali'] }}</span>@else - @endif</td>
+                                            <td><?php if($raporData['disiplin']['genel']['bu_ay']['kapali'] > 0): ?><span class="badge bg-done"><?php echo e($raporData['disiplin']['genel']['bu_ay']['kapali']); ?></span><?php else: ?> - <?php endif; ?></td>
                                         </tr>
                                         <tr>
                                             <td>Bu Hafta</td>
-                                            <td>{{ $raporData['disiplin']['genel']['bu_hafta']['toplam'] }}</td>
+                                            <td><?php echo e($raporData['disiplin']['genel']['bu_hafta']['toplam']); ?></td>
                                             <td>
-                                                @if($raporData['disiplin']['genel']['bu_hafta']['acik'] > 0)
-                                                    <span class="badge bg-new" style="margin-bottom:2px;">{{ $raporData['disiplin']['genel']['bu_hafta']['acik'] }} Açık</span><br>
-                                                    @if($raporData['disiplin']['genel']['bu_hafta']['savunma'] > 0)<span style="font-size:9px; color:#d97706; font-weight:bold;">↳ {{ $raporData['disiplin']['genel']['bu_hafta']['savunma'] }} Savunma</span><br>@endif
-                                                    @php $k = $raporData['disiplin']['genel']['bu_hafta']['kurul'] + $raporData['disiplin']['genel']['bu_hafta']['yonetici']; @endphp
-                                                    @if($k > 0)<span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ {{ $k }} Kurul/Yön.</span>@endif
-                                                @else - @endif
+                                                <?php if($raporData['disiplin']['genel']['bu_hafta']['acik'] > 0): ?>
+                                                    <span class="badge bg-new" style="margin-bottom:2px;"><?php echo e($raporData['disiplin']['genel']['bu_hafta']['acik']); ?> Açık</span><br>
+                                                    <?php if($raporData['disiplin']['genel']['bu_hafta']['savunma'] > 0): ?><span style="font-size:9px; color:#d97706; font-weight:bold;">↳ <?php echo e($raporData['disiplin']['genel']['bu_hafta']['savunma']); ?> Savunma</span><br><?php endif; ?>
+                                                    <?php $k = $raporData['disiplin']['genel']['bu_hafta']['kurul'] + $raporData['disiplin']['genel']['bu_hafta']['yonetici']; ?>
+                                                    <?php if($k > 0): ?><span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ <?php echo e($k); ?> Kurul/Yön.</span><?php endif; ?>
+                                                <?php else: ?> - <?php endif; ?>
                                             </td>
-                                            <td>@if($raporData['disiplin']['genel']['bu_hafta']['kapali'] > 0)<span class="badge bg-done">{{ $raporData['disiplin']['genel']['bu_hafta']['kapali'] }}</span>@else - @endif</td>
+                                            <td><?php if($raporData['disiplin']['genel']['bu_hafta']['kapali'] > 0): ?><span class="badge bg-done"><?php echo e($raporData['disiplin']['genel']['bu_hafta']['kapali']); ?></span><?php else: ?> - <?php endif; ?></td>
                                         </tr>
                                     </tbody>
                                 </table>
 
-                                @if(isset($raporData['disiplin']['ceyrekler']))
+                                <?php if(isset($raporData['disiplin']['ceyrekler'])): ?>
                                     <div style="margin-top: 15px; font-weight: bold; font-size: 13px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">
                                         Dönemsel Performans (Çeyrekler)
                                     </div>
@@ -656,26 +671,26 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach($raporData['disiplin']['ceyrekler'] as $key => $qData)
+                                            <?php $__currentLoopData = $raporData['disiplin']['ceyrekler']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $qData): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                                 <tr>
-                                                    <td><strong>{{ date('Y') }} {{ $key }}</strong></td>
-                                                    <td>{{ $qData['toplam'] }}</td>
+                                                    <td><strong><?php echo e(date('Y')); ?> <?php echo e($key); ?></strong></td>
+                                                    <td><?php echo e($qData['toplam']); ?></td>
                                                     <td>
-                                                        @if($qData['acik'] > 0)
-                                                            <span class="badge bg-new" style="margin-bottom:2px;">{{ $qData['acik'] }} Açık</span><br>
-                                                            @if($qData['savunma'] > 0)<span style="font-size:9px; color:#d97706; font-weight:bold;">↳ {{ $qData['savunma'] }} Savunma</span><br>@endif
-                                                            @php $k = $qData['kurul'] + $qData['yonetici']; @endphp
-                                                            @if($k > 0)<span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ {{ $k }} Kurul/Yön.</span>@endif
-                                                        @else - @endif
+                                                        <?php if($qData['acik'] > 0): ?>
+                                                            <span class="badge bg-new" style="margin-bottom:2px;"><?php echo e($qData['acik']); ?> Açık</span><br>
+                                                            <?php if($qData['savunma'] > 0): ?><span style="font-size:9px; color:#d97706; font-weight:bold;">↳ <?php echo e($qData['savunma']); ?> Savunma</span><br><?php endif; ?>
+                                                            <?php $k = $qData['kurul'] + $qData['yonetici']; ?>
+                                                            <?php if($k > 0): ?><span style="font-size:9px; color:#4338ca; font-weight:bold;">↳ <?php echo e($k); ?> Kurul/Yön.</span><?php endif; ?>
+                                                        <?php else: ?> - <?php endif; ?>
                                                     </td>
-                                                    <td>@if($qData['kapali'] > 0)<span class="badge bg-done">{{ $qData['kapali'] }}</span>@else - @endif</td>
+                                                    <td><?php if($qData['kapali'] > 0): ?><span class="badge bg-done"><?php echo e($qData['kapali']); ?></span><?php else: ?> - <?php endif; ?></td>
                                                 </tr>
-                                            @endforeach
+                                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                         </tbody>
                                     </table>
-                                @endif
+                                <?php endif; ?>
 
-                                {{-- BÖLÜM BAZLI DAĞILIM --}}
+                                
                                 <div style="margin-top: 15px; font-weight: bold; font-size: 13px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">
                                     Bölüm Bazlı Dağılım
                                 </div>
@@ -690,19 +705,19 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($raporData['disiplin']['bolumler'] as $bolum)
+                                        <?php $__currentLoopData = $raporData['disiplin']['bolumler']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $bolum): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <tr>
-                                                <td><strong>{{ $bolum['ad'] }}</strong></td>
-                                                <td>{{ $bolum['tum']['toplam'] }} <span style="font-size:10px;color:#ef4444;">(A:{{ $bolum['tum']['acik'] }})</span></td>
-                                                <td>{{ $bolum['bu_yil']['toplam'] }}</td>
-                                                <td>{{ $bolum['bu_ay']['toplam'] }}</td>
-                                                <td>{{ $bolum['bu_hafta']['toplam'] }}</td>
+                                                <td><strong><?php echo e($bolum['ad']); ?></strong></td>
+                                                <td><?php echo e($bolum['tum']['toplam']); ?> <span style="font-size:10px;color:#ef4444;">(A:<?php echo e($bolum['tum']['acik']); ?>)</span></td>
+                                                <td><?php echo e($bolum['bu_yil']['toplam']); ?></td>
+                                                <td><?php echo e($bolum['bu_ay']['toplam']); ?></td>
+                                                <td><?php echo e($bolum['bu_hafta']['toplam']); ?></td>
                                             </tr>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </tbody>
                                 </table>
 
-                                {{-- KATEGORİ BAZLI DAĞILIM --}}
+                                
                                 <div style="margin-top: 15px; font-weight: bold; font-size: 13px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">
                                     Suç Kategorisi Bazlı Dağılım
                                 </div>
@@ -717,19 +732,19 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($raporData['disiplin']['kategoriler'] as $kat)
+                                        <?php $__currentLoopData = $raporData['disiplin']['kategoriler']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $kat): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <tr>
-                                                <td><strong>{{ $kat['ad'] }}</strong></td>
-                                                <td>{{ $kat['tum']['toplam'] }}</td>
-                                                <td>{{ $kat['bu_yil']['toplam'] }}</td>
-                                                <td>{{ $kat['bu_ay']['toplam'] }}</td>
-                                                <td>{{ $kat['bu_hafta']['toplam'] }}</td>
+                                                <td><strong><?php echo e($kat['ad']); ?></strong></td>
+                                                <td><?php echo e($kat['tum']['toplam']); ?></td>
+                                                <td><?php echo e($kat['bu_yil']['toplam']); ?></td>
+                                                <td><?php echo e($kat['bu_ay']['toplam']); ?></td>
+                                                <td><?php echo e($kat['bu_hafta']['toplam']); ?></td>
                                             </tr>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </tbody>
                                 </table>
 
-                                {{-- YAKA BAZLI DAĞILIM --}}
+                                
                                 <div style="margin-top: 15px; font-weight: bold; font-size: 13px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px;">
                                     Yaka Bazlı Dağılım (Mavi/Beyaz)
                                 </div>
@@ -744,42 +759,43 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($raporData['disiplin']['yakalar'] as $yaka)
+                                        <?php $__currentLoopData = $raporData['disiplin']['yakalar']; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $yaka): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                             <tr>
-                                                <td><strong>{{ $yaka['ad'] }}</strong></td>
-                                                <td>{{ $yaka['tum']['toplam'] }}</td>
-                                                <td>{{ $yaka['bu_yil']['toplam'] }}</td>
-                                                <td>{{ $yaka['bu_ay']['toplam'] }}</td>
-                                                <td>{{ $yaka['bu_hafta']['toplam'] }}</td>
+                                                <td><strong><?php echo e($yaka['ad']); ?></strong></td>
+                                                <td><?php echo e($yaka['tum']['toplam']); ?></td>
+                                                <td><?php echo e($yaka['bu_yil']['toplam']); ?></td>
+                                                <td><?php echo e($yaka['bu_ay']['toplam']); ?></td>
+                                                <td><?php echo e($yaka['bu_hafta']['toplam']); ?></td>
                                             </tr>
-                                        @endforeach
+                                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </tbody>
                                 </table>
                                 
                                 <br>
-                            @endif
-                                @if(isset($raporData['arabuluculuk']))
+                            <?php endif; ?>
+                                <?php if(isset($raporData['arabuluculuk'])): ?>
                                     <tr>
                                         <td><strong>Arabuluculuk</strong></td>
                                         <td>
-                                            <span class="badge bg-blue">{{ $raporData['arabuluculuk']['aktif'] }} Aktif</span>
-                                            @if($raporData['arabuluculuk']['odeme'] > 0)
+                                            <span class="badge bg-blue"><?php echo e($raporData['arabuluculuk']['aktif']); ?> Aktif</span>
+                                            <?php if($raporData['arabuluculuk']['odeme'] > 0): ?>
                                                 <span class="badge bg-process"
-                                                    style="background-color: #d97706;">{{ $raporData['arabuluculuk']['odeme'] }}
+                                                    style="background-color: #d97706;"><?php echo e($raporData['arabuluculuk']['odeme']); ?>
+
                                                     Ödeme</span>
-                                            @endif
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
-                                @endif
+                                <?php endif; ?>
                             </table>
                         </div>
                     </td>
                 </tr>
-            @endif
+            <?php endif; ?>
 
             <tr>
                 <td class="footer">
-                    <p>© {{ date('Y') }} Köksan Portal Yönetim Sistemi</p>
+                    <p>© <?php echo e(date('Y')); ?> Köksan Portal Yönetim Sistemi</p>
                     <p>Bu rapor sistem tarafından otomatik oluşturulmuştur.</p>
                 </td>
             </tr>
@@ -787,4 +803,4 @@
     </center>
 </body>
 
-</html>
+</html><?php /**PATH C:\Users\celal.karaman\Desktop\Projelerim\iaa_projesi\resources\views/emails/raporlar/otomatik-ozet.blade.php ENDPATH**/ ?>

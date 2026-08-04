@@ -64,9 +64,12 @@
                             @endphp
 
                             @forelse($grupluKurallar as $kategoriAdi => $kategoriKurallari)
-                                <tr class="bg-gray-100">
-                                    <td colspan="5" class="px-6 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider bg-gray-50 border-y border-gray-200">
-                                        {{ $kategoriAdi }}
+                                <tr class="bg-indigo-50">
+                                    <td colspan="5" class="px-6 py-3 text-sm font-extrabold text-indigo-900 uppercase tracking-wider border-y border-indigo-200 shadow-sm">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                                            {{ $kategoriAdi }}
+                                        </div>
                                     </td>
                                 </tr>
                                 @foreach($kategoriKurallari as $kural)

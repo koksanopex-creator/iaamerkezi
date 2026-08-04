@@ -43,6 +43,14 @@
                 box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
                 z-index: 9999 !important;
             }
+            /* Scrollbar Hide */
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none; /* IE and Edge */
+                scrollbar-width: none; /* Firefox */
+            }
         </style>
     @endpush
 
@@ -93,7 +101,7 @@
                 <input type="hidden" name="active_tab_input" x-model="activeTab">
                 {{-- MODERN SEKME (TAB) MENÜSÜ --}}
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 mb-8 overflow-hidden">
-                    <nav class="flex overflow-x-auto scrollbar-hide">
+                    <nav class="flex flex-wrap">
                         
                         {{-- Tab 1: Genel --}}
                         <button type="button" @click="activeTab = 'genel'" 
@@ -133,6 +141,14 @@
                             class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                             İç Bildirimler
+                        </button>
+
+                        {{-- Tab 6: E-posta Geçmişi --}}
+                        <button type="button" @click="activeTab = 'email_log'" 
+                            :class="activeTab === 'email_log' ? 'bg-cyan-50 text-cyan-700 border-b-2 border-cyan-600' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'"
+                            class="flex-1 py-4 px-6 text-sm font-bold text-center whitespace-nowrap transition-all duration-200 flex items-center justify-center gap-2 min-w-[140px]">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76"></path></svg>
+                            E-posta Geçmişi
                         </button>
 
                         {{-- Tab 7: Otomatik Raporlar (YENİ) --}}
@@ -1106,6 +1122,26 @@
                             </div>
                             <div class="p-6">
                                 @livewire('admin.ayarlar.musteri-sikayeti-rapor-kurallari')
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- TAB 10: E-POSTA GEÇMİŞİ --}}
+                    <div x-show="activeTab === 'email_log'" x-transition:enter="transition ease-out duration-300 transform" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="bg-cyan-600 px-6 py-5 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76"></path></svg>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-xl font-bold text-white">Sistem E-posta Geçmişi</h3>
+                                        <p class="text-xs text-cyan-100 opacity-90">Sistem genelinde gönderilen tüm e-postaların kayıtları.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                @livewire('admin.ayarlar.email-log-listesi')
                             </div>
                         </div>
                     </div>

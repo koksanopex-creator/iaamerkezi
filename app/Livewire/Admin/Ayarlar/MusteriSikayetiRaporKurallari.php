@@ -225,6 +225,23 @@ class MusteriSikayetiRaporKurallari extends Component
         $this->isPreviewModalOpen = true;
     }
 
+    public function onizleme($id)
+    {
+        $kural = MusteriSikayetiYoneticiRaporKurali::findOrFail($id);
+        
+        $this->previewData = [
+            'ad' => $kural->ad,
+            'mail_konusu' => $kural->mail_konusu ?: 'Konu belirtilmemiş',
+            'mail_taslagi' => $kural->mail_taslagi ?: 'Taslak belirtilmemiş',
+            'bildirim_metni' => $kural->bildirim_metni ?: 'Metin belirtilmemiş',
+            'mail_aktif' => $kural->mail_aktif_et,
+            'zil_aktif' => $kural->zili_aktif_et,
+            'ekip_performansi' => $this->calculateEkipPerformansi($kural->rapor_kapsami),
+        ];
+        
+        $this->isPreviewModalOpen = true;
+    }
+
     public function closePreview()
     {
         $this->isPreviewModalOpen = false;

@@ -87,6 +87,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(\Illuminate\Auth\Events\Verified::class, \App\Listeners\AutoApproveVerifiedUser::class);
         // ================================================================
 
+        // === GLOBAL MAİL LOGLAMA ===
+        Event::listen(\Illuminate\Mail\Events\MessageSent::class, \App\Listeners\LogSentEmail::class);
+        // ================================================================
+
         // === GÖZLEMCİLER (OBSERVERS) ===
         MusteriSikayeti::observe(MusteriSikayetiObserver::class);
         Iaa::observe(IaaObserver::class);

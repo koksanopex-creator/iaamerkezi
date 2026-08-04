@@ -116,6 +116,9 @@
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                            <button type="button" wire:click="onizleme({{ $kural->id }})" class="text-emerald-600 hover:text-emerald-900" title="Önizleme">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                            </button>
                                             <button type="button" wire:click="manuelGonder({{ $kural->id }})" class="text-amber-600 hover:text-amber-900" title="Şimdi Gönder">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                                             </button>
@@ -383,6 +386,55 @@
                     <button type="button" wire:click="$set('isModalOpen', false)" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         İptal
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- ÖNİZLEME MODALI --}}
+    @if($isPreviewModalOpen)
+    <div class="fixed z-[1070] inset-0 overflow-y-auto" aria-labelledby="preview-modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity" aria-hidden="true" wire:click="$set('isPreviewModalOpen', false)"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full relative">
+                <div class="bg-gray-50 border-b border-gray-200 px-4 py-3 sm:px-6 flex justify-between items-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="preview-modal-title">
+                        Önizleme: {{ $previewKuralBaslik }}
+                    </h3>
+                    <button type="button" wire:click="$set('isPreviewModalOpen', false)" class="text-gray-400 hover:text-gray-500">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 max-h-[75vh] overflow-y-auto">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        {{-- Sol Kısım: Alıcılar --}}
+                        <div class="md:col-span-1 border-r border-gray-200 pr-4">
+                            <h4 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">Kimlere Gidecek?</h4>
+                            <div class="bg-gray-50 rounded p-3 text-sm text-gray-600 space-y-2 max-h-[60vh] overflow-y-auto">
+                                @forelse($previewAlicilar as $alici)
+                                    <div class="flex items-center gap-2 border-b border-gray-200 pb-1 last:border-0 last:pb-0">
+                                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                        <span class="truncate" title="{{ $alici }}">{{ $alici }}</span>
+                                    </div>
+                                @empty
+                                    <div class="text-red-500 italic">Hiç alıcı bulunamadı.</div>
+                                @endforelse
+                            </div>
+                            <div class="mt-3 text-xs text-gray-500">
+                                <strong>Toplam:</strong> {{ count($previewAlicilar) }} kişi
+                            </div>
+                        </div>
+                        
+                        {{-- Sağ Kısım: İçerik (Iframe) --}}
+                        <div class="md:col-span-3">
+                            <h4 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">İçerik Önizlemesi</h4>
+                            <div class="border border-gray-300 rounded bg-gray-50 h-[60vh] overflow-hidden relative">
+                                <iframe srcdoc="{{ htmlspecialchars($previewHtml) }}" class="w-full h-full border-0 absolute inset-0"></iframe>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

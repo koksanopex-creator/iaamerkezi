@@ -20,6 +20,13 @@ class RaporKurallari extends Component
     public $aktifKuralId = null;
     public $isModalOpen = false;
 
+    // Önizleme Modu
+    public $isPreviewModalOpen = false;
+    public $previewAlicilar = [];
+    public $previewHtml = '';
+    public $previewKuralBaslik = '';
+
+
     // Form Alanları
     public $baslik;
     public $periyot = 'gunluk';
@@ -283,10 +290,73 @@ class RaporKurallari extends Component
         session()->flash('success', 'Rapor başarıyla ' . $alicilar->count() . ' kişiye gönderildi.');
     }
 
+    public function onizleme($id)
+    {
+        $kural = RaporKurali::findOrFail($id);
+        $this->previewKuralBaslik = $kural->baslik;
+        
+        // 1. Alıcı Listesini Oluştur (manuelGonder ile aynı mantık)
+        $alicilar = collect();
+
+        if (!empty($kural->alicilar['roller'])) {
+            foreach ($kural->alicilar['roller'] as $roleId) {
+                $role = Role::find($roleId);
+                if ($role) {
+                    $usersWithRole = User::role($role->name)->get();
+                    foreach ($usersWithRole as $u) {
+                        $alicilar->push($u->email);
+                    }
+                }
+            }
+        }
+
+        if (!empty($kural->alicilar['users'])) {
+            $directUsers = User::whereIn('id', $kural->alicilar['users'])->pluck('email');
+            $alicilar = $alicilar->merge($directUsers);
+        }
+
+        if (!empty($kural->alicilar['emails'])) {
+            $external = is_array($kural->alicilar['emails']) 
+                        ? $kural->alicilar['emails'] 
+                        : explode(',', $kural->alicilar['emails']);
+            $externalEmails = array_map('trim', $external);
+            $alicilar = $alicilar->merge($externalEmails);
+        }
+
+        $alicilar = $alicilar->filter()->unique();
+        $this->previewAlicilar = $alicilar->values()->toArray();
+
+        // 2. Önizleme için verileri topla (Örnek olarak genel veri kullanıyoruz)
+        $globalServis = new RaporVeriServisi();
+        if (!empty($kural->disiplin_suc_kategorileri)) {
+            $globalServis->setDisiplinKategoriFiltresi($kural->disiplin_suc_kategorileri);
+        }
+        $raporIcerikData = $globalServis->verileriTopla($kural->icerik_ayarlari ?? []);
+
+        // Tarih oluştur
+        $simdi = now();
+        $aylar = ['January' => 'Ocak', 'February' => 'Şubat', 'March' => 'Mart', 'April' => 'Nisan', 'May' => 'Mayıs', 'June' => 'Haziran', 'July' => 'Temmuz', 'August' => 'Ağustos', 'September' => 'Eylül', 'October' => 'Ekim', 'November' => 'Kasım', 'December' => 'Aralık'];
+        $gunler = ['Monday' => 'Pazartesi', 'Tuesday' => 'Salı', 'Wednesday' => 'Çarşamba', 'Thursday' => 'Perşembe', 'Friday' => 'Cuma', 'Saturday' => 'Cumartesi', 'Sunday' => 'Pazar'];
+        $tarih = $simdi->format('d') . ' ' . $aylar[$simdi->format('F')] . ' ' . $simdi->format('Y') . ' ' . $gunler[$simdi->format('l')];
+
+        // 3. HTML çıktısını oluştur
+        try {
+            $this->previewHtml = view('emails.raporlar.otomatik-ozet', [
+                'raporData' => $raporIcerikData, 
+                'raporBasligi' => $kural->baslik,
+                'tarih' => $tarih
+            ])->render();
+        } catch (\Exception $e) {
+            $this->previewHtml = '<div style="padding:20px; color:red; font-family:sans-serif;">Önizleme oluşturulurken bir hata oluştu: ' . $e->getMessage() . '</div>';
+        }
+
+        $this->isPreviewModalOpen = true;
+    }
+
     private function resetForm()
     {
-        // 'gunler' değişkenini de sıfırlamayı unutmuyoruz
-        $this->reset(['baslik', 'periyot', 'gonderim_saati', 'gunler', 'secili_roller', 'secili_users', 'harici_mailler', 'aktifKuralId', 'disiplin_kapsam', 'disiplin_suc_kategorileri']);
+        // 'gunler' değişkenini ve önizleme değişkenlerini de sıfırlamayı unutmuyoruz
+        $this->reset(['baslik', 'periyot', 'gonderim_saati', 'gunler', 'secili_roller', 'secili_users', 'harici_mailler', 'aktifKuralId', 'disiplin_kapsam', 'disiplin_suc_kategorileri', 'isPreviewModalOpen', 'previewAlicilar', 'previewHtml', 'previewKuralBaslik']);
         
         foreach($this->icerik as $key => $val) {
             $this->icerik[$key] = false;

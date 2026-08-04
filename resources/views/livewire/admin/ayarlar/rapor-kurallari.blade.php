@@ -431,7 +431,7 @@
                         <div class="md:col-span-3">
                             <h4 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">İçerik Önizlemesi</h4>
                             <div class="border border-gray-300 rounded bg-gray-50 h-[60vh] overflow-hidden relative">
-                                <iframe srcdoc="{{ htmlspecialchars($previewHtml) }}" class="w-full h-full border-0 absolute inset-0"></iframe>
+                                <iframe srcdoc="{{ $previewHtml }}" class="w-full h-full border-0 absolute inset-0"></iframe>
                             </div>
                         </div>
                     </div>
